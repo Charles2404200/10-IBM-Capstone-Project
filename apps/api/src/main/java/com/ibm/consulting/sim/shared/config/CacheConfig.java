@@ -49,12 +49,14 @@ public class CacheConfig {
     public static final String SCENARIO_CACHE = "scenario";
     public static final String LEADS_BY_SCENARIO_CACHE = "leadsByScenario";
     public static final String PERSONA_CACHE = "persona";
+    public static final String CLIENT_INTELLIGENCE_CACHE = "clientIntelligence";
 
     @Bean
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
     public CacheManager caffeineCacheManager() {
         CaffeineCacheManager manager = new CaffeineCacheManager(
-                SCENARIOS_CACHE, SCENARIO_CACHE, LEADS_BY_SCENARIO_CACHE, PERSONA_CACHE);
+                SCENARIOS_CACHE, SCENARIO_CACHE, LEADS_BY_SCENARIO_CACHE, PERSONA_CACHE,
+                CLIENT_INTELLIGENCE_CACHE);
         manager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(1_000)
                 .expireAfterWrite(10, TimeUnit.MINUTES)

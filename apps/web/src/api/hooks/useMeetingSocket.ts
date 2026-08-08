@@ -67,7 +67,9 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
       connectedRef.current = true
       client.subscribe(`/topic/meetings/${meetingId}`, (frame: IMessage) => {
         const event = JSON.parse(frame.body) as SocketEvent
-        if (event.type === 'turn.delta') {
+        if (event.type === 'turn.thinking') {
+          setStreamingText('Client is reading your message...')
+        } else if (event.type === 'turn.delta') {
           setStreamingText(event.payload.text)
         } else if (event.type === 'turn.complete') {
           const result = event.payload
@@ -119,7 +121,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
       sendingRef.current = true
       setIsStreaming(true)
       setError(null)
-      setStreamingText('')
+      setStreamingText('Sending to client...')
 
       // Same idempotency key pattern as the SSE hook: the backend replays an
       // already-persisted turn for a repeated messageId instead of re-invoking

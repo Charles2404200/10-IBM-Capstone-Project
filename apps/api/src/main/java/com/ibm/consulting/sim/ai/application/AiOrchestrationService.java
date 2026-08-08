@@ -27,19 +27,25 @@ public class AiOrchestrationService {
     private final ExecutorService executor;
     private final long timeoutMs;
     private final long conversationTimeoutMs;
+    private final long clientIntelligenceTimeoutMs;
+    private final long classificationTimeoutMs;
     private final String modelId;
 
     public AiOrchestrationService(AiModelGateway gateway,
                                    AiTraceRepository traceRepository,
                                    @Qualifier("aiGatewayExecutor") ExecutorService executor,
                                    @Value("${app.ai.timeout-ms:15000}") long timeoutMs,
-                                   @Value("${app.ai.conversation-timeout-ms:8000}") long conversationTimeoutMs,
+                                   @Value("${app.ai.conversation-timeout-ms:4000}") long conversationTimeoutMs,
+                                   @Value("${app.ai.client-intelligence-timeout-ms:1200}") long clientIntelligenceTimeoutMs,
+                                   @Value("${app.ai.classification-timeout-ms:2500}") long classificationTimeoutMs,
                                    @Value("${app.watsonx.model-id}") String modelId) {
         this.gateway = gateway;
         this.traceRepository = traceRepository;
         this.executor = executor;
         this.timeoutMs = timeoutMs;
         this.conversationTimeoutMs = conversationTimeoutMs;
+        this.clientIntelligenceTimeoutMs = clientIntelligenceTimeoutMs;
+        this.classificationTimeoutMs = classificationTimeoutMs;
         this.modelId = modelId;
     }
 
@@ -52,9 +58,7 @@ public class AiOrchestrationService {
     public <T> T execute(String useCase, UUID engagementId, String prompt, int promptVersion,
                           AiResponseParser<T> parser, Supplier<T> fallback) {
         long start = System.currentTimeMillis();
-        long budgetMs = AiTaskType.fromUseCase(useCase) == AiTaskType.CONVERSATION
-            ? conversationTimeoutMs
-            : timeoutMs;
+        long budgetMs = budgetFor(AiTaskType.fromUseCase(useCase));
         long deadline = start + budgetMs;
         try {
             String raw = callWithTimeout(useCase, prompt, remainingMillis(deadline));
@@ -72,6 +76,15 @@ public class AiOrchestrationService {
             trace(useCase, engagementId, promptVersion, start, AiTraceStatus.ERROR, e.getMessage());
             return fallback.get();
         }
+    }
+
+    private long budgetFor(AiTaskType taskType) {
+        return switch (taskType) {
+            case CONVERSATION -> conversationTimeoutMs;
+            case CLIENT_INTELLIGENCE -> clientIntelligenceTimeoutMs;
+            case CLASSIFICATION, EVIDENCE_EXTRACTION -> classificationTimeoutMs;
+            case ASSESSMENT -> timeoutMs;
+        };
     }
 
     private <T> T repairThenFallback(String useCase, UUID engagementId, String originalPrompt, int promptVersion,

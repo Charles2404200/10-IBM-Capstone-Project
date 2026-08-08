@@ -84,7 +84,12 @@ app:
     timeout-ms: ${AI_TIMEOUT_MS:20000}
     # End-to-end budget for latency-sensitive dialogue, including provider failover
     # and any JSON repair attempt. The orchestration layer never exceeds this total.
-    conversation-timeout-ms: ${AI_CONVERSATION_TIMEOUT_MS:8000}
+    conversation-timeout-ms: ${AI_CONVERSATION_TIMEOUT_MS:4000}
+    # Client Intelligence must feel immediate. If a provider cannot return a
+    # schema-valid response inside this budget, the service returns deterministic
+    # scenario-safe artefacts and records the fallback in ai_traces.
+    client-intelligence-timeout-ms: ${AI_CLIENT_INTELLIGENCE_TIMEOUT_MS:1200}
+    classification-timeout-ms: ${AI_CLASSIFICATION_TIMEOUT_MS:2500}
     # mock-mode=true (default) -> MockAiGateway (deterministic, no external calls).
     # mock-mode=false -> AiProviderRouter takes over as the AiModelGateway bean and
     # fans out to whichever real providers below are configured (see AiProviderRouter

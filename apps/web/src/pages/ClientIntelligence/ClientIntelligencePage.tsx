@@ -578,7 +578,8 @@ export default function ClientIntelligencePage() {
   if (isLoading) return <LoadingState />
   if (isError) return <ErrorState />
 
-  const activePrompt = RESEARCH_ACTIONS.find((a) => a.type === activeAction)?.prompt
+  const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
+  const activePrompt = activeResearchAction?.prompt
 
   return (
     <Grid fullWidth className={styles.page}>
@@ -588,15 +589,20 @@ export default function ClientIntelligencePage() {
         </div>
       </Column>
 
-      <Column lg={4} md={4} sm={4}>
-        <Stack gap={6}>
+      <Column lg={16} md={8} sm={4}>
+        <div className={styles.pageHeader}>
           <div>
             <Heading className={styles.heading}>Client Intelligence</Heading>
             <p className={styles.subheading}>
-              Choose a research action to guide your investigation, or log your own finding directly.
+              Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach unlocks.
             </p>
           </div>
+          <Tag type="blue" size="md">{nonHypothesisEvidence.length} evidence items</Tag>
+        </div>
+      </Column>
 
+      <Column lg={3} md={3} sm={4}>
+        <aside className={styles.sideRail}>
           <div className={styles.researchActions}>
             <h4 className={styles.researchActionsTitle}>Research Actions</h4>
             {RESEARCH_ACTIONS.map(({ type, label, icon: Icon }) => {
@@ -621,28 +627,6 @@ export default function ClientIntelligencePage() {
             })}
           </div>
 
-          {(generateResearch.isPending || researchResults.length > 0) && (
-            <Tile className={styles.formTile}>
-              <Stack gap={4}>
-                <div>
-                  <h4 className={styles.formTitle}>Research Results</h4>
-                  <p style={{ color: '#525252', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                    Controlled artefacts generated from scenario-approved facts. Add only what you judge relevant.
-                  </p>
-                </div>
-                {generateResearch.isPending && <LoadingState description="Generating controlled research artefacts..." />}
-                {researchResults.map((artifact) => (
-                  <ResearchArtifactCard
-                    key={artifact.id}
-                    artifact={artifact}
-                    onAdd={addArtifactToEvidence}
-                    isAdding={saveResearch.isPending}
-                  />
-                ))}
-              </Stack>
-            </Tile>
-          )}
-
           <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
             <Tile className={styles.formTile}>
               <Stack gap={4}>
@@ -666,7 +650,92 @@ export default function ClientIntelligencePage() {
               </Stack>
             </Tile>
           </form>
+        </aside>
+      </Column>
 
+      <Column lg={8} md={5} sm={4}>
+        <main className={styles.mainWorkspace}>
+          <section className={styles.researchResultsPanel}>
+            <div className={styles.panelHeader}>
+              <div>
+                <p className={styles.sectionEyebrow}>Research Results</p>
+                <h3>{activeResearchAction?.label ?? 'Select a research action'}</h3>
+              </div>
+              {activeAction && <Tag type="cyan" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}
+            </div>
+            <p className={styles.panelDescription}>
+              Controlled artefacts are generated from scenario-approved facts. Add only what is relevant to your evidence board.
+            </p>
+
+            {generateResearch.isPending && (
+              <div className={styles.researchLoading}>
+                <div className={styles.researchLoadingPulse} />
+                <div>
+                  <strong>Preparing scenario-safe intelligence...</strong>
+                  <span>Fast fallback will return canonical artefacts if the AI gateway is slow.</span>
+                </div>
+              </div>
+            )}
+
+            {!generateResearch.isPending && researchResults.length === 0 && (
+              <div className={styles.resultsEmpty}>
+                <Search size={24} />
+                <span>Run a research action to generate reviewable intelligence.</span>
+              </div>
+            )}
+
+            <div className={styles.artifactGrid}>
+              {researchResults.map((artifact) => (
+                <ResearchArtifactCard
+                  key={artifact.id}
+                  artifact={artifact}
+                  onAdd={addArtifactToEvidence}
+                  isAdding={saveResearch.isPending}
+                />
+              ))}
+            </div>
+          </section>
+
+          <div className={styles.evidenceBoard}>
+            <div className={styles.evidenceBoardHeader}>
+              <div>
+                <p className={styles.sectionEyebrow}>Evidence Board</p>
+                <h3>Collected Evidence</h3>
+              </div>
+              <Tag type="blue" size="md">{nonHypothesisEvidence.length} items</Tag>
+            </div>
+
+            {nonHypothesisEvidence.length === 0 && (
+              <Tile className={styles.emptyState}>
+                <Search size={32} />
+                <p>No evidence collected yet.</p>
+                <Button
+                  kind="tertiary"
+                  size="sm"
+                  onClick={() => noteRef.current?.focus()}
+                >
+                  Add your first evidence
+                </Button>
+              </Tile>
+            )}
+
+            <div className={styles.evidenceGrid}>
+              {nonHypothesisEvidence.map((item) => (
+                <EvidenceCard key={item.id} item={item} codeById={codeById} />
+              ))}
+            </div>
+          </div>
+        </main>
+      </Column>
+
+      <Column lg={5} md={8} sm={4}>
+        <aside className={styles.decisionRail}>
+          <ClientProfilePanel engagementId={engagementId!} />
+          <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
+          <ResearchGateChecklist
+            engagementId={engagementId!}
+            onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
+          />
           <form onSubmit={handleSubmit(onSubmit)}>
             <Tile className={styles.formTile}>
               <Stack gap={4}>
@@ -749,47 +818,7 @@ export default function ClientIntelligencePage() {
               </Stack>
             </Tile>
           </form>
-
-          <ResearchGateChecklist
-            engagementId={engagementId!}
-            onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
-          />
-        </Stack>
-      </Column>
-
-      <Column lg={8} md={4} sm={4}>
-        <div className={styles.evidenceBoard}>
-          <div className={styles.evidenceBoardHeader}>
-            <h3>Evidence Board</h3>
-            <Tag type="blue" size="md">{nonHypothesisEvidence.length} items</Tag>
-          </div>
-
-          {nonHypothesisEvidence.length === 0 && (
-            <Tile className={styles.emptyState}>
-              <Search size={32} />
-              <p>No evidence collected yet.</p>
-              <Button
-                kind="tertiary"
-                size="sm"
-                onClick={() => noteRef.current?.focus()}
-              >
-                Add your first evidence
-              </Button>
-            </Tile>
-          )}
-
-          <div className={styles.evidenceGrid}>
-            {nonHypothesisEvidence.map((item) => (
-              <EvidenceCard key={item.id} item={item} codeById={codeById} />
-            ))}
-          </div>
-        </div>
-
-        <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
-      </Column>
-
-      <Column lg={4} md={8} sm={4}>
-        <ClientProfilePanel engagementId={engagementId!} />
+        </aside>
       </Column>
     </Grid>
   )

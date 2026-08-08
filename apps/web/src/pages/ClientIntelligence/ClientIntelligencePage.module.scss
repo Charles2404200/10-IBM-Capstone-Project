@@ -11,8 +11,8 @@ $accent-blue: #0f62fe;
 $accent-blue-dark: #0043ce;
 
 .page {
-  padding: $spacing-07 $spacing-07 $spacing-10;
-  max-width: 1440px;
+  padding: $spacing-06 $spacing-07 $spacing-10;
+  max-width: 1520px;
   margin: 0 auto;
 }
 
@@ -44,6 +44,139 @@ $accent-blue-dark: #0043ce;
   color: $text-secondary;
   margin-top: $spacing-03;
   max-width: 42rem;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-05;
+  margin-bottom: $spacing-05;
+}
+
+.sideRail,
+.decisionRail {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-05;
+}
+
+.decisionRail {
+  position: sticky;
+  top: $spacing-05;
+  max-height: calc(100vh - #{$spacing-07});
+  overflow-y: auto;
+  padding-right: $spacing-02;
+}
+
+.mainWorkspace {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-05;
+}
+
+.sectionEyebrow {
+  color: $text-secondary;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0 0 $spacing-02;
+  text-transform: uppercase;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-04;
+
+  h3 {
+    color: $text-primary;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.panelDescription {
+  color: $text-secondary;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: $spacing-03 0 0;
+}
+
+.researchResultsPanel {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  padding: $spacing-06;
+}
+
+.researchLoading {
+  display: flex;
+  align-items: center;
+  gap: $spacing-04;
+  margin-top: $spacing-05;
+  padding: $spacing-05;
+  background: #edf5ff;
+  border-left: 4px solid $accent-blue;
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: $text-primary;
+    font-size: 0.9375rem;
+  }
+
+  span {
+    color: $text-secondary;
+    font-size: 0.8125rem;
+    margin-top: $spacing-02;
+  }
+}
+
+.researchLoadingPulse {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 3px solid #a6c8ff;
+  border-top-color: $accent-blue;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.resultsEmpty {
+  margin-top: $spacing-05;
+  min-height: 7rem;
+  border: 1px dashed $border-subtle;
+  background: $layer-bg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-03;
+  color: $text-secondary;
+  text-align: center;
+
+  svg {
+    fill: $text-placeholder;
+  }
+}
+
+.artifactGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $spacing-04;
+  margin-top: $spacing-05;
 }
 
 // ─── Research Actions ────────────────────────────────────────────────────
@@ -121,6 +254,7 @@ $accent-blue-dark: #0043ce;
 .formTile {
   background: $layer-white;
   border: 1px solid $border-subtle;
+  border-radius: 6px;
 }
 
 // ─── Research gate checklist ─────────────────────────────────────────────
@@ -197,7 +331,7 @@ $accent-blue-dark: #0043ce;
   border: 1px solid $border-subtle;
   border-radius: 6px;
   padding: $spacing-06;
-  min-height: 100%;
+  min-height: 24rem;
 }
 
 .evidenceBoardHeader {
@@ -326,11 +460,11 @@ $accent-blue-dark: #0043ce;
 // ─── Hypothesis workspace ────────────────────────────────────────────────
 
 .hypothesisWorkspace {
-  margin-top: $spacing-06;
   background: $layer-white;
   border: 1px solid $border-subtle;
   border-radius: 6px;
-  padding: $spacing-06;
+  border-left: 4px solid #8a3ffc;
+  padding: $spacing-05;
 }
 
 .hypothesisWorkspaceHeader {
@@ -399,8 +533,7 @@ $accent-blue-dark: #0043ce;
   background: $layer-white;
   border: 1px solid $border-subtle;
   border-radius: 6px;
-  padding: $spacing-06;
-  height: 100%;
+  padding: $spacing-05;
 }
 
 .clientProfileHeader {
@@ -493,5 +626,33 @@ $accent-blue-dark: #0043ce;
   display: flex;
   align-items: center;
   gap: $spacing-02;
+}
+
+@media (max-width: 1055px) {
+  .decisionRail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    margin-top: $spacing-05;
+  }
+
+  .sideRail {
+    margin-bottom: $spacing-05;
+  }
+}
+
+@media (max-width: 671px) {
+  .page {
+    padding: $spacing-05 $spacing-04 $spacing-08;
+  }
+
+  .pageHeader,
+  .panelHeader,
+  .evidenceBoardHeader,
+  .hypothesisWorkspaceHeader,
+  .clientProfileHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 

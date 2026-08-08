@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.meeting.application.MeetingService;
 import com.ibm.consulting.sim.meeting.application.MeetingTurnResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -16,7 +17,6 @@ import java.security.Principal;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * WebSocket/STOMP counterpart of {@code MeetingController#sendMessage} (the SSE
@@ -38,15 +38,14 @@ public class MeetingSocketController {
 
     private final MeetingService meetingService;
     private final SimpMessagingTemplate messagingTemplate;
-    // AI calls take low-single-digit seconds even after the latency fixes; running
-    // them on the shared STOMP inbound thread would stall delivery of every other
-    // client's frames, so each send is dispatched to its own worker thread, exactly
-    // as the SSE endpoint already does with its own executor.
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor;
 
-    public MeetingSocketController(MeetingService meetingService, SimpMessagingTemplate messagingTemplate) {
+    public MeetingSocketController(MeetingService meetingService,
+                                   SimpMessagingTemplate messagingTemplate,
+                                   @Qualifier("aiGatewayExecutor") ExecutorService executor) {
         this.meetingService = meetingService;
         this.messagingTemplate = messagingTemplate;
+        this.executor = executor;
     }
 
     record MeetingMessage(String message, String messageId) {}

@@ -11,7 +11,10 @@ import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
+import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,17 +33,20 @@ public class ResearchIntelligenceService {
     private final ResearchEvidenceRepository evidenceRepository;
     private final AiOrchestrationService aiOrchestrationService;
     private final ObjectMapper objectMapper;
+    private final CacheManager cacheManager;
 
     public ResearchIntelligenceService(EngagementRepository engagementRepository,
                                        LeadRepository leadRepository,
                                        ResearchEvidenceRepository evidenceRepository,
                                        AiOrchestrationService aiOrchestrationService,
-                                       ObjectMapper objectMapper) {
+                                       ObjectMapper objectMapper,
+                                       CacheManager cacheManager) {
         this.engagementRepository = engagementRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.objectMapper = objectMapper;
+        this.cacheManager = cacheManager;
     }
 
     @Transactional(readOnly = true)
@@ -49,6 +55,11 @@ public class ResearchIntelligenceService {
         Lead lead = loadLead(engagement);
         Map<String, String> facts = canonicalFacts(lead);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
+        String cacheKey = cacheKey(lead, type, discovered);
+        List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
         ClientIntelligenceResponseParser parser = new ClientIntelligenceResponseParser(objectMapper, facts, type);
         List<ResearchArtifactResponse> artifacts = aiOrchestrationService.execute(
                 "client_intelligence",
@@ -57,7 +68,36 @@ public class ResearchIntelligenceService {
                 1,
                 parser,
                 () -> templateGenerate(lead, type));
-        return removeDuplicates(artifacts, discovered);
+        List<ResearchArtifactResponse> filtered = removeDuplicates(artifacts, discovered);
+        cacheArtifacts(cacheKey, filtered);
+        return filtered;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ResearchArtifactResponse> cachedArtifacts(String key) {
+        Cache cache = cacheManager.getCache(CacheConfig.CLIENT_INTELLIGENCE_CACHE);
+        if (cache == null) {
+            return null;
+        }
+        Cache.ValueWrapper wrapper = cache.get(key);
+        return wrapper == null ? null : (List<ResearchArtifactResponse>) wrapper.get();
+    }
+
+    private void cacheArtifacts(String key, List<ResearchArtifactResponse> artifacts) {
+        Cache cache = cacheManager.getCache(CacheConfig.CLIENT_INTELLIGENCE_CACHE);
+        if (cache != null) {
+            cache.put(key, artifacts);
+        }
+    }
+
+    private String cacheKey(Lead lead, EvidenceType type, List<ResearchEvidence> discovered) {
+        String discoveredFingerprint = discovered.stream()
+                .map(e -> e.getId() + ":" + e.getEvidenceType() + ":" + e.getSequenceNo())
+                .sorted()
+                .collect(java.util.stream.Collectors.joining("|"));
+        return "%s:%s:%s:%s".formatted(
+                lead.getId(), lead.getDifficulty().name(), type.name(),
+                Integer.toHexString(discoveredFingerprint.hashCode()));
     }
 
     private List<ResearchArtifactResponse> templateGenerate(Lead lead, EvidenceType type) {
