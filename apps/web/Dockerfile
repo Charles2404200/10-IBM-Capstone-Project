@@ -7,6 +7,7 @@ COPY . .
 # Railway supplies it via the "Build Variables" panel for the web service.
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+RUN test -n "$VITE_API_BASE_URL" || (echo "VITE_API_BASE_URL build variable is required" >&2 && exit 1)
 RUN npm run build
 
 FROM nginx:alpine
