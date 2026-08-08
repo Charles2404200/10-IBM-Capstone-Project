@@ -4,9 +4,13 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.lead.application.LeadIntelligenceSummary;
 import com.ibm.consulting.sim.lead.application.LeadService;
 import com.ibm.consulting.sim.lead.application.LeadSummary;
+import com.ibm.consulting.sim.lead.application.ResearchArtifactResponse;
 import com.ibm.consulting.sim.lead.application.ResearchEvidenceSummary;
 import com.ibm.consulting.sim.lead.application.ResearchGateStatus;
+import com.ibm.consulting.sim.lead.application.ResearchIntelligenceService;
 import com.ibm.consulting.sim.lead.domain.ConfidenceLevel;
+import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
+import com.ibm.consulting.sim.lead.domain.EvidenceVerificationStatus;
 import com.ibm.consulting.sim.lead.domain.EvidenceType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -26,9 +30,12 @@ import java.util.UUID;
 public class LeadController {
 
     private final LeadService leadService;
+    private final ResearchIntelligenceService researchIntelligenceService;
 
-    public LeadController(LeadService leadService) {
+    public LeadController(LeadService leadService,
+                          ResearchIntelligenceService researchIntelligenceService) {
         this.leadService = leadService;
+        this.researchIntelligenceService = researchIntelligenceService;
     }
 
     record SelectLeadRequest(@NotNull UUID leadId) {}
@@ -39,9 +46,15 @@ public class LeadController {
             @NotNull EvidenceType evidenceType,
             @Size(max = 500) String sourceUrl,
             @Size(max = 300) String sourceTitle,
+            EvidenceOrigin origin,
+            EvidenceVerificationStatus verificationStatus,
             LocalDate occurredOn,
             ConfidenceLevel confidence,
             Set<UUID> supportingEvidenceIds) {}
+
+    record GenerateResearchRequest(@NotNull EvidenceType evidenceType) {}
+
+    record AnalyzeUserContextRequest(@NotBlank @Size(max = 4000) String context) {}
 
     @GetMapping("/scenarios/{scenarioId}/leads")
     List<LeadSummary> listLeads(@PathVariable UUID scenarioId) {
@@ -63,15 +76,39 @@ public class LeadController {
                                          @AuthenticationPrincipal User user) {
         return leadService.saveEvidence(engagementId, user.getId(),
                 req.note(), req.hypothesis(), req.evidenceType(),
-                req.sourceUrl(), req.sourceTitle(), req.occurredOn(),
+                req.sourceUrl(), req.sourceTitle(),
+                req.origin() != null ? req.origin() : EvidenceOrigin.USER_SUPPLIED,
+                req.verificationStatus() != null ? req.verificationStatus()
+                        : defaultVerification(req.origin()),
+                req.occurredOn(),
                 req.confidence() != null ? req.confidence() : ConfidenceLevel.MEDIUM,
                 req.supportingEvidenceIds());
+    }
+
+    private EvidenceVerificationStatus defaultVerification(EvidenceOrigin origin) {
+        return origin == null || origin == EvidenceOrigin.USER_SUPPLIED
+                ? EvidenceVerificationStatus.UNVERIFIED
+                : EvidenceVerificationStatus.CORROBORATED;
     }
 
     @GetMapping("/engagements/{engagementId}/research")
     List<ResearchEvidenceSummary> listResearch(@PathVariable UUID engagementId,
                                                @AuthenticationPrincipal User user) {
         return leadService.listEvidence(engagementId, user.getId());
+    }
+
+    @PostMapping("/engagements/{engagementId}/research-intelligence")
+    List<ResearchArtifactResponse> generateResearch(@PathVariable UUID engagementId,
+                                                    @Valid @RequestBody GenerateResearchRequest req,
+                                                    @AuthenticationPrincipal User user) {
+        return researchIntelligenceService.generate(engagementId, user.getId(), req.evidenceType());
+    }
+
+    @PostMapping("/engagements/{engagementId}/research-intelligence/user-context")
+    ResearchArtifactResponse analyzeUserContext(@PathVariable UUID engagementId,
+                                                @Valid @RequestBody AnalyzeUserContextRequest req,
+                                                @AuthenticationPrincipal User user) {
+        return researchIntelligenceService.analyzeUserContext(engagementId, user.getId(), req.context());
     }
 
     @GetMapping("/engagements/{engagementId}/lead-intelligence")

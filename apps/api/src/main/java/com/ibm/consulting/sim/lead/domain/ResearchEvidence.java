@@ -46,6 +46,14 @@ public class ResearchEvidence extends BaseEntity {
     @Column(length = 300)
     private String sourceTitle;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private EvidenceOrigin origin = EvidenceOrigin.USER_SUPPLIED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private EvidenceVerificationStatus verificationStatus = EvidenceVerificationStatus.UNVERIFIED;
+
     private LocalDate occurredOn;
 
     @Enumerated(EnumType.STRING)
@@ -75,6 +83,8 @@ public class ResearchEvidence extends BaseEntity {
     public EvidenceType getEvidenceType() { return evidenceType; }
     public String getSourceUrl() { return sourceUrl; }
     public String getSourceTitle() { return sourceTitle; }
+    public EvidenceOrigin getOrigin() { return origin; }
+    public EvidenceVerificationStatus getVerificationStatus() { return verificationStatus; }
     public LocalDate getOccurredOn() { return occurredOn; }
     public ConfidenceLevel getConfidence() { return confidence; }
     public Integer getSequenceNo() { return sequenceNo; }
@@ -91,6 +101,8 @@ public class ResearchEvidence extends BaseEntity {
         public Builder evidenceType(EvidenceType evidenceType) { instance.evidenceType = evidenceType; return this; }
         public Builder sourceUrl(String sourceUrl) { instance.sourceUrl = sourceUrl; return this; }
         public Builder sourceTitle(String sourceTitle) { instance.sourceTitle = sourceTitle; return this; }
+        public Builder origin(EvidenceOrigin origin) { instance.origin = origin; return this; }
+        public Builder verificationStatus(EvidenceVerificationStatus status) { instance.verificationStatus = status; return this; }
         public Builder occurredOn(LocalDate occurredOn) { instance.occurredOn = occurredOn; return this; }
         public Builder confidence(ConfidenceLevel confidence) { instance.confidence = confidence; return this; }
         public Builder sequenceNo(int sequenceNo) { instance.sequenceNo = sequenceNo; return this; }
@@ -106,6 +118,12 @@ public class ResearchEvidence extends BaseEntity {
             if (instance.evidenceType == null) throw new IllegalStateException("evidenceType is required");
             if (instance.sequenceNo == null) throw new IllegalStateException("sequenceNo is required");
             if (instance.confidence == null) instance.confidence = ConfidenceLevel.MEDIUM;
+            if (instance.origin == null) instance.origin = EvidenceOrigin.USER_SUPPLIED;
+            if (instance.verificationStatus == null) {
+                instance.verificationStatus = instance.origin == EvidenceOrigin.USER_SUPPLIED
+                        ? EvidenceVerificationStatus.UNVERIFIED
+                        : EvidenceVerificationStatus.CORROBORATED;
+            }
             return instance;
         }
     }

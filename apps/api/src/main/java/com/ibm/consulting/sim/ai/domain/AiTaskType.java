@@ -28,6 +28,7 @@ import java.util.Locale;
 public enum AiTaskType {
     CONVERSATION,
     CLASSIFICATION,
+    CLIENT_INTELLIGENCE,
     ASSESSMENT,
     EVIDENCE_EXTRACTION;
 
@@ -44,6 +45,7 @@ public enum AiTaskType {
         }
         return switch (useCase.toLowerCase(Locale.ROOT)) {
             case "assessment_feedback" -> ASSESSMENT;
+            case "client_intelligence" -> CLIENT_INTELLIGENCE;
             case "evidence_extraction", "knowledge_summarisation" -> EVIDENCE_EXTRACTION;
             case "question_classification", "intent_classification" -> CLASSIFICATION;
             default -> CONVERSATION;

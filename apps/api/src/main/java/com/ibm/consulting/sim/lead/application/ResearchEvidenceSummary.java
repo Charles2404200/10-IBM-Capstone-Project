@@ -15,6 +15,8 @@ public record ResearchEvidenceSummary(
         String evidenceType,
         String sourceUrl,
         String sourceTitle,
+        String origin,
+        String verificationStatus,
         LocalDate occurredOn,
         String confidence,
         int sequenceNo,
@@ -24,7 +26,8 @@ public record ResearchEvidenceSummary(
     public static ResearchEvidenceSummary from(ResearchEvidence e) {
         return new ResearchEvidenceSummary(
                 e.getId(), e.getEngagementId(), e.getNote(), e.getHypothesis(), e.getEvidenceType().name(),
-                e.getSourceUrl(), e.getSourceTitle(), e.getOccurredOn(), e.getConfidence().name(),
+                e.getSourceUrl(), e.getSourceTitle(), e.getOrigin().name(), e.getVerificationStatus().name(),
+                e.getOccurredOn(), e.getConfidence().name(),
                 e.getSequenceNo(), e.getSupportingEvidenceIds(), e.getCreatedAt());
     }
 }

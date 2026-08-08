@@ -68,6 +68,7 @@ public class LeadService {
                                                 String note, String hypothesis,
                                                 EvidenceType evidenceType,
                                                 String sourceUrl, String sourceTitle,
+                                                EvidenceOrigin origin, EvidenceVerificationStatus verificationStatus,
                                                 LocalDate occurredOn, ConfidenceLevel confidence,
                                                 Set<UUID> supportingEvidenceIds) {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
@@ -88,6 +89,8 @@ public class LeadService {
                 .evidenceType(evidenceType)
                 .sourceUrl(sourceUrl)
                 .sourceTitle(sourceTitle)
+                .origin(origin)
+                .verificationStatus(verificationStatus)
                 .occurredOn(occurredOn)
                 .confidence(confidence)
                 .sequenceNo(nextSequence)

@@ -38,7 +38,8 @@ public class GeminiProvider implements AiProvider {
     private static final Logger log = LoggerFactory.getLogger(GeminiProvider.class);
     private static final String PROVIDER_ID = "gemini-free";
     private static final ProviderCapabilities CAPABILITIES = new ProviderCapabilities(
-            Set.of(AiTaskType.CONVERSATION, AiTaskType.CLASSIFICATION, AiTaskType.EVIDENCE_EXTRACTION, AiTaskType.ASSESSMENT),
+            Set.of(AiTaskType.CONVERSATION, AiTaskType.CLASSIFICATION, AiTaskType.CLIENT_INTELLIGENCE,
+                    AiTaskType.EVIDENCE_EXTRACTION, AiTaskType.ASSESSMENT),
             LatencyTier.LOW,
             ReasoningTier.MEDIUM,
             true);

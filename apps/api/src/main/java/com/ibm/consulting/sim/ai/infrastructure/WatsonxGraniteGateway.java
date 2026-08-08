@@ -44,7 +44,8 @@ public class WatsonxGraniteGateway implements AiProvider {
     private static final String GENERATION_PATH = "/ml/v1/text/generation?version=2024-05-01";
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(25);
     private static final ProviderCapabilities CAPABILITIES = new ProviderCapabilities(
-            Set.of(AiTaskType.ASSESSMENT, AiTaskType.CONVERSATION, AiTaskType.CLASSIFICATION, AiTaskType.EVIDENCE_EXTRACTION),
+            Set.of(AiTaskType.ASSESSMENT, AiTaskType.CONVERSATION, AiTaskType.CLASSIFICATION,
+                    AiTaskType.CLIENT_INTELLIGENCE, AiTaskType.EVIDENCE_EXTRACTION),
             LatencyTier.MEDIUM,
             ReasoningTier.HIGH,
             true);

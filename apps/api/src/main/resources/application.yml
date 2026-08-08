@@ -99,6 +99,7 @@ app:
       conversation: ${AI_ROUTE_CONVERSATION:gemini-free,watsonx-granite,openrouter-free}
       # Cheap structured-output judgements (intent/topic/quality signals).
       classification: ${AI_ROUTE_CLASSIFICATION:gemini-free,watsonx-granite,openrouter-free}
+      client-intelligence: ${AI_ROUTE_CLIENT_INTELLIGENCE:gemini-free,watsonx-granite,openrouter-free}
       # End-of-engagement coaching narrative — latency-tolerant, reasoning matters most.
       # watsonx/Granite is first-choice here: its real job on this platform, not a
       # branding requirement (see docs/architecture/AI_ORCHESTRATION.md).

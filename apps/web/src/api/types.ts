@@ -100,6 +100,9 @@ export type EvidenceType =
 
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
+export type EvidenceOrigin = 'SCENARIO_CURATED' | 'AI_SYNTHESIZED' | 'USER_SUPPLIED' | 'MEETING_DISCOVERY'
+export type EvidenceVerificationStatus = 'VERIFIED' | 'CORROBORATED' | 'UNVERIFIED' | 'CONTRADICTED'
+
 export interface ResearchEvidence {
   id: string
   engagementId: string
@@ -108,6 +111,8 @@ export interface ResearchEvidence {
   evidenceType: EvidenceType
   sourceUrl: string | null
   sourceTitle: string | null
+  origin: EvidenceOrigin
+  verificationStatus: EvidenceVerificationStatus
   occurredOn: string | null
   confidence: ConfidenceLevel
   sequenceNo: number
@@ -121,9 +126,25 @@ export interface SaveResearchPayload {
   evidenceType: EvidenceType
   sourceUrl?: string
   sourceTitle?: string
+  origin?: EvidenceOrigin
+  verificationStatus?: EvidenceVerificationStatus
   occurredOn?: string
   confidence?: ConfidenceLevel
   supportingEvidenceIds?: string[]
+}
+
+export interface ResearchArtifact {
+  id: string
+  title: string
+  sourceType: string
+  summary: string
+  evidenceType: EvidenceType
+  confidence: ConfidenceLevel
+  origin: EvidenceOrigin
+  publishedOn: string
+  allowedFactKeys: string[]
+  correlatesWithEvidence: string[]
+  relevanceRationale: string
 }
 
 /** Requirements checklist gating "Proceed to Outreach" — mirrors backend `ResearchGateStatus`. */

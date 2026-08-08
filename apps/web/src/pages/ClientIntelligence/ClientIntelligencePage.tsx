@@ -28,10 +28,10 @@ import {
 } from '@carbon/icons-react'
 import { useForm, Controller } from 'react-hook-form'
 import { useEngagement } from '@/api/hooks/useEngagements'
-import { useLeadIntelligence, useResearch, useResearchGateStatus, useCompleteResearch, useSaveResearch } from '@/api/hooks/useLeads'
+import { useAnalyzeUserContext, useGenerateResearchIntelligence, useLeadIntelligence, useResearch, useResearchGateStatus, useCompleteResearch, useSaveResearch } from '@/api/hooks/useLeads'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConfidenceLevel, EngagementPhase, EvidenceType, IntelligenceField, ResearchEvidence } from '@/api/types'
+import type { ConfidenceLevel, EngagementPhase, EvidenceType, IntelligenceField, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
@@ -67,14 +67,18 @@ interface HypothesisFormValues {
   supportingEvidenceIds: string[]
 }
 
+interface ExternalContextFormValues {
+  context: string
+}
+
 // ─── Research Actions: guided prompts that steer the learner toward the right
 // evidence category, instead of a blank "note" field (still requires the
 // learner to enter their own real finding — no fabricated data is injected). ───
 const RESEARCH_ACTIONS: { type: Exclude<EvidenceType, 'HYPOTHESIS'>; label: string; prompt: string; icon: typeof Search }[] = [
-  { type: 'COMPANY_NEWS', label: 'Company News', prompt: 'What recent news or announcements have you found about this client?', icon: Document },
-  { type: 'STAKEHOLDER_PROFILE', label: 'Stakeholder Research', prompt: 'What have you learned about the key decision makers and their priorities?', icon: UserMultiple },
-  { type: 'FINANCIAL_SIGNAL', label: 'Financial Signals', prompt: 'What financial signals (budget, funding, spend) have you uncovered?', icon: ChartLine },
-  { type: 'TECHNOLOGY_INDICATOR', label: 'Technology Research', prompt: 'What does their current technology stack or infrastructure look like?', icon: Devices },
+  { type: 'COMPANY_NEWS', label: 'Company News', prompt: 'Research this area to uncover relevant public signals and business pressure.', icon: Document },
+  { type: 'STAKEHOLDER_PROFILE', label: 'Stakeholder Research', prompt: 'Research this area to identify decision makers, priorities and influence.', icon: UserMultiple },
+  { type: 'FINANCIAL_SIGNAL', label: 'Financial Signals', prompt: 'Research this area to uncover commercial and funding indicators.', icon: ChartLine },
+  { type: 'TECHNOLOGY_INDICATOR', label: 'Technology Research', prompt: 'Research this area to understand systems, architecture constraints and readiness.', icon: Devices },
 ]
 
 function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Map<string, string> }) {
@@ -124,6 +128,44 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
             )}
           </div>
         )}
+      </Stack>
+    </Tile>
+  )
+}
+
+function ResearchArtifactCard({
+  artifact,
+  onAdd,
+  isAdding,
+}: {
+  artifact: ResearchArtifact
+  onAdd: (artifact: ResearchArtifact) => void
+  isAdding: boolean
+}) {
+  return (
+    <Tile className={styles.evidenceCard}>
+      <Stack gap={3}>
+        <div className={styles.evidenceCardHeader}>
+          <Tag type="purple" size="sm">{artifact.sourceType}</Tag>
+          <Tag type={CONFIDENCE_TAG_TYPE[artifact.confidence]} size="sm">{artifact.confidence}</Tag>
+          <Tag type={artifact.origin === 'USER_SUPPLIED' ? 'warm-gray' : 'cyan'} size="sm">
+            {artifact.origin.replace(/_/g, ' ')}
+          </Tag>
+        </div>
+        <div>
+          <h5 style={{ color: '#161616', marginBottom: '0.375rem' }}>{artifact.title}</h5>
+          <p className={styles.evidenceNote}>{artifact.summary}</p>
+        </div>
+        <p style={{ color: '#525252', fontSize: '0.75rem' }}>{artifact.relevanceRationale}</p>
+        {artifact.correlatesWithEvidence.length > 0 && (
+          <div className={styles.supportingEvidence}>
+            <LinkIcon size={14} />
+            <span>Correlates with {artifact.correlatesWithEvidence.join(', ')}</span>
+          </div>
+        )}
+        <Button size="sm" kind="tertiary" disabled={isAdding} onClick={() => onAdd(artifact)}>
+          Add to Evidence Board
+        </Button>
       </Stack>
     </Tile>
   )
@@ -449,8 +491,11 @@ export default function ClientIntelligencePage() {
   const { data: engagement } = useEngagement(engagementId!)
   const { data: evidence, isLoading, isError } = useResearch(engagementId!)
   const saveResearch = useSaveResearch(engagementId!)
+  const generateResearch = useGenerateResearchIntelligence(engagementId!)
+  const analyzeUserContext = useAnalyzeUserContext(engagementId!)
   const noteRef = useRef<HTMLTextAreaElement | null>(null)
   const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
+  const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
 
   const { register, handleSubmit, reset, setValue, control, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -458,6 +503,12 @@ export default function ClientIntelligencePage() {
       confidence: 'MEDIUM',
     },
   })
+  const {
+    register: registerExternalContext,
+    handleSubmit: handleExternalContextSubmit,
+    reset: resetExternalContext,
+    formState: { errors: externalContextErrors },
+  } = useForm<ExternalContextFormValues>()
   const { ref: noteFieldRef, ...noteFieldProps } = register('note', { required: true })
 
   const citableEvidence = useMemo(() => evidence ?? [], [evidence])
@@ -473,8 +524,36 @@ export default function ClientIntelligencePage() {
   const runResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
     setActiveAction(type)
     setValue('evidenceType', type)
-    noteRef.current?.focus()
-    noteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    generateResearch.mutate(type, { onSuccess: setResearchResults })
+  }
+
+  const addArtifactToEvidence = (artifact: ResearchArtifact) => {
+    saveResearch.mutate(
+      {
+        note: artifact.summary,
+        evidenceType: artifact.evidenceType,
+        sourceTitle: artifact.title,
+        occurredOn: artifact.publishedOn,
+        confidence: artifact.confidence,
+        origin: artifact.origin,
+      },
+      {
+        onSuccess: () => {
+          setResearchResults((items) => items.filter((item) => item.id !== artifact.id))
+        },
+      }
+    )
+  }
+
+  const onExternalContextSubmit = (data: ExternalContextFormValues) => {
+    analyzeUserContext.mutate(data.context, {
+      onSuccess: (artifact) => {
+        const inferredType = artifact.evidenceType === 'HYPOTHESIS' ? 'OTHER' : artifact.evidenceType
+        setActiveAction(inferredType as Exclude<EvidenceType, 'HYPOTHESIS'>)
+        setResearchResults([artifact])
+        resetExternalContext()
+      },
+    })
   }
 
   const onSubmit = (data: FormValues) => {
@@ -527,6 +606,7 @@ export default function ClientIntelligencePage() {
                   key={type}
                   type="button"
                   className={`${styles.actionButton} ${activeAction === type ? styles.actionButtonActive : ''} ${findingCount > 0 ? styles.actionButtonComplete : ''}`}
+                  disabled={generateResearch.isPending}
                   onClick={() => runResearchAction(type)}
                 >
                   {findingCount > 0 ? <CheckmarkFilled size={20} className={styles.actionButtonCheck} /> : <Icon size={20} />}
@@ -541,11 +621,57 @@ export default function ClientIntelligencePage() {
             })}
           </div>
 
+          {(generateResearch.isPending || researchResults.length > 0) && (
+            <Tile className={styles.formTile}>
+              <Stack gap={4}>
+                <div>
+                  <h4 className={styles.formTitle}>Research Results</h4>
+                  <p style={{ color: '#525252', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
+                    Controlled artefacts generated from scenario-approved facts. Add only what you judge relevant.
+                  </p>
+                </div>
+                {generateResearch.isPending && <LoadingState description="Generating controlled research artefacts..." />}
+                {researchResults.map((artifact) => (
+                  <ResearchArtifactCard
+                    key={artifact.id}
+                    artifact={artifact}
+                    onAdd={addArtifactToEvidence}
+                    isAdding={saveResearch.isPending}
+                  />
+                ))}
+              </Stack>
+            </Tile>
+          )}
+
+          <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
+            <Tile className={styles.formTile}>
+              <Stack gap={4}>
+                <div>
+                  <h4 className={styles.formTitle}>Add External Context</h4>
+                  <p style={{ color: '#525252', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
+                    Optional user-supplied intelligence is analysed as unverified context and cannot overwrite scenario truth.
+                  </p>
+                </div>
+                <TextArea
+                  id="external-context"
+                  labelText="External note, article excerpt or observation"
+                  rows={3}
+                  invalid={Boolean(externalContextErrors.context)}
+                  invalidText="Required"
+                  {...registerExternalContext('context', { required: true })}
+                />
+                <Button type="submit" kind="tertiary" disabled={analyzeUserContext.isPending}>
+                  {analyzeUserContext.isPending ? 'Analysing...' : 'Analyse Context'}
+                </Button>
+              </Stack>
+            </Tile>
+          </form>
+
           <form onSubmit={handleSubmit(onSubmit)}>
             <Tile className={styles.formTile}>
               <Stack gap={4}>
                 <h4 className={styles.formTitle}>
-                  {activeAction ? RESEARCH_ACTIONS.find((a) => a.type === activeAction)?.label : 'Add Research Evidence'}
+                  Manual Evidence Entry
                 </h4>
 
                 {activePrompt && (

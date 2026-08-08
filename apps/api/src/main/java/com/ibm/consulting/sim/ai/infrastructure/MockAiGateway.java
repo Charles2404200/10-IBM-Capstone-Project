@@ -39,6 +39,23 @@ public class MockAiGateway implements AiModelGateway {
                     }
                     """;
             case "persona_dialogue" -> personaDialogueReply(prompt);
+            case "client_intelligence" -> """
+                    {
+                      "artifacts": [
+                        {
+                          "id": "mock-client-intel-1",
+                          "title": "Controlled client intelligence brief",
+                          "category": "COMPANY_NEWS",
+                          "content": "The organisation is signalling operational modernisation pressure based only on the provided canonical facts.",
+                          "sourceType": "COMPANY_NEWS",
+                          "reliability": "MEDIUM",
+                          "supportedFactIds": ["company_name"],
+                          "relevance": 0.75,
+                          "confidence": 0.72
+                        }
+                      ]
+                    }
+                    """;
             case "assessment_feedback" -> """
                     {
                       "feedbackSummary": "You demonstrated solid discovery work and built trust steadily through the meeting. Your proposal reflected the client's stated priorities well.",

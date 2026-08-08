@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { LeadIntelligence, LeadSummary, ResearchEvidence, ResearchGateStatus, SaveResearchPayload } from '@/api/types'
+import type { EvidenceType, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, SaveResearchPayload } from '@/api/types'
 
 export function useLeads(scenarioId: string) {
   return useQuery({
@@ -49,6 +49,30 @@ export function useSaveResearch(engagementId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['research', engagementId] })
       qc.invalidateQueries({ queryKey: ['lead-intelligence', engagementId] })
+    },
+  })
+}
+
+export function useGenerateResearchIntelligence(engagementId: string) {
+  return useMutation({
+    mutationFn: async (evidenceType: EvidenceType) => {
+      const res = await apiClient.post<ResearchArtifact[]>(
+        `/api/v1/engagements/${engagementId}/research-intelligence`,
+        { evidenceType }
+      )
+      return res.data
+    },
+  })
+}
+
+export function useAnalyzeUserContext(engagementId: string) {
+  return useMutation({
+    mutationFn: async (context: string) => {
+      const res = await apiClient.post<ResearchArtifact>(
+        `/api/v1/engagements/${engagementId}/research-intelligence/user-context`,
+        { context }
+      )
+      return res.data
     },
   })
 }
