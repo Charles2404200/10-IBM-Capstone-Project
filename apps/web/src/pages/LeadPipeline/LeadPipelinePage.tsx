@@ -132,13 +132,14 @@ export default function LeadPipelinePage() {
           )}
 
           {selectionLocked && (
-            <InlineNotification
-              kind="info"
-              title="Lead already selected"
-              subtitle="This engagement has already locked in a lead — continue to Client Intelligence to keep researching it."
-              hideCloseButton
-              lowContrast
-            >
+            <Stack gap={4}>
+              <InlineNotification
+                kind="info"
+                title="Lead already selected"
+                subtitle="This engagement has already locked in a lead — continue to Client Intelligence to keep researching it."
+                hideCloseButton
+                lowContrast
+              />
               <Button
                 kind="ghost"
                 size="sm"
@@ -147,7 +148,7 @@ export default function LeadPipelinePage() {
               >
                 Continue to Client Intelligence
               </Button>
-            </InlineNotification>
+            </Stack>
           )}
 
           {!canSelect && !alreadySelected && (
