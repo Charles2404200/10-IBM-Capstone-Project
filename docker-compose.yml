@@ -23,6 +23,9 @@
 # "containerized-web" profile, for parity-testing the prod build locally;
 # day-to-day frontend development should use `npm run dev`, not this service:
 #   docker compose --profile containerized-web up -d
+#
+# Portable metrics and logs are opt-in. Grafana is available on port 3001:
+#   docker compose --profile observability up -d
 
 services:
   redis:
@@ -98,6 +101,7 @@ services:
       CACHE_PROVIDER: ${CACHE_PROVIDER:-caffeine}
       UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:-}
       UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-}
+      OBSERVABILITY_TOKEN: local-observability
     ports:
       - "8080:8080"
     healthcheck:
@@ -120,4 +124,65 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: consulting_sim_prometheus
+    profiles: ["observability"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: consulting_sim_loki
+    profiles: ["observability"]
+    command: ["-config.file=/etc/loki/local-config.yml"]
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: consulting_sim_promtail
+    profiles: ["observability"]
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - promtail_positions:/var/lib/promtail
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: consulting_sim_grafana
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  prometheus_data:
+  loki_data:
+  promtail_positions:
+  grafana_data:
 

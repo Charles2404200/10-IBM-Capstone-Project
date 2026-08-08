@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.ai.application;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,7 +45,7 @@ public class AiOrchestrationConfig {
     }
 
     @Bean
-    public AiOperationsRecorder aiOperationsRecorder() {
-        return new AiOperationsRecorder();
+    public AiOperationsRecorder aiOperationsRecorder(MeterRegistry meterRegistry) {
+        return new AiOperationsRecorder(meterRegistry);
     }
 }

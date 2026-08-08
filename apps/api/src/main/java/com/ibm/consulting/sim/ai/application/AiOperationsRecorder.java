@@ -1,7 +1,11 @@
 package com.ibm.consulting.sim.ai.application;
 
 import com.ibm.consulting.sim.ai.domain.AiTaskType;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +25,11 @@ import java.util.concurrent.atomic.LongAdder;
 public class AiOperationsRecorder {
 
     private final Map<String, ProviderCounters> byProvider = new ConcurrentHashMap<>();
+    private final MeterRegistry meterRegistry;
+
+    public AiOperationsRecorder(MeterRegistry meterRegistry) {
+        this.meterRegistry = meterRegistry;
+    }
 
     public void recordSuccess(String providerId, AiTaskType task, long latencyMs, boolean wasFallback) {
         ProviderCounters counters = byProvider.computeIfAbsent(providerId, k -> new ProviderCounters());
@@ -30,14 +39,35 @@ public class AiOperationsRecorder {
         if (wasFallback) {
             counters.fallbacks.increment();
         }
+        recordMetrics(providerId, task, "success", latencyMs, wasFallback);
     }
 
-    public void recordFailure(String providerId, AiTaskType task, long latencyMs) {
+    public void recordFailure(String providerId, AiTaskType task, long latencyMs, boolean wasFallback) {
         ProviderCounters counters = byProvider.computeIfAbsent(providerId, k -> new ProviderCounters());
         counters.requests.increment();
         counters.failures.increment();
         counters.totalLatencyMs.add(latencyMs);
+        recordMetrics(providerId, task, "failure", latencyMs, wasFallback);
     }
+
+        private void recordMetrics(String providerId, AiTaskType task, String outcome,
+                       long latencyMs, boolean wasFallback) {
+        String taskName = task.name().toLowerCase();
+        String fallback = Boolean.toString(wasFallback);
+        Counter.builder("consulting.ai.provider.requests")
+            .description("AI provider attempts")
+            .tags("provider", providerId, "task", taskName,
+                "outcome", outcome, "fallback", fallback)
+            .register(meterRegistry)
+            .increment();
+        Timer.builder("consulting.ai.provider.latency")
+            .description("AI provider attempt latency")
+            .tags("provider", providerId, "task", taskName,
+                "outcome", outcome, "fallback", fallback)
+            .publishPercentileHistogram()
+            .register(meterRegistry)
+            .record(Duration.ofMillis(latencyMs));
+        }
 
     public List<AiProviderStat> snapshot(Map<String, Long> quotaUsageByProvider,
                                           Map<String, Long> quotaLimitByProvider,

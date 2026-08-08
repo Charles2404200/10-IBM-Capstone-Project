@@ -20,6 +20,7 @@ repositories {
 val jjwtVersion = "0.12.6"
 val testcontainersVersion = "1.20.1"
 val springdocVersion = "2.6.0"
+val logstashLogbackVersion = "8.0"
 
 dependencies {
     // Web + Security
@@ -27,6 +28,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
+    implementation("net.logstash.logback:logstash-logback-encoder:$logstashLogbackVersion")
 
     // Persistence
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")

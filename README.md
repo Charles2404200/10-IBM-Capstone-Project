@@ -43,6 +43,39 @@ Supabase Postgres, so no local Postgres container is started.
 `redis` / `kafka` are scaffolded for future phases and are **not** started
 by default; run `docker compose --profile extended up -d` if you need them.
 
+### Observability
+
+The API emits structured JSON logs to stdout and Prometheus metrics from a
+protected Actuator endpoint. Start the separate local stack with:
+
+```bash
+docker compose --profile observability up -d --build
+```
+
+| Service | URL |
+|---|---|
+| Grafana | http://localhost:3001 |
+| Prometheus | http://localhost:9090 |
+| Loki | http://localhost:3100/ready |
+
+Grafana provisions Prometheus and Loki automatically. Useful Loki queries:
+
+```logql
+{service="consulting-simulation-api", event="AUTHENTICATION_REJECTED"}
+{service="consulting-simulation-api", event="HTTP_REQUEST_COMPLETED"} | json | latencyMs > 1000
+{service="consulting-simulation-api"} | json | requestId="<request-id>"
+```
+
+Every HTTP response includes `X-Request-ID`; use it to correlate frontend
+failures with API logs. AI metrics use the `consulting_ai_provider_*` prefix
+and only low-cardinality provider/task/outcome/fallback labels.
+
+On Railway, stdout JSON appears immediately in the API service Deploy Logs.
+Set a strong `OBSERVABILITY_TOKEN` secret on the API before configuring a
+separate Prometheus service to scrape `/actuator/prometheus`. Keep Grafana,
+Prometheus, and Loki as separate services; the application container has no
+vendor-specific log or metric transport.
+
 ### 3. Run the frontend (native, hot reload)
 ```bash
 cd apps/web

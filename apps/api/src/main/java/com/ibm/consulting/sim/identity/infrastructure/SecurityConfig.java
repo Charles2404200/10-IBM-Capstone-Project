@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.shared.config.CorsProperties;
+import com.ibm.consulting.sim.shared.infrastructure.observability.ObservabilityAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -29,10 +30,14 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final ObservabilityAuthenticationFilter observabilityFilter;
     private final CorsProperties corsProperties;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter, CorsProperties corsProperties) {
+    public SecurityConfig(JwtAuthenticationFilter jwtFilter,
+                          ObservabilityAuthenticationFilter observabilityFilter,
+                          CorsProperties corsProperties) {
         this.jwtFilter = jwtFilter;
+        this.observabilityFilter = observabilityFilter;
         this.corsProperties = corsProperties;
     }
 
@@ -48,6 +53,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/prometheus").hasRole("OBSERVABILITY")
                         .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/scenarios").permitAll()
                         // The WebSocket handshake is a plain, unauthenticated HTTP GET (browsers
@@ -58,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                    .addFilterBefore(observabilityFilter, JwtAuthenticationFilter.class)
                 .build();
     }
 

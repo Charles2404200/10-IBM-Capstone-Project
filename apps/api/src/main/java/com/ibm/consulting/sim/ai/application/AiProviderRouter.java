@@ -104,12 +104,17 @@ public class AiProviderRouter implements AiModelGateway {
             long start = System.currentTimeMillis();
             try {
                 String result = breaker.executeSupplier(() -> provider.complete(useCase, prompt));
-                operationsRecorder.recordSuccess(providerId, task, System.currentTimeMillis() - start, isFallback);
+                long latencyMs = System.currentTimeMillis() - start;
+                operationsRecorder.recordSuccess(providerId, task, latencyMs, isFallback);
+                logProviderAttempt(providerId, task, i + 1, latencyMs, isFallback, "success", null);
                 return result;
             } catch (CallNotPermittedException circuitOpen) {
                 log.debug("Circuit breaker open for provider {}, skipping for task {}", providerId, task);
             } catch (Exception e) {
-                operationsRecorder.recordFailure(providerId, task, System.currentTimeMillis() - start);
+                long latencyMs = System.currentTimeMillis() - start;
+                operationsRecorder.recordFailure(providerId, task, latencyMs, isFallback);
+                logProviderAttempt(providerId, task, i + 1, latencyMs, isFallback,
+                        "failure", e.getClass().getSimpleName());
                 lastFailure = (e instanceof AiProviderException ape) ? ape
                         : new AiProviderException("Provider " + providerId + " failed for use-case " + useCase, e);
                 log.warn("Provider {} failed for use-case {}, trying next candidate: {}",
@@ -141,6 +146,22 @@ public class AiProviderRouter implements AiModelGateway {
 
     AiQuotaStore quotaStore() {
         return quotaStore;
+    }
+
+    private void logProviderAttempt(String providerId, AiTaskType task, int attempt,
+                                    long latencyMs, boolean fallback, String outcome, String errorType) {
+        var event = log.atInfo()
+                .addKeyValue("event", "AI_PROVIDER_ATTEMPT_COMPLETED")
+                .addKeyValue("provider", providerId)
+                .addKeyValue("task", task.name().toLowerCase())
+                .addKeyValue("attempt", attempt)
+                .addKeyValue("latencyMs", latencyMs)
+                .addKeyValue("fallback", fallback)
+                .addKeyValue("outcome", outcome);
+        if (errorType != null) {
+            event.addKeyValue("errorType", errorType);
+        }
+        event.log("AI provider attempt completed");
     }
 
     private static List<String> parseCsv(String csv) {

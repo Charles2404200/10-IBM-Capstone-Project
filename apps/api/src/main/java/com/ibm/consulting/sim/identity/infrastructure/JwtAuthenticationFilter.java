@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -37,16 +38,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
-        if (token != null) {
+        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 UUID userId = jwtTokenProvider.extractUserId(token);
                 var user = userRepository.findById(userId);
                 if (user.isEmpty()) {
-                    log.warn("Authentication rejected: user_not_found path={}", request.getRequestURI());
+                    logAuthRejection("user_not_found", null);
                 } else if (!user.get().isActive()) {
-                    log.warn("Authentication rejected: inactive_user path={}", request.getRequestURI());
+                    logAuthRejection("inactive_user", null);
                 } else {
                     var activeUser = user.get();
+                    MDC.put("userId", activeUser.getId().toString());
                     var auth = new UsernamePasswordAuthenticationToken(
                             activeUser, null,
                             List.of(new SimpleGrantedAuthority("ROLE_" + activeUser.getRole().name())));
@@ -54,11 +56,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             } catch (JwtException | IllegalArgumentException e) {
-                log.warn("Authentication rejected: invalid_token path={} reason={}",
-                        request.getRequestURI(), e.getClass().getSimpleName());
+                logAuthRejection("invalid_token", e.getClass().getSimpleName());
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    private void logAuthRejection(String reason, String errorType) {
+        MDC.put("authRejectionReason", reason);
+        var event = log.atWarn()
+                .addKeyValue("event", "AUTHENTICATION_REJECTED");
+        if (errorType != null) {
+            event.addKeyValue("errorType", errorType);
+        }
+        event.log("Authentication rejected");
     }
 
     private String extractToken(HttpServletRequest request) {
