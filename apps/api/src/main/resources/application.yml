@@ -2,7 +2,7 @@ spring:
   application:
     name: consulting-simulation-api
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require&prepareThreshold=0}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
