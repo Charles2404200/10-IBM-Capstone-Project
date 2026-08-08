@@ -24,7 +24,7 @@ export function usePersonaTurnStream(meetingId: string): UsePersonaTurnStreamRes
   const [error, setError] = useState<string | null>(null)
   const [personaState, setPersonaState] = useState<PersonaState | null>(null)
   const qc = useQueryClient()
-  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
   const tokenRef = useRef<string | null>(null)
   tokenRef.current = useAuthStore.getState().token
   // Synchronous guard against double-submit: React state updates (isStreaming)

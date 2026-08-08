@@ -20,12 +20,9 @@ type SocketEvent =
   | { type: 'turn.error'; payload: { message: string } }
 
 function toWebSocketUrl(baseUrl: string): string {
-  // Fall back to the current page's origin when no explicit API base URL is
-  // configured (matches the SSE hook's `baseUrl ?? ''` + fetch()-relative-URL
-  // behaviour), then swap the http(s) scheme for ws(s) since STOMP rides on a
-  // plain WebSocket rather than an HTTP request.
-  const origin = baseUrl || window.location.origin
-  return origin.replace(/^http/, 'ws') + '/ws'
+  const url = new URL('/ws', baseUrl || window.location.origin)
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+  return url.toString()
 }
 
 /**
