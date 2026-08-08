@@ -30,6 +30,10 @@ apiClient.interceptors.response.use(
       // current session. Anonymous login failures and late responses carrying an
       // older token must not erase a newer successful login.
       if (shouldInvalidateSession(error.response.status, authorization, currentToken)) {
+        console.warn('Session invalidated after API rejected the current token', {
+          method: error.config?.method,
+          url: error.config?.url,
+        })
         useAuthStore.getState().logout()
         if (window.location.pathname !== '/login') {
           window.location.assign('/login')

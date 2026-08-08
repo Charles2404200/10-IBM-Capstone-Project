@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.UserRepository;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -9,6 +10,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -19,6 +22,8 @@ import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
@@ -32,17 +37,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
-        if (token != null && jwtTokenProvider.isValid(token)) {
-            UUID userId = jwtTokenProvider.extractUserId(token);
-            userRepository.findById(userId).ifPresent(user -> {
-                if (user.isActive()) {
+        if (token != null) {
+            try {
+                UUID userId = jwtTokenProvider.extractUserId(token);
+                var user = userRepository.findById(userId);
+                if (user.isEmpty()) {
+                    log.warn("Authentication rejected: user_not_found path={}", request.getRequestURI());
+                } else if (!user.get().isActive()) {
+                    log.warn("Authentication rejected: inactive_user path={}", request.getRequestURI());
+                } else {
+                    var activeUser = user.get();
                     var auth = new UsernamePasswordAuthenticationToken(
-                            user, null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
+                            activeUser, null,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + activeUser.getRole().name())));
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
-            });
+            } catch (JwtException | IllegalArgumentException e) {
+                log.warn("Authentication rejected: invalid_token path={} reason={}",
+                        request.getRequestURI(), e.getClass().getSimpleName());
+            }
         }
         filterChain.doFilter(request, response);
     }
