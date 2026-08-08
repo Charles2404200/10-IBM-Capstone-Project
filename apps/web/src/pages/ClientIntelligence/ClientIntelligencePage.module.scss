@@ -112,6 +112,33 @@ $accent-blue-dark: #0043ce;
   padding: $spacing-06;
 }
 
+.researchOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-04;
+  margin-top: $spacing-05;
+}
+
+.researchOptionCard {
+  background: $layer-bg;
+  border: 1px solid $border-subtle;
+  min-height: 12rem;
+
+  h4 {
+    color: $text-primary;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0 0 $spacing-02;
+  }
+
+  p {
+    color: $text-secondary;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    margin: 0;
+  }
+}
+
 .researchLoading {
   display: flex;
   align-items: center;
@@ -136,6 +163,10 @@ $accent-blue-dark: #0043ce;
     font-size: 0.8125rem;
     margin-top: $spacing-02;
   }
+}
+
+.researchError {
+  margin-top: $spacing-05;
 }
 
 .researchLoadingPulse {
@@ -653,6 +684,10 @@ $accent-blue-dark: #0043ce;
   .clientProfileHeader {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .researchOptions {
+    grid-template-columns: 1fr;
   }
 }
 

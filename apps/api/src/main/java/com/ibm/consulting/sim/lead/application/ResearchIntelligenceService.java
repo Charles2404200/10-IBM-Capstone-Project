@@ -15,6 +15,8 @@ import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,8 @@ import java.util.UUID;
 
 @Service
 public class ResearchIntelligenceService {
+
+    private static final Logger log = LoggerFactory.getLogger(ResearchIntelligenceService.class);
 
     private final EngagementRepository engagementRepository;
     private final LeadRepository leadRepository;
@@ -56,21 +60,27 @@ public class ResearchIntelligenceService {
         Map<String, String> facts = canonicalFacts(lead);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
         String cacheKey = cacheKey(lead, type, discovered);
-        List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
-        if (cached != null) {
-            return cached;
+        try {
+            List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+            ClientIntelligenceResponseParser parser = new ClientIntelligenceResponseParser(objectMapper, facts, type);
+            List<ResearchArtifactResponse> artifacts = aiOrchestrationService.execute(
+                    "client_intelligence",
+                    engagementId,
+                    buildPrompt(lead, engagement, type, facts, discovered, null),
+                    1,
+                    parser,
+                    () -> templateGenerate(lead, type));
+            List<ResearchArtifactResponse> filtered = removeDuplicates(artifacts, discovered);
+            cacheArtifacts(cacheKey, filtered);
+            return filtered;
+        } catch (RuntimeException e) {
+            log.warn("Client intelligence AI path failed for engagement {} and type {}; using scenario-safe fallback",
+                    engagementId, type, e);
+            return removeDuplicates(templateGenerate(lead, type), discovered);
         }
-        ClientIntelligenceResponseParser parser = new ClientIntelligenceResponseParser(objectMapper, facts, type);
-        List<ResearchArtifactResponse> artifacts = aiOrchestrationService.execute(
-                "client_intelligence",
-                engagementId,
-                buildPrompt(lead, engagement, type, facts, discovered, null),
-                1,
-                parser,
-                () -> templateGenerate(lead, type));
-        List<ResearchArtifactResponse> filtered = removeDuplicates(artifacts, discovered);
-        cacheArtifacts(cacheKey, filtered);
-        return filtered;
     }
 
     @SuppressWarnings("unchecked")

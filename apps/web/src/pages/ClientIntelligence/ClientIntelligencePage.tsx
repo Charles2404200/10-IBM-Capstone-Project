@@ -20,6 +20,7 @@ import {
   Accordion,
   AccordionItem,
   Tooltip,
+  InlineNotification,
 } from '@carbon/react'
 import {
   Add, ArrowRight, Locked, Link as LinkIcon, Search,
@@ -521,10 +522,17 @@ export default function ClientIntelligencePage() {
     [citableEvidence]
   )
 
-  const runResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
+  const selectResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
     setActiveAction(type)
     setValue('evidenceType', type)
-    generateResearch.mutate(type, { onSuccess: setResearchResults })
+    setResearchResults([])
+    generateResearch.reset()
+    analyzeUserContext.reset()
+  }
+
+  const generateSelectedResearch = () => {
+    if (!activeAction) return
+    generateResearch.mutate(activeAction, { onSuccess: setResearchResults })
   }
 
   const addArtifactToEvidence = (artifact: ResearchArtifact) => {
@@ -612,8 +620,8 @@ export default function ClientIntelligencePage() {
                   key={type}
                   type="button"
                   className={`${styles.actionButton} ${activeAction === type ? styles.actionButtonActive : ''} ${findingCount > 0 ? styles.actionButtonComplete : ''}`}
-                  disabled={generateResearch.isPending}
-                  onClick={() => runResearchAction(type)}
+                  disabled={generateResearch.isPending || analyzeUserContext.isPending}
+                  onClick={() => selectResearchAction(type)}
                 >
                   {findingCount > 0 ? <CheckmarkFilled size={20} className={styles.actionButtonCheck} /> : <Icon size={20} />}
                   <span className={styles.actionButtonLabel}>{label}</span>
@@ -627,29 +635,6 @@ export default function ClientIntelligencePage() {
             })}
           </div>
 
-          <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
-            <Tile className={styles.formTile}>
-              <Stack gap={4}>
-                <div>
-                  <h4 className={styles.formTitle}>Add External Context</h4>
-                  <p style={{ color: '#525252', fontSize: '0.8125rem', marginTop: '0.25rem' }}>
-                    Optional user-supplied intelligence is analysed as unverified context and cannot overwrite scenario truth.
-                  </p>
-                </div>
-                <TextArea
-                  id="external-context"
-                  labelText="External note, article excerpt or observation"
-                  rows={3}
-                  invalid={Boolean(externalContextErrors.context)}
-                  invalidText="Required"
-                  {...registerExternalContext('context', { required: true })}
-                />
-                <Button type="submit" kind="tertiary" disabled={analyzeUserContext.isPending}>
-                  {analyzeUserContext.isPending ? 'Analysing...' : 'Analyse Context'}
-                </Button>
-              </Stack>
-            </Tile>
-          </form>
         </aside>
       </Column>
 
@@ -664,8 +649,56 @@ export default function ClientIntelligencePage() {
               {activeAction && <Tag type="cyan" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}
             </div>
             <p className={styles.panelDescription}>
-              Controlled artefacts are generated from scenario-approved facts. Add only what is relevant to your evidence board.
+              {activeResearchAction
+                ? activeResearchAction.prompt
+                : 'Choose an intelligence area from the left to start a controlled research workflow.'}
             </p>
+
+            {activeResearchAction && (
+              <div className={styles.researchOptions}>
+                <Tile className={styles.researchOptionCard}>
+                  <Stack gap={3}>
+                    <div>
+                      <h4>AI-generated scenario intelligence</h4>
+                      <p>
+                        Generate controlled artefacts from scenario-approved facts. These results stay consistent with the canonical case truth.
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={generateSelectedResearch}
+                      disabled={generateResearch.isPending || analyzeUserContext.isPending}
+                    >
+                      {generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}
+                    </Button>
+                  </Stack>
+                </Tile>
+
+                <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
+                  <Tile className={styles.researchOptionCard}>
+                    <Stack gap={3}>
+                      <div>
+                        <h4>Add external context</h4>
+                        <p>
+                          Paste a note, article excerpt or observation. AI will correlate it as unverified intelligence without overwriting scenario truth.
+                        </p>
+                      </div>
+                      <TextArea
+                        id="external-context"
+                        labelText="External context"
+                        rows={3}
+                        invalid={Boolean(externalContextErrors.context)}
+                        invalidText="Required"
+                        {...registerExternalContext('context', { required: true })}
+                      />
+                      <Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>
+                        {analyzeUserContext.isPending ? 'Analysing...' : 'Analyse Context'}
+                      </Button>
+                    </Stack>
+                  </Tile>
+                </form>
+              </div>
+            )}
 
             {generateResearch.isPending && (
               <div className={styles.researchLoading}>
@@ -677,10 +710,28 @@ export default function ClientIntelligencePage() {
               </div>
             )}
 
-            {!generateResearch.isPending && researchResults.length === 0 && (
+            {generateResearch.isError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                title="Research could not be generated"
+                subtitle="The intelligence service returned an error. Retry this action after the API reloads."
+                hideCloseButton
+                className={styles.researchError}
+              />
+            )}
+
+            {!activeResearchAction && (
               <div className={styles.resultsEmpty}>
                 <Search size={24} />
-                <span>Run a research action to generate reviewable intelligence.</span>
+                <span>Select a research action to choose how you want to gather intelligence.</span>
+              </div>
+            )}
+
+            {activeResearchAction && !generateResearch.isPending && !generateResearch.isError && !analyzeUserContext.isPending && researchResults.length === 0 && (
+              <div className={styles.resultsEmpty}>
+                <Search size={24} />
+                <span>Use AI generation or external context analysis to create reviewable intelligence.</span>
               </div>
             )}
 
