@@ -12,11 +12,9 @@ WORKDIR /app
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle ./gradle
 RUN chmod +x gradlew
-RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle \
-    ./gradlew --no-daemon dependencies -q || true
+RUN ./gradlew --no-daemon dependencies -q || true
 COPY src ./src
-RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle \
-    ./gradlew --no-daemon bootJar -x test -q
+RUN ./gradlew --no-daemon bootJar -x test -q
 
 FROM eclipse-temurin:21-jdk AS layers
 WORKDIR /app
