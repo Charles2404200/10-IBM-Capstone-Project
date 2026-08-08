@@ -1,0 +1,77 @@
+package com.ibm.consulting.sim.shared.config;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.ibm.consulting.sim.shared.infrastructure.cache.UpstashRedisCacheManager;
+import com.ibm.consulting.sim.shared.infrastructure.cache.UpstashRestClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Caching for read-heavy, low-churn reference data — scenario catalogues,
+ * per-scenario lead lists, and (§13/§28 perf notes) persona identity used on
+ * every Live Meeting turn.
+ *
+ * <p>The provider is selected by {@code app.cache.provider} and is
+ * transparent to every {@code @Cacheable}/{@code @CacheEvict} call site,
+ * which only ever depend on the standard Spring {@link CacheManager} SPI:
+ * <ul>
+ *   <li>{@code caffeine} (default) — JVM-local, in-process. Correct for a
+ *       single instance; a second app instance would not see another
+ *       instance's writes/evictions.</li>
+ *   <li>{@code upstash} — distributed via the Upstash Redis REST API. Safe
+ *       across multiple instances/replicas and survives app restarts.</li>
+ * </ul>
+ *
+ * <p><b>Swapping in IBM's own Redis later:</b> add
+ * {@code spring-boot-starter-data-redis} to {@code build.gradle.kts}, add a
+ * third {@code @Bean} here — a standard {@code RedisCacheManager} built from
+ * a {@code LettuceConnectionFactory} pointed at the IBM Cloud Databases for
+ * Redis host/port/password — guarded by
+ * {@code @ConditionalOnProperty(name = "app.cache.provider", havingValue = "redis")},
+ * and set {@code CACHE_PROVIDER=redis} in the environment. No other class in
+ * the codebase references Upstash or Caffeine directly, so this is a
+ * config-only change.
+ */
+@Configuration
+@EnableCaching
+public class CacheConfig {
+
+    public static final String SCENARIOS_CACHE = "scenarios";
+    public static final String SCENARIO_CACHE = "scenario";
+    public static final String LEADS_BY_SCENARIO_CACHE = "leadsByScenario";
+    public static final String PERSONA_CACHE = "persona";
+
+    @Bean
+    @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
+    public CacheManager caffeineCacheManager() {
+        CaffeineCacheManager manager = new CaffeineCacheManager(
+                SCENARIOS_CACHE, SCENARIO_CACHE, LEADS_BY_SCENARIO_CACHE, PERSONA_CACHE);
+        manager.setCaffeine(Caffeine.newBuilder()
+                .maximumSize(1_000)
+                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .recordStats());
+        return manager;
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "app.cache.provider", havingValue = "upstash")
+    public CacheManager upstashCacheManager(
+            UpstashRestClient upstashRestClient,
+            @Value("${app.cache.default-ttl-seconds:600}") long defaultTtlSeconds,
+            @Value("${app.cache.persona-ttl-seconds:1800}") long personaTtlSeconds) {
+        // Persona reference data changes only via the admin authoring API, so it
+        // can safely be cached longer than the general default (used by e.g.
+        // scenario summaries, which authors also edit but check more often).
+        Map<String, Duration> ttlOverrides = Map.of(PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds));
+        return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
+    }
+}

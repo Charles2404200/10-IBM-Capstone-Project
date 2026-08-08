@@ -1,0 +1,139 @@
+spring:
+  application:
+    name: consulting-simulation-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiry-ms: ${JWT_EXPIRY_MS:86400000}
+  admin:
+    seed:
+      email: ${ADMIN_EMAIL:}
+      password: ${ADMIN_PASSWORD:}
+      display-name: ${ADMIN_DISPLAY_NAME:Platform Administrator}
+  watsonx:
+    api-key: ${WATSONX_API_KEY:mock}
+    project-id: ${WATSONX_PROJECT_ID:mock}
+    base-url: ${WATSONX_BASE_URL:https://us-south.ml.cloud.ibm.com}
+    model-id: ${WATSONX_MODEL_ID:ibm/granite-13b-chat-v2}
+    embedding-model-id: ${WATSONX_EMBEDDING_MODEL_ID:ibm/slate-125m-english-rtrvr}
+    mock-mode: ${WATSONX_MOCK_MODE:true}
+  ai:
+    # Governs the ENTIRE AiProviderRouter.complete() call, which may try more than
+    # one provider in sequence on failure (Gemini -> watsonx -> OpenRouter, each with
+    # its own shorter per-provider timeout below) — sized with headroom above the sum
+    # of two provider attempts, not just one, so a single unhealthy provider doesn't
+    # eat the whole budget and force a premature fallback ("Sorry, could you repeat
+    # that?") while a healthy next candidate would have succeeded in time.
+    timeout-ms: ${AI_TIMEOUT_MS:20000}
+    # mock-mode=true (default) -> MockAiGateway (deterministic, no external calls).
+    # mock-mode=false -> AiProviderRouter takes over as the AiModelGateway bean and
+    # fans out to whichever real providers below are configured (see AiProviderRouter
+    # javadoc + docs/architecture/AI_ORCHESTRATION.md for the full design).
+    mock-mode: ${AI_MOCK_MODE:true}
+    # Ordered, explicit candidate lists per task type — capability-based routing,
+    # never random fallback (a persona's "voice" must not shift model-to-model
+    # mid-conversation except on an actual provider outage). Provider ids must match
+    # AiProvider.id() — currently: gemini-free, watsonx-granite, openrouter-free.
+    routing:
+      # Live, latency-sensitive: persona dialogue, outreach replies. Free/fast first.
+      conversation: ${AI_ROUTE_CONVERSATION:gemini-free,watsonx-granite,openrouter-free}
+      # Cheap structured-output judgements (intent/topic/quality signals).
+      classification: ${AI_ROUTE_CLASSIFICATION:gemini-free,watsonx-granite,openrouter-free}
+      # End-of-engagement coaching narrative — latency-tolerant, reasoning matters most.
+      # watsonx/Granite is first-choice here: its real job on this platform, not a
+      # branding requirement (see docs/architecture/AI_ORCHESTRATION.md).
+      assessment: ${AI_ROUTE_ASSESSMENT:watsonx-granite,gemini-free,openrouter-free}
+      evidence_extraction: ${AI_ROUTE_EVIDENCE_EXTRACTION:gemini-free,watsonx-granite,openrouter-free}
+    # Circuit breaker (Resilience4j) — after failure-rate-threshold% of the last
+    # sliding-window-size calls to a provider fail, its circuit opens for
+    # wait-duration-seconds so subsequent requests skip straight to the next
+    # candidate instead of waiting out a doomed call's full timeout.
+    circuit-breaker:
+      failure-rate-threshold: ${AI_CIRCUIT_FAILURE_RATE_THRESHOLD:50}
+      wait-duration-seconds: ${AI_CIRCUIT_WAIT_DURATION_SECONDS:60}
+      sliding-window-size: ${AI_CIRCUIT_SLIDING_WINDOW_SIZE:10}
+      minimum-calls: ${AI_CIRCUIT_MINIMUM_CALLS:5}
+    providers:
+      # IBM watsonx.ai — the platform's premium tier. Reuses app.watsonx.* connection
+      # settings above (api-key/project-id/base-url/model-id); daily-quota is
+      # effectively "unlimited" for routing purposes (a paid/allocated tier, not a
+      # free-quota-constrained one) but still tracked for observability.
+      watsonx:
+        daily-quota: ${AI_WATSONX_DAILY_QUOTA:100000}
+      gemini:
+        api-key: ${GEMINI_API_KEY:}
+        base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+        model-id: ${GEMINI_MODEL_ID:gemini-2.5-flash}
+        timeout-ms: ${GEMINI_TIMEOUT_MS:8000}
+        daily-quota: ${AI_GEMINI_DAILY_QUOTA:1000}
+      openrouter:
+        api-key: ${OPENROUTER_API_KEY:}
+        base-url: ${OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
+        model-id: ${OPENROUTER_MODEL_ID:openai/gpt-oss-20b:free}
+        timeout-ms: ${OPENROUTER_TIMEOUT_MS:12000}
+        # OpenRouter's free plan is ~50 requests/day — deliberately last-priority
+        # everywhere (emergency/dev fallback only), never the primary route.
+        daily-quota: ${AI_OPENROUTER_DAILY_QUOTA:50}
+  cos:
+    endpoint: ${COS_ENDPOINT:https://s3.us-south.cloud-object-storage.appdomain.cloud}
+    access-key: ${COS_ACCESS_KEY:mock}
+    secret-key: ${COS_SECRET_KEY:mock}
+    region: ${COS_REGION:us-south}
+    bucket: ${COS_BUCKET:consulting-sim-transcripts}
+    mock-mode: ${COS_MOCK_MODE:true}
+  cache:
+    # caffeine = JVM-local (default, no external dependency, fine for a single
+    #            instance / local dev). upstash = distributed via the Upstash
+    #            Redis REST API (see CacheConfig for the future IBM-Redis swap
+    #            path — same @Cacheable call sites, just a different provider).
+    provider: ${CACHE_PROVIDER:caffeine}
+    default-ttl-seconds: ${CACHE_DEFAULT_TTL_SECONDS:600}
+    persona-ttl-seconds: ${CACHE_PERSONA_TTL_SECONDS:1800}
+    upstash:
+      rest-url: ${UPSTASH_REDIS_REST_URL:}
+      rest-token: ${UPSTASH_REDIS_REST_TOKEN:}
+
+logging:
+  level:
+    com.ibm.consulting: DEBUG
+    org.hibernate.SQL: DEBUG

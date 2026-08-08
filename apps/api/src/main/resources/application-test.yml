@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    clean-on-validation-error: true
+
+app:
+  jwt:
+    secret: test-secret-key-at-least-64-bytes-long-for-hs512-algorithm-use-only
+  watsonx:
+    mock-mode: true

@@ -1,0 +1,497 @@
+@use '@carbon/react/scss/spacing' as *;
+
+// ─── Light/blue design tokens (IBM Carbon "white" theme) ───────────────────
+$text-primary: #161616;
+$text-secondary: #525252;
+$text-placeholder: #a8a8a8;
+$layer-bg: #f4f4f4;
+$layer-white: #ffffff;
+$border-subtle: #e0e0e0;
+$accent-blue: #0f62fe;
+$accent-blue-dark: #0043ce;
+
+.page {
+  padding: $spacing-07 $spacing-07 $spacing-10;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+// ─── Phase stepper ───────────────────────────────────────────────────────
+
+.progressBanner {
+  margin-bottom: $spacing-06;
+  padding-bottom: $spacing-05;
+  border-bottom: 1px solid $border-subtle;
+}
+
+.stageMetaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: $spacing-04;
+}
+
+.confidenceHeadline {
+  color: $text-secondary;
+  font-size: 0.875rem;
+}
+
+.heading {
+  color: $text-primary;
+}
+
+.subheading {
+  color: $text-secondary;
+  margin-top: $spacing-03;
+  max-width: 42rem;
+}
+
+// ─── Research Actions ────────────────────────────────────────────────────
+
+.researchActions {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  padding: $spacing-05;
+}
+
+.researchActionsTitle {
+  color: $text-primary;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0 0 $spacing-04;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  width: 100%;
+  padding: $spacing-04;
+  margin-bottom: $spacing-03;
+  background: $layer-bg;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  color: $text-primary;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: border-color 0.12s ease, background 0.12s ease;
+
+  &:hover {
+    border-color: $accent-blue;
+    background: #edf5ff;
+  }
+
+  &.actionButtonActive {
+    border-color: $accent-blue;
+    background: #edf5ff;
+  }
+
+  &.actionButtonComplete {
+    border-color: rgba(36, 161, 72, 0.35);
+  }
+
+  svg {
+    flex-shrink: 0;
+    fill: $accent-blue;
+  }
+}
+
+.actionButtonLabel {
+  flex: 1;
+}
+
+.actionButtonCheck {
+  fill: #24a148 !important;
+}
+
+.actionButtonCount {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #24a148;
+  background: rgba(36, 161, 72, 0.12);
+  padding: 2px $spacing-03;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.formTile {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+}
+
+// ─── Research gate checklist ─────────────────────────────────────────────
+
+.researchGate {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  padding: $spacing-05;
+}
+
+.researchGateTitle {
+  color: $text-primary;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0 0 $spacing-04;
+}
+
+.gateRequirement {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+}
+
+.gateRequirementMetIcon {
+  fill: $accent-blue;
+  flex-shrink: 0;
+}
+
+.gateRequirementUnmetIcon {
+  fill: $text-placeholder;
+  flex-shrink: 0;
+}
+
+.gateRequirementMetLabel {
+  color: $text-primary;
+  font-size: 0.8125rem;
+}
+
+.gateRequirementUnmetLabel {
+  color: $text-secondary;
+  font-size: 0.8125rem;
+}
+
+.gateError {
+  color: #da1e28;
+  font-size: 0.75rem;
+  margin: $spacing-04 0 0;
+}
+
+.formTitle {
+  color: $text-primary;
+  margin: 0;
+}
+
+.sourceRow {
+  align-items: flex-start;
+
+  > * {
+    flex: 1;
+  }
+}
+
+.linkLabel {
+  color: $text-primary;
+  font-weight: 600;
+  margin-bottom: $spacing-03;
+}
+
+// ─── Evidence Board ─────────────────────────────────────────────────────────
+
+.evidenceBoard {
+  background: $layer-bg;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  padding: $spacing-06;
+  min-height: 100%;
+}
+
+.evidenceBoardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-05;
+
+  h3 {
+    color: $text-primary;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.emptyState {
+  background: $layer-white;
+  border: 1px dashed $border-subtle;
+  text-align: center;
+  padding: $spacing-07 $spacing-05;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-03;
+
+  svg {
+    fill: #a8a8a8;
+  }
+
+  p {
+    color: $text-secondary;
+    margin: 0;
+  }
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: $spacing-05;
+}
+
+.evidenceCard {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-left: 4px solid $accent-blue;
+}
+
+.evidenceCardHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  flex-wrap: wrap;
+}
+
+.evidenceCode {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 700;
+  color: $accent-blue-dark;
+  font-size: 0.875rem;
+}
+
+.evidenceNote {
+  color: $text-primary;
+  line-height: 1.4;
+}
+
+.supportingEvidence {
+  display: flex;
+  align-items: center;
+  gap: $spacing-02;
+  color: $accent-blue-dark;
+  font-size: 0.8125rem;
+}
+
+.sourceMeta {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-02;
+  padding-top: $spacing-03;
+  border-top: 1px solid $border-subtle;
+  font-size: 0.75rem;
+}
+
+.sourceTitle {
+  color: $text-primary;
+  font-weight: 600;
+}
+
+.sourceMetaRow {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-03;
+}
+
+.sourceMetaLabel {
+  color: $text-secondary;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  min-width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.sourceLinkButton {
+  align-self: flex-start;
+  color: $accent-blue-dark;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.sourceLink {
+  color: $accent-blue-dark;
+  word-break: break-all;
+}
+
+.sourceDate {
+  color: $text-secondary;
+}
+
+// ─── Hypothesis workspace ────────────────────────────────────────────────
+
+.hypothesisWorkspace {
+  margin-top: $spacing-06;
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  padding: $spacing-06;
+}
+
+.hypothesisWorkspaceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-05;
+
+  h3 {
+    color: $text-primary;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.hypothesisEmpty {
+  color: $text-secondary;
+  font-size: 0.875rem;
+  padding: $spacing-05 0;
+  text-align: center;
+}
+
+.hypothesisCard {
+  border-left: 4px solid #be95ff;
+  background: #faf6ff;
+  border-radius: 4px;
+  padding: $spacing-05;
+  margin-bottom: $spacing-04;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.hypothesisStatement {
+  color: $text-primary;
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0 0 $spacing-04;
+}
+
+.hypothesisMetaRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-03;
+  font-size: 0.75rem;
+}
+
+.hypothesisSupportLabel {
+  color: $text-secondary;
+}
+
+.hypothesisSupportCodes {
+  color: $accent-blue-dark;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  margin-left: $spacing-02;
+}
+
+// ─── Client Profile panel ───────────────────────────────────────────────────
+
+.clientProfile {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  padding: $spacing-06;
+  height: 100%;
+}
+
+.clientProfileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-05;
+
+  h3 {
+    color: $text-primary;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.confidenceMeter {
+  margin-bottom: $spacing-06;
+}
+
+.confidenceLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: $text-secondary;
+  font-size: 0.75rem;
+  margin-bottom: $spacing-02;
+}
+
+.confidenceLabelWithHelp {
+  display: flex;
+  align-items: center;
+  gap: $spacing-02;
+
+  svg {
+    fill: $text-placeholder;
+    cursor: help;
+  }
+}
+
+.confidenceTrack {
+  height: 6px;
+  background: $border-subtle;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confidenceFill {
+  height: 100%;
+  background: $accent-blue;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.intelField {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-02;
+  padding: $spacing-04 0;
+  border-bottom: 1px solid $border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.intelFieldLabel {
+  color: $text-secondary;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.intelFieldValue {
+  color: $text-primary;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.intelFieldUnknown {
+  color: $text-placeholder;
+  font-style: italic;
+  font-size: 0.9375rem;
+}
+
+.intelFieldSource {
+  color: $text-secondary;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: $spacing-02;
+}
+

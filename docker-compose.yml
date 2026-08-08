@@ -1,0 +1,123 @@
+# Database is hosted on Supabase — no local postgres needed.
+# Set SPRING_DATASOURCE_PASSWORD in your .env file.
+#
+# Default dev workflow:
+#   docker compose up -d      -> starts only the API (this is all the app
+#                                 currently depends on at runtime)
+#   cd apps/web && npm run dev -> Vite dev server, hot reload, calls the
+#                                 containerized API on localhost:8080
+#
+# Distributed caching now runs against Upstash (hosted Redis, REST API) —
+# see UPSTASH_REDIS_REST_URL/TOKEN and CACHE_PROVIDER in .env, and
+# apps/api/.../shared/config/CacheConfig.java. No local container needed for
+# this; the `redis` service below is an optional self-hosted alternative
+# (e.g. if Upstash's free tier limits are hit, or for fully offline dev) and
+# is NOT wired to the app by default — the app only ever talks to Upstash's
+# REST API when CACHE_PROVIDER=upstash. Kafka remains scaffolded for a future
+# event-driven phase and has no runtime dependency yet (see build.gradle.kts).
+# Both are gated behind the "extended" profile so `docker compose up -d`
+# stays fast:
+#   docker compose --profile extended up -d
+#
+# `web` (nginx-served production build) is likewise opt-in via the
+# "containerized-web" profile, for parity-testing the prod build locally;
+# day-to-day frontend development should use `npm run dev`, not this service:
+#   docker compose --profile containerized-web up -d
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: consulting_sim_redis
+    profiles: ["extended"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: consulting_sim_kafka
+    profiles: ["extended"]
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:19092,CONTROLLER://0.0.0.0:19093,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:19093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:19092 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: consulting_sim_api
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY_MS: ${JWT_EXPIRY_MS:-86400000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_DISPLAY_NAME: ${ADMIN_DISPLAY_NAME:-Platform Administrator}
+      WATSONX_API_KEY: ${WATSONX_API_KEY:-mock}
+      WATSONX_PROJECT_ID: ${WATSONX_PROJECT_ID:-mock}
+      WATSONX_BASE_URL: ${WATSONX_BASE_URL:-https://us-south.ml.cloud.ibm.com}
+      WATSONX_MODEL_ID: ${WATSONX_MODEL_ID:-ibm/granite-13b-chat-v2}
+      WATSONX_MOCK_MODE: ${WATSONX_MOCK_MODE:-true}
+      # AI Orchestration Layer (multi-provider: watsonx + free models) — see
+      # AiProviderRouter.java / docs/architecture/AI_ORCHESTRATION.md.
+      AI_MOCK_MODE: ${AI_MOCK_MODE:-true}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL_ID: ${GEMINI_MODEL_ID:-gemini-2.5-flash}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL_ID: ${OPENROUTER_MODEL_ID:-openai/gpt-oss-20b:free}
+      COS_ENDPOINT: ${COS_ENDPOINT:-https://s3.us-south.cloud-object-storage.appdomain.cloud}
+      COS_ACCESS_KEY: ${COS_ACCESS_KEY:-mock}
+      COS_SECRET_KEY: ${COS_SECRET_KEY:-mock}
+      COS_REGION: ${COS_REGION:-us-south}
+      COS_BUCKET: ${COS_BUCKET:-consulting-sim-transcripts}
+      COS_MOCK_MODE: ${COS_MOCK_MODE:-true}
+      CACHE_PROVIDER: ${CACHE_PROVIDER:-caffeine}
+      UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:-}
+      UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: consulting_sim_web
+    profiles: ["containerized-web"]
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+

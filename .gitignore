@@ -1,0 +1,32 @@
+# Secrets and local config
+.env
+*.env.local
+
+# Java / Gradle
+apps/api/.gradle/
+apps/api/build/
+apps/api/out/
+*.class
+*.jar
+*.war
+
+# Node / Frontend
+apps/web/node_modules/
+apps/web/dist/
+apps/web/.vite/
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+*.DS_Store
+
+# Docker volumes
+postgres_data/
+
+# Logs
+*.log
+logs/
+
+# docs
+docs/
