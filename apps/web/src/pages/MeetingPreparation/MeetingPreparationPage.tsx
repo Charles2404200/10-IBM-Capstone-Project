@@ -38,7 +38,7 @@ function EditableList({
     next[index] = value
     onChange(next)
   }
-  const remove = (index: number) => onChange(items.filter((_, i) => i !== index))
+  const remove = (index: number) => onChange((items ?? []).filter((_, i) => i !== index))
   const add = () => onChange([...items, ''])
 
   return (
@@ -98,8 +98,8 @@ export default function MeetingPreparationPage() {
   const handleSave = () => {
     updatePreparation.mutate({
       objective,
-      agenda: agenda.filter((a) => a.trim()),
-      discoveryQuestions: discoveryQuestions.filter((q) => q.trim()),
+      agenda: (agenda ?? []).filter((a) => a.trim()),
+      discoveryQuestions: (discoveryQuestions ?? []).filter((q) => q.trim()),
     })
   }
 

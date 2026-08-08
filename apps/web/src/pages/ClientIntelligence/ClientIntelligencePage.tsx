@@ -326,10 +326,10 @@ function HypothesisWorkspace({
   const saveResearch = useSaveResearch(engagementId)
   const [composing, setComposing] = useState(false)
   const hypotheses = useMemo(
-    () => evidence.filter((e) => e.evidenceType === 'HYPOTHESIS').sort((a, b) => b.sequenceNo - a.sequenceNo),
+    () => (evidence ?? []).filter((e) => e.evidenceType === 'HYPOTHESIS').sort((a, b) => b.sequenceNo - a.sequenceNo),
     [evidence]
   )
-  const citableEvidence = useMemo(() => evidence.filter((e) => e.evidenceType !== 'HYPOTHESIS'), [evidence])
+  const citableEvidence = useMemo(() => (evidence ?? []).filter((e) => e.evidenceType !== 'HYPOTHESIS'), [evidence])
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<HypothesisFormValues>({
     defaultValues: { confidence: 'MEDIUM', supportingEvidenceIds: [] },
