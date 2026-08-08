@@ -30,6 +30,7 @@ import java.util.UUID;
 @Service
 public class MeetingService {
 
+        private static final int PROMPT_TRANSCRIPT_WINDOW = 8;
     private static final int PROMPT_VERSION = 1;
     private static final java.time.Duration DUPLICATE_WINDOW = java.time.Duration.ofSeconds(20);
 
@@ -149,12 +150,10 @@ public class MeetingService {
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
                 .orElseGet(() -> PersonaState.initial(meeting.getEngagementId()));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(meeting.getEngagementId());
-        // Only the most recent turns are needed for prompt grounding — fetching and
-        // holding the full, unbounded transcript on every message wastes a DB round
-        // trip's worth of payload as the meeting grows (P0 perf fix).
-        List<ConversationTurn> recentTurns = existingTurns;
+        int transcriptStart = Math.max(0, existingTurns.size() - PROMPT_TRANSCRIPT_WINDOW);
+        List<ConversationTurn> recentTurns = existingTurns.subList(transcriptStart, existingTurns.size());
 
-        int nextSequence = recentTurns.size() + 1;
+        int nextSequence = existingTurns.size() + 1;
         ConversationTurn learnerTurn = ConversationTurn.learnerTurn(meeting.getId(), nextSequence, learnerMessage,
                 clientMessageId);
         turnRepository.save(learnerTurn);

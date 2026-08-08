@@ -26,17 +26,20 @@ public class AiOrchestrationService {
     private final AiTraceRepository traceRepository;
     private final ExecutorService executor;
     private final long timeoutMs;
+    private final long conversationTimeoutMs;
     private final String modelId;
 
     public AiOrchestrationService(AiModelGateway gateway,
                                    AiTraceRepository traceRepository,
                                    @Qualifier("aiGatewayExecutor") ExecutorService executor,
                                    @Value("${app.ai.timeout-ms:15000}") long timeoutMs,
+                                   @Value("${app.ai.conversation-timeout-ms:8000}") long conversationTimeoutMs,
                                    @Value("${app.watsonx.model-id}") String modelId) {
         this.gateway = gateway;
         this.traceRepository = traceRepository;
         this.executor = executor;
         this.timeoutMs = timeoutMs;
+        this.conversationTimeoutMs = conversationTimeoutMs;
         this.modelId = modelId;
     }
 
@@ -49,15 +52,20 @@ public class AiOrchestrationService {
     public <T> T execute(String useCase, UUID engagementId, String prompt, int promptVersion,
                           AiResponseParser<T> parser, Supplier<T> fallback) {
         long start = System.currentTimeMillis();
+        long budgetMs = AiTaskType.fromUseCase(useCase) == AiTaskType.CONVERSATION
+            ? conversationTimeoutMs
+            : timeoutMs;
+        long deadline = start + budgetMs;
         try {
-            String raw = callWithTimeout(useCase, prompt);
+            String raw = callWithTimeout(useCase, prompt, remainingMillis(deadline));
             try {
                 T result = parser.parse(raw);
                 trace(useCase, engagementId, promptVersion, start, AiTraceStatus.SUCCESS, null);
                 return result;
             } catch (AiValidationException validationFailure) {
                 log.warn("AI response failed validation for use-case {}: {}", useCase, validationFailure.getMessage());
-                return repairThenFallback(useCase, engagementId, prompt, promptVersion, parser, fallback, start);
+                return repairThenFallback(
+                        useCase, engagementId, prompt, promptVersion, parser, fallback, start, deadline);
             }
         } catch (TimeoutException | ExecutionException | InterruptedException e) {
             log.error("AI gateway call failed for use-case {}", useCase, e);
@@ -67,11 +75,11 @@ public class AiOrchestrationService {
     }
 
     private <T> T repairThenFallback(String useCase, UUID engagementId, String originalPrompt, int promptVersion,
-                                      AiResponseParser<T> parser, Supplier<T> fallback, long start) {
+                                      AiResponseParser<T> parser, Supplier<T> fallback, long start, long deadline) {
         String repairPrompt = originalPrompt
                 + "\n\nYour previous response was invalid. Return ONLY valid JSON matching the required schema exactly.";
         try {
-            String repaired = callWithTimeout(useCase, repairPrompt);
+            String repaired = callWithTimeout(useCase, repairPrompt, remainingMillis(deadline));
             T result = parser.parse(repaired);
             trace(useCase, engagementId, promptVersion, start, AiTraceStatus.REPAIRED, null);
             return result;
@@ -82,9 +90,23 @@ public class AiOrchestrationService {
         }
     }
 
-    private String callWithTimeout(String useCase, String prompt) throws TimeoutException, ExecutionException, InterruptedException {
+    private String callWithTimeout(String useCase, String prompt, long callTimeoutMs)
+            throws TimeoutException, ExecutionException, InterruptedException {
         Future<String> future = executor.submit(() -> gateway.complete(useCase, prompt));
-        return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        try {
+            return future.get(callTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException | InterruptedException e) {
+            future.cancel(true);
+            throw e;
+        }
+    }
+
+    private long remainingMillis(long deadline) throws TimeoutException {
+        long remaining = deadline - System.currentTimeMillis();
+        if (remaining <= 0) {
+            throw new TimeoutException("AI request exhausted its latency budget");
+        }
+        return remaining;
     }
 
     private void trace(String useCase, UUID engagementId, int promptVersion, long start,

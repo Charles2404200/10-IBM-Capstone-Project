@@ -26,6 +26,9 @@ export default function AssessmentReviewPage() {
   const generateAssessment = useGenerateAssessment(engagementId!)
 
   const notFound = isError && (error as { response?: { status?: number } })?.response?.status === 404
+  const generationError = generateAssessment.error as
+    | { response?: { data?: { detail?: string } } }
+    | null
 
   useEffect(() => {
     if (notFound && !generateAssessment.isPending && !generateAssessment.isSuccess) {
@@ -36,6 +39,16 @@ export default function AssessmentReviewPage() {
 
   if (isLoading || generateAssessment.isPending) return <LoadingState description="Generating assessment…" />
   if (isError && !notFound) return <ErrorState />
+  if (generateAssessment.isError) {
+    return (
+      <ErrorState
+        title="Assessment could not be generated"
+        message={generationError?.response?.data?.detail ?? 'Please retry after completing the proposal outcome.'}
+        actionLabel="Retry assessment"
+        onAction={() => generateAssessment.mutate()}
+      />
+    )
+  }
 
   const result = assessment ?? generateAssessment.data
   if (!result) return <LoadingState description="Generating assessment…" />

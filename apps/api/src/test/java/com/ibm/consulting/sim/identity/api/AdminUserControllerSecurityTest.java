@@ -47,11 +47,8 @@ class AdminUserControllerSecurityTest {
 
     @Test
     void anonymousRequestIsRejected() throws Exception {
-        // No AuthenticationEntryPoint override is configured, so Spring Security's
-        // default behaviour for an unauthenticated principal on a permission-denied
-        // rule is 403 Forbidden rather than 401 Unauthorized.
         mockMvc.perform(get("/api/v1/admin/users"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

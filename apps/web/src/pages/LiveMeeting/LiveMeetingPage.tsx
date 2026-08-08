@@ -64,6 +64,7 @@ export default function LiveMeetingPage() {
   const { streamingText, isStreaming, error, personaState, sendMessage } = useMeetingSocket(meetingId!)
 
   const [message, setMessage] = useState('')
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -79,7 +80,12 @@ export default function LiveMeetingPage() {
     if (!message.trim() || isStreaming) return
     const outgoing = message
     setMessage('')
-    await sendMessage(outgoing)
+    setPendingMessage(outgoing)
+    try {
+      await sendMessage(outgoing)
+    } finally {
+      setPendingMessage(null)
+    }
   }
 
   const handleComplete = () => {
@@ -96,6 +102,19 @@ export default function LiveMeetingPage() {
 
           <div style={{ maxHeight: '55vh', overflowY: 'auto', padding: '0.5rem' }}>
             {transcript?.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
+            {pendingMessage && (
+              <TurnBubble
+                turn={{
+                  id: 'pending-learner',
+                  meetingId: meetingId!,
+                  actor: 'LEARNER',
+                  content: pendingMessage,
+                  sequence: -1,
+                  signals: null,
+                  createdAt: new Date().toISOString(),
+                }}
+              />
+            )}
             {isStreaming && streamingText && (
               <TurnBubble
                 turn={{

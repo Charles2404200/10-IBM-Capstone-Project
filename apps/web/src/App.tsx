@@ -1,20 +1,23 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
-import LandingPage from '@/pages/Landing/LandingPage'
-import LoginPage from '@/pages/Auth/LoginPage'
-import RegisterPage from '@/pages/Auth/RegisterPage'
-import CommandCentrePage from '@/pages/CommandCentre/CommandCentrePage'
-import LeadPipelinePage from '@/pages/LeadPipeline/LeadPipelinePage'
-import ClientIntelligencePage from '@/pages/ClientIntelligence/ClientIntelligencePage'
-import OutreachWorkspacePage from '@/pages/OutreachWorkspace/OutreachWorkspacePage'
-import MeetingPreparationPage from '@/pages/MeetingPreparation/MeetingPreparationPage'
-import LiveMeetingPage from '@/pages/LiveMeeting/LiveMeetingPage'
-import ProposalStudioPage from '@/pages/ProposalStudio/ProposalStudioPage'
-import AssessmentReviewPage from '@/pages/AssessmentReview/AssessmentReviewPage'
-import PortfolioPage from '@/pages/Portfolio/PortfolioPage'
-import ScenarioBuilderPage from '@/pages/Admin/ScenarioBuilderPage'
-import AchievementBuilderPage from '@/pages/Admin/AchievementBuilderPage'
+import LoadingState from '@/components/shared/LoadingState'
+
+const LandingPage = lazy(() => import('@/pages/Landing/LandingPage'))
+const LoginPage = lazy(() => import('@/pages/Auth/LoginPage'))
+const RegisterPage = lazy(() => import('@/pages/Auth/RegisterPage'))
+const CommandCentrePage = lazy(() => import('@/pages/CommandCentre/CommandCentrePage'))
+const LeadPipelinePage = lazy(() => import('@/pages/LeadPipeline/LeadPipelinePage'))
+const ClientIntelligencePage = lazy(() => import('@/pages/ClientIntelligence/ClientIntelligencePage'))
+const OutreachWorkspacePage = lazy(() => import('@/pages/OutreachWorkspace/OutreachWorkspacePage'))
+const MeetingPreparationPage = lazy(() => import('@/pages/MeetingPreparation/MeetingPreparationPage'))
+const LiveMeetingPage = lazy(() => import('@/pages/LiveMeeting/LiveMeetingPage'))
+const ProposalStudioPage = lazy(() => import('@/pages/ProposalStudio/ProposalStudioPage'))
+const AssessmentReviewPage = lazy(() => import('@/pages/AssessmentReview/AssessmentReviewPage'))
+const PortfolioPage = lazy(() => import('@/pages/Portfolio/PortfolioPage'))
+const ScenarioBuilderPage = lazy(() => import('@/pages/Admin/ScenarioBuilderPage'))
+const AchievementBuilderPage = lazy(() => import('@/pages/Admin/AchievementBuilderPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated())
@@ -37,7 +40,8 @@ function RequireRole({ roles, children }: { roles: string[]; children: React.Rea
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <Suspense fallback={<LoadingState />}>
+        <Routes>
         <Route
           path="/"
           element={
@@ -97,7 +101,8 @@ export default function App() {
           />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }
