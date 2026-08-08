@@ -8,6 +8,7 @@ apps/api/build/
 apps/api/out/
 *.class
 *.jar
+!apps/api/gradle/wrapper/gradle-wrapper.jar
 *.war
 
 # Node / Frontend

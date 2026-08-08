@@ -3,9 +3,9 @@
 ## `layertools` below splits into dependency/resource/application layers —
 ## the standard enterprise pattern for Spring Boot container images, since
 ## the (large, rarely-changing) dependency layer is cached independently of
-## the (small, frequently-changing) application-code layer. The Gradle
-## dependency cache itself is kept in a BuildKit cache mount, so repeat
-## builds don't re-download the internet even when build files change.
+## the (small, frequently-changing) application-code layer. Gradle dependencies
+## are resolved before application sources are copied so Docker can reuse that
+## layer whenever only source code changes.
 ##
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
