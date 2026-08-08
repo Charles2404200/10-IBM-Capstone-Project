@@ -15,6 +15,7 @@ import com.ibm.consulting.sim.meeting.domain.PersonaStateRepository;
 import com.ibm.consulting.sim.outreach.domain.OutreachAttempt;
 import com.ibm.consulting.sim.outreach.domain.OutreachRepository;
 import com.ibm.consulting.sim.proposal.domain.Proposal;
+import com.ibm.consulting.sim.proposal.domain.ProposalDecision;
 import com.ibm.consulting.sim.proposal.domain.ProposalRepository;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
@@ -104,8 +105,7 @@ public class AssessmentService {
     }
 
     private AssessmentResponse buildAndPersist(Engagement engagement) {
-        if (engagement.getState() != EngagementState.CONTRACT_WON
-                && engagement.getState() != EngagementState.CONTRACT_LOST) {
+        if (engagement.getState() != EngagementState.CLIENT_DECISION) {
             throw new AssessmentNotAvailableException(engagement.getState());
         }
         UUID engagementId = engagement.getId();
@@ -123,7 +123,9 @@ public class AssessmentService {
         Scenario scenario = scenarioRepository.findById(engagement.getScenarioId())
                 .orElseThrow(() -> new NotFoundException("Scenario", engagement.getScenarioId()));
         int overallScore = AssessmentEngine.overall(competencyScores, scenario.getRubricWeights());
-        String outcome = engagement.getState() == EngagementState.CONTRACT_WON ? "CONTRACT_WON" : "CONTRACT_LOST";
+        String outcome = proposal != null && proposal.getDecision() == ProposalDecision.WON
+                ? "PROPOSAL_ACCEPTED"
+                : "PROPOSAL_REJECTED";
 
         AssessmentFeedback feedback = aiOrchestrationService.execute(
                 "assessment_feedback",
@@ -137,7 +139,7 @@ public class AssessmentService {
                 feedback.feedbackSummary(), feedback.strengths(), feedback.improvementAreas());
         assessmentRepository.save(assessment);
 
-        engagement.transitionTo(EngagementState.REVIEW_AVAILABLE, "Assessment generated");
+        engagement.transitionTo(EngagementState.REVIEW, "Assessment generated");
         engagementRepository.save(engagement);
 
         achievementEvaluationService.evaluateForUser(engagement.getUserId());

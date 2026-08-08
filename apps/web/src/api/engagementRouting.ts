@@ -30,6 +30,7 @@ export function resolveEngagementRoute(engagement: Engagement): string {
       return `${base}/proposal`
     case 'OUTCOME':
     case 'REVIEW':
+    case 'COMPLETED':
       return `${base}/assessment`
     default:
       return `${base}/leads`

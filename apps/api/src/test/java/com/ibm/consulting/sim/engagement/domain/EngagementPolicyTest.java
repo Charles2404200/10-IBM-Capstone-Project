@@ -11,47 +11,47 @@ class EngagementPolicyTest {
     @Test
     void allowsAllLegalTransitions() {
         assertThatNoException().isThrownBy(() -> {
-            EngagementPolicy.assertValidTransition(EngagementState.DRAFT, EngagementState.LEAD_SELECTED);
-            EngagementPolicy.assertValidTransition(EngagementState.LEAD_SELECTED, EngagementState.RESEARCH_COMPLETED);
-            EngagementPolicy.assertValidTransition(EngagementState.RESEARCH_COMPLETED, EngagementState.OUTREACH_IN_PROGRESS);
-            EngagementPolicy.assertValidTransition(EngagementState.OUTREACH_IN_PROGRESS, EngagementState.MEETING_SECURED);
-            EngagementPolicy.assertValidTransition(EngagementState.OUTREACH_IN_PROGRESS, EngagementState.OUTREACH_FAILED);
-            EngagementPolicy.assertValidTransition(EngagementState.MEETING_SECURED, EngagementState.PREPARATION_COMPLETED);
-            EngagementPolicy.assertValidTransition(EngagementState.PREPARATION_COMPLETED, EngagementState.MEETING_IN_PROGRESS);
-            EngagementPolicy.assertValidTransition(EngagementState.MEETING_IN_PROGRESS, EngagementState.MEETING_COMPLETED);
-            EngagementPolicy.assertValidTransition(EngagementState.MEETING_COMPLETED, EngagementState.PROPOSAL_SUBMITTED);
-            EngagementPolicy.assertValidTransition(EngagementState.PROPOSAL_SUBMITTED, EngagementState.CONTRACT_WON);
-            EngagementPolicy.assertValidTransition(EngagementState.PROPOSAL_SUBMITTED, EngagementState.CONTRACT_LOST);
-            EngagementPolicy.assertValidTransition(EngagementState.CONTRACT_WON, EngagementState.REVIEW_AVAILABLE);
-            EngagementPolicy.assertValidTransition(EngagementState.REVIEW_AVAILABLE, EngagementState.ARCHIVED);
+            EngagementPolicy.assertValidTransition(EngagementState.QUALIFYING, EngagementState.CLIENT_INTELLIGENCE);
+            EngagementPolicy.assertValidTransition(EngagementState.CLIENT_INTELLIGENCE, EngagementState.HYPOTHESIS_READY);
+            EngagementPolicy.assertValidTransition(EngagementState.HYPOTHESIS_READY, EngagementState.OUTREACHING);
+            EngagementPolicy.assertValidTransition(EngagementState.OUTREACHING, EngagementState.MEETING_SECURED);
+            EngagementPolicy.assertValidTransition(EngagementState.OUTREACHING, EngagementState.OUTREACHING);
+            EngagementPolicy.assertValidTransition(EngagementState.MEETING_SECURED, EngagementState.PREPARING);
+            EngagementPolicy.assertValidTransition(EngagementState.PREPARING, EngagementState.IN_MEETING);
+            EngagementPolicy.assertValidTransition(EngagementState.IN_MEETING, EngagementState.DISCOVERY_COMPLETE);
+            EngagementPolicy.assertValidTransition(EngagementState.DISCOVERY_COMPLETE, EngagementState.PROPOSAL_DRAFT);
+            EngagementPolicy.assertValidTransition(EngagementState.PROPOSAL_DRAFT, EngagementState.PROPOSAL_SUBMITTED);
+            EngagementPolicy.assertValidTransition(EngagementState.PROPOSAL_SUBMITTED, EngagementState.CLIENT_DECISION);
+            EngagementPolicy.assertValidTransition(EngagementState.CLIENT_DECISION, EngagementState.REVIEW);
+            EngagementPolicy.assertValidTransition(EngagementState.REVIEW, EngagementState.COMPLETED);
         });
     }
 
     @Test
     void rejectsIllegalTransitions() {
-        assertThatThrownBy(() -> EngagementPolicy.assertValidTransition(EngagementState.DRAFT, EngagementState.CONTRACT_WON))
+        assertThatThrownBy(() -> EngagementPolicy.assertValidTransition(EngagementState.QUALIFYING, EngagementState.CLIENT_DECISION))
                 .isInstanceOf(InvalidTransitionException.class);
-        assertThatThrownBy(() -> EngagementPolicy.assertValidTransition(EngagementState.ARCHIVED, EngagementState.DRAFT))
+        assertThatThrownBy(() -> EngagementPolicy.assertValidTransition(EngagementState.COMPLETED, EngagementState.QUALIFYING))
                 .isInstanceOf(InvalidTransitionException.class);
-        assertThatThrownBy(() -> EngagementPolicy.assertValidTransition(EngagementState.MEETING_IN_PROGRESS, EngagementState.DRAFT))
+        assertThatThrownBy(() -> EngagementPolicy.assertValidTransition(EngagementState.IN_MEETING, EngagementState.QUALIFYING))
                 .isInstanceOf(InvalidTransitionException.class);
     }
 
     @Test
     void engagementRecordsEventsOnTransition() {
         Engagement e = Engagement.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
-        assertThat(e.getState()).isEqualTo(EngagementState.DRAFT);
+        assertThat(e.getState()).isEqualTo(EngagementState.QUALIFYING);
         assertThat(e.getEvents()).hasSize(1);
 
         e.selectLead(UUID.randomUUID());
-        assertThat(e.getState()).isEqualTo(EngagementState.LEAD_SELECTED);
+        assertThat(e.getState()).isEqualTo(EngagementState.CLIENT_INTELLIGENCE);
         assertThat(e.getEvents()).hasSize(2);
     }
 
     @Test
     void selectLeadThrowsWhenInvalidState() {
         Engagement e = Engagement.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
-        e.selectLead(UUID.randomUUID()); // now LEAD_SELECTED
+        e.selectLead(UUID.randomUUID()); // now CLIENT_INTELLIGENCE
         assertThatThrownBy(() -> e.selectLead(UUID.randomUUID()))
                 .isInstanceOf(InvalidTransitionException.class);
     }

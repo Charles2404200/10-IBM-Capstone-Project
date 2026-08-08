@@ -1,22 +1,21 @@
 package com.ibm.consulting.sim.engagement.domain;
 
 public enum EngagementState {
-    DRAFT,
-    LEAD_SELECTED,
-    RESEARCH_COMPLETED,
-    OUTREACH_IN_PROGRESS,
+    QUALIFYING,
+    CLIENT_INTELLIGENCE,
+    HYPOTHESIS_READY,
+    OUTREACHING,
     MEETING_SECURED,
-    OUTREACH_FAILED,
-    PREPARATION_COMPLETED,
-    MEETING_IN_PROGRESS,
-    MEETING_COMPLETED,
+    PREPARING,
+    IN_MEETING,
+    DISCOVERY_COMPLETE,
+    PROPOSAL_DRAFT,
     PROPOSAL_SUBMITTED,
-    CONTRACT_WON,
-    CONTRACT_LOST,
-    REVIEW_AVAILABLE,
-    ARCHIVED;
+    CLIENT_DECISION,
+    REVIEW,
+    COMPLETED;
 
     public boolean isTerminal() {
-        return this == ARCHIVED;
+        return this == COMPLETED;
     }
 }

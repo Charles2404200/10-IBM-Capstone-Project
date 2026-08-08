@@ -82,7 +82,7 @@ export default function LeadPipelinePage() {
   if (engLoading || leadsLoading) return <LoadingState />
   if (isError) return <ErrorState />
 
-  const canSelect = engagement?.state === 'DRAFT'
+  const canSelect = engagement?.state === 'QUALIFYING'
   const alreadySelected = engagement?.selectedLeadId
   const selectionLocked = Boolean(alreadySelected)
 

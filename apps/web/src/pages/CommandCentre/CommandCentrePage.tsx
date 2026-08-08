@@ -27,8 +27,8 @@ import styles from './CommandCentrePage.module.scss'
  *  everything the learner needs to know at a glance ("home cockpit" concept). */
 function EngagementCard({ engagement }: { engagement: Engagement }) {
   const navigate = useNavigate()
-  const isWon = engagement.state === 'CONTRACT_WON'
-  const isLost = engagement.state === 'CONTRACT_LOST'
+  const isDecision = engagement.state === 'CLIENT_DECISION' || engagement.state === 'REVIEW'
+  const isComplete = engagement.state === 'COMPLETED'
   const continueRoute = resolveEngagementRoute(engagement)
 
   return (
@@ -43,8 +43,8 @@ function EngagementCard({ engagement }: { engagement: Engagement }) {
         <h4 className={styles.engagementCardTitle}>
           {engagement.scenarioTitle ?? 'Untitled Engagement'}
         </h4>
-        <Tag type={isWon ? 'green' : isLost ? 'red' : 'blue'} size="sm">
-          {isWon ? 'Won' : isLost ? 'Lost' : 'In Progress'}
+        <Tag type={isComplete ? 'gray' : isDecision ? 'purple' : 'blue'} size="sm">
+          {isComplete ? 'Completed' : isDecision ? 'Decision' : 'In Progress'}
         </Tag>
       </div>
 
@@ -221,7 +221,7 @@ export default function CommandCentrePage() {
   if (engLoading || scenLoading) return <LoadingState />
   if (engError) return <ErrorState />
 
-  const activeEngagements = engagements?.filter((e) => e.state !== 'ARCHIVED') ?? []
+  const activeEngagements = engagements?.filter((e) => e.state !== 'COMPLETED') ?? []
   const winRate = portfolio && portfolio.completedEngagements > 0
     ? Math.round((portfolio.contractsWon / portfolio.completedEngagements) * 100)
     : 0

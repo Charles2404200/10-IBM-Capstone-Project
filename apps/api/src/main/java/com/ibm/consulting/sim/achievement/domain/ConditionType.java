@@ -4,7 +4,7 @@ package com.ibm.consulting.sim.achievement.domain;
 public enum ConditionType {
     /** Total number of engagements the learner has completed (won or lost). */
     MIN_ENGAGEMENTS_COMPLETED,
-    /** Total number of engagements the learner has won (CONTRACT_WON outcome). */
+    /** Total number of engagements with an accepted proposal outcome. */
     MIN_ENGAGEMENTS_WON,
     /** Best overall assessment score ever achieved across all engagements. */
     MIN_BEST_OVERALL_SCORE,

@@ -134,7 +134,7 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
 // actual engagement state. ───
 const PHASE_ORDER: EngagementPhase[] = [
   'LEAD', 'CLIENT_INTELLIGENCE', 'OUTREACH', 'MEETING_PREPARATION',
-  'LIVE_MEETING', 'PROPOSAL', 'OUTCOME', 'REVIEW',
+  'LIVE_MEETING', 'PROPOSAL', 'OUTCOME', 'REVIEW', 'COMPLETED',
 ]
 
 const PHASE_LABELS: Record<EngagementPhase, string> = {
@@ -146,6 +146,7 @@ const PHASE_LABELS: Record<EngagementPhase, string> = {
   PROPOSAL: 'Proposal',
   OUTCOME: 'Outcome',
   REVIEW: 'AI Review',
+  COMPLETED: 'Completed',
 }
 
 function PhaseStepper({ currentPhase }: { currentPhase: EngagementPhase }) {

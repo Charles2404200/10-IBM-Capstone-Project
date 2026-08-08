@@ -46,7 +46,8 @@ public class ProposalService {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
-        if (engagement.getState() != EngagementState.MEETING_COMPLETED) {
+        if (engagement.getState() != EngagementState.DISCOVERY_COMPLETE
+                && engagement.getState() != EngagementState.PROPOSAL_DRAFT) {
             throw new InvalidProposalStateException(engagement.getState());
         }
         if (proposalRepository.findByEngagementId(engagementId).isPresent()) {
@@ -68,10 +69,12 @@ public class ProposalService {
                 outcome.rationale());
         proposalRepository.save(proposal);
 
+        if (engagement.getState() == EngagementState.DISCOVERY_COMPLETE) {
+            engagement.transitionTo(EngagementState.PROPOSAL_DRAFT, "Proposal draft opened");
+        }
         engagement.transitionTo(EngagementState.PROPOSAL_SUBMITTED, "Proposal submitted");
-        engagement.transitionTo(
-                outcome.won() ? EngagementState.CONTRACT_WON : EngagementState.CONTRACT_LOST,
-                "Proposal outcome: " + (outcome.won() ? "WON" : "LOST"));
+        engagement.transitionTo(EngagementState.CLIENT_DECISION,
+                "Client decision: " + (outcome.won() ? "PROPOSAL_ACCEPTED" : "PROPOSAL_REJECTED"));
         engagementRepository.save(engagement);
 
         return ProposalResponse.from(proposal);

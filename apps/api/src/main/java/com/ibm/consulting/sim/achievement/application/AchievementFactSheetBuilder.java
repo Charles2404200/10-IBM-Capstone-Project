@@ -24,7 +24,7 @@ import java.util.UUID;
 public class AchievementFactSheetBuilder {
 
     private static final Set<EngagementState> COMPLETED_STATES = Set.of(
-            EngagementState.CONTRACT_WON, EngagementState.CONTRACT_LOST, EngagementState.REVIEW_AVAILABLE);
+            EngagementState.CLIENT_DECISION, EngagementState.REVIEW, EngagementState.COMPLETED);
 
     private final EngagementRepository engagementRepository;
     private final AssessmentRepository assessmentRepository;
@@ -48,7 +48,9 @@ public class AchievementFactSheetBuilder {
         List<UUID> completedIds = completed.stream().map(Engagement::getId).toList();
         List<Assessment> assessments = assessmentRepository.findAllByEngagementIdIn(completedIds);
 
-        int won = (int) completed.stream().filter(e -> e.getState() == EngagementState.CONTRACT_WON).count();
+        int won = (int) assessments.stream()
+                .filter(a -> "PROPOSAL_ACCEPTED".equals(a.getOutcome()))
+                .count();
         int completedCount = completed.size();
         double winRate = completedCount == 0 ? 0.0 : (100.0 * won / completedCount);
 

@@ -23,7 +23,8 @@ public final class EngagementProgressCalculator {
         LIVE_MEETING("Live Meeting"),
         PROPOSAL("Proposal & Negotiation"),
         OUTCOME("Outcome"),
-        REVIEW("AI Review");
+        REVIEW("AI Review"),
+        COMPLETED("Completed");
 
         private final String label;
 
@@ -32,35 +33,38 @@ public final class EngagementProgressCalculator {
         public String label() { return label; }
     }
 
-    private static final int TOTAL_STEPS = 10;
+    private static final int TOTAL_STEPS = 13;
 
     public static Phase phaseOf(EngagementState state) {
         return switch (state) {
-            case DRAFT -> Phase.LEAD;
-            case LEAD_SELECTED, RESEARCH_COMPLETED -> Phase.CLIENT_INTELLIGENCE;
-            case OUTREACH_IN_PROGRESS, OUTREACH_FAILED -> Phase.OUTREACH;
-            case MEETING_SECURED, PREPARATION_COMPLETED -> Phase.MEETING_PREPARATION;
-            case MEETING_IN_PROGRESS, MEETING_COMPLETED -> Phase.LIVE_MEETING;
-            case PROPOSAL_SUBMITTED -> Phase.PROPOSAL;
-            case CONTRACT_WON, CONTRACT_LOST -> Phase.OUTCOME;
-            case REVIEW_AVAILABLE, ARCHIVED -> Phase.REVIEW;
+            case QUALIFYING -> Phase.LEAD;
+            case CLIENT_INTELLIGENCE, HYPOTHESIS_READY -> Phase.CLIENT_INTELLIGENCE;
+            case OUTREACHING -> Phase.OUTREACH;
+            case MEETING_SECURED, PREPARING -> Phase.MEETING_PREPARATION;
+            case IN_MEETING -> Phase.LIVE_MEETING;
+            case DISCOVERY_COMPLETE, PROPOSAL_DRAFT, PROPOSAL_SUBMITTED -> Phase.PROPOSAL;
+            case CLIENT_DECISION -> Phase.OUTCOME;
+            case REVIEW -> Phase.REVIEW;
+            case COMPLETED -> Phase.COMPLETED;
         };
     }
 
     /** Ordinal step (0-based) within the fixed 10-step lifecycle, used to derive the progress bar. */
     private static int stepOf(EngagementState state) {
         return switch (state) {
-            case DRAFT -> 0;
-            case LEAD_SELECTED -> 1;
-            case RESEARCH_COMPLETED -> 2;
-            case OUTREACH_IN_PROGRESS, OUTREACH_FAILED -> 3;
+            case QUALIFYING -> 0;
+            case CLIENT_INTELLIGENCE -> 1;
+            case HYPOTHESIS_READY -> 2;
+            case OUTREACHING -> 3;
             case MEETING_SECURED -> 4;
-            case PREPARATION_COMPLETED -> 5;
-            case MEETING_IN_PROGRESS -> 6;
-            case MEETING_COMPLETED -> 7;
-            case PROPOSAL_SUBMITTED -> 8;
-            case CONTRACT_WON, CONTRACT_LOST -> 9;
-            case REVIEW_AVAILABLE, ARCHIVED -> 10;
+            case PREPARING -> 5;
+            case IN_MEETING -> 6;
+            case DISCOVERY_COMPLETE -> 7;
+            case PROPOSAL_DRAFT -> 8;
+            case PROPOSAL_SUBMITTED -> 9;
+            case CLIENT_DECISION -> 10;
+            case REVIEW -> 12;
+            case COMPLETED -> 13;
         };
     }
 
@@ -71,20 +75,19 @@ public final class EngagementProgressCalculator {
     /** A short, concrete instruction telling the learner exactly what to do next. */
     public static String nextAction(EngagementState state) {
         return switch (state) {
-            case DRAFT -> "Select a lead to begin the engagement";
-            case LEAD_SELECTED -> "Research the client in Client Intelligence";
-            case RESEARCH_COMPLETED -> "Begin outreach to secure a meeting";
-            case OUTREACH_IN_PROGRESS -> "Follow up on outreach";
-            case OUTREACH_FAILED -> "Revise your outreach approach and retry";
+            case QUALIFYING -> "Qualify and investigate a lead";
+            case CLIENT_INTELLIGENCE -> "Build evidence and submit a grounded hypothesis";
+            case HYPOTHESIS_READY -> "Choose an outreach strategy and secure a meeting";
+            case OUTREACHING -> "Respond to outreach consequences";
             case MEETING_SECURED -> "Prepare for the client meeting";
-            case PREPARATION_COMPLETED -> "Start the live meeting";
-            case MEETING_IN_PROGRESS -> "Continue the conversation with the client";
-            case MEETING_COMPLETED -> "Draft your proposal";
+            case PREPARING -> "Start the live meeting when readiness is high enough";
+            case IN_MEETING -> "Run discovery and confirm the client situation";
+            case DISCOVERY_COMPLETE -> "Synthesize discovery and begin the proposal";
+            case PROPOSAL_DRAFT -> "Draft and validate your proposal";
             case PROPOSAL_SUBMITTED -> "Awaiting client decision";
-            case CONTRACT_WON -> "Review your engagement outcome";
-            case CONTRACT_LOST -> "Review what happened and learn for next time";
-            case REVIEW_AVAILABLE -> "View your AI-generated performance review";
-            case ARCHIVED -> "Engagement complete";
+            case CLIENT_DECISION -> "Review the client outcome";
+            case REVIEW -> "View your AI-generated performance review";
+            case COMPLETED -> "Engagement complete";
         };
     }
 }

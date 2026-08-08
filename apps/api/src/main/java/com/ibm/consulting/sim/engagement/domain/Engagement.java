@@ -42,7 +42,7 @@ public class Engagement extends BaseEntity {
         e.userId = userId;
         e.scenarioId = scenarioId;
         e.personaId = personaId;
-        e.state = EngagementState.DRAFT;
+        e.state = EngagementState.QUALIFYING;
         e.recordEvent("Engagement started");
         return e;
     }
@@ -50,7 +50,7 @@ public class Engagement extends BaseEntity {
     public void transitionTo(EngagementState newState, String reason) {
         EngagementPolicy.assertValidTransition(this.state, newState);
         this.state = newState;
-        if (newState == EngagementState.CONTRACT_WON || newState == EngagementState.CONTRACT_LOST) {
+        if (newState == EngagementState.CLIENT_DECISION) {
             this.completedAt = Instant.now();
         }
         recordEvent(reason);
@@ -58,7 +58,7 @@ public class Engagement extends BaseEntity {
 
     public void selectLead(UUID leadId) {
         this.selectedLeadId = leadId;
-        transitionTo(EngagementState.LEAD_SELECTED, "Lead selected: " + leadId);
+        transitionTo(EngagementState.CLIENT_INTELLIGENCE, "Lead selected: " + leadId);
     }
 
     private void recordEvent(String description) {

@@ -27,7 +27,7 @@ public record ResearchGateStatus(
         boolean hasStakeholder = ResearchReadinessPolicy.hasStakeholderEvidence(evidence);
         boolean hasHypothesis = ResearchReadinessPolicy.hasHypothesis(evidence);
         int confidence = ResearchReadinessPolicy.confidencePercent(evidence);
-        boolean alreadyCompleted = state != EngagementState.DRAFT && state != EngagementState.LEAD_SELECTED;
+        boolean alreadyCompleted = state != EngagementState.QUALIFYING && state != EngagementState.CLIENT_INTELLIGENCE;
         return new ResearchGateStatus(
                 alreadyCompleted,
                 count,

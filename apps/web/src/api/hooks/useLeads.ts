@@ -83,7 +83,7 @@ export function useResearchGateStatus(engagementId: string) {
   })
 }
 
-/** Advances the engagement LEAD_SELECTED → RESEARCH_COMPLETED once the gate
+/** Advances the engagement CLIENT_INTELLIGENCE -> HYPOTHESIS_READY once the gate
  *  conditions are met, unlocking Outreach. Rejected with 422 (surfaced via
  *  mutation.error) if the learner hasn't satisfied the requirements yet. */
 export function useCompleteResearch(engagementId: string) {

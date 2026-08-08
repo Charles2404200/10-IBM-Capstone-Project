@@ -75,13 +75,13 @@ public class MeetingService {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
-        if (engagement.getState() != EngagementState.PREPARATION_COMPLETED) {
+        if (engagement.getState() != EngagementState.PREPARING) {
             MeetingPreparation preparation = preparationRepository.findByEngagementId(engagementId).orElse(null);
             int readiness = preparation != null ? preparation.getReadinessScore() : 0;
             throw new PreparationNotReadyException(readiness);
         }
 
-        engagement.transitionTo(EngagementState.MEETING_IN_PROGRESS, "Meeting started");
+        engagement.transitionTo(EngagementState.IN_MEETING, "Meeting started");
         engagementRepository.save(engagement);
 
         Meeting meeting = Meeting.start(engagementId, engagement.getPersonaId());
@@ -274,7 +274,7 @@ public class MeetingService {
         meeting.recordTranscriptExport(storageReference);
         meetingRepository.save(meeting);
 
-        engagement.transitionTo(EngagementState.MEETING_COMPLETED, "Meeting completed");
+        engagement.transitionTo(EngagementState.DISCOVERY_COMPLETE, "Meeting completed");
         engagementRepository.save(engagement);
 
         return MeetingResponse.from(meeting);

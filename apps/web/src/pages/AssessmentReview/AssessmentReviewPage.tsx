@@ -53,7 +53,7 @@ export default function AssessmentReviewPage() {
   const result = assessment ?? generateAssessment.data
   if (!result) return <LoadingState description="Generating assessment…" />
 
-  const won = result.outcome === 'CONTRACT_WON' || result.outcome === 'WON'
+  const won = result.outcome === 'PROPOSAL_ACCEPTED' || result.outcome === 'WON'
 
   return (
     <Grid fullWidth style={{ padding: '2rem' }}>

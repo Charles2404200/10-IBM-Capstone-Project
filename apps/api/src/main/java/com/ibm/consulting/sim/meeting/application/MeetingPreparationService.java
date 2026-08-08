@@ -36,7 +36,7 @@ public class MeetingPreparationService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         if (engagement.getState() != EngagementState.MEETING_SECURED
-                && engagement.getState() != EngagementState.PREPARATION_COMPLETED) {
+                && engagement.getState() != EngagementState.PREPARING) {
             throw new InvalidMeetingStateException(
                     "Cannot edit preparation in state: " + engagement.getState());
         }
@@ -47,7 +47,7 @@ public class MeetingPreparationService {
         preparationRepository.save(preparation);
 
         if (preparation.isReady() && engagement.getState() == EngagementState.MEETING_SECURED) {
-            engagement.transitionTo(EngagementState.PREPARATION_COMPLETED,
+            engagement.transitionTo(EngagementState.PREPARING,
                     "Preparation readiness reached %d".formatted(preparation.getReadinessScore()));
             engagementRepository.save(engagement);
         }

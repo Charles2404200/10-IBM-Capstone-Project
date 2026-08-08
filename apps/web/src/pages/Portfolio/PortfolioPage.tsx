@@ -67,7 +67,7 @@ function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
 }
 
 function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementView }) {
-  const won = engagement.outcome === 'CONTRACT_WON' || engagement.outcome === 'WON'
+  const won = engagement.outcome === 'PROPOSAL_ACCEPTED' || engagement.outcome === 'WON'
   return (
     <Tile>
       <Stack gap={2}>

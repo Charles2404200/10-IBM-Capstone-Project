@@ -44,8 +44,8 @@ public class OutreachService {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
-        if (engagement.getState() != EngagementState.RESEARCH_COMPLETED
-                && engagement.getState() != EngagementState.OUTREACH_FAILED) {
+        if (engagement.getState() != EngagementState.HYPOTHESIS_READY
+                && engagement.getState() != EngagementState.OUTREACHING) {
             throw new InvalidOutreachStateException(engagement.getState());
         }
 
@@ -55,7 +55,9 @@ public class OutreachService {
         }
 
         // Transition to in-progress
-        engagement.transitionTo(EngagementState.OUTREACH_IN_PROGRESS, "Outreach attempt #" + (attemptCount + 1));
+        if (engagement.getState() == EngagementState.HYPOTHESIS_READY) {
+            engagement.transitionTo(EngagementState.OUTREACHING, "Outreach attempt #" + (attemptCount + 1));
+        }
 
         OutreachAttempt attempt = OutreachAttempt.create(engagementId, attemptCount + 1, subject, body);
 
@@ -77,7 +79,7 @@ public class OutreachService {
         // Transition engagement based on outcome
         EngagementState nextState = outcome == OutreachOutcome.ACCEPTED
                 ? EngagementState.MEETING_SECURED
-                : EngagementState.OUTREACH_FAILED;
+                : EngagementState.OUTREACHING;
         engagement.transitionTo(nextState, "Outreach outcome: " + outcome);
         engagementRepository.save(engagement);
 

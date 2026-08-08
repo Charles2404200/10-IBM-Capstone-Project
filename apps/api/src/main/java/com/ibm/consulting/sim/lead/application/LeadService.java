@@ -50,7 +50,7 @@ public class LeadService {
         // once selected, it is locked in for the rest of the engagement's
         // lifecycle. Reject with a precise, actionable message rather than
         // letting the generic InvalidTransitionException surface.
-        if (engagement.getState() != EngagementState.DRAFT) {
+        if (engagement.getState() != EngagementState.QUALIFYING) {
             throw new LeadAlreadySelectedException(engagementId);
         }
 
@@ -146,7 +146,7 @@ public class LeadService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
 
-        if (engagement.getState() != EngagementState.LEAD_SELECTED) {
+        if (engagement.getState() != EngagementState.CLIENT_INTELLIGENCE) {
             // Already past this gate (or not there yet) — return current status without re-transitioning.
             return ResearchGateStatus.from(engagement.getState(), evidence);
         }
@@ -159,7 +159,7 @@ public class LeadService {
                     ResearchReadinessPolicy.confidencePercent(evidence));
         }
 
-        engagement.transitionTo(EngagementState.RESEARCH_COMPLETED,
+        engagement.transitionTo(EngagementState.HYPOTHESIS_READY,
                 "Research completed with %d evidence items".formatted(evidence.size()));
         engagementRepository.save(engagement);
         return ResearchGateStatus.from(engagement.getState(), evidence);
