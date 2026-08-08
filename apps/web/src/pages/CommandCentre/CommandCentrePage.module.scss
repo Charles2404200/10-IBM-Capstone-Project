@@ -1,30 +1,35 @@
 .page {
-  max-width: 1440px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
 }
 
-.header {
+.header,
+.sectionHeader,
+.featuredTitleRow,
+.featuredContent {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: 1rem;
 }
 
-.subheading {
+.header {
+  align-items: flex-start;
+}
+
+.subheading,
+.sectionHeader p,
+.modalHelp {
   color: #525252;
   margin-top: 0.5rem;
 }
 
-// ─── Performance strip ──────────────────────────────────────────────────────
-
 .performanceStrip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1px;
-  background: #e0e0e0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border: 1px solid #e0e0e0;
+  background: #e0e0e0;
+  gap: 1px;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -32,65 +37,86 @@
 .performanceStat {
   background: #ffffff;
   padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  min-width: 0;
 }
 
-.performanceStatLabel {
+.performanceStatLabel,
+.blockLabel,
+.sectionEyebrow {
   color: #525252;
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .performanceStatValue {
+  display: block;
   color: #161616;
   font-size: 1.5rem;
   font-weight: 600;
+  margin-top: 0.25rem;
 }
 
-// ─── Engagement cockpit card ────────────────────────────────────────────────
-
-.engagementCard {
+.featuredPanel,
+.section,
+.recommendationPanel {
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
+}
+
+.featuredPanel {
   padding: 1.25rem;
-  height: 100%;
+}
+
+.featuredContent {
+  align-items: stretch;
+  margin-top: 1rem;
+}
+
+.featuredMain {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
+  gap: 1rem;
+  min-width: 0;
+}
 
-  &:hover {
-    border-color: #0f62fe;
+.featuredTitleRow {
+  align-items: flex-start;
+
+  h2 {
+    color: #161616;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    margin: 0;
   }
 }
 
-.engagementCardTitleRow {
+.featuredMeta,
+.compactMeta,
+.scenarioTags,
+.featuredFacts {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.engagementCardTitle {
-  color: #161616;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  margin: 0;
+.featuredMeta,
+.compactMeta,
+.featuredFacts {
+  color: #525252;
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
 }
 
-.engagementCardIndustryRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.featuredProgressBlock {
+  max-width: 520px;
 }
 
-.engagementProgressLabel {
+.progressLabel {
   display: flex;
   justify-content: space-between;
   color: #525252;
@@ -98,90 +124,206 @@
   margin-bottom: 0.25rem;
 }
 
-.engagementMetaGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1rem;
-  margin-top: 0.25rem;
+.phaseCount {
+  display: block;
+  color: #6f6f6f;
+  font-size: 0.75rem;
+  margin-top: 0.375rem;
 }
 
-.engagementMetaItem {
+.nextActionBlock {
+  background: #f4f4f4;
+  border-left: 3px solid #0f62fe;
+  padding: 0.875rem 1rem;
+
+  p {
+    color: #161616;
+    margin: 0.25rem 0 0;
+    line-height: 1.4;
+  }
+}
+
+.featuredFacts {
+  gap: 1.25rem;
+
+  strong {
+    color: #161616;
+  }
+}
+
+.featuredCta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-width: 13rem;
+}
+
+.section {
+  padding: 1.25rem;
+}
+
+.sectionHeader {
+  align-items: flex-start;
+  margin-bottom: 1rem;
+
+  h3 {
+    color: #161616;
+    margin: 0;
+  }
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1fr) 11rem 10rem;
+  gap: 0.75rem;
+  min-width: min(100%, 36rem);
+}
+
+.compactList,
+.completedList {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
 }
 
-.engagementMetaLabel {
-  color: #525252;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.engagementMetaValue {
-  color: #161616;
-  font-size: 0.9375rem;
-  font-weight: 600;
-}
-
-.engagementNextAction {
-  background: #f4f4f4;
+.compactRow,
+.completedRow {
+  width: 100%;
+  border: 1px solid #e0e0e0;
+  background: #ffffff;
   border-radius: 4px;
-  padding: 0.5rem 0.75rem;
-  margin-top: 0.25rem;
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 
-  .label {
-    color: #525252;
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    display: block;
-  }
-
-  .value {
-    color: #161616;
-    font-size: 0.875rem;
+  &:hover {
+    border-color: #0f62fe;
+    background: #f4f7ff;
   }
 }
 
-.engagementCardFooter {
-  display: flex;
-  justify-content: flex-end;
+.compactRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(11rem, 0.8fr) auto;
   align-items: center;
-  gap: 0.25rem;
-  color: #0f62fe;
-  font-size: 0.875rem;
-  font-weight: 600;
-  margin-top: auto;
+  gap: 1rem;
 }
 
-// ─── Scenario cards ──────────────────────────────────────────────────────────
-
-.scenarioTags {
+.compactTitleLine {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+
+  h4 {
+    color: #161616;
+    font-size: 1rem;
+    margin: 0;
+  }
 }
 
-.difficultyDimensions {
+.compactNext {
+  display: block;
+  color: #525252;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+}
+
+.compactStatus {
   display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  color: #0f62fe;
 }
 
-.difficultyDimensionRow {
+.completedRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.75rem;
+  gap: 1rem;
+
+  h4 {
+    color: #161616;
+    font-size: 1rem;
+    margin: 0;
+  }
+}
+
+.completedScore {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  color: #161616;
+  font-weight: 600;
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   color: #525252;
+  background: #f4f4f4;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.scenarioGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.scenarioCard {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 15rem;
+
+  h4 {
+    color: #161616;
+    margin: 0;
+  }
+
+  p {
+    color: #525252;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    margin: 0;
+    flex: 1;
+  }
 }
 
 .difficultyStars {
-  color: #ffb000;
-  letter-spacing: 0.05em;
+  color: #8d6e00;
+  font-family: monospace;
+  letter-spacing: 0;
 }
 
-// ─── Briefing modal ──────────────────────────────────────────────────────────
+.recommendationPanel {
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  h3 {
+    color: #161616;
+    margin: 0.25rem 0;
+  }
+
+  p {
+    color: #525252;
+    max-width: 52rem;
+    margin: 0;
+  }
+}
 
 .briefingSection {
   margin-bottom: 1.25rem;
@@ -195,7 +337,8 @@
     margin-bottom: 0.375rem;
   }
 
-  p, li {
+  p,
+  li {
     color: #161616;
     line-height: 1.5;
   }
@@ -211,4 +354,77 @@
   gap: 1.5rem;
   flex-wrap: wrap;
   margin-bottom: 1.25rem;
+
+  span {
+    color: #525252;
+    font-size: 0.75rem;
+    display: block;
+  }
+
+  strong {
+    color: #161616;
+  }
+}
+
+.difficultyDimensions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #525252;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 960px) {
+  .performanceStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .featuredContent,
+  .sectionHeader,
+  .recommendationPanel {
+    flex-direction: column;
+  }
+
+  .featuredCta {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .controls {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .compactRow {
+    grid-template-columns: 1fr;
+  }
+
+  .compactStatus {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 1rem;
+  }
+
+  .performanceStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .completedRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .completedScore {
+    justify-content: flex-start;
+  }
 }
