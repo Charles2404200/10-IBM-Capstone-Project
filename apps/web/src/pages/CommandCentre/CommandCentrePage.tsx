@@ -146,11 +146,11 @@ function ScenarioBriefingModal({
         <p>{briefing.objective}</p>
       </div>
 
-      {briefing.successCriteria.length > 0 && (
+      {(briefing.successCriteria ?? []).length > 0 && (
         <div className={styles.briefingSection}>
           <h5>Success criteria</h5>
           <ul>
-            {briefing.successCriteria.map((c) => (
+            {(briefing.successCriteria ?? []).map((c) => (
               <li key={c}>{c}</li>
             ))}
           </ul>
@@ -332,7 +332,7 @@ export default function CommandCentrePage() {
             valueSelected={selectedPersonaId}
             onChange={(value) => setSelectedPersonaId(String(value))}
           >
-            {personaPickerScenario.personas.map((persona) => (
+            {(personaPickerScenario.personas ?? []).map((persona) => (
               <RadioButton
                 key={persona.id}
                 id={`persona-${persona.id}`}

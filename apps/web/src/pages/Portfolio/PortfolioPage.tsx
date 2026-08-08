@@ -110,7 +110,7 @@ function ReplayComparisonSection({ history }: { history: CompletedEngagementView
                 onChange={(e) => setEngagementA(e.target.value)}
               >
                 <SelectItem value="" text="Select an engagement…" />
-                {history.map((h) => (
+                {(history ?? []).map((h) => (
                   <SelectItem key={h.engagementId} value={h.engagementId} text={`${h.scenarioTitle} — ${h.overallScore}/100`} />
                 ))}
               </Select>
@@ -123,7 +123,7 @@ function ReplayComparisonSection({ history }: { history: CompletedEngagementView
                 onChange={(e) => setEngagementB(e.target.value)}
               >
                 <SelectItem value="" text="Select an engagement…" />
-                {history.map((h) => (
+                {(history ?? []).map((h) => (
                   <SelectItem key={h.engagementId} value={h.engagementId} text={`${h.scenarioTitle} — ${h.overallScore}/100`} />
                 ))}
               </Select>
