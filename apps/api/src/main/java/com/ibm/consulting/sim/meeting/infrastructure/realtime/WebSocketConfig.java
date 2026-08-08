@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.meeting.infrastructure.realtime;
 
+import com.ibm.consulting.sim.shared.config.CorsProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -35,17 +36,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor authInterceptor;
     private final MeetingSubscriptionInterceptor subscriptionInterceptor;
+    private final CorsProperties corsProperties;
 
     public WebSocketConfig(StompAuthChannelInterceptor authInterceptor,
-                            MeetingSubscriptionInterceptor subscriptionInterceptor) {
+                            MeetingSubscriptionInterceptor subscriptionInterceptor,
+                            CorsProperties corsProperties) {
         this.authInterceptor = authInterceptor;
         this.subscriptionInterceptor = subscriptionInterceptor;
+        this.corsProperties = corsProperties;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("http://localhost:3000", "http://localhost:5173");
+                .setAllowedOriginPatterns(corsProperties.getAllowedOrigins().toArray(String[]::new));
     }
 
     @Override

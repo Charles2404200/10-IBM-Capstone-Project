@@ -1,0 +1,38 @@
+# Railway monorepo — two services, each with its own root directory.
+#
+# Setup in the Railway dashboard:
+#   1. Create a new Project.
+#   2. Add Service → "GitHub Repo" → select this repo → set Root Directory = apps/api
+#      Railway will pick up apps/api/railway.toml automatically.
+#   3. Add a second Service → "GitHub Repo" → same repo → set Root Directory = apps/web
+#      Railway will pick up apps/web/railway.toml automatically.
+#
+# Environment variables per service — set in Railway's "Variables" panel:
+#
+#   API service (apps/api):
+#     SPRING_DATASOURCE_URL      jdbc:postgresql://<host>:<port>/postgres?sslmode=require
+#     SPRING_DATASOURCE_USERNAME postgres
+#     SPRING_DATASOURCE_PASSWORD <supabase-db-password>
+#     JWT_SECRET                 <min-64-char-random-string>
+#     CORS_ALLOWED_ORIGINS       https://<web-service>.up.railway.app
+#     WATSONX_API_KEY            <ibm-cloud-api-key>          (or leave mock)
+#     WATSONX_PROJECT_ID         <watsonx-project-id>         (or leave mock)
+#     WATSONX_MOCK_MODE          false                        (set true to skip IBM calls)
+#     AI_MOCK_MODE               false
+#     GEMINI_API_KEY             <gemini-key>                 (optional AI fallback)
+#     OPENROUTER_API_KEY         <openrouter-key>             (optional AI fallback)
+#     UPSTASH_REDIS_REST_URL     <upstash-url>
+#     UPSTASH_REDIS_REST_TOKEN   <upstash-token>
+#     CACHE_PROVIDER             upstash
+#     ADMIN_EMAIL                admin@example.com
+#     ADMIN_PASSWORD             <strong-password>
+#
+#   Web service (apps/web):
+#     VITE_API_BASE_URL          https://<api-service>.up.railway.app
+#       ↑ This is a BUILD variable — set it in Railway's "Build Variables" panel,
+#         not just "Variables", so Vite can bake it into the JS bundle.
+#
+# IBM Cloud switchover path:
+#   All config is env-var-driven — no code changes needed to point at IBM Cloud
+#   Code Engine, IBM Databases for PostgreSQL, IBM Cloud Object Storage, or a
+#   production watsonx endpoint. Just update the relevant Variables and redeploy.

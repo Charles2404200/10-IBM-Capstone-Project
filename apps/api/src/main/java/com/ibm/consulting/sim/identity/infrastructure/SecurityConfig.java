@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.UserRepository;
+import com.ibm.consulting.sim.shared.config.CorsProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,9 +26,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final CorsProperties corsProperties;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtFilter, CorsProperties corsProperties) {
         this.jwtFilter = jwtFilter;
+        this.corsProperties = corsProperties;
     }
 
     @Bean
@@ -60,7 +63,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:3000", "http://localhost:5173"));
+        config.setAllowedOriginPatterns(corsProperties.getAllowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
