@@ -177,7 +177,7 @@ function ResearchArtifactCard({
 // actual engagement state. ───
 const PHASE_ORDER: EngagementPhase[] = [
   'LEAD', 'CLIENT_INTELLIGENCE', 'OUTREACH', 'MEETING_PREPARATION',
-  'LIVE_MEETING', 'PROPOSAL', 'OUTCOME', 'REVIEW', 'COMPLETED',
+  'LIVE_MEETING', 'MEETING_REVIEW', 'PROPOSAL', 'OUTCOME', 'REVIEW', 'COMPLETED',
 ]
 
 const PHASE_LABELS: Record<EngagementPhase, string> = {
@@ -186,6 +186,7 @@ const PHASE_LABELS: Record<EngagementPhase, string> = {
   OUTREACH: 'Outreach',
   MEETING_PREPARATION: 'Meeting Prep',
   LIVE_MEETING: 'Live Meeting',
+  MEETING_REVIEW: 'Meeting Review',
   PROPOSAL: 'Proposal',
   OUTCOME: 'Outcome',
   REVIEW: 'AI Review',

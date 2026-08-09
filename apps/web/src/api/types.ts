@@ -257,6 +257,7 @@ export type EngagementPhase =
   | 'OUTREACH'
   | 'MEETING_PREPARATION'
   | 'LIVE_MEETING'
+  | 'MEETING_REVIEW'
   | 'PROPOSAL'
   | 'OUTCOME'
   | 'REVIEW'

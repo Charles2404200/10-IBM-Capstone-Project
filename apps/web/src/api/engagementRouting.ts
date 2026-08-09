@@ -12,6 +12,9 @@ import type { Engagement } from '@/api/types'
  */
 export function resolveEngagementRoute(engagement: Engagement): string {
   const base = `/dashboard/engagements/${engagement.id}`
+  if (engagement.state === 'MEETING_FAILED') {
+    return engagement.meetingId ? `${base}/meetings/${engagement.meetingId}` : `${base}/leads`
+  }
   switch (engagement.phase) {
     case 'LEAD':
       return `${base}/leads`

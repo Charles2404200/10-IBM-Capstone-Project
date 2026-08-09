@@ -19,6 +19,7 @@ import { useScenarios } from '@/api/hooks/useScenarios'
 import { usePortfolioSummary } from '@/api/hooks/usePortfolio'
 import { useAuthStore } from '@/store/authStore'
 import { resolveEngagementRoute } from '@/api/engagementRouting'
+import { isActiveEngagement, requiresMeetingRetry } from '@/features/engagement/services/engagementLifecycleService'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { CompletedEngagementView, Engagement, ScenarioSummary } from '@/api/types'
@@ -200,6 +201,34 @@ function CompletedRow({ engagement }: { engagement: CompletedEngagementView }) {
   )
 }
 
+function FailedMeetingRow({ engagement, attemptLabel }: { engagement: Engagement; attemptLabel?: string }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      className={styles.failedMeetingRow}
+      type="button"
+      onClick={() => navigate(resolveEngagementRoute(engagement))}
+    >
+      <div>
+        <div className={styles.compactTitleLine}>
+          <h4>{engagement.scenarioTitle ?? 'Untitled Engagement'}</h4>
+          {attemptLabel && <Tag type="gray" size="sm">{attemptLabel}</Tag>}
+        </div>
+        <div className={styles.compactMeta}>
+          <Tag type="cyan" size="sm">{engagement.scenarioIndustry ?? 'Unassigned'}</Tag>
+          {engagement.leadCompanyName && <span>{engagement.leadCompanyName}</span>}
+        </div>
+        <span className={styles.compactNext}>{engagement.nextAction}</span>
+      </div>
+      <div className={styles.failedMeetingAction}>
+        <Tag type="red" size="sm">Meeting failed</Tag>
+        <span>Review and retry</span>
+        <ArrowRight size={18} />
+      </div>
+    </button>
+  )
+}
+
 function ScenarioCard({
   scenario,
   onStart,
@@ -309,7 +338,11 @@ export default function CommandCentrePage() {
   const labelsByEngagement = useMemo(() => attemptLabels(allEngagements), [allEngagements])
 
   const activeEngagements = useMemo(
-    () => allEngagements.filter((engagement) => engagement.state !== 'COMPLETED'),
+    () => allEngagements.filter(isActiveEngagement),
+    [allEngagements],
+  )
+  const failedMeetingEngagements = useMemo(
+    () => allEngagements.filter(requiresMeetingRetry).sort((a, b) => latestActivity(b) - latestActivity(a)),
     [allEngagements],
   )
 
@@ -480,6 +513,26 @@ export default function CommandCentrePage() {
             )}
           </div>
         </section>
+
+        {failedMeetingEngagements.length > 0 && (
+          <section className={styles.failedMeetingsSection}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h3>Meeting attempts requiring retry</h3>
+                <p>These attempts are closed. Review the debrief before restarting the same lead.</p>
+              </div>
+            </div>
+            <div className={styles.compactList}>
+              {failedMeetingEngagements.map((engagement) => (
+                <FailedMeetingRow
+                  key={engagement.id}
+                  engagement={engagement}
+                  attemptLabel={labelsByEngagement.get(engagement.id)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {completedHistory.length > 0 && (
           <section className={styles.section}>

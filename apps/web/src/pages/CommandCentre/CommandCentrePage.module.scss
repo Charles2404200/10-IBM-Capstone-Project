@@ -60,7 +60,8 @@
 
 .featuredPanel,
 .section,
-.recommendationPanel {
+.recommendationPanel,
+.failedMeetingsSection {
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -162,6 +163,11 @@
   padding: 1.25rem;
 }
 
+.failedMeetingsSection {
+  padding: 1.25rem;
+  border-left: 4px solid #da1e28;
+}
+
 .sectionHeader {
   align-items: flex-start;
   margin-bottom: 1rem;
@@ -201,6 +207,36 @@
     border-color: #0f62fe;
     background: #f4f7ff;
   }
+}
+
+.failedMeetingRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e0e0e0;
+  border-left: 3px solid #da1e28;
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #da1e28;
+    background: #fff1f1;
+  }
+}
+
+.failedMeetingAction {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  color: #a2191f;
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .compactRow {
@@ -403,6 +439,15 @@
 
   .compactRow {
     grid-template-columns: 1fr;
+  }
+
+  .failedMeetingRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .failedMeetingAction {
+    justify-content: flex-start;
   }
 
   .compactStatus {

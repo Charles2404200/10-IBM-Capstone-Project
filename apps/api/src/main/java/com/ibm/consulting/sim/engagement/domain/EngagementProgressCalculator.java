@@ -21,6 +21,7 @@ public final class EngagementProgressCalculator {
         OUTREACH("Outreach"),
         MEETING_PREPARATION("Meeting Preparation"),
         LIVE_MEETING("Live Meeting"),
+        MEETING_REVIEW("Meeting Review"),
         PROPOSAL("Proposal & Negotiation"),
         OUTCOME("Outcome"),
         REVIEW("AI Review"),
@@ -41,7 +42,8 @@ public final class EngagementProgressCalculator {
             case CLIENT_INTELLIGENCE, HYPOTHESIS_READY -> Phase.CLIENT_INTELLIGENCE;
             case OUTREACHING -> Phase.OUTREACH;
             case MEETING_SECURED, PREPARING -> Phase.MEETING_PREPARATION;
-            case IN_MEETING, MEETING_FAILED -> Phase.LIVE_MEETING;
+            case IN_MEETING -> Phase.LIVE_MEETING;
+            case MEETING_FAILED -> Phase.MEETING_REVIEW;
             case DISCOVERY_COMPLETE, PROPOSAL_DRAFT, PROPOSAL_SUBMITTED -> Phase.PROPOSAL;
             case CLIENT_DECISION -> Phase.OUTCOME;
             case REVIEW -> Phase.REVIEW;
