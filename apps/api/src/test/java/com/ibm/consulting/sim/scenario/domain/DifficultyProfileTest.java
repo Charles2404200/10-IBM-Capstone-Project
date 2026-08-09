@@ -13,8 +13,8 @@ class DifficultyProfileTest {
 
         assertThat(hard.distractorArtifactsPerAction()).isGreaterThan(easy.distractorArtifactsPerAction());
         assertThat(hard.contradictionCount()).isGreaterThan(easy.contradictionCount());
-        assertThat(hard.initialPatience()).isLessThan(easy.initialPatience());
         assertThat(hard.meetingTurnLimit()).isLessThan(easy.meetingTurnLimit());
+        assertThat(hard.scoringTolerance()).isLessThan(easy.scoringTolerance());
         assertThat(hard.requiredConfidencePercent()).isGreaterThan(easy.requiredConfidencePercent());
         assertThat(hard.proposalEvidenceCoverageThreshold()).isGreaterThan(easy.proposalEvidenceCoverageThreshold());
     }

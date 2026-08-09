@@ -8,9 +8,9 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Deterministic guardrail for relationship progression during live discovery.
- * AI may describe the client's reaction, but cannot turn a greeting into a
- * large relationship gain or let a short conversation satisfy a meeting gate.
+ * Hybrid, auditable turn scoring for live discovery. The AI classifies observed
+ * learner behaviour from the transcript; this policy verifies its shape,
+ * supplies deterministic fallbacks and owns the relationship score mutation.
  */
 final class MeetingTurnProgressionPolicy {
 
@@ -43,19 +43,13 @@ final class MeetingTurnProgressionPolicy {
                                        List<String> detectedLearnerBehaviours) {
         TurnQuality quality = classify(learnerMessage, detectedLearnerBehaviours);
         if (quality.isPenalty()) return quality.enforcePenalty(proposed);
-        return new PersonaStateDelta(
-                bound(proposed.trust(), quality.trustGainCap()),
-                bound(proposed.interest(), quality.interestGainCap()),
-                bound(proposed.patience(), quality.patienceGainCap()));
+        PersonaStateDelta behaviourScore = scoreBehaviour(quality, detectedLearnerBehaviours);
+        return applyModelPenalty(behaviourScore, proposed);
     }
 
     static int maximumScore(int initialScore, int learnerTurnNumber) {
         int index = Math.max(0, Math.min(learnerTurnNumber, PROGRESSION_ALLOWANCE.length - 1));
         return Math.min(100, initialScore + PROGRESSION_ALLOWANCE[index]);
-    }
-
-    private static int bound(int value, int positiveCap) {
-        return value > 0 ? Math.min(value, positiveCap) : Math.max(value, -8);
     }
 
     private static TurnQuality classify(String learnerMessage, List<String> detectedLearnerBehaviours) {
@@ -84,10 +78,58 @@ final class MeetingTurnProgressionPolicy {
         return TurnQuality.LOW_SIGNAL;
     }
 
+    private static PersonaStateDelta scoreBehaviour(TurnQuality quality, List<String> behaviours) {
+        if (quality == TurnQuality.LOW_SIGNAL) return PersonaStateDelta.zero();
+
+        int trust = quality.baseTrust();
+        int interest = quality.baseInterest();
+        int patience = quality.basePatience();
+        for (String behaviour : normalizedBehaviours(behaviours)) {
+            switch (behaviour) {
+                case "directly_addresses_concern", "addresses_client_concern" -> {
+                    trust += 2;
+                    interest += 1;
+                }
+                case "acknowledges_constraint" -> {
+                    trust += 1;
+                    patience += 1;
+                }
+                case "uses_client_fact", "uses_disclosed_evidence" -> {
+                    trust += 2;
+                    interest += 2;
+                }
+                case "quantifies_business_impact", "uses_specific_metric" -> {
+                    trust += 1;
+                    interest += 2;
+                }
+                case "asks_focused_question" -> {
+                    interest += 1;
+                    patience += 1;
+                }
+                case "grounded_recommendation" -> {
+                    trust += 2;
+                    interest += 1;
+                }
+                default -> {
+                    // Unknown labels never affect the deterministic score.
+                }
+            }
+        }
+        return new PersonaStateDelta(
+                Math.min(trust, quality.trustGainCap()),
+                Math.min(interest, quality.interestGainCap()),
+                Math.min(patience, quality.patienceGainCap()));
+    }
+
+    private static PersonaStateDelta applyModelPenalty(PersonaStateDelta behaviourScore, PersonaStateDelta proposed) {
+        return new PersonaStateDelta(
+                behaviourScore.trust() + Math.min(proposed.trust(), 0),
+                behaviourScore.interest() + Math.min(proposed.interest(), 0),
+                behaviourScore.patience() + Math.min(proposed.patience(), 0));
+    }
+
     private static boolean hasNegativeBehaviour(List<String> behaviours) {
-        return behaviours != null && behaviours.stream()
-                .filter(behaviour -> behaviour != null)
-                .map(behaviour -> behaviour.toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_'))
+        return normalizedBehaviours(behaviours).stream()
                 .anyMatch(behaviour -> behaviour.contains("evasive")
                         || behaviour.contains("unprepared")
                         || behaviour.contains("dismissive")
@@ -95,10 +137,18 @@ final class MeetingTurnProgressionPolicy {
                         || behaviour.contains("unsupported_claim"));
     }
 
+    private static Set<String> normalizedBehaviours(List<String> behaviours) {
+        if (behaviours == null) return Set.of();
+        return behaviours.stream()
+                .filter(behaviour -> behaviour != null)
+                .map(behaviour -> behaviour.toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_'))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
     private enum TurnQuality {
         LOW_SIGNAL(0, 0, 0),
-        FOCUSED_DISCOVERY(2, 3, 1),
-        GROUNDED_DISCOVERY(5, 5, 2),
+        FOCUSED_DISCOVERY(2, 2, 1, 5, 5, 3),
+        GROUNDED_DISCOVERY(4, 4, 2, 7, 7, 4),
         DEFLECTING(-6, -5, -4),
         EVASIVE(-7, -6, -5),
         UNPREPARED(-14, -12, -10),
@@ -107,16 +157,30 @@ final class MeetingTurnProgressionPolicy {
         private final int trustGainCap;
         private final int interestGainCap;
         private final int patienceGainCap;
+        private final int baseTrust;
+        private final int baseInterest;
+        private final int basePatience;
 
         TurnQuality(int trustGainCap, int interestGainCap, int patienceGainCap) {
+            this(0, 0, 0, trustGainCap, interestGainCap, patienceGainCap);
+        }
+
+        TurnQuality(int baseTrust, int baseInterest, int basePatience,
+                    int trustGainCap, int interestGainCap, int patienceGainCap) {
             this.trustGainCap = trustGainCap;
             this.interestGainCap = interestGainCap;
             this.patienceGainCap = patienceGainCap;
+            this.baseTrust = baseTrust;
+            this.baseInterest = baseInterest;
+            this.basePatience = basePatience;
         }
 
         int trustGainCap() { return trustGainCap; }
         int interestGainCap() { return interestGainCap; }
         int patienceGainCap() { return patienceGainCap; }
+        int baseTrust() { return baseTrust; }
+        int baseInterest() { return baseInterest; }
+        int basePatience() { return basePatience; }
 
         boolean isPenalty() {
             return trustGainCap < 0;

@@ -26,7 +26,7 @@ class MeetingSafetyPolicyTest {
         PersonaState state = PersonaState.initial(UUID.randomUUID());
         state.applyClampedDelta(new PersonaStateDelta(-16, 0, 0));
 
-        var decision = MeetingSafetyPolicy.evaluate("Could you clarify the implementation constraint?", state);
+        var decision = MeetingSafetyPolicy.evaluate("Could you clarify the implementation constraint?", state, 6);
 
         assertTrue(decision.isPresent());
         assertEquals(MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH, decision.get().reason());
@@ -37,6 +37,6 @@ class MeetingSafetyPolicyTest {
         PersonaState state = PersonaState.initial(UUID.randomUUID());
 
         assertFalse(MeetingSafetyPolicy.evaluate(
-                "I disagree with that assumption. Could we validate it with the operations team?", state).isPresent());
+                "I disagree with that assumption. Could we validate it with the operations team?", state, 1).isPresent());
     }
 }

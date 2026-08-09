@@ -88,8 +88,9 @@ final class PersonaPromptAssembler {
 
     private static String behaviourControls(DifficultyProfile profile) {
         String scoringInstruction = "Do not reward greetings, vague prompts, or requests for the client to do the consultant's discovery. "
-                + "First assess whether the consultant directly answered the latest client concern. Only a specific, grounded question or response may have a modest positive stateDelta; use negative deltas for vague, evasive, dismissive, or unprofessional behaviour. "
-                + "For a learner who avoids the question, is unprepared, or dismisses the client, include one of: evasive, unprepared, dismissive, does_not_answer, unsupported_claim in detectedLearnerBehaviours.";
+                + "First assess whether the consultant directly answered the latest client concern. Use negative stateDelta for vague, evasive, dismissive, or unprofessional behaviour. "
+                + "detectedLearnerBehaviours must contain only observed labels from: directly_addresses_concern, acknowledges_constraint, uses_client_fact, uses_disclosed_evidence, quantifies_business_impact, uses_specific_metric, asks_focused_question, grounded_recommendation, evasive, unprepared, dismissive, does_not_answer, unsupported_claim. "
+                + "Only include a positive label when the learner's actual message demonstrates it; omit labels for a greeting or unsupported generic statement.";
         if (profile == null) return "Use the scenario's normal level of specificity and challenge. " + scoringInstruction;
         return "Resistance %d/100. The client needs a credible next step within %d simulated days. "
                 + "Ask for more precise evidence when resistance is high. "

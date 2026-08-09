@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 public final class MeetingSafetyPolicy {
 
     public static final int MINIMUM_RELATIONSHIP_SCORE = 35;
+    private static final int MINIMUM_TURNS_BEFORE_RELATIONSHIP_FAILURE = 6;
 
     private static final Pattern EXPLICIT_PROFANITY = Pattern.compile(
             "\\b(fuck(?:ing)?|shit|bitch|asshole|wtf|tf)\\b", Pattern.CASE_INSENSITIVE);
@@ -23,6 +24,11 @@ public final class MeetingSafetyPolicy {
     }
 
     public static Optional<MeetingTerminationDecision> evaluate(String learnerMessage, PersonaState state) {
+        return evaluate(learnerMessage, state, MINIMUM_TURNS_BEFORE_RELATIONSHIP_FAILURE);
+    }
+
+    public static Optional<MeetingTerminationDecision> evaluate(String learnerMessage, PersonaState state,
+                                                                  int learnerTurnNumber) {
         if (containsUnprofessionalLanguage(learnerMessage)) {
             return Optional.of(new MeetingTerminationDecision(
                     MeetingTerminationReason.UNPROFESSIONAL_CONDUCT,
@@ -34,9 +40,10 @@ public final class MeetingSafetyPolicy {
                             "Ground recommendations in the client facts already disclosed.")));
         }
 
-        if (state.getTrust() < MINIMUM_RELATIONSHIP_SCORE
+        if (learnerTurnNumber >= MINIMUM_TURNS_BEFORE_RELATIONSHIP_FAILURE
+                && (state.getTrust() < MINIMUM_RELATIONSHIP_SCORE
                 || state.getInterest() < MINIMUM_RELATIONSHIP_SCORE
-                || state.getPatience() < MINIMUM_RELATIONSHIP_SCORE) {
+                || state.getPatience() < MINIMUM_RELATIONSHIP_SCORE)) {
             return Optional.of(new MeetingTerminationDecision(
                     MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH,
                     "The meeting ended because the client relationship fell below the minimum operating threshold. "

@@ -12,7 +12,7 @@ class MeetingCompletionPolicyTest {
     @Test
     void passesOnlyWhenEveryRelationshipMetricMeetsTheThreshold() {
         PersonaState state = PersonaState.initial(UUID.randomUUID());
-        state.applyClampedDelta(new PersonaStateDelta(20, 20, 20));
+        state.applyClampedDelta(new PersonaStateDelta(60, 60, 60));
 
         MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
 
@@ -23,11 +23,11 @@ class MeetingCompletionPolicyTest {
     @Test
     void failsWhenOneMetricIsBelowTheThreshold() {
         PersonaState state = PersonaState.initial(UUID.randomUUID());
-        state.applyClampedDelta(new PersonaStateDelta(25, 20, 15));
+        state.applyClampedDelta(new PersonaStateDelta(60, 60, 59));
 
         MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
 
         assertThat(decision.outcome()).isEqualTo(MeetingCompletionOutcome.FAILED);
-        assertThat(decision.unmetRequirements()).containsExactly("Patience 65/70");
+        assertThat(decision.unmetRequirements()).containsExactly("Patience 69/70");
     }
 }

@@ -212,7 +212,7 @@ public class MeetingService {
                 meeting.getId(), nextSequence + 1, aiResponse.spokenResponse(), signals);
         turnRepository.save(personaTurn);
 
-        var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
+        var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state, (int) learnerTurnCount + 1)
                 .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
         if (relationshipTermination.isPresent()) {
             completeAutomatically(meeting, engagement, relationshipTermination.get());

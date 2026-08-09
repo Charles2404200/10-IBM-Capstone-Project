@@ -19,7 +19,8 @@ import java.util.UUID;
 @Table(name = "persona_states")
 public class PersonaState extends BaseEntity {
 
-    private static final int INITIAL_VALUE = 50;
+    private static final int INITIAL_VALUE = 10;
+    private static final int MAX_STARTING_RELATIONSHIP_SCORE = 10;
 
     @Column(nullable = false, unique = true)
     private UUID engagementId;
@@ -47,9 +48,9 @@ public class PersonaState extends BaseEntity {
     public static PersonaState initial(UUID engagementId, DifficultyProfile profile) {
         PersonaState s = new PersonaState();
         s.engagementId = engagementId;
-        s.trust = profile == null ? INITIAL_VALUE : profile.initialTrust();
-        s.interest = profile == null ? INITIAL_VALUE : profile.initialInterest();
-        s.patience = profile == null ? INITIAL_VALUE : profile.initialPatience();
+        s.trust = initialScore(profile == null ? INITIAL_VALUE : profile.initialTrust());
+        s.interest = initialScore(profile == null ? INITIAL_VALUE : profile.initialInterest());
+        s.patience = initialScore(profile == null ? INITIAL_VALUE : profile.initialPatience());
         return s;
     }
 
@@ -60,9 +61,9 @@ public class PersonaState extends BaseEntity {
     }
 
     void applyProgressionBoundedDelta(PersonaStateDelta delta, DifficultyProfile profile, int learnerTurnNumber) {
-        this.trust = bounded(this.trust + delta.trust(), profile.initialTrust(), learnerTurnNumber);
-        this.interest = bounded(this.interest + delta.interest(), profile.initialInterest(), learnerTurnNumber);
-        this.patience = bounded(this.patience + delta.patience(), profile.initialPatience(), learnerTurnNumber);
+        this.trust = bounded(this.trust + delta.trust(), initialScore(profile.initialTrust()), learnerTurnNumber);
+        this.interest = bounded(this.interest + delta.interest(), initialScore(profile.initialInterest()), learnerTurnNumber);
+        this.patience = bounded(this.patience + delta.patience(), initialScore(profile.initialPatience()), learnerTurnNumber);
     }
 
     void disclose(String factId) {
@@ -71,6 +72,10 @@ public class PersonaState extends BaseEntity {
 
     private static int clamp(int value) {
         return Math.max(0, Math.min(100, value));
+    }
+
+    private static int initialScore(int configuredValue) {
+        return Math.min(MAX_STARTING_RELATIONSHIP_SCORE, clamp(configuredValue));
     }
 
     private static int bounded(int value, int initialValue, int learnerTurnNumber) {
