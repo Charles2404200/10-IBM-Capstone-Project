@@ -63,7 +63,7 @@ public class PersonaState extends BaseEntity {
     void applyProgressionBoundedDelta(PersonaStateDelta delta, DifficultyProfile profile, int learnerTurnNumber) {
         this.trust = bounded(this.trust + delta.trust(), initialScore(profile.initialTrust()), learnerTurnNumber);
         this.interest = bounded(this.interest + delta.interest(), initialScore(profile.initialInterest()), learnerTurnNumber);
-        this.patience = bounded(this.patience + delta.patience(), initialScore(profile.initialPatience()), learnerTurnNumber);
+        this.patience = patienceBounded(this.patience + delta.patience(), initialScore(profile.initialPatience()), learnerTurnNumber);
     }
 
     void disclose(String factId) {
@@ -80,6 +80,10 @@ public class PersonaState extends BaseEntity {
 
     private static int bounded(int value, int initialValue, int learnerTurnNumber) {
         return Math.min(clamp(value), MeetingTurnProgressionPolicy.maximumScore(initialValue, learnerTurnNumber));
+    }
+
+    private static int patienceBounded(int value, int initialValue, int learnerTurnNumber) {
+        return Math.min(clamp(value), MeetingTurnProgressionPolicy.maximumPatienceScore(initialValue, learnerTurnNumber));
     }
 
     public UUID getEngagementId() { return engagementId; }

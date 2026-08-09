@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 final class MeetingTurnProgressionPolicy {
 
     private static final int[] PROGRESSION_ALLOWANCE = {0, 8, 16, 26, 36, 46, 56, 65, 72, 78, 84, 90};
+    private static final int[] PATIENCE_PROGRESSION_ALLOWANCE = {0, 12, 24, 36, 48, 60, 70, 78, 84, 90, 95, 100};
     private static final Set<String> CONTEXT_CUES = Set.of(
             "budget", "cost", "roi", "priority", "priorities", "risk", "risks", "timeline",
             "workflow", "workflows", "process", "processes", "integration", "implementation",
@@ -50,6 +51,11 @@ final class MeetingTurnProgressionPolicy {
     static int maximumScore(int initialScore, int learnerTurnNumber) {
         int index = Math.max(0, Math.min(learnerTurnNumber, PROGRESSION_ALLOWANCE.length - 1));
         return Math.min(100, initialScore + PROGRESSION_ALLOWANCE[index]);
+    }
+
+    static int maximumPatienceScore(int initialScore, int learnerTurnNumber) {
+        int index = Math.max(0, Math.min(learnerTurnNumber, PATIENCE_PROGRESSION_ALLOWANCE.length - 1));
+        return Math.min(100, initialScore + PATIENCE_PROGRESSION_ALLOWANCE[index]);
     }
 
     private static TurnQuality classify(String learnerMessage, List<String> detectedLearnerBehaviours) {
@@ -89,26 +95,30 @@ final class MeetingTurnProgressionPolicy {
                 case "directly_addresses_concern", "addresses_client_concern" -> {
                     trust += 2;
                     interest += 1;
+                    patience += 2;
                 }
                 case "acknowledges_constraint" -> {
                     trust += 1;
-                    patience += 1;
+                    patience += 2;
                 }
                 case "uses_client_fact", "uses_disclosed_evidence" -> {
                     trust += 2;
                     interest += 2;
+                    patience += 1;
                 }
                 case "quantifies_business_impact", "uses_specific_metric" -> {
                     trust += 1;
                     interest += 2;
+                    patience += 1;
                 }
                 case "asks_focused_question" -> {
                     interest += 1;
-                    patience += 1;
+                    patience += 2;
                 }
                 case "grounded_recommendation" -> {
                     trust += 2;
                     interest += 1;
+                    patience += 1;
                 }
                 default -> {
                     // Unknown labels never affect the deterministic score.
@@ -175,8 +185,8 @@ final class MeetingTurnProgressionPolicy {
 
     private enum TurnQuality {
         LOW_SIGNAL(0, 0, 0),
-        FOCUSED_DISCOVERY(3, 3, 1, 8, 8, 5, 2, 2, 1),
-        GROUNDED_DISCOVERY(5, 5, 3, 12, 12, 8, 3, 3, 2),
+        FOCUSED_DISCOVERY(3, 3, 4, 8, 8, 10, 2, 2, 2),
+        GROUNDED_DISCOVERY(5, 5, 6, 12, 12, 14, 3, 3, 3),
         DEFLECTING(-6, -5, -4),
         EVASIVE(-7, -6, -5),
         UNPREPARED(-14, -12, -10),

@@ -126,7 +126,7 @@ class PersonaStateEngineTest {
 
         assertThat(state.getTrust()).isEqualTo(52);
         assertThat(state.getInterest()).isEqualTo(52);
-        assertThat(state.getPatience()).isEqualTo(46);
+        assertThat(state.getPatience()).isEqualTo(54);
     }
 
     @Test
@@ -186,5 +186,24 @@ class PersonaStateEngineTest {
         assertThat(withAiSupport.getTrust()).isGreaterThan(withoutAiSupport.getTrust());
         assertThat(withAiSupport.getInterest()).isGreaterThan(withoutAiSupport.getInterest());
         assertThat(withAiSupport.getPatience()).isGreaterThan(withoutAiSupport.getPatience());
+    }
+
+    @Test
+    void restoresPatienceForConsistentlyGroundedClientCentricResponses() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        String message = "I understand the audit deadline and would protect the medication handoff first. We can measure reconciliation delays, validate rollback criteria, and agree a focused pilot scope. Which clinical workflow should we validate with your team?";
+        PersonaTurnResponse strongResponse = new PersonaTurnResponse(
+                "That is a credible approach.",
+                List.of("directly_addresses_concern", "acknowledges_constraint", "uses_client_fact",
+                        "uses_specific_metric", "asks_focused_question", "grounded_recommendation"),
+                new PersonaStateDelta(10, 10, 10), List.of(), null, List.of(),
+                new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, strongResponse, profile, message, 1);
+        PersonaStateEngine.apply(state, strongResponse, profile, message, 2);
+        PersonaStateEngine.apply(state, strongResponse, profile, message, 3);
+
+        assertThat(state.getPatience()).isGreaterThanOrEqualTo(70);
     }
 }
