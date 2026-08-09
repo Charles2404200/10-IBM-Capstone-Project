@@ -9,7 +9,9 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.meeting.domain.ConversationActor;
 import com.ibm.consulting.sim.meeting.domain.ConversationTurnRepository;
+import com.ibm.consulting.sim.meeting.domain.MeetingCompletionOutcome;
 import com.ibm.consulting.sim.meeting.domain.MeetingRepository;
+import com.ibm.consulting.sim.meeting.domain.MeetingStatus;
 import com.ibm.consulting.sim.meeting.domain.PersonaState;
 import com.ibm.consulting.sim.meeting.domain.PersonaStateRepository;
 import com.ibm.consulting.sim.proposal.domain.*;
@@ -324,11 +326,32 @@ public class ProposalService {
 
     private Engagement loadEditableEngagement(UUID engagementId, UUID userId) {
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
+        recoverPassedMeetingState(engagement);
         if (engagement.getState() != EngagementState.DISCOVERY_COMPLETE
                 && engagement.getState() != EngagementState.PROPOSAL_DRAFT) {
             throw new InvalidProposalStateException(engagement.getState());
         }
         return engagement;
+    }
+
+    /**
+     * A proposal is only editable after discovery. Older deployments could leave
+     * an engagement in IN_MEETING after persisting a passed meeting; repair that
+     * narrow, verifiable state drift without weakening the normal lifecycle gate.
+     */
+    private void recoverPassedMeetingState(Engagement engagement) {
+        if (engagement.getState() != EngagementState.IN_MEETING) {
+            return;
+        }
+        boolean passedMeeting = meetingRepository.findByEngagementId(engagement.getId())
+                .filter(meeting -> meeting.getStatus() == MeetingStatus.COMPLETED)
+                .map(meeting -> meeting.getCompletionOutcome() == MeetingCompletionOutcome.PASSED)
+                .orElse(false);
+        if (passedMeeting) {
+            engagement.transitionTo(EngagementState.DISCOVERY_COMPLETE,
+                    "Recovered discovery completion from passed live meeting");
+            engagementRepository.save(engagement);
+        }
     }
 
     private Engagement loadOwnedEngagement(UUID engagementId, UUID userId) {

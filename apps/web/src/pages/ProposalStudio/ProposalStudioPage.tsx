@@ -7,6 +7,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import { ProposalOutcomeView } from '@/features/proposal/components/ProposalOutcomeView'
 import { useProposalStudio } from '@/features/proposal/hooks/useProposalStudio'
 import { proposalSections } from '@/features/proposal/services/proposalDraftService'
+import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 
 export default function ProposalStudioPage() {
@@ -34,7 +35,7 @@ export default function ProposalStudioPage() {
         </div>
       </header>
 
-      {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle="Your draft remains in this workspace. Resolve the highlighted findings and try again." hideCloseButton />}
+      {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={getProblemDetail(studio.submitProposal.error ?? studio.saveDraft.error, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')} hideCloseButton />}
 
       <div className={styles.workspace}>
         <aside className={styles.sourcesPanel} aria-label="Grounded client sources">

@@ -66,7 +66,9 @@ export function useProposalStudio(engagementId: string) {
       skipInitialAutosave.current = false
       return
     }
-    if (!hydrated.current || submitted || saveState === 'saving' || saveState === 'saved') return
+    // An API rejection must not reschedule itself forever. The next learner edit
+    // changes the state back to idle; explicit review/submit actions can also retry.
+    if (!hydrated.current || submitted || saveState === 'saving' || saveState === 'saved' || saveState === 'error') return
     const timer = window.setTimeout(() => { void persist() }, 900)
     return () => window.clearTimeout(timer)
   }, [draft, persist, saveState, submitted])
