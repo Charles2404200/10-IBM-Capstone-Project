@@ -38,7 +38,10 @@ export default function AssessmentReviewPage() {
   }, [notFound])
 
   if (isLoading || generateAssessment.isPending) return <LoadingState description="Generating assessment…" />
-  if (isError && !notFound) return <ErrorState />
+  if (isError && !notFound) {
+    const problem = error as { response?: { data?: { detail?: string } } }
+    return <ErrorState title="Assessment unavailable" message={problem.response?.data?.detail ?? 'The assessment could not be loaded. Retry to recover the assessment for this engagement.'} actionLabel="Retry assessment" onAction={() => generateAssessment.mutate()} />
+  }
   if (generateAssessment.isError) {
     return (
       <ErrorState

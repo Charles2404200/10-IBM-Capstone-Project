@@ -15,6 +15,7 @@ import com.ibm.consulting.sim.meeting.domain.PersonaStateRepository;
 import com.ibm.consulting.sim.outreach.domain.OutreachAttempt;
 import com.ibm.consulting.sim.outreach.domain.OutreachRepository;
 import com.ibm.consulting.sim.proposal.domain.Proposal;
+import com.ibm.consulting.sim.proposal.domain.ClientDecisionOutcome;
 import com.ibm.consulting.sim.proposal.domain.ProposalDecision;
 import com.ibm.consulting.sim.proposal.domain.ProposalRepository;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
@@ -105,7 +106,8 @@ public class AssessmentService {
     }
 
     private AssessmentResponse buildAndPersist(Engagement engagement) {
-        if (engagement.getState() != EngagementState.CLIENT_DECISION) {
+        if (engagement.getState() != EngagementState.CLIENT_DECISION
+                && engagement.getState() != EngagementState.REVIEW) {
             throw new AssessmentNotAvailableException(engagement.getState());
         }
         UUID engagementId = engagement.getId();
@@ -115,7 +117,9 @@ public class AssessmentService {
         PersonaState state = personaStateRepository.findByEngagementId(engagementId)
                 .orElseGet(() -> PersonaState.initial(engagementId));
         Proposal proposal = proposalRepository.findByEngagementId(engagementId).orElse(null);
-        int proposalAlignment = proposal != null ? proposal.getAlignmentScore() : 0;
+        int proposalAlignment = proposal != null
+                ? valueOr(proposal.getLearnerPerformanceScore(), proposal.getAlignmentScore())
+                : 0;
 
         List<CompetencyScore> competencyScores = AssessmentEngine.score(
                 evidenceCount, avgOutreachScore, state.getTrust(), state.getInterest(), state.getPatience(),
@@ -123,9 +127,7 @@ public class AssessmentService {
         Scenario scenario = scenarioRepository.findById(engagement.getScenarioId())
                 .orElseThrow(() -> new NotFoundException("Scenario", engagement.getScenarioId()));
         int overallScore = AssessmentEngine.overall(competencyScores, scenario.getRubricWeights());
-        String outcome = proposal != null && proposal.getDecision() == ProposalDecision.WON
-                ? "PROPOSAL_ACCEPTED"
-                : "PROPOSAL_REJECTED";
+        String outcome = proposalOutcome(proposal);
 
         AssessmentFeedback feedback = aiOrchestrationService.execute(
                 "assessment_feedback",
@@ -139,12 +141,30 @@ public class AssessmentService {
                 feedback.feedbackSummary(), feedback.strengths(), feedback.improvementAreas());
         assessmentRepository.save(assessment);
 
-        engagement.transitionTo(EngagementState.REVIEW, "Assessment generated");
-        engagementRepository.save(engagement);
+        if (engagement.getState() == EngagementState.CLIENT_DECISION) {
+            engagement.transitionTo(EngagementState.REVIEW, "Assessment generated");
+            engagementRepository.save(engagement);
+        }
 
         achievementEvaluationService.evaluateForUser(engagement.getUserId());
 
         return AssessmentResponse.from(assessment);
+    }
+
+    /**
+     * Supports engagements created before decision snapshots existed. New
+     * proposals retain the richer client outcome; historic proposals preserve
+     * their original WON/LOST semantics.
+     */
+    private String proposalOutcome(Proposal proposal) {
+        if (proposal == null) return "PROPOSAL_REJECTED";
+        ClientDecisionOutcome clientOutcome = proposal.getClientDecisionOutcome();
+        if (clientOutcome != null) return clientOutcome.name();
+        return proposal.getDecision() == ProposalDecision.WON ? "PROPOSAL_ACCEPTED" : "PROPOSAL_REJECTED";
+    }
+
+    private int valueOr(Integer value, int fallback) {
+        return value == null ? fallback : value;
     }
 
     private int averageOutreachScore(List<OutreachAttempt> attempts) {
