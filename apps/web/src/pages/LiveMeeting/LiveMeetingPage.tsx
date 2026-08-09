@@ -81,7 +81,7 @@ export default function LiveMeetingPage() {
   const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
   const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
-  const { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage } = useMeetingSocket(meetingId!)
+  const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
@@ -196,8 +196,8 @@ export default function LiveMeetingPage() {
                 </div>
                 <p className={styles.guidedDescription}>Choose the response you would use with this client. Its impact is evaluated from the actual conversation.</p>
                 {responseOptionsLoading && <InlineLoading description="Preparing response options..." />}
-                {isStreaming && <InlineLoading description="Client is responding..." />}
-                {!isStreaming && !responseOptionsLoading && responseOptions?.available && (
+                {(isStreaming || guidedOptionsPending) && <InlineLoading description={isStreaming ? 'Client is responding...' : 'Preparing next response options...'} />}
+                {!isStreaming && !guidedOptionsPending && !responseOptionsLoading && responseOptions?.available && (
                   <div className={styles.responseChoices}>
                     {responseOptions.options.map((option, index) => (
                       <button
@@ -214,14 +214,14 @@ export default function LiveMeetingPage() {
                     ))}
                   </div>
                 )}
-                {!isStreaming && !responseOptionsLoading && (!responseOptions?.available || responseOptionsError) && (
+                {!isStreaming && !guidedOptionsPending && !responseOptionsLoading && (!responseOptions?.available || responseOptionsError || (guidedOptionsError && !responseOptions?.available)) && (
                   <div className={styles.responseOptionsUnavailable}>
                     <InlineNotification
                       kind="warning"
                       lowContrast
                       hideCloseButton
                       title="Response options are unavailable"
-                      subtitle={responseOptions?.unavailableReason ?? 'Please try again to generate grounded response options.'}
+                      subtitle={guidedOptionsError ?? responseOptions?.unavailableReason ?? 'Please try again to generate grounded response options.'}
                     />
                     <Button kind="tertiary" size="sm" onClick={() => void refetchResponseOptions()}>Try again</Button>
                   </div>

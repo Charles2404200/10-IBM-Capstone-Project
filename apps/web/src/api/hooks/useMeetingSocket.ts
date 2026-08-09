@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Client, type IMessage } from '@stomp/stompjs'
 import { useAuthStore } from '@/store/authStore'
 import { meetingKeys } from '@/api/hooks/useMeeting'
-import type { ConversationTurn, Meeting, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
+import type { ConversationTurn, Meeting, MeetingResponseOptions, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
 
 interface UsePersonaTurnStreamResult {
   streamingText: string
@@ -12,6 +12,8 @@ interface UsePersonaTurnStreamResult {
   personaState: PersonaState | null
   latestSignals: string[]
   termination: MeetingTermination | null
+  guidedOptionsPending: boolean
+  guidedOptionsError: string | null
   sendMessage: (message: string) => Promise<void>
 }
 
@@ -19,6 +21,8 @@ type SocketEvent =
   | { type: 'turn.thinking'; payload: { status: string } }
   | { type: 'turn.delta'; payload: { text: string } }
   | { type: 'turn.complete'; payload: MeetingTurnResult }
+  | { type: 'turn.options'; payload: MeetingResponseOptions }
+  | { type: 'turn.options.error'; payload: { message: string } }
   | { type: 'turn.error'; payload: { message: string } }
 
 function toWebSocketUrl(baseUrl: string): string {
@@ -46,6 +50,8 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const [personaState, setPersonaState] = useState<PersonaState | null>(null)
   const [latestSignals, setLatestSignals] = useState<string[]>([])
   const [termination, setTermination] = useState<MeetingTermination | null>(null)
+  const [guidedOptionsPending, setGuidedOptionsPending] = useState(false)
+  const [guidedOptionsError, setGuidedOptionsError] = useState<string | null>(null)
   const qc = useQueryClient()
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -84,8 +90,16 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           })
           setPersonaState(result.personaState)
           qc.setQueryData(meetingKeys.personaState(meetingId), result.personaState)
-          if (result.responseOptions) {
+          if (result.responseOptions?.available) {
             qc.setQueryData(meetingKeys.responseOptions(meetingId), result.responseOptions)
+            setGuidedOptionsPending(false)
+            setGuidedOptionsError(null)
+          } else if (result.responseOptions?.interactionMode === 'GUIDED') {
+            // Hide choices from the completed turn while the server prepares a
+            // validated fallback set and pushes it back over this socket.
+            qc.setQueryData(meetingKeys.responseOptions(meetingId), result.responseOptions)
+            setGuidedOptionsPending(true)
+            setGuidedOptionsError(null)
           } else {
             void qc.invalidateQueries({ queryKey: meetingKeys.responseOptions(meetingId) })
           }
@@ -111,6 +125,13 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           sendingRef.current = false
           pendingResolversRef.current?.resolve()
           pendingResolversRef.current = null
+        } else if (event.type === 'turn.options') {
+          qc.setQueryData(meetingKeys.responseOptions(meetingId), event.payload)
+          setGuidedOptionsPending(false)
+          setGuidedOptionsError(null)
+        } else if (event.type === 'turn.options.error') {
+          setGuidedOptionsPending(false)
+          setGuidedOptionsError(event.payload.message)
         } else if (event.type === 'turn.error') {
           setError(event.payload.message)
           setIsStreaming(false)
@@ -177,5 +198,5 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     [meetingId]
   )
 
-  return { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage }
+  return { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, sendMessage }
 }

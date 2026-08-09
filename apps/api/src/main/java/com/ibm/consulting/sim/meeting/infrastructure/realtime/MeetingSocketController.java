@@ -3,6 +3,8 @@ package com.ibm.consulting.sim.meeting.infrastructure.realtime;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.meeting.application.MeetingService;
 import com.ibm.consulting.sim.meeting.application.MeetingTurnResult;
+import com.ibm.consulting.sim.meeting.application.GuidedMeetingResponseService;
+import com.ibm.consulting.sim.meeting.application.MeetingResponseOptionsResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -37,13 +39,16 @@ public class MeetingSocketController {
     private static final Logger log = LoggerFactory.getLogger(MeetingSocketController.class);
 
     private final MeetingService meetingService;
+    private final GuidedMeetingResponseService guidedResponseService;
     private final SimpMessagingTemplate messagingTemplate;
     private final ExecutorService executor;
 
     public MeetingSocketController(MeetingService meetingService,
+                                   GuidedMeetingResponseService guidedResponseService,
                                    SimpMessagingTemplate messagingTemplate,
                                    @Qualifier("aiGatewayExecutor") ExecutorService executor) {
         this.meetingService = meetingService;
+        this.guidedResponseService = guidedResponseService;
         this.messagingTemplate = messagingTemplate;
         this.executor = executor;
     }
@@ -79,10 +84,40 @@ public class MeetingSocketController {
                     }
                 }
                 messagingTemplate.convertAndSend(topic, new SocketEvent("turn.complete", result));
+                generateFallbackOptionsWhenNeeded(result, meetingId, userId, topic);
             } catch (Exception e) {
                 log.error("WebSocket meeting turn failed for meeting {}", meetingId, e);
                 messagingTemplate.convertAndSend(topic,
                         new SocketEvent("turn.error", Map.of("message", "Failed to process message")));
+            }
+        });
+    }
+
+    /**
+     * A provider may return a valid persona response but omit the optional guided
+     * choices. Keep the live reply fast, then recover choices asynchronously on
+     * the same socket instead of asking the learner to retry a broken turn.
+     */
+    private void generateFallbackOptionsWhenNeeded(MeetingTurnResult result, UUID meetingId, UUID userId, String topic) {
+        if (result.responseOptions() == null || result.responseOptions().available()
+                || result.responseOptions().interactionMode() != com.ibm.consulting.sim.meeting.domain.MeetingInteractionMode.GUIDED) {
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                MeetingResponseOptionsResponse options = guidedResponseService.optionsFor(meetingId, userId);
+                if (options.available()) {
+                    messagingTemplate.convertAndSend(topic, new SocketEvent("turn.options", options));
+                } else {
+                    messagingTemplate.convertAndSend(topic, new SocketEvent("turn.options.error",
+                            Map.of("message", options.unavailableReason() == null
+                                    ? "Guided responses could not be prepared. Please try again."
+                                    : options.unavailableReason())));
+                }
+            } catch (Exception exception) {
+                log.error("Guided response fallback failed for meeting {}", meetingId, exception);
+                messagingTemplate.convertAndSend(topic, new SocketEvent("turn.options.error",
+                        Map.of("message", "Guided responses could not be prepared. Please try again.")));
             }
         });
     }
