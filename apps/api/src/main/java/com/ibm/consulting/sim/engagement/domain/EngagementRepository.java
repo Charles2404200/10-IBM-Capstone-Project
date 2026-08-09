@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public interface EngagementRepository {
     Engagement save(Engagement engagement);
+    List<Engagement> findAll();
     Optional<Engagement> findById(UUID id);
     List<Engagement> findByUserId(UUID userId);
     Optional<Engagement> findByIdAndUserId(UUID id, UUID userId);

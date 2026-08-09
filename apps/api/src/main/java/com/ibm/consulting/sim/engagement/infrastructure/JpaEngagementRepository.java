@@ -25,6 +25,7 @@ class JpaEngagementRepository implements EngagementRepository {
     }
 
     @Override public Engagement save(Engagement e) { return repo.save(e); }
+    @Override public List<Engagement> findAll() { return repo.findAll(); }
     @Override public Optional<Engagement> findById(UUID id) { return repo.findById(id); }
     @Override public List<Engagement> findByUserId(UUID userId) { return repo.findByUserId(userId); }
     @Override public Optional<Engagement> findByIdAndUserId(UUID id, UUID userId) {

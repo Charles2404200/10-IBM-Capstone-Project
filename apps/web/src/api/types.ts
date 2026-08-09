@@ -24,6 +24,53 @@ export interface DifficultyProfile {
   commercialPressure: number
 }
 
+export type UserRole = 'LEARNER' | 'SCENARIO_AUTHOR' | 'REVIEWER' | 'ADMINISTRATOR'
+
+export interface AdminUserSummary {
+  id: string
+  email: string
+  displayName: string
+  role: UserRole
+  active: boolean
+}
+
+export interface AiProviderStat {
+  providerId: string
+  available: boolean
+  circuitState: string
+  requestsToday: number
+  successCount: number
+  failureCount: number
+  avgLatencyMs: number
+  fallbackRatePercent: number
+  quotaUsed: number
+  quotaLimit: number
+}
+
+export interface AiOperationsResponse {
+  mockMode: boolean
+  providers: AiProviderStat[]
+  routing: Record<string, string[]>
+}
+
+export interface ScenarioActivity {
+  scenarioId: string
+  title: string
+  engagementCount: number
+  completedCount: number
+  averageAssessmentScore: number | null
+}
+
+export interface PlatformOverview {
+  totalEngagements: number
+  activeEngagements: number
+  completedEngagements: number
+  completionRatePercent: number
+  averageAssessmentScore: number | null
+  engagementsByState: Record<string, number>
+  scenarios: ScenarioActivity[]
+}
+
 export interface GameplayDifficultyProfile {
   level: 'EASY' | 'MEDIUM' | 'HARD'
   researchArtifactsPerAction: number

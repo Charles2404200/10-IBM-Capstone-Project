@@ -15,8 +15,7 @@ import { useAuthStore } from '@/store/authStore'
 export default function AppShell() {
   const { displayName, role, logout } = useAuthStore()
   const navigate = useNavigate()
-  const canManageScenarios = role === 'SCENARIO_AUTHOR' || role === 'ADMINISTRATOR'
-  const canManageAchievements = role === 'ADMINISTRATOR'
+  const canAccessAdmin = role === 'SCENARIO_AUTHOR' || role === 'REVIEWER' || role === 'ADMINISTRATOR'
 
   const handleLogout = () => {
     logout()
@@ -37,14 +36,9 @@ export default function AppShell() {
           <HeaderMenuItem as={NavLink} to="/dashboard/portfolio">
             Portfolio
           </HeaderMenuItem>
-          {canManageScenarios && (
-            <HeaderMenuItem as={NavLink} to="/dashboard/admin/scenarios">
-              Scenario Builder
-            </HeaderMenuItem>
-          )}
-          {canManageAchievements && (
-            <HeaderMenuItem as={NavLink} to="/dashboard/admin/achievements">
-              Achievement Builder
+          {canAccessAdmin && (
+            <HeaderMenuItem as={NavLink} to="/dashboard/admin">
+              Admin Console
             </HeaderMenuItem>
           )}
         </HeaderNavigation>

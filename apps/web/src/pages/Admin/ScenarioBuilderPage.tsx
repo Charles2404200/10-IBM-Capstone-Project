@@ -18,6 +18,7 @@ import {
   AccordionItem,
 } from '@carbon/react'
 import { Add } from '@carbon/icons-react'
+import styles from './ScenarioBuilderPage.module.css'
 import {
   useAddPersona,
   useAllScenariosForAdmin,
@@ -49,7 +50,7 @@ function CreateScenarioForm({ onCreated }: { onCreated: (scenarioId: string) => 
   const [form, setForm] = useState<CreateScenarioRequest>({ title: '', industry: '', description: '', difficulty: 3 })
 
   return (
-    <Tile>
+    <Tile className={styles.scenarioCard}>
       <Stack gap={5}>
         <h4>Create a new scenario</h4>
         <TextInput id="new-scenario-title" labelText="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -346,12 +347,12 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
   return (
     <Tile>
       <Stack gap={5}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className={styles.scenarioHeader}>
           <div>
             <h4>{scenario.title}</h4>
-            <p style={{ color: '#525252', fontSize: '0.875rem' }}>{scenario.description}</p>
+            <p>{scenario.description}</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div className={styles.tags}>
             <Tag type="cyan">{scenario.industry}</Tag>
             <Tag type={scenario.status === 'ACTIVE' ? 'green' : scenario.status === 'DRAFT' ? 'gray' : 'red'}>
               {scenario.status}
@@ -359,7 +360,7 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className={styles.lifecycleActions}>
           {scenario.status === 'DRAFT' && (
             <Button size="sm" onClick={() => publish.mutate(scenario.id)} disabled={publish.isPending}>
               Publish
@@ -376,9 +377,9 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
           <AccordionItem title={`Personas (${scenario.personas.length})`}>
             <Stack gap={4}>
               {scenario.personas.map((p) => (
-                <Tile key={p.id}>
+                <div className={styles.personaRow} key={p.id}>
                   <strong>{p.name}</strong> — {p.jobTitle} @ {p.organisation}
-                </Tile>
+                </div>
               ))}
               <AddPersonaForm scenarioId={scenario.id} />
             </Stack>
@@ -401,18 +402,28 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
 export default function ScenarioBuilderPage() {
   const { data: scenarios, isLoading, isError } = useAllScenariosForAdmin()
   const [showCreate, setShowCreate] = useState(false)
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('ALL')
 
   if (isLoading) return <LoadingState />
   if (isError) return <ErrorState />
 
+  const allScenarios = scenarios ?? []
+  const visibleScenarios = allScenarios.filter((scenario) => {
+    const matchesQuery = `${scenario.title} ${scenario.industry} ${scenario.description}`
+      .toLowerCase().includes(query.toLowerCase().trim())
+    return matchesQuery && (status === 'ALL' || scenario.status === status)
+  })
+
   return (
-    <Grid fullWidth style={{ padding: '2rem' }}>
+    <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={6}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div className={styles.pageHeader}>
             <div>
-              <Heading>Scenario Builder</Heading>
-              <p style={{ color: '#525252', marginTop: '0.5rem' }}>
+              <p className={styles.eyebrow}>Simulation authoring</p>
+              <Heading>Scenario management</Heading>
+              <p className={styles.description}>
                 Fully customisable consulting scenarios — personas, rubric weights and
                 knowledge documents, no code changes required.
               </p>
@@ -426,15 +437,27 @@ export default function ScenarioBuilderPage() {
 
           {showCreate && <CreateScenarioForm onCreated={() => setShowCreate(false)} />}
 
-          {(scenarios ?? []).length === 0 ? (
+          <section className={styles.catalogToolbar}>
+            <TextInput id="scenario-search" labelText="Search scenarios" placeholder="Search by title, industry or description" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <Select id="scenario-status-filter" labelText="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
+              <SelectItem value="ALL" text="All statuses" />
+              <SelectItem value="DRAFT" text="Draft" />
+              <SelectItem value="ACTIVE" text="Active" />
+              <SelectItem value="ARCHIVED" text="Archived" />
+            </Select>
+            <div className={styles.catalogCount}><strong>{visibleScenarios.length}</strong><span>shown of {allScenarios.length}</span></div>
+          </section>
+
+          {allScenarios.length === 0 ? (
             <Tile>
               <p style={{ color: '#525252' }}>No scenarios yet. Create the first one above.</p>
             </Tile>
           ) : (
-            <Stack gap={5}>
-              {(scenarios ?? []).map((s) => (
+            <Stack gap={3}>
+              {visibleScenarios.map((s) => (
                 <ScenarioCard key={s.id} scenario={s} />
               ))}
+              {visibleScenarios.length === 0 && <Tile><p>No scenarios match this filter.</p></Tile>}
             </Stack>
           )}
         </Stack>

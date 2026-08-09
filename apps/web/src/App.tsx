@@ -18,6 +18,9 @@ const AssessmentReviewPage = lazy(() => import('@/pages/AssessmentReview/Assessm
 const PortfolioPage = lazy(() => import('@/pages/Portfolio/PortfolioPage'))
 const ScenarioBuilderPage = lazy(() => import('@/pages/Admin/ScenarioBuilderPage'))
 const AchievementBuilderPage = lazy(() => import('@/pages/Admin/AchievementBuilderPage'))
+const AdminConsolePage = lazy(() => import('@/pages/Admin/AdminConsolePage'))
+const UserManagementPage = lazy(() => import('@/pages/Admin/UserManagementPage'))
+const AiOperationsPage = lazy(() => import('@/pages/Admin/AiOperationsPage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated())
@@ -84,6 +87,10 @@ export default function App() {
           <Route path="engagements/:engagementId/assessment" element={<AssessmentReviewPage />} />
           <Route path="portfolio" element={<PortfolioPage />} />
           <Route
+            path="admin"
+            element={<RequireRole roles={['SCENARIO_AUTHOR', 'REVIEWER', 'ADMINISTRATOR']}><AdminConsolePage /></RequireRole>}
+          />
+          <Route
             path="admin/scenarios"
             element={
               <RequireRole roles={['SCENARIO_AUTHOR', 'ADMINISTRATOR']}>
@@ -98,6 +105,14 @@ export default function App() {
                 <AchievementBuilderPage />
               </RequireRole>
             }
+          />
+          <Route
+            path="admin/users"
+            element={<RequireRole roles={['ADMINISTRATOR']}><UserManagementPage /></RequireRole>}
+          />
+          <Route
+            path="admin/ai-operations"
+            element={<RequireRole roles={['REVIEWER', 'ADMINISTRATOR']}><AiOperationsPage /></RequireRole>}
           />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
