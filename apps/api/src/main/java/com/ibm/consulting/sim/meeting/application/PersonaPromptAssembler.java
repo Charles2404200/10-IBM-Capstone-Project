@@ -88,8 +88,9 @@ final class PersonaPromptAssembler {
 
     private static String behaviourControls(DifficultyProfile profile) {
         if (profile == null) return "Use the scenario's normal level of specificity and challenge.";
-        return "Resistance %d/100. Ask for more precise evidence when resistance is high. "
+        return "Resistance %d/100. The client needs a credible next step within %d simulated days. "
+                + "Ask for more precise evidence when resistance is high. "
                 + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes."
-                .formatted(profile.personaResistance());
+                .formatted(profile.personaResistance(), profile.timelinePressureDays());
     }
 }

@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.meeting.domain;
 
 import com.ibm.consulting.sim.ai.domain.PersonaStateDelta;
 import com.ibm.consulting.sim.ai.domain.PersonaTurnResponse;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -62,5 +63,20 @@ class PersonaStateEngineTest {
             PersonaStateEngine.apply(state, turn);
         }
         assertThat(state.getTrust()).isEqualTo(100);
+    }
+
+    @Test
+    void shortTimelineAmplifiesNegativeRelationshipConsequences() {
+        PersonaTurnResponse turn = new PersonaTurnResponse(
+                "That is too vague for our timeline.", List.of(), new PersonaStateDelta(0, 0, -5),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+        PersonaState relaxed = PersonaState.initial(UUID.randomUUID(), DifficultyProfile.defaults(1, 1, 1, 1));
+        PersonaState urgent = PersonaState.initial(UUID.randomUUID(), DifficultyProfile.defaults(5, 5, 5, 5));
+
+        PersonaStateEngine.apply(relaxed, turn, DifficultyProfile.defaults(1, 1, 1, 1));
+        PersonaStateEngine.apply(urgent, turn, DifficultyProfile.defaults(5, 5, 5, 5));
+
+        assertThat(urgent.getPatience()).isLessThan(30);
+        assertThat(relaxed.getPatience()).isGreaterThan(70);
     }
 }

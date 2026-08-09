@@ -19,16 +19,19 @@ public final class PersonaStateEngine {
 
     public static void apply(PersonaState state, PersonaTurnResponse turn, DifficultyProfile profile) {
         PersonaStateDelta delta = turn.stateDelta() != null ? turn.stateDelta().clamped() : PersonaStateDelta.zero();
-        if (profile != null) delta = scale(delta, profile.scoringTolerance());
+        if (profile != null) delta = scale(delta, profile);
         state.applyClampedDelta(delta);
         turn.factsDisclosed().forEach(state::disclose);
     }
 
-    private static PersonaStateDelta scale(PersonaStateDelta delta, int tolerance) {
-        return new PersonaStateDelta(scale(delta.trust(), tolerance), scale(delta.interest(), tolerance), scale(delta.patience(), tolerance));
+    private static PersonaStateDelta scale(PersonaStateDelta delta, DifficultyProfile profile) {
+        return new PersonaStateDelta(scale(delta.trust(), profile), scale(delta.interest(), profile), scale(delta.patience(), profile));
     }
-    private static int scale(int value, int tolerance) {
-        double multiplier = value >= 0 ? tolerance / 100.0 : (200 - tolerance) / 100.0;
+    private static int scale(int value, DifficultyProfile profile) {
+        int urgencyPenalty = profile.timelinePressureDays() <= 14 ? 10
+                : profile.timelinePressureDays() <= 21 ? 5 : 0;
+        double multiplier = value >= 0 ? profile.scoringTolerance() / 100.0
+                : (200 - profile.scoringTolerance() + urgencyPenalty) / 100.0;
         return (int) Math.round(value * multiplier);
     }
 }
