@@ -10,6 +10,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProposalLifecycleTest {
 
     @Test
+    void keepsSubmissionTimestampEmptyWhileTheProposalIsStillADraft() {
+        Proposal proposal = Proposal.draft(java.util.UUID.randomUUID(), content("Initial problem statement"));
+
+        assertThat(proposal.getStatus()).isEqualTo(ProposalStatus.DRAFT);
+        assertThat(proposal.getSubmittedAt()).isNull();
+    }
+
+    @Test
     void keepsDraftEditableUntilSubmissionThenLocksIt() {
         Proposal proposal = Proposal.draft(java.util.UUID.randomUUID(), content("Initial problem statement"));
         proposal.updateDraft(content("Revised problem statement"));

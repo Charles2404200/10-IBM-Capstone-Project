@@ -102,7 +102,8 @@ public class Proposal extends BaseEntity {
     @OrderColumn(name = "position")
     private List<ProposalEvidenceImpact> evidenceImpacts = new ArrayList<>();
 
-    @Column(nullable = false)
+    /** A draft has no submission timestamp; it is assigned only by {@link #submit()}. */
+    @Column
     private Instant submittedAt;
 
     @Enumerated(EnumType.STRING)
