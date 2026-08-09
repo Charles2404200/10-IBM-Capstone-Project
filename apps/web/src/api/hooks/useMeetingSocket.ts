@@ -97,6 +97,8 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
               debriefTips: termination.retryGuidance,
               terminationReason: termination.reason,
               terminationMessage: termination.message,
+              meetingRetryAvailable: termination.meetingRetryAvailable,
+              meetingRetriesRemaining: termination.meetingRetriesRemaining,
             } : current)
           }
           setStreamingText('')

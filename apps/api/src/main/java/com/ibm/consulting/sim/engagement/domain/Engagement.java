@@ -82,6 +82,11 @@ public class Engagement extends BaseEntity {
         transitionTo(EngagementState.CLIENT_INTELLIGENCE, "Lead selected: " + leadId);
     }
 
+    /** Records a failed attempt without changing the engagement's lifecycle state. */
+    public void recordActivity(String description) {
+        recordEvent(description);
+    }
+
     private void recordEvent(String description) {
         events.add(EngagementEvent.create(this, state, description));
     }

@@ -70,6 +70,14 @@ public class PersonaState extends BaseEntity {
         disclosedFacts.add(factId);
     }
 
+    /** Starts a fresh live-meeting attempt without discarding engagement evidence. */
+    public void reset(DifficultyProfile profile) {
+        this.trust = initialScore(profile == null ? INITIAL_VALUE : profile.initialTrust());
+        this.interest = initialScore(profile == null ? INITIAL_VALUE : profile.initialInterest());
+        this.patience = initialScore(profile == null ? INITIAL_VALUE : profile.initialPatience());
+        this.disclosedFacts.clear();
+    }
+
     private static int clamp(int value) {
         return Math.max(0, Math.min(100, value));
     }

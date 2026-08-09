@@ -125,4 +125,9 @@ public class MeetingController {
     MeetingResponse complete(@PathVariable UUID meetingId, @AuthenticationPrincipal User user) {
         return meetingService.complete(meetingId, user.getId());
     }
+
+    @PostMapping("/meetings/{meetingId}/retry")
+    MeetingResponse retry(@PathVariable UUID meetingId, @AuthenticationPrincipal User user) {
+        return meetingService.retry(meetingId, user.getId());
+    }
 }

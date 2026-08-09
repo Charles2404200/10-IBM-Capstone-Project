@@ -13,7 +13,7 @@ import {
   Tile,
 } from '@carbon/react'
 import { ArrowRight, Send } from '@carbon/icons-react'
-import { useCompleteMeeting, useMeeting, useMeetingTranscript, usePersonaState } from '@/api/hooks/useMeeting'
+import { useCompleteMeeting, useMeeting, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
@@ -64,10 +64,11 @@ function deriveHint(transcript: ConversationTurn[], signals: string[], state: Pe
   return guidance.slice(0, 3)
 }
 
-function toTermination(meetingReason: string | null, message: string | null, tips: string[]): MeetingTermination | null {
+function toTermination(meetingReason: string | null, message: string | null, tips: string[],
+                       meetingRetryAvailable: boolean, meetingRetriesRemaining: number): MeetingTermination | null {
   if (!meetingReason || !message) return null
   if (meetingReason !== 'UNPROFESSIONAL_CONDUCT' && meetingReason !== 'RELATIONSHIP_THRESHOLD_BREACH') return null
-  return { reason: meetingReason, message, retryGuidance: tips }
+  return { reason: meetingReason, message, retryGuidance: tips, meetingRetryAvailable, meetingRetriesRemaining }
 }
 
 export default function LiveMeetingPage() {
@@ -77,6 +78,7 @@ export default function LiveMeetingPage() {
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
   const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
+  const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
   const { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
   const [message, setMessage] = useState('')
@@ -104,8 +106,12 @@ export default function LiveMeetingPage() {
   const automaticTermination = termination ?? toTermination(
     meeting.terminationReason,
     meeting.terminationMessage,
-    debriefTips
+    debriefTips,
+    meeting.meetingRetryAvailable,
+    meeting.meetingRetriesRemaining
   )
+  const canRetryMeeting = automaticTermination?.meetingRetryAvailable ?? meeting.meetingRetryAvailable
+  const meetingRetriesRemaining = automaticTermination?.meetingRetriesRemaining ?? meeting.meetingRetriesRemaining
   const pendingIsPersisted = pendingMessage !== null
     && turns.some((turn) => turn.actor === 'LEARNER' && turn.content === pendingMessage)
 
@@ -125,9 +131,15 @@ export default function LiveMeetingPage() {
     completeMeeting.mutate()
   }
 
-  const handleRetry = () => {
+  const handleRetryLead = () => {
     retryEngagement.mutate(undefined, {
       onSuccess: (retry) => navigate(`/dashboard/engagements/${retry.id}/intelligence`),
+    })
+  }
+
+  const handleRetryMeeting = () => {
+    retryMeeting.mutate(undefined, {
+      onSuccess: (retry) => navigate(`/dashboard/engagements/${engagementId}/meetings/${retry.id}`),
     })
   }
 
@@ -212,13 +224,15 @@ export default function LiveMeetingPage() {
                     Continue to Discovery Synthesis
                   </Button>
                 ) : (
-                  <Button
-                    kind="secondary"
-                    disabled={Boolean(automaticTermination && retryEngagement.isPending)}
-                    onClick={() => automaticTermination ? handleRetry() : navigate('/dashboard')}
-                  >
-                    {automaticTermination ? 'Retry this lead from the start' : 'Return to Command Centre'}
-                  </Button>
+                  canRetryMeeting ? (
+                    <Button kind="secondary" disabled={retryMeeting.isPending} onClick={handleRetryMeeting}>
+                      {retryMeeting.isPending ? 'Starting live meeting...' : `Retry live meeting (${meetingRetriesRemaining} remaining)`}
+                    </Button>
+                  ) : (
+                    <Button kind="secondary" disabled={retryEngagement.isPending} onClick={handleRetryLead}>
+                      {retryEngagement.isPending ? 'Starting lead retry...' : 'Retry this lead from the start'}
+                    </Button>
+                  )
                 )}
               </Stack>
             </Tile>
@@ -270,22 +284,26 @@ export default function LiveMeetingPage() {
         modalHeading={automaticTermination?.reason === 'UNPROFESSIONAL_CONDUCT'
           ? 'Meeting failed: unprofessional conduct'
           : 'Meeting failed: relationship threshold breached'}
-        primaryButtonText={retryEngagement.isPending ? 'Starting retry...' : 'Retry this lead from the start'}
+        primaryButtonText={automaticTermination?.meetingRetryAvailable
+          ? (retryMeeting.isPending ? 'Starting live meeting...' : `Retry live meeting (${automaticTermination.meetingRetriesRemaining} remaining)`)
+          : (retryEngagement.isPending ? 'Starting lead retry...' : 'Retry this lead from the start')}
         secondaryButtonText="Return to Command Centre"
-        primaryButtonDisabled={retryEngagement.isPending}
-        onRequestSubmit={handleRetry}
+        primaryButtonDisabled={retryMeeting.isPending || retryEngagement.isPending}
+        onRequestSubmit={() => automaticTermination?.meetingRetryAvailable ? handleRetryMeeting() : handleRetryLead()}
         onSecondarySubmit={() => navigate('/dashboard')}
         onRequestClose={() => setTerminationDismissed(true)}
       >
         <Stack gap={5}>
           <p>{automaticTermination?.message}</p>
-          <p>This attempt is preserved for review. Retrying creates a new engagement from the same lead with a clean learner state.</p>
+          <p>{automaticTermination?.meetingRetryAvailable
+            ? 'This attempt is preserved for review. Your evidence and preparation remain available; the live conversation restarts with a clean relationship state.'
+            : 'This attempt is preserved for review. Retrying creates a new engagement from the same lead with a clean learner state.'}</p>
           {automaticTermination?.retryGuidance.length ? (
             <ul className={styles.terminationGuidance}>
               {automaticTermination.retryGuidance.map((tip) => <li key={tip}>{tip}</li>)}
             </ul>
           ) : null}
-          {retryEngagement.isError && (
+          {(retryMeeting.isError || retryEngagement.isError) && (
             <InlineNotification
               kind="error"
               lowContrast

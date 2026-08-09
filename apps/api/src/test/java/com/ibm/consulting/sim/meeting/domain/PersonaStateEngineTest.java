@@ -189,6 +189,21 @@ class PersonaStateEngineTest {
     }
 
     @Test
+    void resetsOnlyTheLiveMeetingRelationshipStateForARetry() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        state.applyClampedDelta(new PersonaStateDelta(20, 20, 20));
+        state.disclose("fact:budget-pressure");
+
+        state.reset(profile);
+
+        assertThat(state.getTrust()).isEqualTo(40);
+        assertThat(state.getInterest()).isEqualTo(40);
+        assertThat(state.getPatience()).isEqualTo(40);
+        assertThat(state.getDisclosedFacts()).isEmpty();
+    }
+
+    @Test
     void restoresPatienceForConsistentlyGroundedClientCentricResponses() {
         DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
         PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);

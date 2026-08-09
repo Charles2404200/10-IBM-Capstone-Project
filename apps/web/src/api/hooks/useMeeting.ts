@@ -98,3 +98,18 @@ export function useCompleteMeeting(meetingId: string, engagementId: string) {
     },
   })
 }
+
+export function useRetryMeeting(meetingId: string, engagementId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post<Meeting>(`/api/v1/meetings/${meetingId}/retry`)
+      return res.data
+    },
+    onSuccess: (meeting) => {
+      qc.setQueryData(meetingKeys.meeting(meeting.id), meeting)
+      void qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
+      void qc.invalidateQueries({ queryKey: ['engagements'] })
+    },
+  })
+}

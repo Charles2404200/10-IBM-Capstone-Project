@@ -103,7 +103,7 @@ public class MeetingService {
     @Transactional(readOnly = true)
     public MeetingResponse get(UUID meetingId, UUID userId) {
         Meeting meeting = loadOwnedMeeting(meetingId, userId);
-        return MeetingResponse.from(meeting);
+        return responseFor(meeting);
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +124,39 @@ public class MeetingService {
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
                 .orElseGet(() -> PersonaState.initial(meeting.getEngagementId(), profile));
         return PersonaStateResponse.from(state);
+    }
+
+    /** Starts a clean retry of a performance-failed meeting without restarting the lead. */
+    @Transactional
+    public MeetingResponse retry(UUID meetingId, UUID userId) {
+        Meeting failedMeeting = loadOwnedMeeting(meetingId, userId);
+        Engagement engagement = engagementRepository.findByIdAndUserId(failedMeeting.getEngagementId(), userId)
+                .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
+        List<Meeting> attempts = meetingRepository.findAllByEngagementIdOrderByCreatedAtAsc(engagement.getId());
+        Meeting latestAttempt = attempts.isEmpty() ? failedMeeting : attempts.get(attempts.size() - 1);
+        if (latestAttempt.getStatus() == MeetingStatus.IN_PROGRESS) {
+            return responseFor(latestAttempt);
+        }
+        if (!latestAttempt.getId().equals(failedMeeting.getId())) {
+            throw new InvalidMeetingStateException("Only the latest meeting attempt can be retried.");
+        }
+        MeetingRetryEligibility eligibility = MeetingRetryPolicy.eligibilityFor(failedMeeting, attempts);
+        if (!eligibility.available()) {
+            throw new MeetingRetryNotAvailableException();
+        }
+
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        PersonaState state = personaStateRepository.findByEngagementId(engagement.getId())
+                .orElseGet(() -> PersonaState.initial(engagement.getId(), profile));
+        state.reset(profile);
+        personaStateRepository.save(state);
+
+        Meeting retry = Meeting.start(engagement.getId(), engagement.getPersonaId());
+        meetingRepository.save(retry);
+        engagement.recordActivity("Live meeting retry started; %d retry attempt(s) remain."
+                .formatted(Math.max(0, eligibility.retriesRemaining() - 1)));
+        engagementRepository.save(engagement);
+        return responseFor(retry);
     }
 
     /**
@@ -226,16 +259,17 @@ public class MeetingService {
 
         var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
                 .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
-        if (relationshipTermination.isPresent()) {
-            completeAutomatically(meeting, engagement, relationshipTermination.get());
-        }
+        MeetingRetryEligibility retryEligibility = relationshipTermination
+                .map(decision -> completeAutomatically(meeting, engagement, decision))
+                .orElse(null);
 
         return new MeetingTurnResult(
                 ConversationTurnResponse.from(learnerTurn),
                 ConversationTurnResponse.from(personaTurn),
                 PersonaStateResponse.from(state),
                 aiResponse.meetingSignals(),
-                relationshipTermination.map(MeetingTerminationResponse::from).orElse(null));
+                relationshipTermination.map(decision -> MeetingTerminationResponse.from(
+                        decision, retryEligibility == null ? MeetingRetryEligibility.unavailable() : retryEligibility)).orElse(null));
     }
 
     /**
@@ -321,7 +355,7 @@ public class MeetingService {
                 .orElseThrow(() -> new NotFoundException("Engagement", meeting.getEngagementId()));
 
         if (meeting.getStatus() == MeetingStatus.COMPLETED) {
-            return MeetingResponse.from(meeting);
+            return responseFor(meeting);
         }
 
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
@@ -341,12 +375,21 @@ public class MeetingService {
         meeting.recordTranscriptExport(storageReference);
         meetingRepository.save(meeting);
 
-        engagement.transitionTo(
-                decision.passed() ? EngagementState.DISCOVERY_COMPLETE : EngagementState.MEETING_FAILED,
-                decision.passed() ? "Meeting completed: passed relationship gate" : "Meeting completed: relationship gate failed");
+        if (decision.passed()) {
+            engagement.transitionTo(EngagementState.DISCOVERY_COMPLETE, "Meeting completed: passed relationship gate");
+        } else {
+            MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
+            if (eligibility.available()) {
+                engagement.recordActivity("Meeting attempt failed; %d live retry attempt(s) remain."
+                        .formatted(eligibility.retriesRemaining()));
+            } else {
+                engagement.transitionTo(EngagementState.MEETING_FAILED,
+                        "Meeting retry limit reached; restart the lead to try again.");
+            }
+        }
         engagementRepository.save(engagement);
 
-        return MeetingResponse.from(meeting);
+        return responseFor(meeting);
     }
 
     private Meeting loadOwnedMeeting(UUID meetingId, UUID userId) {
@@ -365,16 +408,33 @@ public class MeetingService {
         return signals;
     }
 
-    private void completeAutomatically(Meeting meeting, Engagement engagement,
-                                       MeetingTerminationDecision decision) {
+    private MeetingRetryEligibility completeAutomatically(Meeting meeting, Engagement engagement,
+                                                          MeetingTerminationDecision decision) {
         meeting.complete(MeetingCompletionOutcome.FAILED, decision.message(), decision.retryGuidance(), decision.reason());
         String storageReference = transcriptExportService.export(meeting);
         meeting.recordTranscriptExport(storageReference);
         meetingRepository.save(meeting);
 
-        engagement.transitionTo(EngagementState.MEETING_FAILED,
-                "Meeting automatically failed: " + decision.reason().name());
+        MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
+        if (decision.reason() == MeetingTerminationReason.UNPROFESSIONAL_CONDUCT || !eligibility.available()) {
+            engagement.transitionTo(EngagementState.MEETING_FAILED,
+                    "Meeting automatically failed: " + decision.reason().name());
+        } else {
+            engagement.recordActivity("Meeting attempt failed; %d live retry attempt(s) remain."
+                    .formatted(eligibility.retriesRemaining()));
+        }
         engagementRepository.save(engagement);
+        return eligibility;
+    }
+
+    private MeetingResponse responseFor(Meeting meeting) {
+        MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
+        return MeetingResponse.from(meeting, eligibility.available(), eligibility.retriesRemaining());
+    }
+
+    private MeetingRetryEligibility retryEligibilityFor(Meeting meeting) {
+        return MeetingRetryPolicy.eligibilityFor(meeting,
+                meetingRepository.findAllByEngagementIdOrderByCreatedAtAsc(meeting.getEngagementId()));
     }
 
     private String buildDebriefPrompt(PersonaState state, MeetingCompletionDecision decision,
@@ -400,6 +460,12 @@ public class MeetingService {
     public static class MeetingTurnLimitReachedException extends DomainException {
         public MeetingTurnLimitReachedException(int limit) {
             super("Meeting turn limit (%d) reached. Complete the meeting to receive your assessment.".formatted(limit));
+        }
+    }
+
+    public static class MeetingRetryNotAvailableException extends DomainException {
+        public MeetingRetryNotAvailableException() {
+            super("This meeting cannot be retried. Restart the lead to create a new engagement.");
         }
     }
 }

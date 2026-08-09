@@ -364,6 +364,8 @@ export interface Meeting {
   debriefTips: string[]
   terminationReason: 'UNPROFESSIONAL_CONDUCT' | 'RELATIONSHIP_THRESHOLD_BREACH' | null
   terminationMessage: string | null
+  meetingRetryAvailable: boolean
+  meetingRetriesRemaining: number
 }
 
 export type ConversationActor = 'LEARNER' | 'PERSONA'
@@ -398,6 +400,8 @@ export interface MeetingTermination {
   reason: 'UNPROFESSIONAL_CONDUCT' | 'RELATIONSHIP_THRESHOLD_BREACH'
   message: string
   retryGuidance: string[]
+  meetingRetryAvailable: boolean
+  meetingRetriesRemaining: number
 }
 
 // ─── Proposal ─────────────────────────────────────────────────────────────────
