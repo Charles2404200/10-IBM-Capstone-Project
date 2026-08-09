@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Comparator;
 import java.util.UUID;
 
 @Service
@@ -57,7 +58,12 @@ public class OutreachService {
             throw new InvalidOutreachStateException(engagement.getState());
         }
 
-        int attemptCount = outreachRepository.countByEngagementId(engagementId);
+        List<OutreachAttempt> existingAttempts = outreachRepository.findByEngagementId(engagementId);
+        existingAttempts.stream()
+                .max(Comparator.comparingInt(OutreachAttempt::getAttemptNumber))
+                .ifPresent(this::assertFollowUpIsAllowed);
+
+        int attemptCount = existingAttempts.size();
         if (attemptCount >= MAX_ATTEMPTS) {
             throw new MaxOutreachAttemptsException();
         }
@@ -96,6 +102,15 @@ public class OutreachService {
         return OutreachResponse.from(attempt);
     }
 
+    private void assertFollowUpIsAllowed(OutreachAttempt latestAttempt) {
+        OutreachNextAction requiredAction = OutreachRequestPolicy.detailsFor(
+                latestAttempt.getOutcome(), latestAttempt.getClientReply(), latestAttempt.getNextAction()).nextAction();
+        if (requiredAction == OutreachNextAction.SUBMIT_CAPABILITY_BRIEF) {
+            throw new RequiredOutreachActionException(
+                    "The client requested a capability brief. Submit the requested document before sending another email.");
+        }
+    }
+
     private String buildPrompt(String subject, String body, DifficultyProfile profile) {
         return """
                 You are evaluating a cold outreach email from a trainee consultant to a prospective client.
@@ -131,6 +146,12 @@ public class OutreachService {
     public static class MaxOutreachAttemptsException extends DomainException {
         public MaxOutreachAttemptsException() {
             super("Maximum outreach attempts (%d) reached".formatted(MAX_ATTEMPTS));
+        }
+    }
+
+    public static class RequiredOutreachActionException extends DomainException {
+        RequiredOutreachActionException(String message) {
+            super(message);
         }
     }
 }

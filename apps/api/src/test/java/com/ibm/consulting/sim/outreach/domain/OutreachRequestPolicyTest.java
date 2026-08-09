@@ -27,4 +27,19 @@ class OutreachRequestPolicyTest {
                 OutreachOutcome.ACCEPTED, "Let's schedule time next week."))
                 .isEqualTo(OutreachNextAction.CONTINUE_TO_MEETING);
     }
+
+    @Test
+    void upgradesLegacyFollowUpWhenTheClientActuallyRequestsAConcreteBrief() {
+        String reply = "Could you perhaps send over a brief, more concrete example of similar work, the phased "
+                + "approach, and the measurable value it delivered?";
+
+        OutreachRequestDetails details = OutreachRequestPolicy.detailsFor(
+                OutreachOutcome.FOLLOW_UP_REQUIRED, reply, OutreachNextAction.SEND_FOLLOW_UP);
+
+        assertThat(details.nextAction()).isEqualTo(OutreachNextAction.SUBMIT_CAPABILITY_BRIEF);
+        assertThat(details.requirements()).contains(
+                "Phased implementation approach",
+                "A concrete example of comparable work",
+                "Measurable client outcomes from comparable work");
+    }
 }

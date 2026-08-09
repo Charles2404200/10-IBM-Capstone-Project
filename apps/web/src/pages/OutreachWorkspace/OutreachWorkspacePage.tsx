@@ -19,6 +19,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt } from '@/api/types'
+import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
 
 const emailSchema = z.object({
@@ -294,7 +295,7 @@ export default function OutreachWorkspacePage() {
                     <TextInput id="subject" labelText="Subject" invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
                     <TextArea id="body" labelText="Message" rows={10} helperText="Minimum 50 characters." invalid={Boolean(errors.body)} invalidText={errors.body?.message} {...register('body')} />
                     {sendOutreach.isError && (
-                      <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle="Check the engagement state and try again." hideCloseButton />
+                      <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
                     <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending}>
                       {sendOutreach.isPending ? 'Sending...' : 'Send message'}
