@@ -81,7 +81,7 @@ class PersonaStateEngineTest {
     }
 
     @Test
-    void doesNotRewardGreetingOrGenericPromptInLiveMeetingProgression() {
+    void treatsGreetingsAsNeutralAndGenericDeflectionAsNegative() {
         DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
         PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
         PersonaTurnResponse overlyPositiveResponse = new PersonaTurnResponse(
@@ -91,9 +91,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "Hello", 1);
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "What do you need to know?", 2);
 
-        assertThat(state.getTrust()).isEqualTo(profile.initialTrust());
-        assertThat(state.getInterest()).isEqualTo(profile.initialInterest());
-        assertThat(state.getPatience()).isEqualTo(profile.initialPatience());
+        assertThat(state.getTrust()).isEqualTo(profile.initialTrust() - 6);
+        assertThat(state.getInterest()).isEqualTo(profile.initialInterest() - 5);
+        assertThat(state.getPatience()).isEqualTo(profile.initialPatience() - 4);
     }
 
     @Test
@@ -112,5 +112,21 @@ class PersonaStateEngineTest {
         assertThat(state.getTrust()).isEqualTo(profile.initialTrust() + 3);
         assertThat(state.getInterest()).isEqualTo(profile.initialInterest() + 3);
         assertThat(state.getPatience()).isEqualTo(profile.initialPatience() + 2);
+    }
+
+    @Test
+    void penalizesAnUnpreparedResponseEvenWhenTheProviderSuggestsAPositiveDelta() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
+                "I dont know what ur talking about", 1);
+
+        assertThat(state.getTrust()).isEqualTo(profile.initialTrust() - 16);
+        assertThat(state.getInterest()).isEqualTo(profile.initialInterest() - 14);
+        assertThat(state.getPatience()).isEqualTo(profile.initialPatience() - 12);
     }
 }

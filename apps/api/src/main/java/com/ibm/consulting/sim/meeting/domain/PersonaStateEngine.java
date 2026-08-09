@@ -35,7 +35,8 @@ public final class PersonaStateEngine {
             return;
         }
         PersonaStateDelta delta = turn.stateDelta() != null ? turn.stateDelta().clamped() : PersonaStateDelta.zero();
-        delta = MeetingTurnProgressionPolicy.constrain(scale(delta, profile), learnerMessage);
+        delta = MeetingTurnProgressionPolicy.constrain(
+                scale(delta, profile), learnerMessage, turn.detectedLearnerBehaviours());
         state.applyProgressionBoundedDelta(delta, profile, learnerTurnNumber);
         turn.factsDisclosed().forEach(state::disclose);
     }
