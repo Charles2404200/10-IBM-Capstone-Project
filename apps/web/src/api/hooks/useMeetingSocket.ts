@@ -83,6 +83,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
             return [...current, ...newTurns].sort((left, right) => left.sequence - right.sequence)
           })
           setPersonaState(result.personaState)
+          qc.setQueryData(meetingKeys.personaState(meetingId), result.personaState)
           setLatestSignals(result.meetingSignals ?? [])
           const termination = result.termination
           setTermination(termination ?? null)

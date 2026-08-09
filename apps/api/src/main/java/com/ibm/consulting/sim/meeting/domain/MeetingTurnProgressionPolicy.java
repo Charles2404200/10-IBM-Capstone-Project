@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  */
 final class MeetingTurnProgressionPolicy {
 
-    private static final int[] PROGRESSION_ALLOWANCE = {0, 0, 3, 8, 14, 22, 31, 40, 50, 60, 70, 80};
+    private static final int[] PROGRESSION_ALLOWANCE = {0, 8, 16, 26, 36, 46, 56, 65, 72, 78, 84, 90};
     private static final Set<String> CONTEXT_CUES = Set.of(
             "budget", "cost", "roi", "priority", "priorities", "risk", "risks", "timeline",
             "workflow", "workflows", "process", "processes", "integration", "implementation",
@@ -44,7 +44,7 @@ final class MeetingTurnProgressionPolicy {
         TurnQuality quality = classify(learnerMessage, detectedLearnerBehaviours);
         if (quality.isPenalty()) return quality.enforcePenalty(proposed);
         PersonaStateDelta behaviourScore = scoreBehaviour(quality, detectedLearnerBehaviours);
-        return applyModelPenalty(behaviourScore, proposed);
+        return applyCalibratedAiAssessment(behaviourScore, proposed, quality, detectedLearnerBehaviours);
     }
 
     static int maximumScore(int initialScore, int learnerTurnNumber) {
@@ -121,11 +121,30 @@ final class MeetingTurnProgressionPolicy {
                 Math.min(patience, quality.patienceGainCap()));
     }
 
-    private static PersonaStateDelta applyModelPenalty(PersonaStateDelta behaviourScore, PersonaStateDelta proposed) {
+    private static PersonaStateDelta applyCalibratedAiAssessment(PersonaStateDelta behaviourScore,
+                                                                  PersonaStateDelta proposed,
+                                                                  TurnQuality quality,
+                                                                  List<String> behaviours) {
+        boolean verifiedPositiveBehaviour = hasPositiveBehaviour(behaviours);
         return new PersonaStateDelta(
-                behaviourScore.trust() + Math.min(proposed.trust(), 0),
-                behaviourScore.interest() + Math.min(proposed.interest(), 0),
-                behaviourScore.patience() + Math.min(proposed.patience(), 0));
+                withinQualityCap(behaviourScore.trust()
+                        + aiContribution(proposed.trust(), quality.aiTrustSupportCap(), verifiedPositiveBehaviour),
+                        quality.trustGainCap()),
+                withinQualityCap(behaviourScore.interest()
+                        + aiContribution(proposed.interest(), quality.aiInterestSupportCap(), verifiedPositiveBehaviour),
+                        quality.interestGainCap()),
+                withinQualityCap(behaviourScore.patience()
+                        + aiContribution(proposed.patience(), quality.aiPatienceSupportCap(), verifiedPositiveBehaviour),
+                        quality.patienceGainCap()));
+    }
+
+    private static int aiContribution(int providerDelta, int positiveSupportCap, boolean verifiedPositiveBehaviour) {
+        if (providerDelta < 0) return Math.max(providerDelta, -4);
+        return verifiedPositiveBehaviour ? Math.min(providerDelta, positiveSupportCap) : 0;
+    }
+
+    private static int withinQualityCap(int value, int cap) {
+        return Math.min(value, cap);
     }
 
     private static boolean hasNegativeBehaviour(List<String> behaviours) {
@@ -135,6 +154,15 @@ final class MeetingTurnProgressionPolicy {
                         || behaviour.contains("dismissive")
                         || behaviour.contains("does_not_answer")
                         || behaviour.contains("unsupported_claim"));
+    }
+
+    private static boolean hasPositiveBehaviour(List<String> behaviours) {
+        return normalizedBehaviours(behaviours).stream().anyMatch(behaviour -> switch (behaviour) {
+            case "directly_addresses_concern", "addresses_client_concern", "acknowledges_constraint",
+                    "uses_client_fact", "uses_disclosed_evidence", "quantifies_business_impact",
+                    "uses_specific_metric", "asks_focused_question", "grounded_recommendation" -> true;
+            default -> false;
+        });
     }
 
     private static Set<String> normalizedBehaviours(List<String> behaviours) {
@@ -147,8 +175,8 @@ final class MeetingTurnProgressionPolicy {
 
     private enum TurnQuality {
         LOW_SIGNAL(0, 0, 0),
-        FOCUSED_DISCOVERY(2, 2, 1, 5, 5, 3),
-        GROUNDED_DISCOVERY(4, 4, 2, 7, 7, 4),
+        FOCUSED_DISCOVERY(3, 3, 1, 8, 8, 5, 2, 2, 1),
+        GROUNDED_DISCOVERY(5, 5, 3, 12, 12, 8, 3, 3, 2),
         DEFLECTING(-6, -5, -4),
         EVASIVE(-7, -6, -5),
         UNPREPARED(-14, -12, -10),
@@ -160,19 +188,31 @@ final class MeetingTurnProgressionPolicy {
         private final int baseTrust;
         private final int baseInterest;
         private final int basePatience;
+        private final int aiTrustSupportCap;
+        private final int aiInterestSupportCap;
+        private final int aiPatienceSupportCap;
 
         TurnQuality(int trustGainCap, int interestGainCap, int patienceGainCap) {
-            this(0, 0, 0, trustGainCap, interestGainCap, patienceGainCap);
+            this(0, 0, 0, trustGainCap, interestGainCap, patienceGainCap, 0, 0, 0);
         }
 
         TurnQuality(int baseTrust, int baseInterest, int basePatience,
                     int trustGainCap, int interestGainCap, int patienceGainCap) {
+            this(baseTrust, baseInterest, basePatience, trustGainCap, interestGainCap, patienceGainCap, 0, 0, 0);
+        }
+
+        TurnQuality(int baseTrust, int baseInterest, int basePatience,
+                    int trustGainCap, int interestGainCap, int patienceGainCap,
+                    int aiTrustSupportCap, int aiInterestSupportCap, int aiPatienceSupportCap) {
             this.trustGainCap = trustGainCap;
             this.interestGainCap = interestGainCap;
             this.patienceGainCap = patienceGainCap;
             this.baseTrust = baseTrust;
             this.baseInterest = baseInterest;
             this.basePatience = basePatience;
+            this.aiTrustSupportCap = aiTrustSupportCap;
+            this.aiInterestSupportCap = aiInterestSupportCap;
+            this.aiPatienceSupportCap = aiPatienceSupportCap;
         }
 
         int trustGainCap() { return trustGainCap; }
@@ -181,6 +221,9 @@ final class MeetingTurnProgressionPolicy {
         int baseTrust() { return baseTrust; }
         int baseInterest() { return baseInterest; }
         int basePatience() { return basePatience; }
+        int aiTrustSupportCap() { return aiTrustSupportCap; }
+        int aiInterestSupportCap() { return aiInterestSupportCap; }
+        int aiPatienceSupportCap() { return aiPatienceSupportCap; }
 
         boolean isPenalty() {
             return trustGainCap < 0;

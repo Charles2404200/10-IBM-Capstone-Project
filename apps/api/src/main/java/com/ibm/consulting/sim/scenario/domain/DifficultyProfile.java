@@ -46,11 +46,11 @@ public record DifficultyProfile(
         DifficultyLevel level = overallDifficulty <= 2 ? DifficultyLevel.EASY
                 : overallDifficulty >= 4 ? DifficultyLevel.HARD : DifficultyLevel.MEDIUM;
         return switch (level) {
-            case EASY -> new DifficultyProfile(level, 4, 1, 0, 10, 10, 10, 14,
+            case EASY -> new DifficultyProfile(level, 4, 1, 0, 40, 40, 40, 14,
                     true, 30, 2, 40, 65, 50, 20, 115);
-            case MEDIUM -> new DifficultyProfile(level, 5, 2, 1, 10, 10, 10, 14,
+            case MEDIUM -> new DifficultyProfile(level, 5, 2, 1, 40, 40, 40, 14,
                     false, 18, 3, 60, 75, 65, 50, 100);
-            case HARD -> new DifficultyProfile(level, 6, 3, Math.max(2, ambiguity - 1), 10, 10, 10, 12,
+            case HARD -> new DifficultyProfile(level, 6, 3, Math.max(2, ambiguity - 1), 40, 40, 40, 12,
                     false, commercialPressure >= 4 ? 10 : 14, 4, 80, 82, 75,
                     Math.max(65, stakeholderComplexity * 15), 85);
         };

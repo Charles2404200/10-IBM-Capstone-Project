@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { Meeting, MeetingPreparation, ConversationTurn } from '@/api/types'
+import type { Meeting, MeetingPreparation, ConversationTurn, PersonaState } from '@/api/types'
 
 export const meetingKeys = {
   preparation: (engagementId: string) => ['meeting-preparation', engagementId] as const,
   meeting: (meetingId: string) => ['meeting', meetingId] as const,
   transcript: (meetingId: string) => ['meeting-transcript', meetingId] as const,
+  personaState: (meetingId: string) => ['meeting-persona-state', meetingId] as const,
 }
 
 export function useMeetingPreparation(engagementId: string) {
@@ -67,6 +68,17 @@ export function useMeetingTranscript(meetingId: string) {
     queryKey: meetingKeys.transcript(meetingId),
     queryFn: async () => {
       const res = await apiClient.get<ConversationTurn[]>(`/api/v1/meetings/${meetingId}/transcript`)
+      return res.data
+    },
+    enabled: Boolean(meetingId),
+  })
+}
+
+export function usePersonaState(meetingId: string) {
+  return useQuery({
+    queryKey: meetingKeys.personaState(meetingId),
+    queryFn: async () => {
+      const res = await apiClient.get<PersonaState>(`/api/v1/meetings/${meetingId}/persona-state`)
       return res.data
     },
     enabled: Boolean(meetingId),

@@ -114,6 +114,18 @@ public class MeetingService {
                 .toList();
     }
 
+    /** Returns the persisted relationship state before the first live turn. */
+    @Transactional(readOnly = true)
+    public PersonaStateResponse personaState(UUID meetingId, UUID userId) {
+        Meeting meeting = loadOwnedMeeting(meetingId, userId);
+        Engagement engagement = engagementRepository.findByIdAndUserId(meeting.getEngagementId(), userId)
+                .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
+                .orElseGet(() -> PersonaState.initial(meeting.getEngagementId(), profile));
+        return PersonaStateResponse.from(state);
+    }
+
     /**
      * Persists the learner's message, calls the persona-dialogue AI use case with a
      * grounded prompt, validates and applies the structured response, then persists
@@ -212,7 +224,7 @@ public class MeetingService {
                 meeting.getId(), nextSequence + 1, aiResponse.spokenResponse(), signals);
         turnRepository.save(personaTurn);
 
-        var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state, (int) learnerTurnCount + 1)
+        var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
                 .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
         if (relationshipTermination.isPresent()) {
             completeAutomatically(meeting, engagement, relationshipTermination.get());

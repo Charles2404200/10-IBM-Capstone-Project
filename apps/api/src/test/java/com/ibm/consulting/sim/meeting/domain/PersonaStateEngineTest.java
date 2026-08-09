@@ -22,9 +22,9 @@ class PersonaStateEngineTest {
 
         PersonaStateEngine.apply(state, turn);
 
-        assertThat(state.getTrust()).isEqualTo(20); // 10 + clamp(20 -> 10)
-        assertThat(state.getInterest()).isEqualTo(5); // 10 - 5
-        assertThat(state.getPatience()).isEqualTo(13); // 10 + 3
+        assertThat(state.getTrust()).isEqualTo(50); // 40 + clamp(20 -> 10)
+        assertThat(state.getInterest()).isEqualTo(35); // 40 - 5
+        assertThat(state.getPatience()).isEqualTo(43); // 40 + 3
     }
 
     @Test
@@ -49,13 +49,13 @@ class PersonaStateEngineTest {
 
         PersonaStateEngine.apply(state, turn);
 
-        assertThat(state.getTrust()).isEqualTo(10);
-        assertThat(state.getInterest()).isEqualTo(10);
-        assertThat(state.getPatience()).isEqualTo(10);
+        assertThat(state.getTrust()).isEqualTo(40);
+        assertThat(state.getInterest()).isEqualTo(40);
+        assertThat(state.getPatience()).isEqualTo(40);
     }
 
     @Test
-    void capsLegacyScenarioStartingScoresAtEarnedTrustBaseline() {
+    void capsLegacyScenarioStartingScoresAtTheCurrentGameplayBaseline() {
         DifficultyProfile legacyProfile = new DifficultyProfile(
                 DifficultyLevel.EASY,
                 4, 1, 0, 65, 65, 75, 14, true, 30,
@@ -63,9 +63,9 @@ class PersonaStateEngineTest {
 
         PersonaState state = PersonaState.initial(UUID.randomUUID(), legacyProfile);
 
-        assertThat(state.getTrust()).isEqualTo(10);
-        assertThat(state.getInterest()).isEqualTo(10);
-        assertThat(state.getPatience()).isEqualTo(10);
+        assertThat(state.getTrust()).isEqualTo(40);
+        assertThat(state.getInterest()).isEqualTo(40);
+        assertThat(state.getPatience()).isEqualTo(40);
     }
 
     @Test
@@ -92,7 +92,7 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(urgent, turn, DifficultyProfile.defaults(5, 5, 5, 5));
 
         assertThat(urgent.getPatience()).isLessThan(relaxed.getPatience());
-        assertThat(relaxed.getPatience()).isLessThan(10);
+        assertThat(relaxed.getPatience()).isLessThan(40);
     }
 
     @Test
@@ -106,9 +106,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "Hello", 1);
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "What do you need to know?", 2);
 
-        assertThat(state.getTrust()).isEqualTo(5);
-        assertThat(state.getInterest()).isEqualTo(6);
-        assertThat(state.getPatience()).isEqualTo(7);
+        assertThat(state.getTrust()).isEqualTo(35);
+        assertThat(state.getInterest()).isEqualTo(36);
+        assertThat(state.getPatience()).isEqualTo(37);
     }
 
     @Test
@@ -124,9 +124,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile,
                 "You mentioned current integration constraints and operational impact. Which workflow now creates the greatest risk for staff?", 2);
 
-        assertThat(state.getTrust()).isEqualTo(13);
-        assertThat(state.getInterest()).isEqualTo(13);
-        assertThat(state.getPatience()).isEqualTo(12);
+        assertThat(state.getTrust()).isEqualTo(52);
+        assertThat(state.getInterest()).isEqualTo(52);
+        assertThat(state.getPatience()).isEqualTo(46);
     }
 
     @Test
@@ -140,9 +140,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
                 "I dont know what ur talking about", 1);
 
-        assertThat(state.getTrust()).isZero();
-        assertThat(state.getInterest()).isZero();
-        assertThat(state.getPatience()).isZero();
+        assertThat(state.getTrust()).isEqualTo(26);
+        assertThat(state.getInterest()).isEqualTo(28);
+        assertThat(state.getPatience()).isEqualTo(30);
     }
 
     @Test
@@ -166,5 +166,25 @@ class PersonaStateEngineTest {
 
         assertThat(scoredByBehaviour.getTrust()).isGreaterThan(withoutBehaviourEvidence.getTrust());
         assertThat(scoredByBehaviour.getInterest()).isGreaterThan(withoutBehaviourEvidence.getInterest());
+    }
+
+    @Test
+    void usesAiAssessmentAsBoundedSupportingEvidenceForVerifiedBehaviour() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        String message = "Given the current integration risk and audit timeline, I would validate the medication handoff first. Which reconciliation delay has the greatest operational impact?";
+        List<String> labels = List.of("directly_addresses_concern", "uses_client_fact", "asks_focused_question");
+        PersonaState withAiSupport = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaState withoutAiSupport = PersonaState.initial(UUID.randomUUID(), profile);
+
+        PersonaStateEngine.apply(withAiSupport, new PersonaTurnResponse(
+                "That is a useful starting point.", labels, new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null)), profile, message, 3);
+        PersonaStateEngine.apply(withoutAiSupport, new PersonaTurnResponse(
+                "That is a useful starting point.", labels, PersonaStateDelta.zero(),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null)), profile, message, 3);
+
+        assertThat(withAiSupport.getTrust()).isGreaterThan(withoutAiSupport.getTrust());
+        assertThat(withAiSupport.getInterest()).isGreaterThan(withoutAiSupport.getInterest());
+        assertThat(withAiSupport.getPatience()).isGreaterThan(withoutAiSupport.getPatience());
     }
 }

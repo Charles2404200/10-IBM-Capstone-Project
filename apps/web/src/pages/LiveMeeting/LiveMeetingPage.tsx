@@ -13,7 +13,7 @@ import {
   Tile,
 } from '@carbon/react'
 import { ArrowRight, Send } from '@carbon/icons-react'
-import { useCompleteMeeting, useMeeting, useMeetingTranscript } from '@/api/hooks/useMeeting'
+import { useCompleteMeeting, useMeeting, useMeetingTranscript, usePersonaState } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
@@ -75,6 +75,7 @@ export default function LiveMeetingPage() {
   const navigate = useNavigate()
   const { data: meeting, isLoading: meetingLoading, isError: meetingError } = useMeeting(meetingId!)
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
+  const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
   const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
   const { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
@@ -84,15 +85,19 @@ export default function LiveMeetingPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const turns = transcript ?? []
-  const currentState = personaState ?? { engagementId: engagementId ?? '', trust: 50, interest: 50, patience: 50, disclosedFacts: [] }
-  const hint = useMemo(() => deriveHint(turns, latestSignals, currentState), [turns, latestSignals, currentState])
+  const currentState = personaState ?? persistedPersonaState
+  const hint = useMemo(
+    () => currentState ? deriveHint(turns, latestSignals, currentState) : [],
+    [turns, latestSignals, currentState]
+  )
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [turns.length, streamingText])
 
-  if (meetingLoading || transcriptLoading) return <LoadingState />
+  if (meetingLoading || transcriptLoading || personaStateLoading) return <LoadingState />
   if (meetingError || !meeting) return <ErrorState />
+  if (!currentState) return <ErrorState />
 
   const isCompleted = meeting.status === 'COMPLETED'
   const debriefTips = meeting.debriefTips ?? []

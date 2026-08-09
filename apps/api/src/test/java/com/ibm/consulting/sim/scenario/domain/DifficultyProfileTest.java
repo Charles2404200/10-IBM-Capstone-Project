@@ -17,5 +17,8 @@ class DifficultyProfileTest {
         assertThat(hard.scoringTolerance()).isLessThan(easy.scoringTolerance());
         assertThat(hard.requiredConfidencePercent()).isGreaterThan(easy.requiredConfidencePercent());
         assertThat(hard.proposalEvidenceCoverageThreshold()).isGreaterThan(easy.proposalEvidenceCoverageThreshold());
+        assertThat(easy.initialTrust()).isEqualTo(40);
+        assertThat(easy.initialInterest()).isEqualTo(40);
+        assertThat(easy.initialPatience()).isEqualTo(40);
     }
 }

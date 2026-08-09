@@ -67,6 +67,11 @@ public class MeetingController {
         return meetingService.transcript(meetingId, user.getId());
     }
 
+    @GetMapping("/meetings/{meetingId}/persona-state")
+    PersonaStateResponse personaState(@PathVariable UUID meetingId, @AuthenticationPrincipal User user) {
+        return meetingService.personaState(meetingId, user.getId());
+    }
+
     /**
      * Streams the persona's reply as Server-Sent Events (§2, §6.2). The learner message
      * is validated, persisted and evaluated synchronously on a worker thread; the

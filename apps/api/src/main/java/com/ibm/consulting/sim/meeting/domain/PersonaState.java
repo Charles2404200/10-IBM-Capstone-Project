@@ -19,8 +19,8 @@ import java.util.UUID;
 @Table(name = "persona_states")
 public class PersonaState extends BaseEntity {
 
-    private static final int INITIAL_VALUE = 10;
-    private static final int MAX_STARTING_RELATIONSHIP_SCORE = 10;
+    private static final int INITIAL_VALUE = 40;
+    private static final int MAX_STARTING_RELATIONSHIP_SCORE = 40;
 
     @Column(nullable = false, unique = true)
     private UUID engagementId;

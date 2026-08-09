@@ -40,9 +40,9 @@ import type {
 } from '@/api/types'
 
 function defaultGameplayProfile(difficulty: number): GameplayDifficultyProfile {
-  if (difficulty <= 2) return { level: 'EASY', researchArtifactsPerAction: 4, distractorArtifactsPerAction: 1, contradictionCount: 0, initialTrust: 65, initialInterest: 65, initialPatience: 75, meetingTurnLimit: 14, budgetVisible: true, timelinePressureDays: 30, requiredEvidenceCount: 2, requiredConfidencePercent: 40, outreachAcceptanceThreshold: 65, proposalEvidenceCoverageThreshold: 50, personaResistance: 20, scoringTolerance: 115 }
-  if (difficulty >= 4) return { level: 'HARD', researchArtifactsPerAction: 6, distractorArtifactsPerAction: 3, contradictionCount: 2, initialTrust: 40, initialInterest: 45, initialPatience: 35, meetingTurnLimit: 7, budgetVisible: false, timelinePressureDays: 14, requiredEvidenceCount: 4, requiredConfidencePercent: 80, outreachAcceptanceThreshold: 82, proposalEvidenceCoverageThreshold: 75, personaResistance: 65, scoringTolerance: 85 }
-  return { level: 'MEDIUM', researchArtifactsPerAction: 5, distractorArtifactsPerAction: 2, contradictionCount: 1, initialTrust: 50, initialInterest: 50, initialPatience: 55, meetingTurnLimit: 10, budgetVisible: false, timelinePressureDays: 18, requiredEvidenceCount: 3, requiredConfidencePercent: 60, outreachAcceptanceThreshold: 75, proposalEvidenceCoverageThreshold: 65, personaResistance: 50, scoringTolerance: 100 }
+  if (difficulty <= 2) return { level: 'EASY', researchArtifactsPerAction: 4, distractorArtifactsPerAction: 1, contradictionCount: 0, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 14, budgetVisible: true, timelinePressureDays: 30, requiredEvidenceCount: 2, requiredConfidencePercent: 40, outreachAcceptanceThreshold: 65, proposalEvidenceCoverageThreshold: 50, personaResistance: 20, scoringTolerance: 115 }
+  if (difficulty >= 4) return { level: 'HARD', researchArtifactsPerAction: 6, distractorArtifactsPerAction: 3, contradictionCount: 2, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 12, budgetVisible: false, timelinePressureDays: 14, requiredEvidenceCount: 4, requiredConfidencePercent: 80, outreachAcceptanceThreshold: 82, proposalEvidenceCoverageThreshold: 75, personaResistance: 65, scoringTolerance: 85 }
+  return { level: 'MEDIUM', researchArtifactsPerAction: 5, distractorArtifactsPerAction: 2, contradictionCount: 1, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 14, budgetVisible: false, timelinePressureDays: 18, requiredEvidenceCount: 3, requiredConfidencePercent: 60, outreachAcceptanceThreshold: 75, proposalEvidenceCoverageThreshold: 65, personaResistance: 50, scoringTolerance: 100 }
 }
 
 function CreateScenarioForm({ onCreated }: { onCreated: (scenarioId: string) => void }) {
@@ -250,15 +250,15 @@ function GameplayDifficultyForm({ scenario }: { scenario: ScenarioSummary }) {
             onChange={(_event, state) => updateNumber('requiredEvidenceCount', Number(state?.value ?? 2))} />
         </Column>
         <Column lg={4} md={4} sm={4}>
-          <NumberInput id={`${scenario.id}-initial-trust`} label="Initial trust" value={profile.initialTrust} min={0} max={100}
+          <NumberInput id={`${scenario.id}-initial-trust`} label="Initial trust" value={profile.initialTrust} min={0} max={40}
             onChange={(_event, state) => updateNumber('initialTrust', Number(state?.value ?? 0))} />
         </Column>
         <Column lg={4} md={4} sm={4}>
-          <NumberInput id={`${scenario.id}-initial-interest`} label="Initial interest" value={profile.initialInterest} min={0} max={100}
+          <NumberInput id={`${scenario.id}-initial-interest`} label="Initial interest" value={profile.initialInterest} min={0} max={40}
             onChange={(_event, state) => updateNumber('initialInterest', Number(state?.value ?? 0))} />
         </Column>
         <Column lg={4} md={4} sm={4}>
-          <NumberInput id={`${scenario.id}-initial-patience`} label="Initial patience" value={profile.initialPatience} min={0} max={100}
+          <NumberInput id={`${scenario.id}-initial-patience`} label="Initial patience" value={profile.initialPatience} min={0} max={40}
             onChange={(_event, state) => updateNumber('initialPatience', Number(state?.value ?? 0))} />
         </Column>
         <Column lg={4} md={4} sm={4}>
