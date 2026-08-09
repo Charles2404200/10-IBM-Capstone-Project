@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.assessment.domain.CompetencyScore;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public record AssessmentResponse(
@@ -28,6 +29,15 @@ public record AssessmentResponse(
         return new AssessmentResponse(a.getId(), a.getEngagementId(),
                 a.getCompetencyScores().stream().map(CompetencyScoreView::from).toList(),
                 a.getOverallScore(), a.getOutcome(), a.getFeedbackSummary(),
-                a.getStrengths(), a.getImprovementAreas(), a.getGeneratedAt());
+                copiedStrings(a.getStrengths()), copiedStrings(a.getImprovementAreas()), a.getGeneratedAt());
+    }
+
+    /**
+     * Never expose a Hibernate persistent collection from an API DTO. Jackson
+     * serializes after the transaction is closed, so the response must own a
+     * materialized snapshot of each learner-facing collection.
+     */
+    private static List<String> copiedStrings(List<String> values) {
+        return values.stream().filter(Objects::nonNull).toList();
     }
 }
