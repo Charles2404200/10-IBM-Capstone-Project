@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @Repository
 interface SpringDataOutreachRepository extends JpaRepository<OutreachAttempt, UUID> {
-    List<OutreachAttempt> findByEngagementId(UUID engagementId);
+    List<OutreachAttempt> findByEngagementIdOrderByAttemptNumberAsc(UUID engagementId);
     int countByEngagementId(UUID engagementId);
 }
 
@@ -21,7 +21,9 @@ class JpaOutreachRepository implements OutreachRepository {
     JpaOutreachRepository(SpringDataOutreachRepository repo) { this.repo = repo; }
 
     @Override public OutreachAttempt save(OutreachAttempt a) { return repo.save(a); }
-    @Override public List<OutreachAttempt> findByEngagementId(UUID id) { return repo.findByEngagementId(id); }
+    @Override public List<OutreachAttempt> findByEngagementId(UUID id) {
+        return repo.findByEngagementIdOrderByAttemptNumberAsc(id);
+    }
     @Override public Optional<OutreachAttempt> findById(UUID id) { return repo.findById(id); }
     @Override public int countByEngagementId(UUID id) { return repo.countByEngagementId(id); }
 }

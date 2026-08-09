@@ -133,6 +133,7 @@ public class OutreachService {
         engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         return outreachRepository.findByEngagementId(engagementId).stream()
+                .sorted(Comparator.comparingInt(OutreachAttempt::getAttemptNumber))
                 .map(OutreachResponse::from)
                 .toList();
     }
