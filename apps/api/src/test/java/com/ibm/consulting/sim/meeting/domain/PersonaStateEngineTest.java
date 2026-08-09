@@ -221,4 +221,47 @@ class PersonaStateEngineTest {
 
         assertThat(state.getPatience()).isGreaterThanOrEqualTo(70);
     }
+
+    @Test
+    void convertsExplicitClientCommitmentIntoMeaningfulProgression() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        List<String> messages = List.of(
+                "Given the current stockout risk and delivery timeline, I would validate the Atlanta workflow first. Which exception creates the greatest operational impact?",
+                "To protect the pilot budget and operational workflow, we would measure stockouts, order delays, and reconciliation effort. Does that create the board evidence you need?",
+                "With the Atlanta team as product owner, we can agree a Week 3 validation gate for the existing SAP and WMS data. Would that reduce delivery risk?",
+                "I will send a fixed-fee proposal for the Atlanta pilot, including the success metrics, delivery ownership, and go or no-go criteria. Can we confirm the approval path today?");
+        List<String> clientResponses = List.of(
+                "That is more like it. You have my attention for the Atlanta pilot.",
+                "That would be fast enough to demonstrate value to the board.",
+                "Yes, we can agree that a Week 3 validation gate reduces the operational risk.",
+                "Perfect. We are comfortable authorizing the first tranche. Let's get this moving and start tomorrow.");
+
+        for (int index = 0; index < messages.size(); index++) {
+            PersonaStateEngine.apply(state, new PersonaTurnResponse(
+                    clientResponses.get(index), List.of(), PersonaStateDelta.zero(), List.of(), null,
+                    List.of(index == messages.size() - 1 ? "client_committed_next_step" : "client_validated_value"),
+                    new PersonaTurnResponse.SafetyCheck(true, null)), profile, messages.get(index), index + 1);
+        }
+
+        assertThat(state.getTrust()).isGreaterThanOrEqualTo(MeetingCompletionPolicy.REQUIRED_SCORE);
+        assertThat(state.getInterest()).isGreaterThanOrEqualTo(MeetingCompletionPolicy.REQUIRED_SCORE);
+        assertThat(state.getPatience()).isGreaterThanOrEqualTo(MeetingCompletionPolicy.REQUIRED_SCORE);
+        assertThat(MeetingCompletionPolicy.evaluate(state).passed()).isTrue();
+    }
+
+    @Test
+    void doesNotAwardAClientCommitmentForAnUngroundedGreeting() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+
+        PersonaStateEngine.apply(state, new PersonaTurnResponse(
+                "Perfect. Let's get this moving and start tomorrow.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of("client_committed_next_step"),
+                new PersonaTurnResponse.SafetyCheck(true, null)), profile, "Hello there", 1);
+
+        assertThat(state.getTrust()).isEqualTo(40);
+        assertThat(state.getInterest()).isEqualTo(40);
+        assertThat(state.getPatience()).isEqualTo(40);
+    }
 }

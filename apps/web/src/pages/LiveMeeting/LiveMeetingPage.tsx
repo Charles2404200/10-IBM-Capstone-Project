@@ -112,6 +112,10 @@ export default function LiveMeetingPage() {
   )
   const canRetryMeeting = automaticTermination?.meetingRetryAvailable ?? meeting.meetingRetryAvailable
   const meetingRetriesRemaining = automaticTermination?.meetingRetriesRemaining ?? meeting.meetingRetriesRemaining
+  const meetingGateMet = currentState.trust >= MEETING_THRESHOLD
+    && currentState.interest >= MEETING_THRESHOLD && currentState.patience >= MEETING_THRESHOLD
+  const clientReadyToClose = latestSignals.includes('client_ready_to_close')
+    || latestSignals.includes('client_committed_next_step')
   const pendingIsPersisted = pendingMessage !== null
     && turns.some((turn) => turn.actor === 'LEARNER' && turn.content === pendingMessage)
 
@@ -153,8 +157,8 @@ export default function LiveMeetingPage() {
               <Heading>Live Client Meeting</Heading>
             </div>
             {!isCompleted && (
-              <Button kind="secondary" disabled={isStreaming || completeMeeting.isPending} onClick={handleComplete}>
-                {completeMeeting.isPending ? 'Preparing debrief...' : 'End Meeting'}
+              <Button kind={meetingGateMet ? 'primary' : 'secondary'} disabled={isStreaming || completeMeeting.isPending} onClick={handleComplete}>
+                {completeMeeting.isPending ? 'Preparing debrief...' : meetingGateMet ? 'Complete Meeting' : 'End Meeting'}
               </Button>
             )}
           </div>
@@ -263,6 +267,14 @@ export default function LiveMeetingPage() {
                 <p className={styles.eyebrow}>Response-based hint</p>
                 <h3>Focus your next turn</h3>
                 <ul>{hint.map((item) => <li key={item}>{item}</li>)}</ul>
+              </Tile>
+            )}
+
+            {!isCompleted && (meetingGateMet || clientReadyToClose) && (
+              <Tile className={styles.readyToClosePanel}>
+                <p className={styles.eyebrow}>Client readiness</p>
+                <h3>Ready to conclude</h3>
+                <p>The client has enough confidence to move forward. Confirm the agreed next step, then complete the meeting.</p>
               </Tile>
             )}
 

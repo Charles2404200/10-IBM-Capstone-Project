@@ -41,6 +41,9 @@
 .hintPanel ul, .factsPanel ul, .debriefTips { margin: $spacing-04 0 0; padding-left: $spacing-05; }
 .hintPanel li, .factsPanel li, .debriefTips li { margin-bottom: $spacing-03; color: $text-primary; @include type-style('body-compact-01'); }
 .factsPanel li { text-transform: capitalize; }
+.readyToClosePanel { padding: $spacing-05; border-top: 3px solid $support-success; background: $layer-01; }
+.readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0 0 $spacing-03; }
+.readyToClosePanel p:last-child { margin: 0; color: $text-secondary; }
 
 .passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }

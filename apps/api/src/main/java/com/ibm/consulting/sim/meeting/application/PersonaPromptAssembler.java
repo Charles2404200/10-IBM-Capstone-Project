@@ -90,7 +90,10 @@ final class PersonaPromptAssembler {
         String scoringInstruction = "Do not reward greetings, vague prompts, or requests for the client to do the consultant's discovery. "
                 + "First assess whether the consultant directly answered the latest client concern. Use negative stateDelta for vague, evasive, dismissive, or unprofessional behaviour. "
                 + "detectedLearnerBehaviours must contain only observed labels from: directly_addresses_concern, acknowledges_constraint, uses_client_fact, uses_disclosed_evidence, quantifies_business_impact, uses_specific_metric, asks_focused_question, grounded_recommendation, evasive, unprepared, dismissive, does_not_answer, unsupported_claim. "
-                + "Only include a positive label when the learner's actual message demonstrates it; omit labels for a greeting or unsupported generic statement.";
+                + "Only include a positive label when the learner's actual message demonstrates it; omit labels for a greeting or unsupported generic statement. "
+                + "meetingSignals may only use: client_concern_raised, client_concern_resolved, client_validated_value, client_committed_next_step, client_ready_to_close. "
+                + "Use client_committed_next_step or client_ready_to_close only when the client explicitly accepts a concrete scope, success measure, ownership, commercial next step, or proposal request in this conversation. "
+                + "When those elements are agreed, stop inventing new objections: confirm the agreement, state the next step in character, and let the consultant close the meeting.";
         if (profile == null) return "Use the scenario's normal level of specificity and challenge. " + scoringInstruction;
         return "Resistance %d/100. The client needs a credible next step within %d simulated days. "
                 + "Ask for more precise evidence when resistance is high. "

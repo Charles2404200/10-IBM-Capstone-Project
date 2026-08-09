@@ -20,7 +20,10 @@ final class MeetingTurnProgressionPolicy {
             "budget", "cost", "roi", "priority", "priorities", "risk", "risks", "timeline",
             "workflow", "workflows", "process", "processes", "integration", "implementation",
             "stakeholder", "stakeholders", "decision", "governance", "constraint", "constraints",
-            "impact", "outcome", "outcomes", "mentioned", "shared", "said", "current", "existing");
+            "impact", "outcome", "outcomes", "mentioned", "shared", "said", "current", "existing",
+            "scope", "metric", "metrics", "acceptance", "owner", "owners", "approval", "approvals",
+            "proposal", "pilot", "milestone", "tranche", "mobilisation", "mobilization", "accuracy",
+            "data", "source", "stockout", "stockouts", "exception", "exceptions", "rollout");
     private static final Set<String> GENERIC_PROMPTS = Set.of(
             "what do you need to know", "what do you want to know", "tell me more",
             "can you explain", "please explain", "can you elaborate", "hello", "hi", "hey");
@@ -42,10 +45,19 @@ final class MeetingTurnProgressionPolicy {
 
     static PersonaStateDelta constrain(PersonaStateDelta proposed, String learnerMessage,
                                        List<String> detectedLearnerBehaviours) {
+        return constrain(proposed, learnerMessage, detectedLearnerBehaviours, null, List.of());
+    }
+
+    static PersonaStateDelta constrain(PersonaStateDelta proposed, String learnerMessage,
+                                       List<String> detectedLearnerBehaviours,
+                                       String clientResponse, List<String> meetingSignals) {
         TurnQuality quality = classify(learnerMessage, detectedLearnerBehaviours);
         if (quality.isPenalty()) return quality.enforcePenalty(proposed);
         PersonaStateDelta behaviourScore = scoreBehaviour(quality, detectedLearnerBehaviours);
-        return applyCalibratedAiAssessment(behaviourScore, proposed, quality, detectedLearnerBehaviours);
+        PersonaStateDelta assessment = applyCalibratedAiAssessment(
+                behaviourScore, proposed, quality, detectedLearnerBehaviours);
+        return applyClientOutcomeCredit(assessment, quality, detectedLearnerBehaviours,
+                clientResponse, meetingSignals);
     }
 
     static int maximumScore(int initialScore, int learnerTurnNumber) {
@@ -148,6 +160,27 @@ final class MeetingTurnProgressionPolicy {
                         quality.patienceGainCap()));
     }
 
+    /**
+     * A client acknowledgement is meaningful only after a focused, non-evasive
+     * learner contribution. This prevents a generous model reply from rewarding a
+     * greeting, while allowing an accepted plan to move at a human pace.
+     */
+    private static PersonaStateDelta applyClientOutcomeCredit(PersonaStateDelta assessment,
+                                                               TurnQuality quality,
+                                                               List<String> behaviours,
+                                                               String clientResponse,
+                                                               List<String> meetingSignals) {
+        if (quality == TurnQuality.LOW_SIGNAL || (!hasPositiveBehaviour(behaviours)
+                && quality != TurnQuality.FOCUSED_DISCOVERY && quality != TurnQuality.GROUNDED_DISCOVERY)) {
+            return assessment;
+        }
+        ClientOutcome outcome = ClientOutcome.from(clientResponse, meetingSignals);
+        return new PersonaStateDelta(
+                Math.max(assessment.trust(), outcome.minimumTrustGain()),
+                Math.max(assessment.interest(), outcome.minimumInterestGain()),
+                Math.max(assessment.patience(), outcome.minimumPatienceGain()));
+    }
+
     private static int aiContribution(int providerDelta, int positiveSupportCap, boolean verifiedPositiveBehaviour) {
         if (providerDelta < 0) return Math.max(providerDelta, -4);
         return verifiedPositiveBehaviour ? Math.min(providerDelta, positiveSupportCap) : 0;
@@ -181,6 +214,83 @@ final class MeetingTurnProgressionPolicy {
                 .filter(behaviour -> behaviour != null)
                 .map(behaviour -> behaviour.toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_'))
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * Provider signals need corroboration in the client reply. The transcript is
+     * therefore the audit trail, while the model remains a bounded assessor.
+     */
+    private enum ClientOutcome {
+        NONE(0, 0, 0),
+        ACKNOWLEDGED_VALUE(6, 6, 7),
+        CONFIRMED_DIRECTION(8, 8, 10),
+        COMMITTED_NEXT_STEP(12, 12, 14);
+
+        private static final Set<String> ACKNOWLEDGEMENT_PHRASES = Set.of(
+                "that makes sense", "that is useful", "that s useful", "that s more like it",
+                "you have my attention", "game changer", "strong commitment", "concrete plan",
+                "sounds efficient", "that works");
+        private static final Set<String> CONFIRMATION_PHRASES = Set.of(
+                "we can agree", "comfortable with", "sounds like a solid plan", "exactly what i need",
+                "completely doable", "this has real potential", "that would be fast enough",
+                "definitely have my attention");
+        private static final Set<String> COMMITMENT_PHRASES = Set.of(
+                "ready to push it through", "let s get this moving", "lets get this moving",
+                "authorizing the first tranche", "comfortable authorizing", "send over a brief proposal",
+                "send that proposal", "get this pilot started", "schedule the kickoff", "start tomorrow",
+                "approved internally", "clearing my schedule");
+
+        private final int minimumTrustGain;
+        private final int minimumInterestGain;
+        private final int minimumPatienceGain;
+
+        ClientOutcome(int minimumTrustGain, int minimumInterestGain, int minimumPatienceGain) {
+            this.minimumTrustGain = minimumTrustGain;
+            this.minimumInterestGain = minimumInterestGain;
+            this.minimumPatienceGain = minimumPatienceGain;
+        }
+
+        int minimumTrustGain() { return minimumTrustGain; }
+        int minimumInterestGain() { return minimumInterestGain; }
+        int minimumPatienceGain() { return minimumPatienceGain; }
+
+        static ClientOutcome from(String clientResponse, List<String> signals) {
+            String response = normalize(clientResponse);
+            Set<String> normalizedSignals = normalizedSignals(signals);
+            if (matches(response, COMMITMENT_PHRASES)
+                    || normalizedSignals.contains("client_committed_next_step")
+                    && matches(response, CONFIRMATION_PHRASES)) {
+                return COMMITTED_NEXT_STEP;
+            }
+            if (matches(response, CONFIRMATION_PHRASES)
+                    || normalizedSignals.contains("client_validated_value")
+                    && matches(response, ACKNOWLEDGEMENT_PHRASES)) {
+                return CONFIRMED_DIRECTION;
+            }
+            if (matches(response, ACKNOWLEDGEMENT_PHRASES)) {
+                return ACKNOWLEDGED_VALUE;
+            }
+            return NONE;
+        }
+
+        private static boolean matches(String value, Set<String> phrases) {
+            return phrases.stream().anyMatch(value::contains);
+        }
+
+        private static String normalize(String value) {
+            return value == null ? "" : value.toLowerCase(Locale.ROOT)
+                    .replaceAll("[^a-z0-9 ]", " ")
+                    .replaceAll("\\s+", " ")
+                    .trim();
+        }
+
+        private static Set<String> normalizedSignals(List<String> signals) {
+            if (signals == null) return Set.of();
+            return signals.stream()
+                    .filter(signal -> signal != null)
+                    .map(signal -> signal.toLowerCase(Locale.ROOT).replace('-', '_').replace(' ', '_'))
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        }
     }
 
     private enum TurnQuality {
