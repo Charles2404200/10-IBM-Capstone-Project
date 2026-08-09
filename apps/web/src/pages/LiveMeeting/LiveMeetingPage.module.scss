@@ -1,0 +1,50 @@
+@use '@carbon/styles/scss/theme' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+
+.page { min-height: 100%; padding: $spacing-07 0; background: $background; }
+.headerGrid, .workspaceGrid { max-width: 96rem; margin: 0 auto; }
+.workspaceGrid { margin-top: $spacing-06; }
+.pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
+.eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; margin: 0 0 $spacing-02; }
+
+.conversationPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); border: 1px solid $border-subtle; background: $layer-01; }
+.transcriptViewport { overflow-y: auto; padding: $spacing-05; }
+.emptyTranscript { color: $text-secondary; text-align: center; margin: $spacing-10 0; }
+.learnerTurn, .personaTurn { display: flex; margin-bottom: $spacing-04; }
+.learnerTurn { justify-content: flex-end; }
+.personaTurn { justify-content: flex-start; }
+.bubble { max-width: min(80%, 46rem); padding: $spacing-04; }
+.bubble p { white-space: pre-wrap; margin: 0; line-height: 1.5; }
+.learnerBubble { background: $interactive; color: $text-on-color; }
+.personaBubble { background: $layer-accent-01; color: $text-primary; border-left: 3px solid $border-strong-01; }
+.streamingBubble { border-left-color: $interactive; }
+.composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: $spacing-03; padding: $spacing-04; border-top: 1px solid $border-subtle; }
+.errorNotification { margin: $spacing-04; }
+
+.decisionRail { position: sticky; top: $spacing-05; display: grid; gap: $spacing-05; }
+.relationshipPanel { padding: $spacing-05; border-top: 3px solid $interactive; background: $layer-01; }
+.railHeading { margin-bottom: $spacing-06; }
+.railHeading h2, .debriefHeading h2 { @include type-style('heading-compact-02'); margin: 0; }
+.relationshipMetric > div:first-child { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: $spacing-02; }
+.relationshipMetric span, .relationshipMetric p { @include type-style('label-01'); color: $text-secondary; }
+.relationshipMetric strong { @include type-style('heading-compact-02'); color: $text-primary; }
+.relationshipMetric small { @include type-style('label-01'); color: $text-secondary; margin-left: $spacing-02; }
+.relationshipMetric p { margin: $spacing-02 0 0; }
+.meterTrack { height: 4px; background: $border-subtle; }
+.meterPass, .meterWatch, .meterRisk { height: 100%; transition: width 180ms ease; }
+.meterPass { background: $support-success; }.meterWatch { background: $support-warning; }.meterRisk { background: $support-error; }
+
+.hintPanel, .factsPanel { padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
+.hintPanel { border-left: 3px solid $interactive; }
+.hintPanel h3, .factsPanel h3 { @include type-style('heading-compact-02'); margin: 0; }
+.hintPanel ul, .factsPanel ul, .debriefTips { margin: $spacing-04 0 0; padding-left: $spacing-05; }
+.hintPanel li, .factsPanel li, .debriefTips li { margin-bottom: $spacing-03; color: $text-primary; @include type-style('body-compact-01'); }
+.factsPanel li { text-transform: capitalize; }
+
+.passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
+.passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
+.debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
+
+@media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
+@media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }

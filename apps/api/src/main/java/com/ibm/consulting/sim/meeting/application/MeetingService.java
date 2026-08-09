@@ -269,12 +269,30 @@ public class MeetingService {
         Engagement engagement = engagementRepository.findByIdAndUserId(meeting.getEngagementId(), userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", meeting.getEngagementId()));
 
-        meeting.complete();
+        if (meeting.getStatus() == MeetingStatus.COMPLETED) {
+            return MeetingResponse.from(meeting);
+        }
+
+        PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
+                .orElseGet(() -> PersonaState.initial(meeting.getEngagementId()));
+        MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
+        List<ConversationTurn> turns = turnRepository.findByMeetingIdOrderBySequenceAsc(meetingId);
+        MeetingDebriefNarrative debrief = aiOrchestrationService.execute(
+                "meeting_debrief",
+                meeting.getEngagementId(),
+                buildDebriefPrompt(state, decision, turns),
+                PROMPT_VERSION,
+                new MeetingDebriefParser(objectMapper),
+                () -> MeetingDebriefNarrative.fallback(decision.passed(), decision.unmetRequirements()));
+
+        meeting.complete(decision.outcome(), debrief.feedback(), debrief.tips());
         String storageReference = transcriptExportService.export(meeting);
         meeting.recordTranscriptExport(storageReference);
         meetingRepository.save(meeting);
 
-        engagement.transitionTo(EngagementState.DISCOVERY_COMPLETE, "Meeting completed");
+        engagement.transitionTo(
+                decision.passed() ? EngagementState.DISCOVERY_COMPLETE : EngagementState.MEETING_FAILED,
+                decision.passed() ? "Meeting completed: passed relationship gate" : "Meeting completed: relationship gate failed");
         engagementRepository.save(engagement);
 
         return MeetingResponse.from(meeting);
@@ -294,5 +312,25 @@ public class MeetingService {
             signals.add("objection:" + response.objectionRaised());
         }
         return signals;
+    }
+
+    private String buildDebriefPrompt(PersonaState state, MeetingCompletionDecision decision,
+                                      List<ConversationTurn> turns) {
+        String transcript = turns.stream()
+                .skip(Math.max(0, turns.size() - 8))
+                .map(turn -> turn.getActor().name() + ": " + turn.getContent())
+                .collect(java.util.stream.Collectors.joining("\n"));
+        return """
+                You are a consulting-skills coach. The backend has already decided the meeting outcome.
+                Do not challenge or change it. Write concise coaching grounded only in the performance data and transcript.
+                Return ONLY JSON: {"feedback": string, "tips": [string, string, string]}.
+
+                Outcome: %s
+                Relationship scores: trust=%d, interest=%d, patience=%d. Required score for every dimension: %d.
+                Unmet requirements: %s
+                Recent transcript:
+                %s
+                """.formatted(decision.outcome(), state.getTrust(), state.getInterest(), state.getPatience(),
+                MeetingCompletionPolicy.REQUIRED_SCORE, decision.unmetRequirements(), transcript);
     }
 }

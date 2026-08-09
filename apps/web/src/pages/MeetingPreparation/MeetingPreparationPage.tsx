@@ -4,7 +4,6 @@ import {
   Grid,
   Column,
   Heading,
-  Stack,
   Button,
   Tile,
   TextInput,
@@ -12,6 +11,11 @@ import {
   ProgressBar,
   InlineNotification,
   Tag,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
 } from '@carbon/react'
 import { Add, TrashCan, ArrowRight } from '@carbon/icons-react'
 import {
@@ -21,6 +25,7 @@ import {
 } from '@/api/hooks/useMeeting'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
+import styles from './MeetingPreparationPage.module.scss'
 
 interface DraftListItem {
   id: string
@@ -68,11 +73,13 @@ function readDraft(engagementId: string): PreparationDraft | null {
 
 function EditableList({
   label,
+  itemLabel,
   items,
   onChange,
   placeholder,
 }: {
   label: string
+  itemLabel: string
   items: DraftListItem[]
   onChange: (items: DraftListItem[]) => void
   placeholder: string
@@ -87,32 +94,38 @@ function EditableList({
   const add = () => onChange([...items, createDraftItem()])
 
   return (
-    <Stack gap={3}>
-      <h5 style={{ color: '#161616' }}>{label}</h5>
-      {items.map((item, index) => (
-        <div key={item.id} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <TextInput
-            id={`${label}-${index}`}
-            labelText=""
-            hideLabel
-            placeholder={placeholder}
-            value={item.value}
-            onChange={(e) => update(index, e.target.value)}
-          />
-          <Button
-            kind="ghost"
-            size="sm"
-            iconDescription="Remove"
-            hasIconOnly
-            renderIcon={TrashCan}
-            onClick={() => remove(index)}
-          />
-        </div>
-      ))}
-      <Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>
-        Add {label.slice(0, -1)}
+    <section className={styles.listWorkspace} aria-label={label}>
+      <div className={styles.listHeading}>
+        <h2>{label}</h2>
+        <Tag type="gray" size="sm">{items.filter((item) => item.value.trim()).length}</Tag>
+      </div>
+      <div className={styles.itemsViewport}>
+        {items.map((item, index) => (
+          <div key={item.id} className={styles.listRow}>
+            <span className={styles.rowNumber}>{index + 1}</span>
+            <TextInput
+              id={`${label}-${item.id}`}
+              labelText={`${itemLabel} ${index + 1}`}
+              hideLabel
+              placeholder={placeholder}
+              value={item.value}
+              onChange={(event) => update(index, event.target.value)}
+            />
+            <Button
+              kind="ghost"
+              size="sm"
+              iconDescription={`Remove ${itemLabel.toLowerCase()} ${index + 1}`}
+              hasIconOnly
+              renderIcon={TrashCan}
+              onClick={() => remove(index)}
+            />
+          </div>
+        ))}
+      </div>
+      <Button className={styles.addItemButton} kind="tertiary" size="sm" renderIcon={Add} onClick={add}>
+        Add {itemLabel.toLowerCase()}
       </Button>
-    </Stack>
+    </section>
   )
 }
 
@@ -186,66 +199,90 @@ export default function MeetingPreparationPage() {
 
   const readinessScore = preparation?.readinessScore ?? 0
   const ready = preparation?.ready ?? false
+  const agendaCount = agenda.filter((item) => item.value.trim()).length
+  const questionCount = discoveryQuestions.filter((item) => item.value.trim()).length
 
   return (
-    <Grid fullWidth style={{ padding: '2rem' }}>
-      <Column lg={16} md={8} sm={4}>
-        <Stack gap={6}>
-          <div>
-            <Heading>Meeting Preparation</Heading>
-            <p style={{ color: '#525252', marginTop: '0.5rem' }}>
-              Define your objective, agenda and discovery questions before the live client meeting.
-            </p>
+    <div className={styles.page}>
+      <Grid fullWidth className={styles.headerGrid}>
+        <Column lg={16} md={8} sm={4}>
+          <div className={styles.pageHeader}>
+            <div>
+              <Heading>Meeting Preparation</Heading>
+              <p>Define the meeting plan before the live client conversation.</p>
+            </div>
+            <div className={styles.headerActions}>
+              <Button kind="secondary" disabled={updatePreparation.isPending} onClick={handleSave}>
+                {updatePreparation.isPending ? 'Saving...' : 'Save Preparation'}
+              </Button>
+              <Button renderIcon={ArrowRight} disabled={!ready || startMeeting.isPending} onClick={handleStartMeeting}>
+                {startMeeting.isPending ? 'Starting...' : 'Start Meeting'}
+              </Button>
+            </div>
           </div>
+        </Column>
+      </Grid>
 
-          <Tile>
-            <Stack gap={3}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h5 style={{ color: '#161616' }}>Readiness Score</h5>
-                <Tag type={ready ? 'green' : 'gray'}>{ready ? 'Ready' : 'Not ready'}</Tag>
+      <Grid fullWidth className={styles.workspaceGrid}>
+        <Column lg={5} md={8} sm={4} className={styles.planColumn}>
+          <section className={styles.readinessPanel} aria-label="Meeting readiness">
+            <div className={styles.readinessHeading}>
+              <div>
+                <p className={styles.eyebrow}>Meeting readiness</p>
+                <strong>{readinessScore}<span>/100</span></strong>
               </div>
-              <ProgressBar label="" hideLabel value={readinessScore} max={100} size="small" />
-              <p style={{ color: '#525252', fontSize: '0.75rem' }}>{readinessScore}/100 — 70+ required to start</p>
-            </Stack>
+              <Tag type={ready ? 'green' : 'gray'}>{ready ? 'Ready' : 'Not ready'}</Tag>
+            </div>
+            <ProgressBar label="" hideLabel value={readinessScore} max={100} size="small" />
+            <p>70 required to start</p>
+          </section>
+
+          <Tile className={styles.objectivePanel}>
+            <TextArea
+              id="objective"
+              labelText="Meeting objective"
+              rows={7}
+              value={objective}
+              onChange={(event) => setObjective(event.target.value)}
+            />
           </Tile>
 
-          <Tile>
-            <Stack gap={5}>
-              <TextArea
-                id="objective"
-                labelText="Meeting objective"
-                rows={3}
-                value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-              />
-              <EditableList label="Agenda items" items={agenda} onChange={setAgenda} placeholder="e.g. Introductions" />
-              <EditableList
-                label="Discovery questions"
-                items={discoveryQuestions}
-                onChange={setDiscoveryQuestions}
-                placeholder="e.g. What is your current budget?"
-              />
+          {updatePreparation.isError && (
+            <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Failed to save preparation" hideCloseButton />
+          )}
+        </Column>
 
-              {updatePreparation.isError && (
-                <InlineNotification kind="error" title="Failed to save preparation" hideCloseButton />
-              )}
-
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <Button kind="secondary" disabled={updatePreparation.isPending} onClick={handleSave}>
-                  {updatePreparation.isPending ? 'Saving…' : 'Save Preparation'}
-                </Button>
-                <Button
-                  renderIcon={ArrowRight}
-                  disabled={!ready || startMeeting.isPending}
-                  onClick={handleStartMeeting}
-                >
-                  {startMeeting.isPending ? 'Starting…' : 'Start Meeting'}
-                </Button>
-              </div>
-            </Stack>
+        <Column lg={11} md={8} sm={4} className={styles.editorColumn}>
+          <Tile className={styles.collectionPanel}>
+            <Tabs>
+              <TabList aria-label="Meeting plan sections" className={styles.sectionTabs}>
+                <Tab>Agenda <span className={styles.tabCount}>{agendaCount}</span></Tab>
+                <Tab>Discovery questions <span className={styles.tabCount}>{questionCount}</span></Tab>
+              </TabList>
+              <TabPanels>
+                <TabPanel className={styles.tabPanel}>
+                  <EditableList
+                    label="Agenda"
+                    itemLabel="Agenda item"
+                    items={agenda}
+                    onChange={setAgenda}
+                    placeholder="e.g. Confirm meeting objectives"
+                  />
+                </TabPanel>
+                <TabPanel className={styles.tabPanel}>
+                  <EditableList
+                    label="Discovery questions"
+                    itemLabel="Question"
+                    items={discoveryQuestions}
+                    onChange={setDiscoveryQuestions}
+                    placeholder="e.g. Which operational issue has the highest impact?"
+                  />
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
           </Tile>
-        </Stack>
-      </Column>
-    </Grid>
+        </Column>
+      </Grid>
+    </div>
   )
 }

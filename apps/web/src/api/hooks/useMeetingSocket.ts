@@ -3,13 +3,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Client, type IMessage } from '@stomp/stompjs'
 import { useAuthStore } from '@/store/authStore'
 import { meetingKeys } from '@/api/hooks/useMeeting'
-import type { MeetingTurnResult, PersonaState } from '@/api/types'
+import type { ConversationTurn, MeetingTurnResult, PersonaState } from '@/api/types'
 
 interface UsePersonaTurnStreamResult {
   streamingText: string
   isStreaming: boolean
   error: string | null
   personaState: PersonaState | null
+  latestSignals: string[]
   sendMessage: (message: string) => Promise<void>
 }
 
@@ -42,6 +43,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [personaState, setPersonaState] = useState<PersonaState | null>(null)
+  const [latestSignals, setLatestSignals] = useState<string[]>([])
   const qc = useQueryClient()
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -73,11 +75,16 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           setStreamingText(event.payload.text)
         } else if (event.type === 'turn.complete') {
           const result = event.payload
+          qc.setQueryData<ConversationTurn[]>(meetingKeys.transcript(meetingId), (current = []) => {
+            const knownIds = new Set(current.map((turn) => turn.id))
+            const newTurns = [result.learnerTurn, result.personaTurn].filter((turn) => !knownIds.has(turn.id))
+            return [...current, ...newTurns].sort((left, right) => left.sequence - right.sequence)
+          })
           setPersonaState(result.personaState)
+          setLatestSignals(result.meetingSignals ?? [])
           setStreamingText('')
           setIsStreaming(false)
           sendingRef.current = false
-          qc.invalidateQueries({ queryKey: meetingKeys.transcript(meetingId) })
           pendingResolversRef.current?.resolve()
           pendingResolversRef.current = null
         } else if (event.type === 'turn.error') {
@@ -146,5 +153,5 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     [meetingId]
   )
 
-  return { streamingText, isStreaming, error, personaState, sendMessage }
+  return { streamingText, isStreaming, error, personaState, latestSignals, sendMessage }
 }

@@ -64,12 +64,20 @@ public class MeetingSocketController {
                 MeetingTurnResult result = meetingService.sendMessage(
                         meetingId, userId, payload.message(), payload.messageId());
 
-                // Real AI latency is now low enough (see GeminiProvider thinkingBudget fix)
-                // that the artificial per-chunk "typing" delay used by the SSE path is no
-                // longer needed to make the reply feel natural; publish the full text once
-                // the AI response is ready and let the client render it immediately.
-                messagingTemplate.convertAndSend(topic,
-                        new SocketEvent("turn.delta", Map.of("text", result.personaTurn().content())));
+                // Transport the real provider output as incremental socket events. Persistence
+                // happens before this point; the browser renders these events from local state
+                // and never needs to reload the transcript to reveal a response.
+                String[] words = result.personaTurn().content().split(" ");
+                StringBuilder accumulated = new StringBuilder();
+                for (int index = 0; index < words.length; index++) {
+                    accumulated.append(words[index]).append(' ');
+                    boolean isLastWord = index == words.length - 1;
+                    if (isLastWord || (index + 1) % 4 == 0) {
+                        messagingTemplate.convertAndSend(topic,
+                                new SocketEvent("turn.delta", Map.of("text", accumulated.toString().trim())));
+                        if (!isLastWord) Thread.sleep(12);
+                    }
+                }
                 messagingTemplate.convertAndSend(topic, new SocketEvent("turn.complete", result));
             } catch (Exception e) {
                 log.error("WebSocket meeting turn failed for meeting {}", meetingId, e);

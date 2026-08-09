@@ -8,6 +8,7 @@ public enum EngagementState {
     MEETING_SECURED,
     PREPARING,
     IN_MEETING,
+    MEETING_FAILED,
     DISCOVERY_COMPLETE,
     PROPOSAL_DRAFT,
     PROPOSAL_SUBMITTED,
@@ -16,6 +17,6 @@ public enum EngagementState {
     COMPLETED;
 
     public boolean isTerminal() {
-        return this == COMPLETED;
+        return this == COMPLETED || this == MEETING_FAILED;
     }
 }

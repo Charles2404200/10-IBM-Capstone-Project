@@ -169,6 +169,7 @@ export type EngagementState =
   | 'MEETING_SECURED'
   | 'PREPARING'
   | 'IN_MEETING'
+  | 'MEETING_FAILED'
   | 'DISCOVERY_COMPLETE'
   | 'PROPOSAL_DRAFT'
   | 'PROPOSAL_SUBMITTED'
@@ -288,6 +289,9 @@ export interface Meeting {
   status: MeetingStatus
   completedAt: string | null
   transcriptStorageReference: string | null
+  completionOutcome: 'PASSED' | 'FAILED' | null
+  debriefFeedback: string | null
+  debriefTips: string[]
 }
 
 export type ConversationActor = 'LEARNER' | 'PERSONA'

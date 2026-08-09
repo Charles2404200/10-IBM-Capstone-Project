@@ -4,6 +4,9 @@ import com.ibm.consulting.sim.shared.domain.BaseEntity;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -24,6 +27,18 @@ public class Meeting extends BaseEntity {
 
     private String transcriptStorageReference;
 
+    @Enumerated(EnumType.STRING)
+    private MeetingCompletionOutcome completionOutcome;
+
+    @Column(columnDefinition = "text")
+    private String debriefFeedback;
+
+    @ElementCollection
+    @CollectionTable(name = "meeting_debrief_tips", joinColumns = @JoinColumn(name = "meeting_id"))
+    @Column(name = "tip", columnDefinition = "text")
+    @OrderColumn(name = "tip_order")
+    private List<String> debriefTips = new ArrayList<>();
+
     protected Meeting() {}
 
     public static Meeting start(UUID engagementId, UUID personaId) {
@@ -34,9 +49,13 @@ public class Meeting extends BaseEntity {
         return m;
     }
 
-    public void complete() {
+    public void complete(MeetingCompletionOutcome completionOutcome, String debriefFeedback, List<String> debriefTips) {
         this.status = MeetingStatus.COMPLETED;
         this.completedAt = Instant.now();
+        this.completionOutcome = completionOutcome;
+        this.debriefFeedback = debriefFeedback;
+        this.debriefTips.clear();
+        this.debriefTips.addAll(debriefTips);
     }
 
     public void recordTranscriptExport(String storageReference) {
@@ -48,4 +67,7 @@ public class Meeting extends BaseEntity {
     public MeetingStatus getStatus() { return status; }
     public Instant getCompletedAt() { return completedAt; }
     public String getTranscriptStorageReference() { return transcriptStorageReference; }
+    public MeetingCompletionOutcome getCompletionOutcome() { return completionOutcome; }
+    public String getDebriefFeedback() { return debriefFeedback; }
+    public List<String> getDebriefTips() { return Collections.unmodifiableList(debriefTips); }
 }

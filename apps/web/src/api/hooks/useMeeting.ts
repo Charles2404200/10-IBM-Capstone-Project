@@ -80,9 +80,9 @@ export function useCompleteMeeting(meetingId: string, engagementId: string) {
       const res = await apiClient.post<Meeting>(`/api/v1/meetings/${meetingId}/complete`)
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: meetingKeys.meeting(meetingId) })
-      qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
+    onSuccess: (meeting) => {
+      qc.setQueryData(meetingKeys.meeting(meetingId), meeting)
+      void qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
     },
   })
 }

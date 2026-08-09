@@ -41,7 +41,7 @@ public final class EngagementProgressCalculator {
             case CLIENT_INTELLIGENCE, HYPOTHESIS_READY -> Phase.CLIENT_INTELLIGENCE;
             case OUTREACHING -> Phase.OUTREACH;
             case MEETING_SECURED, PREPARING -> Phase.MEETING_PREPARATION;
-            case IN_MEETING -> Phase.LIVE_MEETING;
+            case IN_MEETING, MEETING_FAILED -> Phase.LIVE_MEETING;
             case DISCOVERY_COMPLETE, PROPOSAL_DRAFT, PROPOSAL_SUBMITTED -> Phase.PROPOSAL;
             case CLIENT_DECISION -> Phase.OUTCOME;
             case REVIEW -> Phase.REVIEW;
@@ -58,7 +58,7 @@ public final class EngagementProgressCalculator {
             case OUTREACHING -> 3;
             case MEETING_SECURED -> 4;
             case PREPARING -> 5;
-            case IN_MEETING -> 6;
+            case IN_MEETING, MEETING_FAILED -> 6;
             case DISCOVERY_COMPLETE -> 7;
             case PROPOSAL_DRAFT -> 8;
             case PROPOSAL_SUBMITTED -> 9;
@@ -82,6 +82,7 @@ public final class EngagementProgressCalculator {
             case MEETING_SECURED -> "Prepare for the client meeting";
             case PREPARING -> "Start the live meeting when readiness is high enough";
             case IN_MEETING -> "Run discovery and confirm the client situation";
+            case MEETING_FAILED -> "Review your meeting debrief and retry this scenario";
             case DISCOVERY_COMPLETE -> "Synthesize discovery and begin the proposal";
             case PROPOSAL_DRAFT -> "Draft and validate your proposal";
             case PROPOSAL_SUBMITTED -> "Awaiting client decision";

@@ -1,0 +1,112 @@
+@use '@carbon/styles/scss/theme' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+
+.page {
+  min-height: 100%;
+  padding: $spacing-07 0;
+  background: $background;
+}
+
+.headerGrid,
+.workspaceGrid {
+  max-width: 96rem;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: $spacing-06;
+
+  p { color: $text-secondary; margin: $spacing-03 0 0; }
+}
+
+.headerActions { display: flex; flex: 0 0 auto; gap: $spacing-03; }
+.workspaceGrid { margin-top: $spacing-07; }
+.planColumn, .editorColumn { display: grid; align-content: start; gap: $spacing-05; }
+
+.readinessPanel {
+  padding: $spacing-05;
+  border-top: 3px solid $interactive;
+  background: $layer-01;
+  > p { @include type-style('label-01'); color: $text-secondary; margin: $spacing-03 0 0; }
+}
+
+.readinessHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-04;
+  margin-bottom: $spacing-04;
+  strong {
+    @include type-style('heading-05');
+    color: $text-primary;
+    display: block;
+    span { @include type-style('body-compact-01'); color: $text-secondary; margin-left: $spacing-02; }
+  }
+}
+
+.eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; margin: 0 0 $spacing-02; }
+.objectivePanel, .collectionPanel { background: $layer-01; border: 1px solid $border-subtle; }
+.objectivePanel { padding: $spacing-05; }
+
+.collectionPanel {
+  --collection-height: clamp(28rem, calc(100vh - 17rem), 40rem);
+  height: var(--collection-height);
+  padding: 0;
+  overflow: hidden;
+}
+
+.sectionTabs { padding: 0 $spacing-05; background: $layer-01; }
+.tabCount { display: inline-flex; min-width: 1.25rem; justify-content: center; margin-left: $spacing-03; color: $text-secondary; }
+.tabPanel { padding: 0 !important; }
+
+.listWorkspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: calc(var(--collection-height) - 3rem);
+}
+
+.listHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-05;
+  border-bottom: 1px solid $border-subtle;
+  h2 { @include type-style('heading-compact-02'); margin: 0; }
+}
+
+.itemsViewport { min-height: 0; overflow-y: auto; padding: $spacing-03 $spacing-05; }
+
+.listRow {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: $spacing-03;
+  min-height: 3.25rem;
+  border-bottom: 1px solid $border-subtle;
+  :global(.cds--text-input-wrapper) { width: 100%; }
+  :global(.cds--text-input) { border-bottom: 0; background: transparent; }
+}
+
+.rowNumber { color: $text-secondary; @include type-style('label-01'); text-align: right; }
+.addItemButton { width: 100%; justify-content: flex-start; border-top: 1px solid $border-subtle; }
+
+@media (max-width: 1055px) {
+  .headerActions { margin-top: $spacing-05; }
+  .collectionPanel { --collection-height: 30rem; }
+}
+
+@media (max-width: 671px) {
+  .page { padding-top: $spacing-05; }
+  .pageHeader { display: block; }
+  .headerActions { width: 100%; }
+  .headerActions > button { flex: 1 1 0; }
+  .workspaceGrid { margin-top: $spacing-05; }
+  .collectionPanel { --collection-height: 28rem; }
+  .sectionTabs { padding: 0 $spacing-03; }
+  .itemsViewport { padding: $spacing-03; }
+  .listHeading { padding: $spacing-04; }
+}

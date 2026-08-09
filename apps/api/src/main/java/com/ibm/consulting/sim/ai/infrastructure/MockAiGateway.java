@@ -63,6 +63,12 @@ public class MockAiGateway implements AiModelGateway {
                       "improvementAreas": ["Probe further on budget constraints before the meeting", "Address objections more directly when raised"]
                     }
                     """;
+            case "meeting_debrief" -> """
+                    {
+                      "feedback": "You kept the conversation focused on the client situation and created a clear basis for the next step.",
+                      "tips": ["Confirm the decision process explicitly.", "Quantify the operational impact before recommending a solution.", "End by summarising the agreed next step."]
+                    }
+                    """;
             default -> "{}";
         };
     }
