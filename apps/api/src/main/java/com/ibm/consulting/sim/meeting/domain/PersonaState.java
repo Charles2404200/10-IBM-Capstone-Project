@@ -19,8 +19,8 @@ import java.util.UUID;
 @Table(name = "persona_states")
 public class PersonaState extends BaseEntity {
 
-    private static final int INITIAL_VALUE = 40;
-    private static final int MAX_STARTING_RELATIONSHIP_SCORE = 40;
+    private static final int INITIAL_VALUE = 50;
+    private static final int MAX_STARTING_RELATIONSHIP_SCORE = 50;
 
     @Column(nullable = false, unique = true)
     private UUID engagementId;
@@ -83,7 +83,9 @@ public class PersonaState extends BaseEntity {
     }
 
     private static int initialScore(int configuredValue) {
-        return Math.min(MAX_STARTING_RELATIONSHIP_SCORE, clamp(configuredValue));
+        // A meeting always begins from the same understandable relationship
+        // baseline. Difficulty affects progression and resistance per turn.
+        return Math.min(MAX_STARTING_RELATIONSHIP_SCORE, Math.max(INITIAL_VALUE, clamp(configuredValue)));
     }
 
     private static int bounded(int value, int initialValue, int learnerTurnNumber) {

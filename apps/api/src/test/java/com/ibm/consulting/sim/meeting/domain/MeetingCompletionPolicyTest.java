@@ -23,7 +23,7 @@ class MeetingCompletionPolicyTest {
     @Test
     void failsWhenOneMetricIsBelowTheThreshold() {
         PersonaState state = PersonaState.initial(UUID.randomUUID());
-        state.applyClampedDelta(new PersonaStateDelta(30, 30, 29));
+        state.applyClampedDelta(new PersonaStateDelta(30, 30, 19));
 
         MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
 

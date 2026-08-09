@@ -22,9 +22,9 @@ class PersonaStateEngineTest {
 
         PersonaStateEngine.apply(state, turn);
 
-        assertThat(state.getTrust()).isEqualTo(50); // 40 + clamp(20 -> 10)
-        assertThat(state.getInterest()).isEqualTo(35); // 40 - 5
-        assertThat(state.getPatience()).isEqualTo(43); // 40 + 3
+        assertThat(state.getTrust()).isEqualTo(60); // 50 + clamp(20 -> 10)
+        assertThat(state.getInterest()).isEqualTo(45); // 50 - 5
+        assertThat(state.getPatience()).isEqualTo(53); // 50 + 3
     }
 
     @Test
@@ -49,9 +49,9 @@ class PersonaStateEngineTest {
 
         PersonaStateEngine.apply(state, turn);
 
-        assertThat(state.getTrust()).isEqualTo(40);
-        assertThat(state.getInterest()).isEqualTo(40);
-        assertThat(state.getPatience()).isEqualTo(40);
+        assertThat(state.getTrust()).isEqualTo(50);
+        assertThat(state.getInterest()).isEqualTo(50);
+        assertThat(state.getPatience()).isEqualTo(50);
     }
 
     @Test
@@ -63,9 +63,9 @@ class PersonaStateEngineTest {
 
         PersonaState state = PersonaState.initial(UUID.randomUUID(), legacyProfile);
 
-        assertThat(state.getTrust()).isEqualTo(40);
-        assertThat(state.getInterest()).isEqualTo(40);
-        assertThat(state.getPatience()).isEqualTo(40);
+        assertThat(state.getTrust()).isEqualTo(50);
+        assertThat(state.getInterest()).isEqualTo(50);
+        assertThat(state.getPatience()).isEqualTo(50);
     }
 
     @Test
@@ -92,7 +92,21 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(urgent, turn, DifficultyProfile.defaults(5, 5, 5, 5));
 
         assertThat(urgent.getPatience()).isLessThan(relaxed.getPatience());
-        assertThat(relaxed.getPatience()).isLessThan(40);
+        assertThat(relaxed.getPatience()).isLessThan(50);
+    }
+
+    @Test
+    void raisesLegacyFortyPointSnapshotsToTheCurrentMeetingBaseline() {
+        DifficultyProfile legacyProfile = new DifficultyProfile(
+                DifficultyLevel.MEDIUM,
+                3, 2, 1, 40, 40, 40, 12, true, 24,
+                2, 40, 65, 50, 20, 115);
+
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), legacyProfile);
+
+        assertThat(state.getTrust()).isEqualTo(50);
+        assertThat(state.getInterest()).isEqualTo(50);
+        assertThat(state.getPatience()).isEqualTo(50);
     }
 
     @Test
@@ -106,9 +120,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "Hello", 1);
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "What do you need to know?", 2);
 
-        assertThat(state.getTrust()).isEqualTo(35);
-        assertThat(state.getInterest()).isEqualTo(36);
-        assertThat(state.getPatience()).isEqualTo(37);
+        assertThat(state.getTrust()).isEqualTo(45);
+        assertThat(state.getInterest()).isEqualTo(46);
+        assertThat(state.getPatience()).isEqualTo(47);
     }
 
     @Test
@@ -124,9 +138,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, overlyPositiveResponse, profile,
                 "You mentioned current integration constraints and operational impact. Which workflow now creates the greatest risk for staff?", 2);
 
-        assertThat(state.getTrust()).isEqualTo(52);
-        assertThat(state.getInterest()).isEqualTo(52);
-        assertThat(state.getPatience()).isEqualTo(54);
+        assertThat(state.getTrust()).isEqualTo(62);
+        assertThat(state.getInterest()).isEqualTo(62);
+        assertThat(state.getPatience()).isEqualTo(64);
     }
 
     @Test
@@ -140,9 +154,9 @@ class PersonaStateEngineTest {
         PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
                 "I dont know what ur talking about", 1);
 
-        assertThat(state.getTrust()).isEqualTo(26);
-        assertThat(state.getInterest()).isEqualTo(28);
-        assertThat(state.getPatience()).isEqualTo(30);
+        assertThat(state.getTrust()).isEqualTo(36);
+        assertThat(state.getInterest()).isEqualTo(38);
+        assertThat(state.getPatience()).isEqualTo(40);
     }
 
     @Test
@@ -197,9 +211,9 @@ class PersonaStateEngineTest {
 
         state.reset(profile);
 
-        assertThat(state.getTrust()).isEqualTo(40);
-        assertThat(state.getInterest()).isEqualTo(40);
-        assertThat(state.getPatience()).isEqualTo(40);
+        assertThat(state.getTrust()).isEqualTo(50);
+        assertThat(state.getInterest()).isEqualTo(50);
+        assertThat(state.getPatience()).isEqualTo(50);
         assertThat(state.getDisclosedFacts()).isEmpty();
     }
 
@@ -260,8 +274,8 @@ class PersonaStateEngineTest {
                 List.of(), null, List.of("client_committed_next_step"),
                 new PersonaTurnResponse.SafetyCheck(true, null)), profile, "Hello there", 1);
 
-        assertThat(state.getTrust()).isEqualTo(40);
-        assertThat(state.getInterest()).isEqualTo(40);
-        assertThat(state.getPatience()).isEqualTo(40);
+        assertThat(state.getTrust()).isEqualTo(50);
+        assertThat(state.getInterest()).isEqualTo(50);
+        assertThat(state.getPatience()).isEqualTo(50);
     }
 }
