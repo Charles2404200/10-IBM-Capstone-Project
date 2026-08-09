@@ -207,7 +207,7 @@ function CapabilityBriefEditor({
               kind="error"
               lowContrast
               title="Brief could not be submitted"
-              subtitle="The client request may have changed. Refresh the workspace and try again."
+              subtitle={getProblemDetail(submitBrief.error, 'The client request may have changed. Refresh the workspace and try again.')}
               hideCloseButton
             />
           )}

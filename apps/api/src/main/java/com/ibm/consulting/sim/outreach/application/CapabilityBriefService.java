@@ -43,10 +43,6 @@ public class CapabilityBriefService {
     public CapabilityBriefResponse submit(UUID engagementId, UUID userId, String relevantExperience, String approach,
                                           String caseExample, String clientFit) {
         Engagement engagement = requireOwnedEngagement(engagementId, userId);
-        if (engagement.getState() != EngagementState.OUTREACHING) {
-            throw new InvalidCapabilityBriefStateException("A capability brief cannot be submitted in state " + engagement.getState());
-        }
-
         OutreachAttempt latestAttempt = outreachRepository.findByEngagementId(engagementId).stream()
                 .max(Comparator.comparingInt(OutreachAttempt::getAttemptNumber))
                 .orElseThrow(() -> new InvalidCapabilityBriefStateException("No client request is available"));
@@ -55,6 +51,7 @@ public class CapabilityBriefService {
         if (requiredAction != OutreachNextAction.SUBMIT_CAPABILITY_BRIEF) {
             throw new InvalidCapabilityBriefStateException("The latest client response does not request a capability brief");
         }
+        recoverPendingOutreachState(engagement);
 
         CapabilityBrief brief = briefRepository.findByEngagementId(engagementId)
                 .orElseGet(() -> CapabilityBrief.create(engagementId, relevantExperience, approach, caseExample, clientFit));
@@ -71,6 +68,22 @@ public class CapabilityBriefService {
             engagementRepository.save(engagement);
         }
         return CapabilityBriefResponse.from(saved);
+    }
+
+    private void recoverPendingOutreachState(Engagement engagement) {
+        if (engagement.getState() == EngagementState.HYPOTHESIS_READY) {
+            // Compatibility recovery for an older partial transaction: a client
+            // response exists, so the engagement must be in outreach before its
+            // requested artifact can be reviewed.
+            engagement.transitionTo(EngagementState.OUTREACHING,
+                    "Recovered pending outreach state for requested capability brief");
+            engagementRepository.save(engagement);
+            return;
+        }
+        if (engagement.getState() != EngagementState.OUTREACHING) {
+            throw new InvalidCapabilityBriefStateException(
+                    "A capability brief cannot be submitted in state " + engagement.getState());
+        }
     }
 
     private Engagement requireOwnedEngagement(UUID engagementId, UUID userId) {
