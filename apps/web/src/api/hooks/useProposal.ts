@@ -3,6 +3,7 @@ import apiClient from '@/api/client'
 import type {
   Proposal,
   ProposalChallenge,
+  ProposalDecisionExplanation,
   ProposalReview,
   ProposalWorkspace,
 } from '@/api/types'
@@ -86,4 +87,21 @@ export function useSubmitProposal(engagementId: string) {
       void qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
     },
   })
+}
+
+function useDecisionNarrative(engagementId: string, endpoint: 'explanation' | 'counterfactual') {
+  return useMutation({
+    mutationFn: async () =>
+      (await apiClient.post<ProposalDecisionExplanation>(
+        `/api/v1/engagements/${engagementId}/proposal/decision/${endpoint}`,
+      )).data,
+  })
+}
+
+export function useProposalDecisionExplanation(engagementId: string) {
+  return useDecisionNarrative(engagementId, 'explanation')
+}
+
+export function useProposalCounterfactual(engagementId: string) {
+  return useDecisionNarrative(engagementId, 'counterfactual')
 }

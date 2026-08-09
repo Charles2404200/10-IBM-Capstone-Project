@@ -80,6 +80,28 @@ public class Proposal extends BaseEntity {
     @Column(columnDefinition = "text")
     private String clientResponse;
 
+    @Enumerated(EnumType.STRING)
+    private ClientDecisionOutcome clientDecisionOutcome;
+
+    private Integer decisionConfidence;
+
+    private Integer learnerPerformanceScore;
+
+    @ElementCollection
+    @CollectionTable(name = "proposal_decision_dimensions", joinColumns = @JoinColumn(name = "proposal_id"))
+    @OrderColumn(name = "position")
+    private List<ProposalDecisionDimension> decisionDimensions = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "proposal_decision_insights", joinColumns = @JoinColumn(name = "proposal_id"))
+    @OrderColumn(name = "position")
+    private List<ProposalDecisionInsight> decisionInsights = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "proposal_evidence_impacts", joinColumns = @JoinColumn(name = "proposal_id"))
+    @OrderColumn(name = "position")
+    private List<ProposalEvidenceImpact> evidenceImpacts = new ArrayList<>();
+
     @Column(nullable = false)
     private Instant submittedAt;
 
@@ -109,11 +131,17 @@ public class Proposal extends BaseEntity {
         submittedAt = Instant.now();
     }
 
-    public void resolve(int alignmentScore, ProposalDecision decision, String rationale, String clientResponse) {
-        this.alignmentScore = alignmentScore;
-        this.decision = decision;
-        this.decisionRationale = rationale;
+    public void resolve(ProposalDecisionSnapshot snapshot, String clientResponse) {
+        this.alignmentScore = snapshot.decisionScore();
+        this.decision = snapshot.accepted() ? ProposalDecision.WON : ProposalDecision.LOST;
+        this.decisionRationale = snapshot.rationale();
         this.clientResponse = clientResponse;
+        this.clientDecisionOutcome = snapshot.outcome();
+        this.decisionConfidence = snapshot.decisionConfidence();
+        this.learnerPerformanceScore = snapshot.learnerPerformanceScore();
+        this.decisionDimensions = new ArrayList<>(snapshot.dimensions());
+        this.decisionInsights = new ArrayList<>(snapshot.insights());
+        this.evidenceImpacts = new ArrayList<>(snapshot.evidenceImpacts());
     }
 
     private void apply(ProposalDraftContent content) {
@@ -148,6 +176,12 @@ public class Proposal extends BaseEntity {
     public ProposalDecision getDecision() { return decision; }
     public String getDecisionRationale() { return decisionRationale; }
     public String getClientResponse() { return clientResponse; }
+    public ClientDecisionOutcome getClientDecisionOutcome() { return clientDecisionOutcome; }
+    public Integer getDecisionConfidence() { return decisionConfidence; }
+    public Integer getLearnerPerformanceScore() { return learnerPerformanceScore; }
+    public List<ProposalDecisionDimension> getDecisionDimensions() { return List.copyOf(decisionDimensions); }
+    public List<ProposalDecisionInsight> getDecisionInsights() { return List.copyOf(decisionInsights); }
+    public List<ProposalEvidenceImpact> getEvidenceImpacts() { return List.copyOf(evidenceImpacts); }
     public Instant getSubmittedAt() { return submittedAt; }
     public ProposalStatus getStatus() { return status; }
 }

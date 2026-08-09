@@ -90,11 +90,11 @@ app:
     # scenario-safe artefacts and records the fallback in ai_traces.
     client-intelligence-timeout-ms: ${AI_CLIENT_INTELLIGENCE_TIMEOUT_MS:1200}
     classification-timeout-ms: ${AI_CLASSIFICATION_TIMEOUT_MS:2500}
-    # mock-mode=true (default) -> MockAiGateway (deterministic, no external calls).
+    # mock-mode=true -> MockAiGateway (deterministic, no external calls).
     # mock-mode=false -> AiProviderRouter takes over as the AiModelGateway bean and
     # fans out to whichever real providers below are configured (see AiProviderRouter
     # javadoc + docs/architecture/AI_ORCHESTRATION.md for the full design).
-    mock-mode: ${AI_MOCK_MODE:true}
+    mock-mode: ${AI_MOCK_MODE:false}
     # Ordered, explicit candidate lists per task type — capability-based routing,
     # never random fallback (a persona's "voice" must not shift model-to-model
     # mid-conversation except on an actual provider outage). Provider ids must match

@@ -325,6 +325,14 @@ export interface MeetingTurnResult {
 
 export type ProposalDecision = 'PENDING' | 'WON' | 'LOST'
 export type ProposalStatus = 'DRAFT' | 'SUBMITTED'
+export type ClientDecisionOutcome =
+  | 'PILOT_APPROVED'
+  | 'PROPOSAL_ACCEPTED'
+  | 'REVISION_REQUESTED'
+  | 'FURTHER_DISCOVERY_REQUIRED'
+  | 'DEFERRED'
+  | 'REJECTED'
+  | 'STRATEGIC_PARTNERSHIP'
 
 export interface ProposalBusinessOutcome {
   outcome: string
@@ -393,6 +401,27 @@ export interface ProposalChallenge {
   concerns: string[]
 }
 
+export interface ProposalDecisionDimension {
+  dimension: string
+  score: number
+  interpretation: string
+}
+
+export interface ProposalDecisionInsight {
+  category: 'STRENGTH' | 'CONCERN' | 'CONDITION'
+  detail: string
+}
+
+export interface ProposalEvidenceImpact {
+  claim: string
+  supportLevel: 'WELL_SUPPORTED' | 'PARTIALLY_SUPPORTED' | 'UNSUPPORTED'
+  explanation: string
+}
+
+export interface ProposalDecisionExplanation {
+  message: string
+}
+
 export interface Proposal {
   id: string
   engagementId: string
@@ -413,6 +442,12 @@ export interface Proposal {
   decision: ProposalDecision
   decisionRationale: string
   clientResponse: string | null
+  clientDecisionOutcome: ClientDecisionOutcome
+  decisionConfidence: number
+  learnerPerformanceScore: number
+  decisionDimensions: ProposalDecisionDimension[]
+  decisionInsights: ProposalDecisionInsight[]
+  evidenceImpacts: ProposalEvidenceImpact[]
   submittedAt: string
 }
 

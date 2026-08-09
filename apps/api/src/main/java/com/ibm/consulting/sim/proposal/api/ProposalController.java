@@ -103,6 +103,18 @@ public class ProposalController {
         return proposalService.challenge(engagementId, user.getId(), request.toContent());
     }
 
+    @PostMapping("/decision/explanation")
+    ProposalDecisionExplanationResponse explainDecision(@PathVariable UUID engagementId,
+                                                         @AuthenticationPrincipal User user) {
+        return proposalService.explainDecision(engagementId, user.getId());
+    }
+
+    @PostMapping("/decision/counterfactual")
+    ProposalDecisionExplanationResponse counterfactual(@PathVariable UUID engagementId,
+                                                        @AuthenticationPrincipal User user) {
+        return proposalService.counterfactual(engagementId, user.getId());
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ProposalResponse submit(@PathVariable UUID engagementId, @Valid @RequestBody SubmitProposalRequest request,

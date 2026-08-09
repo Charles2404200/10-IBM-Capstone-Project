@@ -85,6 +85,16 @@ public class MockAiGateway implements AiModelGateway {
                       "message": "Thank you for the proposal. The recommendation reflects the priorities discussed, and we will take it through our internal decision process with the relevant stakeholders."
                     }
                     """;
+            case "proposal_decision_explanation" -> """
+                    {
+                      "message": "The decision reflects the weighted client-alignment, evidence, commercial, delivery, risk and relationship dimensions already calculated by the simulation engine. Review the recorded strengths, concerns and conditions to understand the result."
+                    }
+                    """;
+            case "proposal_counterfactual" -> """
+                    {
+                      "message": "The most valuable improvement is to validate each material claim with client-confirmed evidence, make the commercial assumptions explicit, and connect delivery controls to the client's stated risks."
+                    }
+                    """;
             default -> "{}";
         };
     }

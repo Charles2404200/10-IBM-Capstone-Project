@@ -13,6 +13,8 @@ import com.ibm.consulting.sim.meeting.domain.MeetingRepository;
 import com.ibm.consulting.sim.meeting.domain.PersonaState;
 import com.ibm.consulting.sim.meeting.domain.PersonaStateRepository;
 import com.ibm.consulting.sim.proposal.domain.*;
+import com.ibm.consulting.sim.scenario.application.PersonaCatalogService;
+import com.ibm.consulting.sim.scenario.application.PersonaProfile;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,7 @@ public class ProposalService {
     private final ConversationTurnRepository turnRepository;
     private final AiOrchestrationService aiOrchestrationService;
     private final ObjectMapper objectMapper;
+    private final PersonaCatalogService personaCatalogService;
 
     public ProposalService(ProposalRepository proposalRepository,
                            EngagementRepository engagementRepository,
@@ -47,7 +50,8 @@ public class ProposalService {
                            MeetingRepository meetingRepository,
                            ConversationTurnRepository turnRepository,
                            AiOrchestrationService aiOrchestrationService,
-                           ObjectMapper objectMapper) {
+                           ObjectMapper objectMapper,
+                           PersonaCatalogService personaCatalogService) {
         this.proposalRepository = proposalRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -56,6 +60,7 @@ public class ProposalService {
         this.turnRepository = turnRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.objectMapper = objectMapper;
+        this.personaCatalogService = personaCatalogService;
     }
 
     @Transactional(readOnly = true)
@@ -125,23 +130,19 @@ public class ProposalService {
         if (proposal == null) proposal = Proposal.draft(engagementId, content);
         else proposal.updateDraft(content);
 
-        List<String> evidenceNotes = evidenceRepository.findByEngagementId(engagementId).stream()
-                .map(ResearchEvidence::getNote).toList();
         PersonaState state = personaStateRepository.findByEngagementId(engagementId)
                 .orElseGet(() -> PersonaState.initial(engagementId));
-        List<String> outcomeComponents = new ArrayList<>(content.components());
-        outcomeComponents.add(content.solutionStrategy());
-        content.businessOutcomes().forEach(outcome -> outcomeComponents.add(outcome.getOutcome()));
-        ProposalOutcome outcome = ProposalOutcomePolicy.evaluate(
-                content.problemStatement(), outcomeComponents, evidenceNotes, state.getTrust(), state.getInterest());
+        ProposalDecisionSnapshot decisionSnapshot = ProposalDecisionEngine.evaluate(content,
+                sources.stream().map(source -> new ProposalDecisionSource(source.id(), source.content(), source.type())).toList(),
+                state.getTrust(), state.getInterest(), state.getPatience());
+        PersonaProfile persona = personaCatalogService.getPersona(engagement.getPersonaId());
         ProposalClientDecision clientDecision = aiOrchestrationService.execute(
                 "proposal_client_decision", engagementId,
-                clientDecisionPrompt(outcome, content, sources), PROMPT_VERSION,
-                new ProposalClientDecisionParser(objectMapper), () -> ProposalClientDecision.fallback(outcome.won()));
+                clientDecisionPrompt(decisionSnapshot, content, sources, persona), PROMPT_VERSION,
+                new ProposalClientDecisionParser(objectMapper), () -> ProposalClientDecision.fallback(decisionSnapshot.accepted()));
 
         proposal.submit();
-        proposal.resolve(outcome.alignmentScore(), outcome.won() ? ProposalDecision.WON : ProposalDecision.LOST,
-                outcome.rationale(), clientDecision.message());
+        proposal.resolve(decisionSnapshot, clientDecision.message());
         proposalRepository.save(proposal);
 
         if (engagement.getState() == EngagementState.DISCOVERY_COMPLETE) {
@@ -149,7 +150,7 @@ public class ProposalService {
         }
         engagement.transitionTo(EngagementState.PROPOSAL_SUBMITTED, "Proposal submitted");
         engagement.transitionTo(EngagementState.CLIENT_DECISION,
-                "Client decision: " + (outcome.won() ? "PROPOSAL_ACCEPTED" : "PROPOSAL_REJECTED"));
+                "Client decision: " + decisionSnapshot.outcome());
         engagementRepository.save(engagement);
         return ProposalResponse.from(proposal);
     }
@@ -160,6 +161,22 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findByEngagementId(engagementId)
                 .orElseThrow(() -> new NotFoundException("Proposal for engagement", engagementId));
         return ProposalResponse.from(proposal);
+    }
+
+    @Transactional(readOnly = true)
+    public ProposalDecisionExplanationResponse explainDecision(UUID engagementId, UUID userId) {
+        Proposal proposal = submittedProposal(engagementId, userId);
+        return aiOrchestrationService.execute("proposal_decision_explanation", engagementId,
+                decisionExplanationPrompt(proposal), PROMPT_VERSION, new ProposalDecisionExplanationParser(objectMapper),
+                () -> new ProposalDecisionExplanationResponse(deterministicDecisionExplanation(proposal)));
+    }
+
+    @Transactional(readOnly = true)
+    public ProposalDecisionExplanationResponse counterfactual(UUID engagementId, UUID userId) {
+        Proposal proposal = submittedProposal(engagementId, userId);
+        return aiOrchestrationService.execute("proposal_counterfactual", engagementId,
+                counterfactualPrompt(proposal), PROMPT_VERSION, new ProposalDecisionExplanationParser(objectMapper),
+                () -> new ProposalDecisionExplanationResponse(deterministicCounterfactual(proposal)));
     }
 
     private ProposalReviewResponse reviewResponse(ProposalDraftContent content, List<ProposalSource> sources,
@@ -177,6 +194,54 @@ public class ProposalService {
                 ProposalValidationEngine.feasibilityScore(content),
                 narrative.executiveFeedback(), narrative.improvementActions());
     }
+
+    private Proposal submittedProposal(UUID engagementId, UUID userId) {
+        loadOwnedEngagement(engagementId, userId);
+        Proposal proposal = proposalRepository.findByEngagementId(engagementId)
+                .orElseThrow(() -> new NotFoundException("Proposal for engagement", engagementId));
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED) throw new ProposalNotSubmittedException();
+        return proposal;
+    }
+
+    private String decisionExplanationPrompt(Proposal proposal) {
+        return """
+                You are a consulting coach explaining a client decision. You may only explain the deterministic snapshot below.
+                Do not change its outcome, scores, conditions, or infer new client facts. Return ONLY JSON: {"message": string}.
+                Outcome: %s. Decision score: %d. Confidence: %s%%.
+                Dimensions: %s
+                Decision factors: %s
+                """.formatted(legacyOutcome(proposal), proposal.getAlignmentScore(), valueOr(proposal.getDecisionConfidence(), proposal.getAlignmentScore()),
+                proposal.getDecisionDimensions(), proposal.getDecisionInsights());
+    }
+
+    private String counterfactualPrompt(Proposal proposal) {
+        return """
+                You are a consulting coach. Based only on this deterministic decision snapshot, describe the highest-impact changes
+                the learner could have made. Do not claim an exact new score or change the outcome. Return ONLY JSON: {"message": string}.
+                Outcome: %s. Dimensions: %s. Factors: %s. Evidence impacts: %s
+                """.formatted(legacyOutcome(proposal), proposal.getDecisionDimensions(), proposal.getDecisionInsights(), proposal.getEvidenceImpacts());
+    }
+
+    private String deterministicDecisionExplanation(Proposal proposal) {
+        return "The outcome was determined by the weighted decision dimensions. " + proposal.getDecisionRationale()
+                + " Review the strengths, concerns and approval conditions to see exactly what influenced the client decision.";
+    }
+
+    private String deterministicCounterfactual(Proposal proposal) {
+        List<String> actions = proposal.getDecisionInsights().stream()
+                .filter(insight -> "CONCERN".equals(insight.getCategory()))
+                .map(ProposalDecisionInsight::getDetail).limit(3).toList();
+        return actions.isEmpty()
+                ? "The proposal was already well aligned. Strengthen the evidence behind each material claim before expanding scope."
+                : "The highest-impact improvements would be: " + String.join(" ", actions);
+    }
+
+    private ClientDecisionOutcome legacyOutcome(Proposal proposal) {
+        if (proposal.getClientDecisionOutcome() != null) return proposal.getClientDecisionOutcome();
+        return proposal.getDecision() == ProposalDecision.WON ? ClientDecisionOutcome.PROPOSAL_ACCEPTED : ClientDecisionOutcome.REJECTED;
+    }
+
+    private int valueOr(Integer value, int fallback) { return value == null ? fallback : value; }
 
     private List<ProposalSource> sources(Engagement engagement) {
         List<ProposalSource> sources = new ArrayList<>();
@@ -233,19 +298,21 @@ public class ProposalService {
                 """.formatted(content.problemStatement() + "\n" + content.solutionStrategy(), clientContext);
     }
 
-    private String clientDecisionPrompt(ProposalOutcome outcome, ProposalDraftContent content, List<ProposalSource> sources) {
+    private String clientDecisionPrompt(ProposalDecisionSnapshot decision, ProposalDraftContent content,
+                                        List<ProposalSource> sources, PersonaProfile persona) {
         String context = sources.stream().limit(5).map(source -> source.label() + ": " + source.content())
                 .reduce("", (left, right) -> left + "\n" + right);
         return """
-                You are the client sponsor responding to a consulting proposal. The backend already decided the outcome.
+                You are %s, %s at %s. Your communication style is: %s.
+                You are responding to a consulting proposal. The backend already decided the outcome.
                 Do not change, soften or challenge that outcome. Write a concise response grounded only in the supplied proposal and client evidence.
                 Return ONLY JSON: {"message": string}.
                 Decision: %s
                 Deterministic rationale: %s
                 Proposal: %s
                 Client evidence: %s
-                """.formatted(outcome.won() ? "PROPOSAL_ACCEPTED" : "PROPOSAL_REJECTED", outcome.rationale(),
-                content.problemStatement() + "\n" + content.solutionStrategy(), context);
+                """.formatted(persona.getName(), persona.getJobTitle(), persona.getOrganisation(), persona.getCommunicationStyle(),
+                decision.outcome(), decision.rationale(), content.problemStatement() + "\n" + content.solutionStrategy(), context);
     }
 
     private Engagement loadEditableEngagement(UUID engagementId, UUID userId) {
@@ -275,5 +342,9 @@ public class ProposalService {
             this.issues = List.copyOf(issues);
         }
         public List<ProposalValidationIssue> getIssues() { return issues; }
+    }
+
+    public static class ProposalNotSubmittedException extends DomainException {
+        public ProposalNotSubmittedException() { super("A client decision is not available until the proposal is submitted"); }
     }
 }
