@@ -79,4 +79,38 @@ class PersonaStateEngineTest {
         assertThat(urgent.getPatience()).isLessThan(30);
         assertThat(relaxed.getPatience()).isGreaterThan(70);
     }
+
+    @Test
+    void doesNotRewardGreetingOrGenericPromptInLiveMeetingProgression() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse overlyPositiveResponse = new PersonaTurnResponse(
+                "Good to meet you.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "Hello", 1);
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile, "What do you need to know?", 2);
+
+        assertThat(state.getTrust()).isEqualTo(profile.initialTrust());
+        assertThat(state.getInterest()).isEqualTo(profile.initialInterest());
+        assertThat(state.getPatience()).isEqualTo(profile.initialPatience());
+    }
+
+    @Test
+    void capsGroundedProgressionUntilTheMeetingHasEnoughTurns() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse overlyPositiveResponse = new PersonaTurnResponse(
+                "That is a useful question.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile,
+                "Given the current budget pressure and Q4 timeline, which workflow risk should we validate first?", 1);
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile,
+                "You mentioned current integration constraints and operational impact. Which workflow now creates the greatest risk for staff?", 2);
+
+        assertThat(state.getTrust()).isEqualTo(profile.initialTrust() + 3);
+        assertThat(state.getInterest()).isEqualTo(profile.initialInterest() + 3);
+        assertThat(state.getPatience()).isEqualTo(profile.initialPatience() + 2);
+    }
 }

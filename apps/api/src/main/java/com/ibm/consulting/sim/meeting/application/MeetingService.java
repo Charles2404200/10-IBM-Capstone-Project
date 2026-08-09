@@ -204,7 +204,7 @@ public class MeetingService {
                 () -> PersonaTurnResponse.safeFallback(
                         "Sorry, could you repeat that? I want to make sure I understand you correctly."));
 
-        PersonaStateEngine.apply(state, aiResponse, profile);
+        PersonaStateEngine.apply(state, aiResponse, profile, learnerMessage, (int) learnerTurnCount + 1);
         personaStateRepository.save(state);
 
         String signals = String.join(",", combineSignals(aiResponse));

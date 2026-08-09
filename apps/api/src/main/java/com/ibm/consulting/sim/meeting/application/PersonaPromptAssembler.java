@@ -87,10 +87,12 @@ final class PersonaPromptAssembler {
     }
 
     private static String behaviourControls(DifficultyProfile profile) {
-        if (profile == null) return "Use the scenario's normal level of specificity and challenge.";
+        String scoringInstruction = "Do not reward greetings, vague prompts, or requests for the client to do the consultant's discovery. "
+                + "Only a specific, grounded question or response may have a modest positive stateDelta; use negative deltas for vague, evasive, or unprofessional behaviour.";
+        if (profile == null) return "Use the scenario's normal level of specificity and challenge. " + scoringInstruction;
         return "Resistance %d/100. The client needs a credible next step within %d simulated days. "
                 + "Ask for more precise evidence when resistance is high. "
-                + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes."
-                .formatted(profile.personaResistance(), profile.timelinePressureDays());
+                + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes. %s"
+                .formatted(profile.personaResistance(), profile.timelinePressureDays(), scoringInstruction);
     }
 }

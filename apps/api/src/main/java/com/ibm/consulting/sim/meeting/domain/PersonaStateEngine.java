@@ -24,6 +24,22 @@ public final class PersonaStateEngine {
         turn.factsDisclosed().forEach(state::disclose);
     }
 
+    /**
+     * Applies a turn under the live-meeting progression policy. The existing
+     * overload remains available for legacy callers and historical replays.
+     */
+    public static void apply(PersonaState state, PersonaTurnResponse turn, DifficultyProfile profile,
+                             String learnerMessage, int learnerTurnNumber) {
+        if (profile == null) {
+            apply(state, turn);
+            return;
+        }
+        PersonaStateDelta delta = turn.stateDelta() != null ? turn.stateDelta().clamped() : PersonaStateDelta.zero();
+        delta = MeetingTurnProgressionPolicy.constrain(scale(delta, profile), learnerMessage);
+        state.applyProgressionBoundedDelta(delta, profile, learnerTurnNumber);
+        turn.factsDisclosed().forEach(state::disclose);
+    }
+
     private static PersonaStateDelta scale(PersonaStateDelta delta, DifficultyProfile profile) {
         return new PersonaStateDelta(scale(delta.trust(), profile), scale(delta.interest(), profile), scale(delta.patience(), profile));
     }
