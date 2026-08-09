@@ -9,6 +9,8 @@ import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.outreach.domain.OutreachAttempt;
 import com.ibm.consulting.sim.outreach.domain.OutreachOutcome;
+import com.ibm.consulting.sim.outreach.domain.OutreachNextAction;
+import com.ibm.consulting.sim.outreach.domain.OutreachRequestPolicy;
 import com.ibm.consulting.sim.outreach.domain.OutreachRepository;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
@@ -70,7 +72,8 @@ public class OutreachService {
                 OutreachEvaluationResult::safeFallback);
 
         OutreachOutcome outcome = OutreachOutcome.valueOf(evaluation.outcome());
-        attempt.resolve(evaluation.clientReply(), outcome,
+        OutreachNextAction nextAction = OutreachRequestPolicy.nextActionFor(outcome, evaluation.clientReply());
+        attempt.resolve(evaluation.clientReply(), outcome, nextAction,
                 evaluation.personalisation(), evaluation.relevance(),
                 evaluation.clarity(), evaluation.callToAction());
 

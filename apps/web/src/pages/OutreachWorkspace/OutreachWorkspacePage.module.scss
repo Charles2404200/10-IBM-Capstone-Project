@@ -1,0 +1,201 @@
+@use '@carbon/styles/scss/theme' as *;
+@use '@carbon/styles/scss/spacing' as *;
+@use '@carbon/styles/scss/type' as *;
+
+.page {
+  min-height: 100%;
+  background: $background;
+  padding: $spacing-07 0 $spacing-10;
+}
+
+.headerGrid,
+.workspaceGrid {
+  max-width: 96rem;
+  margin: 0 auto;
+}
+
+.workspaceGrid {
+  margin-top: $spacing-07;
+}
+
+.pageSubtitle,
+.formIntro,
+.editorHeading p,
+.successPanel p,
+.hintPanel p {
+  color: $text-secondary;
+  margin-top: $spacing-03;
+}
+
+.eyebrow {
+  @include type-style('label-01');
+  color: $text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  margin: 0 0 $spacing-02;
+}
+
+.editor,
+.latestReply,
+.hintPanel,
+.briefReview,
+.successPanel {
+  border: 1px solid $border-subtle;
+  background: $layer-01;
+}
+
+.editor {
+  padding: $spacing-06;
+}
+
+.editorHeading,
+.replyHeading,
+.reviewHeading,
+.successPanel,
+.historyHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-05;
+}
+
+.editorHeading h2,
+.replyHeading h2,
+.reviewHeading h2,
+.successPanel h2 {
+  @include type-style('heading-04');
+  margin: 0;
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-05;
+}
+
+.requirementList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-03 $spacing-05;
+  padding: $spacing-05;
+  background: $layer-accent-01;
+
+  > p {
+    grid-column: 1 / -1;
+    @include type-style('label-01');
+    margin: 0;
+  }
+
+  span {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-03;
+    color: $text-primary;
+    @include type-style('body-compact-01');
+  }
+
+  svg { color: $support-success; flex: 0 0 auto; }
+}
+
+.decisionRail {
+  position: sticky;
+  top: $spacing-05;
+  display: grid;
+  gap: $spacing-05;
+}
+
+.latestReply {
+  border-top: 3px solid $interactive;
+  padding: $spacing-06;
+}
+
+.clientReply {
+  white-space: pre-wrap;
+  color: $text-primary;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.emptyReply { color: $text-secondary; margin: 0; }
+
+.hintPanel {
+  padding: $spacing-05;
+  background: $layer-accent-01;
+
+  h3 { @include type-style('heading-compact-02'); margin: 0; }
+  ul { margin: $spacing-04 0 0; padding-left: $spacing-05; }
+  li { color: $text-primary; margin-bottom: $spacing-03; @include type-style('body-compact-01'); }
+}
+
+.successPanel {
+  padding: $spacing-06;
+  border-left: 4px solid $support-success;
+  align-items: center;
+}
+
+.briefReview {
+  padding: $spacing-05;
+}
+
+.reviewGrid {
+  display: grid;
+  gap: $spacing-03;
+}
+
+.scoreRow {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: $spacing-03;
+  color: $text-secondary;
+  @include type-style('label-01');
+
+  strong { color: $text-primary; font-weight: 400; text-align: right; }
+}
+
+.scoreTrack { height: 4px; background: $border-subtle; }
+.scoreGood, .scoreModerate, .scoreLow { height: 100%; }
+.scoreGood { background: $support-success; }
+.scoreModerate { background: $support-warning; }
+.scoreLow { background: $support-error; }
+
+.history { padding-top: $spacing-05; border-top: 1px solid $border-subtle; }
+.historyHeading { align-items: center; margin-bottom: $spacing-04; }
+.historyHeading h3 { @include type-style('heading-compact-02'); margin: 0; }
+.historyHeading span { color: $text-secondary; @include type-style('label-01'); }
+
+.historyItem {
+  border: 1px solid $border-subtle;
+  background: $layer-01;
+
+  summary {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: $spacing-03;
+    padding: $spacing-04;
+    cursor: pointer;
+    list-style: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+}
+
+.historySubject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $text-secondary; }
+.historyBody { display: grid; gap: $spacing-05; padding: 0 $spacing-05 $spacing-05; }
+.historyBody > div > p:last-child { white-space: pre-wrap; color: $text-secondary; margin: 0; line-height: 1.5; }
+.clientReplyCompact { border-left: 3px solid $interactive; padding-left: $spacing-04; }
+.scoreList { display: grid; gap: $spacing-03; }
+
+@media (max-width: 1055px) {
+  .decisionRail { position: static; margin-top: $spacing-06; }
+}
+
+@media (max-width: 671px) {
+  .page { padding-top: $spacing-05; }
+  .editor { padding: $spacing-05; }
+  .editorGrid, .requirementList { grid-template-columns: 1fr; }
+  .successPanel { align-items: flex-start; flex-direction: column; }
+  .scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }
+  .historyItem summary { grid-template-columns: auto 1fr; }
+  .historySubject { grid-column: 1 / -1; }
+}

@@ -46,9 +46,19 @@ export function useSaveResearch(engagementId: string) {
       )
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['research', engagementId] })
-      qc.invalidateQueries({ queryKey: ['lead-intelligence', engagementId] })
+    onSuccess: (savedEvidence) => {
+      // The POST response is the authoritative newly-created row. Put it into
+      // the active query immediately, then revalidate related server-derived
+      // views in the background. This keeps the gate responsive without a
+      // page refresh while preserving the backend as the source of truth.
+      qc.setQueryData<ResearchEvidence[]>(['research', engagementId], (current = []) => {
+        const withoutSavedRow = current.filter((item) => item.id !== savedEvidence.id)
+        return [...withoutSavedRow, savedEvidence]
+      })
+
+      void qc.invalidateQueries({ queryKey: ['research', engagementId] })
+      void qc.invalidateQueries({ queryKey: ['lead-intelligence', engagementId] })
+      void qc.invalidateQueries({ queryKey: ['research-gate', engagementId] })
     },
   })
 }

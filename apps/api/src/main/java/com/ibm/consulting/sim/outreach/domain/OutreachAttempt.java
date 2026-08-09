@@ -28,6 +28,9 @@ public class OutreachAttempt extends BaseEntity {
     @Column(nullable = false)
     private OutreachOutcome outcome;
 
+    @Enumerated(EnumType.STRING)
+    private OutreachNextAction nextAction;
+
     // Scores 0–100
     private Integer scorePersonalisation;
     private Integer scoreRelevance;
@@ -47,10 +50,11 @@ public class OutreachAttempt extends BaseEntity {
         return a;
     }
 
-    public void resolve(String clientReply, OutreachOutcome outcome,
+    public void resolve(String clientReply, OutreachOutcome outcome, OutreachNextAction nextAction,
                         int personalisation, int relevance, int clarity, int callToAction) {
         this.clientReply = clientReply;
         this.outcome = outcome;
+        this.nextAction = nextAction;
         this.scorePersonalisation = personalisation;
         this.scoreRelevance = relevance;
         this.scoreClarity = clarity;
@@ -63,6 +67,7 @@ public class OutreachAttempt extends BaseEntity {
     public String getBody() { return body; }
     public String getClientReply() { return clientReply; }
     public OutreachOutcome getOutcome() { return outcome; }
+    public OutreachNextAction getNextAction() { return nextAction; }
     public Integer getScorePersonalisation() { return scorePersonalisation; }
     public Integer getScoreRelevance() { return scoreRelevance; }
     public Integer getScoreClarity() { return scoreClarity; }

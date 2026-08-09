@@ -231,7 +231,28 @@ export interface OutreachAttempt {
   scoreRelevance: number | null
   scoreClarity: number | null
   scoreCallToAction: number | null
+  nextAction: 'NONE' | 'SEND_FOLLOW_UP' | 'SUBMIT_CAPABILITY_BRIEF' | 'CONTINUE_TO_MEETING'
+  requestTitle: string | null
+  requestSummary: string | null
+  requestRequirements: string[]
   createdAt: string
+}
+
+export interface CapabilityBrief {
+  id: string
+  engagementId: string
+  relevantExperience: string
+  approach: string
+  caseExample: string
+  clientFit: string
+  clientReply: string | null
+  outcome: 'PENDING' | 'ACCEPTED' | 'FOLLOW_UP_REQUIRED' | 'REJECTED'
+  scoreClientFit: number | null
+  scoreIndustryRelevance: number | null
+  scoreEvidenceQuality: number | null
+  scoreClarity: number | null
+  scoreCredibility: number | null
+  updatedAt: string
 }
 
 // ─── API Error (RFC 7807) ─────────────────────────────────────────────────────
