@@ -69,6 +69,22 @@ public class MockAiGateway implements AiModelGateway {
                       "tips": ["Confirm the decision process explicitly.", "Quantify the operational impact before recommending a solution.", "End by summarising the agreed next step."]
                     }
                     """;
+            case "proposal_review" -> """
+                    {
+                      "executiveFeedback": "The proposal has a useful structure. Tighten the commercial rationale and ensure each major claim is traceable to a client source.",
+                      "improvementActions": ["Explain the basis for the estimate.", "Connect each KPI to a client priority.", "State how operational risk will be controlled."]
+                    }
+                    """;
+            case "proposal_challenge" -> """
+                    {
+                      "concerns": ["What measurable outcome will this pilot deliver for the investment?", "How will you avoid disruption to current operations during implementation?", "Which client stakeholder owns the decision to proceed after the pilot?"]
+                    }
+                    """;
+            case "proposal_client_decision" -> """
+                    {
+                      "message": "Thank you for the proposal. The recommendation reflects the priorities discussed, and we will take it through our internal decision process with the relevant stakeholders."
+                    }
+                    """;
             default -> "{}";
         };
     }

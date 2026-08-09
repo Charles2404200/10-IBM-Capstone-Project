@@ -323,18 +323,96 @@ export interface MeetingTurnResult {
 
 // ─── Proposal ─────────────────────────────────────────────────────────────────
 
-export type ProposalDecision = 'WON' | 'LOST'
+export type ProposalDecision = 'PENDING' | 'WON' | 'LOST'
+export type ProposalStatus = 'DRAFT' | 'SUBMITTED'
+
+export interface ProposalBusinessOutcome {
+  outcome: string
+  metric: string
+  target: string
+}
+
+export interface ProposalMilestone {
+  phase: string
+  duration: string
+}
+
+export interface ProposalRisk {
+  risk: string
+  severity: string
+  mitigation: string
+}
+
+export interface ProposalEvidenceLink {
+  section: string
+  sourceId: string
+}
+
+export interface ProposalSource {
+  id: string
+  label: string
+  type: 'RESEARCH_EVIDENCE' | 'MEETING_DISCOVERY'
+  content: string
+  reliability: string
+}
+
+export interface ProposalWorkspace {
+  proposal: Proposal | null
+  sources: ProposalSource[]
+}
+
+export interface ProposalValidationIssue {
+  severity: 'BLOCKING' | 'WARNING'
+  code: string
+  message: string
+  section: string
+}
+
+export interface ClientAlignmentItem {
+  sourceId: string
+  clientPriority: string
+  coverage: 'STRONG' | 'PARTIAL' | 'GAP'
+  detail: string
+}
+
+export interface ProposalReview {
+  readyToSubmit: boolean
+  validationIssues: ProposalValidationIssue[]
+  clientAlignment: ClientAlignmentItem[]
+  problemDefinitionScore: number
+  evidenceGroundingScore: number
+  clientAlignmentScore: number
+  commercialLogicScore: number
+  riskCoverageScore: number
+  feasibilityScore: number
+  executiveFeedback: string
+  improvementActions: string[]
+}
+
+export interface ProposalChallenge {
+  concerns: string[]
+}
 
 export interface Proposal {
   id: string
   engagementId: string
+  status: ProposalStatus
   problemStatement: string
+  solutionStrategy: string | null
   components: string[]
   budget: string
   timelineWeeks: number
+  budgetConfidence: string | null
+  budgetSource: string | null
+  businessOutcomes: ProposalBusinessOutcome[]
+  milestones: ProposalMilestone[]
+  risks: ProposalRisk[]
+  assumptions: string[]
+  evidenceLinks: ProposalEvidenceLink[]
   alignmentScore: number
   decision: ProposalDecision
   decisionRationale: string
+  clientResponse: string | null
   submittedAt: string
 }
 
