@@ -76,7 +76,8 @@ final class PersonaPromptAssembler {
                  "factsDisclosed": string[],
                  "objectionRaised": string|null,
                  "meetingSignals": string[],
-                 "safety": {"allowed": boolean, "reason": string|null}}
+                 "safety": {"allowed": boolean, "reason": string|null},
+                 "guidedResponseOptions": string[]}
                 """.formatted(
                 persona.getName(), persona.getJobTitle(), persona.getOrganisation(),
                 persona.getCommunicationStyle(), persona.getBusinessGoals(), persona.getVisibleConcerns(),
@@ -93,11 +94,16 @@ final class PersonaPromptAssembler {
                 + "Only include a positive label when the learner's actual message demonstrates it; omit labels for a greeting or unsupported generic statement. "
                 + "meetingSignals may only use: client_concern_raised, client_concern_resolved, client_validated_value, client_committed_next_step, client_ready_to_close. "
                 + "Use client_committed_next_step or client_ready_to_close only when the client explicitly accepts a concrete scope, success measure, ownership, commercial next step, or proposal request in this conversation. "
-                + "When those elements are agreed, stop inventing new objections: confirm the agreement, state the next step in character, and let the consultant close the meeting.";
+                + "When those elements are agreed, stop inventing new objections: confirm the agreement, state the next step in character, and let the consultant close the meeting. ";
         if (profile == null) return "Use the scenario's normal level of specificity and challenge. " + scoringInstruction;
-        return "Resistance %d/100. The client needs a credible next step within %d simulated days. "
+        String guidedResponseInstruction = profile.level() == com.ibm.consulting.sim.scenario.domain.DifficultyLevel.HARD
+                ? "Return guidedResponseOptions as an empty array."
+                : "Also create exactly three distinct guidedResponseOptions the learner could realistically say after your spokenResponse. "
+                + "Do not label or rank them, do not invent facts, and do not include unprofessional language. "
+                + "They must reflect the latest client concern and remain grounded in the available evidence.";
+        return "Resistance %d/100. The client needs a credible next step within %d simulated days. %s "
                 + "Ask for more precise evidence when resistance is high. "
                 + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes. %s"
-                .formatted(profile.personaResistance(), profile.timelinePressureDays(), scoringInstruction);
+                .formatted(profile.personaResistance(), profile.timelinePressureDays(), guidedResponseInstruction, scoringInstruction);
     }
 }

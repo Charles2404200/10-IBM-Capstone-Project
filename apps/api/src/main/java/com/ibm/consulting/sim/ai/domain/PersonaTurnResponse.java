@@ -14,7 +14,20 @@ public record PersonaTurnResponse(
         List<String> factsDisclosed,
         String objectionRaised,
         List<String> meetingSignals,
-        SafetyCheck safety) {
+        SafetyCheck safety,
+        List<String> guidedResponseOptions) {
+
+    /** Preserves the established persona turn contract for all existing callers. */
+    public PersonaTurnResponse(String spokenResponse, List<String> detectedLearnerBehaviours,
+                               PersonaStateDelta stateDelta, List<String> factsDisclosed, String objectionRaised,
+                               List<String> meetingSignals, SafetyCheck safety) {
+        this(spokenResponse, detectedLearnerBehaviours, stateDelta, factsDisclosed, objectionRaised,
+                meetingSignals, safety, List.of());
+    }
+
+    public PersonaTurnResponse {
+        guidedResponseOptions = guidedResponseOptions == null ? List.of() : List.copyOf(guidedResponseOptions);
+    }
 
     public record SafetyCheck(boolean allowed, String reason) {}
 

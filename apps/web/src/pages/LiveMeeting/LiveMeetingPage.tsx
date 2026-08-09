@@ -196,7 +196,8 @@ export default function LiveMeetingPage() {
                 </div>
                 <p className={styles.guidedDescription}>Choose the response you would use with this client. Its impact is evaluated from the actual conversation.</p>
                 {responseOptionsLoading && <InlineLoading description="Preparing response options..." />}
-                {!responseOptionsLoading && responseOptions?.available && (
+                {isStreaming && <InlineLoading description="Client is responding..." />}
+                {!isStreaming && !responseOptionsLoading && responseOptions?.available && (
                   <div className={styles.responseChoices}>
                     {responseOptions.options.map((option, index) => (
                       <button
@@ -213,7 +214,7 @@ export default function LiveMeetingPage() {
                     ))}
                   </div>
                 )}
-                {!responseOptionsLoading && (!responseOptions?.available || responseOptionsError) && (
+                {!isStreaming && !responseOptionsLoading && (!responseOptions?.available || responseOptionsError) && (
                   <div className={styles.responseOptionsUnavailable}>
                     <InlineNotification
                       kind="warning"

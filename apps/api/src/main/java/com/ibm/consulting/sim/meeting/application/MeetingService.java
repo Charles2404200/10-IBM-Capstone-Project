@@ -49,6 +49,7 @@ public class MeetingService {
     private final TranscriptExportService transcriptExportService;
     private final KnowledgeRetrievalService knowledgeRetrievalService;
     private final DifficultyProfileService difficultyProfileService;
+    private final GuidedMeetingResponseService guidedResponseService;
 
     public MeetingService(MeetingRepository meetingRepository,
                            ConversationTurnRepository turnRepository,
@@ -61,7 +62,8 @@ public class MeetingService {
                            ObjectMapper objectMapper,
                            TranscriptExportService transcriptExportService,
                            KnowledgeRetrievalService knowledgeRetrievalService,
-                           DifficultyProfileService difficultyProfileService) {
+                           DifficultyProfileService difficultyProfileService,
+                           GuidedMeetingResponseService guidedResponseService) {
         this.meetingRepository = meetingRepository;
         this.turnRepository = turnRepository;
         this.personaStateRepository = personaStateRepository;
@@ -74,6 +76,7 @@ public class MeetingService {
         this.transcriptExportService = transcriptExportService;
         this.knowledgeRetrievalService = knowledgeRetrievalService;
         this.difficultyProfileService = difficultyProfileService;
+        this.guidedResponseService = guidedResponseService;
     }
 
     @Transactional
@@ -256,6 +259,8 @@ public class MeetingService {
         ConversationTurn personaTurn = ConversationTurn.personaTurn(
                 meeting.getId(), nextSequence + 1, aiResponse.spokenResponse(), signals);
         turnRepository.save(personaTurn);
+        MeetingResponseOptionsResponse nextResponseOptions = guidedResponseService.cachePreGenerated(
+                meeting.getId(), personaTurn.getSequence(), profile, aiResponse.guidedResponseOptions());
 
         var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
                 .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
@@ -269,7 +274,8 @@ public class MeetingService {
                 PersonaStateResponse.from(state),
                 aiResponse.meetingSignals(),
                 relationshipTermination.map(decision -> MeetingTerminationResponse.from(
-                        decision, retryEligibility == null ? MeetingRetryEligibility.unavailable() : retryEligibility)).orElse(null));
+                        decision, retryEligibility == null ? MeetingRetryEligibility.unavailable() : retryEligibility)).orElse(null),
+                nextResponseOptions);
     }
 
     /**

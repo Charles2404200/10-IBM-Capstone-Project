@@ -7,13 +7,22 @@ public record MeetingTurnResult(
         ConversationTurnResponse personaTurn,
         PersonaStateResponse personaState,
         List<String> meetingSignals,
-        MeetingTerminationResponse termination) {
+        MeetingTerminationResponse termination,
+        MeetingResponseOptionsResponse responseOptions) {
 
     /** Retains the original result contract for existing transport callers. */
     public MeetingTurnResult(ConversationTurnResponse learnerTurn,
                              ConversationTurnResponse personaTurn,
                              PersonaStateResponse personaState,
                              List<String> meetingSignals) {
-        this(learnerTurn, personaTurn, personaState, meetingSignals, null);
+        this(learnerTurn, personaTurn, personaState, meetingSignals, null, null);
+    }
+
+    public MeetingTurnResult(ConversationTurnResponse learnerTurn,
+                             ConversationTurnResponse personaTurn,
+                             PersonaStateResponse personaState,
+                             List<String> meetingSignals,
+                             MeetingTerminationResponse termination) {
+        this(learnerTurn, personaTurn, personaState, meetingSignals, termination, null);
     }
 }

@@ -394,6 +394,7 @@ export interface MeetingTurnResult {
   personaState: PersonaState
   meetingSignals: string[]
   termination: MeetingTermination | null
+  responseOptions: MeetingResponseOptions | null
 }
 
 export interface MeetingTermination {

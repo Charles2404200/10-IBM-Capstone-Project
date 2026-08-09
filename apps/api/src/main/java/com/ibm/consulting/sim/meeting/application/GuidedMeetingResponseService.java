@@ -111,4 +111,33 @@ public class GuidedMeetingResponseService {
                 MeetingResponseOptionSet.generated(meeting.getId(), sourceSequence, generated.options()));
         return MeetingResponseOptionsResponse.from(optionSet);
     }
+
+    /**
+     * Stores choices generated alongside the persona reply so the WebSocket event
+     * can deliver them immediately. Invalid model output is deliberately not kept;
+     * the read endpoint can then perform a fresh, validated generation on retry.
+     */
+    public MeetingResponseOptionsResponse cachePreGenerated(UUID meetingId, int sourceSequence,
+                                                             DifficultyProfile profile, List<String> options) {
+        if (MeetingInteractionMode.forDifficulty(profile.level()) == MeetingInteractionMode.FREEFORM) {
+            return MeetingResponseOptionsResponse.freeform();
+        }
+        if (!validOptions(options)) {
+            return MeetingResponseOptionsResponse.unavailable(sourceSequence,
+                    "Guided responses are temporarily unavailable. Please try again.");
+        }
+        return optionSetRepository.findByMeetingIdAndSourceSequence(meetingId, sourceSequence)
+                .map(MeetingResponseOptionsResponse::from)
+                .orElseGet(() -> MeetingResponseOptionsResponse.from(optionSetRepository.save(
+                        MeetingResponseOptionSet.generated(meetingId, sourceSequence, options))));
+    }
+
+    private boolean validOptions(List<String> options) {
+        if (options == null || options.size() != 3) {
+            return false;
+        }
+        return options.stream().allMatch(option -> option != null && option.trim().length() >= 20
+                && option.trim().length() <= 900)
+                && options.stream().map(option -> option.trim().toLowerCase(java.util.Locale.ROOT)).distinct().count() == 3;
+    }
 }

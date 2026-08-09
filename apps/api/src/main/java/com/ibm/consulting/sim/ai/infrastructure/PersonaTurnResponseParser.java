@@ -61,6 +61,9 @@ public class PersonaTurnResponseParser implements AiResponseParser<PersonaTurnRe
         List<String> signals = new ArrayList<>();
         root.path("meetingSignals").forEach(n -> signals.add(n.asText()));
 
+        List<String> guidedResponseOptions = new ArrayList<>();
+        root.path("guidedResponseOptions").forEach(n -> guidedResponseOptions.add(n.asText()));
+
         JsonNode safetyNode = root.path("safety");
         boolean allowed = safetyNode.path("allowed").asBoolean(true);
         String reason = safetyNode.hasNonNull("reason") ? safetyNode.get("reason").asText() : null;
@@ -68,7 +71,7 @@ public class PersonaTurnResponseParser implements AiResponseParser<PersonaTurnRe
         String objection = root.hasNonNull("objectionRaised") ? root.get("objectionRaised").asText() : null;
 
         return new PersonaTurnResponse(spokenResponse, behaviours, delta, factsDisclosed, objection,
-                signals, new PersonaTurnResponse.SafetyCheck(allowed, reason));
+                signals, new PersonaTurnResponse.SafetyCheck(allowed, reason), guidedResponseOptions);
     }
 
     private String textOrThrow(JsonNode root, String field) {
