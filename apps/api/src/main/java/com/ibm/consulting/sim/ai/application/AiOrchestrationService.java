@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.ai.application;
 import com.ibm.consulting.sim.ai.domain.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class AiOrchestrationService {
     private static final Logger log = LoggerFactory.getLogger(AiOrchestrationService.class);
 
     private final AiModelGateway gateway;
+    private final ObjectProvider<AiProviderRouter> parallelRouterProvider;
     private final AiTraceRepository traceRepository;
     private final ExecutorService executor;
     private final long timeoutMs;
@@ -32,14 +34,16 @@ public class AiOrchestrationService {
     private final String modelId;
 
     public AiOrchestrationService(AiModelGateway gateway,
+                                   ObjectProvider<AiProviderRouter> parallelRouterProvider,
                                    AiTraceRepository traceRepository,
-                                   @Qualifier("aiGatewayExecutor") ExecutorService executor,
+                                   @Qualifier("aiProviderExecutor") ExecutorService executor,
                                    @Value("${app.ai.timeout-ms:15000}") long timeoutMs,
                                    @Value("${app.ai.conversation-timeout-ms:4000}") long conversationTimeoutMs,
                                    @Value("${app.ai.client-intelligence-timeout-ms:1200}") long clientIntelligenceTimeoutMs,
                                    @Value("${app.ai.classification-timeout-ms:2500}") long classificationTimeoutMs,
                                    @Value("${app.watsonx.model-id}") String modelId) {
         this.gateway = gateway;
+        this.parallelRouterProvider = parallelRouterProvider;
         this.traceRepository = traceRepository;
         this.executor = executor;
         this.timeoutMs = timeoutMs;
@@ -61,19 +65,15 @@ public class AiOrchestrationService {
         long budgetMs = budgetFor(AiTaskType.fromUseCase(useCase));
         long deadline = start + budgetMs;
         try {
-            String raw = callWithTimeout(useCase, prompt, remainingMillis(deadline));
-            try {
-                T result = parser.parse(raw);
-                trace(useCase, engagementId, promptVersion, start, AiTraceStatus.SUCCESS, null);
-                return result;
-            } catch (AiValidationException validationFailure) {
-                log.warn("AI response failed validation for use-case {}: {}", useCase, validationFailure.getMessage());
-                return repairThenFallback(
-                        useCase, engagementId, prompt, promptVersion, parser, fallback, start, deadline);
-            }
-        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+            AiValidatedResponse<T> response = callValidated(useCase, prompt, parser, remainingMillis(deadline));
+            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.SUCCESS, null, response.providerId());
+            return response.value();
+        } catch (AiValidationException validationFailure) {
+            log.warn("AI response failed validation for use-case {}: {}", useCase, validationFailure.getMessage());
+            return repairThenFallback(useCase, engagementId, prompt, promptVersion, parser, fallback, start, deadline);
+        } catch (TimeoutException | ExecutionException | InterruptedException | AiProviderException e) {
             log.error("AI gateway call failed for use-case {}", useCase, e);
-            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.ERROR, e.getMessage());
+            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.ERROR, e.getMessage(), modelId);
             return fallback.get();
         }
     }
@@ -92,15 +92,25 @@ public class AiOrchestrationService {
         String repairPrompt = originalPrompt
                 + "\n\nYour previous response was invalid. Return ONLY valid JSON matching the required schema exactly.";
         try {
-            String repaired = callWithTimeout(useCase, repairPrompt, remainingMillis(deadline));
-            T result = parser.parse(repaired);
-            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.REPAIRED, null);
-            return result;
+            AiValidatedResponse<T> repaired = callValidated(useCase, repairPrompt, parser, remainingMillis(deadline));
+            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.REPAIRED, null, repaired.providerId());
+            return repaired.value();
         } catch (Exception repairFailure) {
             log.error("AI repair attempt failed for use-case {}, using fallback", useCase, repairFailure);
-            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.FALLBACK, repairFailure.getMessage());
+            trace(useCase, engagementId, promptVersion, start, AiTraceStatus.FALLBACK, repairFailure.getMessage(), modelId);
             return fallback.get();
         }
+    }
+
+    private <T> AiValidatedResponse<T> callValidated(String useCase, String prompt, AiResponseParser<T> parser,
+                                                       long callTimeoutMs)
+            throws TimeoutException, ExecutionException, InterruptedException {
+        AiProviderRouter router = parallelRouterProvider.getIfAvailable();
+        if (router != null) {
+            return router.completeFirstValid(useCase, prompt, parser, callTimeoutMs);
+        }
+        String raw = callWithTimeout(useCase, prompt, callTimeoutMs);
+        return new AiValidatedResponse<>(parser.parse(raw), modelId);
     }
 
     private String callWithTimeout(String useCase, String prompt, long callTimeoutMs)
@@ -123,8 +133,8 @@ public class AiOrchestrationService {
     }
 
     private void trace(String useCase, UUID engagementId, int promptVersion, long start,
-                        AiTraceStatus status, String errorMessage) {
+                        AiTraceStatus status, String errorMessage, String selectedProvider) {
         long latency = System.currentTimeMillis() - start;
-        traceRepository.save(AiTrace.record(useCase, engagementId, modelId, promptVersion, latency, status, errorMessage));
+        traceRepository.save(AiTrace.record(useCase, engagementId, selectedProvider, promptVersion, latency, status, errorMessage));
     }
 }

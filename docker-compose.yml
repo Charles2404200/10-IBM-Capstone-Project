@@ -88,6 +88,8 @@ services:
       # AI Orchestration Layer (multi-provider: watsonx + free models) — see
       # AiProviderRouter.java / docs/architecture/AI_ORCHESTRATION.md.
       AI_MOCK_MODE: ${AI_MOCK_MODE:-false}
+      AI_PARALLEL_ENABLED: ${AI_PARALLEL_ENABLED:-true}
+      AI_PARALLEL_MAX_CANDIDATES: ${AI_PARALLEL_MAX_CANDIDATES:-3}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL_ID: ${GEMINI_MODEL_ID:-gemini-2.5-flash}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}

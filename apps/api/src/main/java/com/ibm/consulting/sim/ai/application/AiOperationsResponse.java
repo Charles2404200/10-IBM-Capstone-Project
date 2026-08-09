@@ -12,5 +12,13 @@ import java.util.Map;
 public record AiOperationsResponse(
         boolean mockMode,
         List<AiProviderStat> providers,
-        Map<String, List<String>> routing) {
+        Map<String, List<String>> routing,
+        boolean parallelEnabled,
+        int parallelMaxCandidates) {
+
+    /** Compatibility constructor for clients compiled before parallel orchestration. */
+    public AiOperationsResponse(boolean mockMode, List<AiProviderStat> providers,
+                                Map<String, List<String>> routing) {
+        this(mockMode, providers, routing, false, 1);
+    }
 }

@@ -51,6 +51,8 @@ export interface AiOperationsResponse {
   mockMode: boolean
   providers: AiProviderStat[]
   routing: Record<string, string[]>
+  parallelEnabled: boolean
+  parallelMaxCandidates: number
 }
 
 export interface ScenarioActivity {

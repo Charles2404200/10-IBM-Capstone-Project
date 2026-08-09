@@ -59,6 +59,7 @@ public class AiOperationsService {
             routing.put(entry.getKey().configKey(), entry.getValue());
         }
 
-        return new AiOperationsResponse(mockMode, stats, routing);
+        return new AiOperationsResponse(mockMode, stats, routing,
+                router.parallelEnabled(), router.parallelMaxCandidates());
     }
 }

@@ -50,6 +50,27 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor.getThreadPoolExecutor();
     }
 
+    /**
+     * Isolated pool for provider fan-out. Meeting/STOMP workers must never wait
+     * behind slow model HTTP calls, especially when one learner turn races more
+     * than one provider.
+     */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService aiProviderExecutor(
+            @Value("${app.async.ai-provider-core-pool-size:12}") int providerCorePoolSize,
+            @Value("${app.async.ai-provider-max-pool-size:48}") int providerMaxPoolSize,
+            @Value("${app.async.ai-provider-queue-capacity:300}") int providerQueueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(providerCorePoolSize);
+        executor.setMaxPoolSize(providerMaxPoolSize);
+        executor.setQueueCapacity(providerQueueCapacity);
+        executor.setThreadNamePrefix("ai-provider-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
     /** General-purpose pool for {@code @Async}-annotated application methods. */
     @Override
     public Executor getAsyncExecutor() {

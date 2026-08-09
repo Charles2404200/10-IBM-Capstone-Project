@@ -95,6 +95,12 @@ app:
     # fans out to whichever real providers below are configured (see AiProviderRouter
     # javadoc + docs/architecture/AI_ORCHESTRATION.md for the full design).
     mock-mode: ${AI_MOCK_MODE:false}
+    parallel:
+      # Every available candidate is started concurrently. Live tasks accept
+      # the first schema-valid result; assessment waits for its preferred
+      # reasoning candidate within the same bounded deadline.
+      enabled: ${AI_PARALLEL_ENABLED:true}
+      max-candidates: ${AI_PARALLEL_MAX_CANDIDATES:3}
     # Ordered, explicit candidate lists per task type — capability-based routing,
     # never random fallback (a persona's "voice" must not shift model-to-model
     # mid-conversation except on an actual provider outage). Provider ids must match

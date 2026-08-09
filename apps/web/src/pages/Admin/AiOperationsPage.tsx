@@ -16,6 +16,7 @@ export default function AiOperationsPage() {
     <Grid condensed><Column lg={16} md={8} sm={4}>
       <header className={styles.header}><div><p className={styles.eyebrow}>AI reliability</p><Heading>AI operations</Heading><p>Live provider availability, quota consumption and deterministic task routing.</p></div><Button kind="tertiary" renderIcon={Renew} disabled={operations.isFetching} onClick={() => operations.refetch()}>Refresh</Button></header>
       {data.mockMode && <InlineNotification kind="warning" title="Simulation fallback mode is enabled" subtitle="Disable it before delivering production learning sessions." hideCloseButton />}
+      {!data.mockMode && <InlineNotification kind={data.parallelEnabled ? "success" : "info"} title={data.parallelEnabled ? "Parallel model orchestration is active" : "Sequential provider routing is active"} subtitle={data.parallelEnabled ? `Up to ${data.parallelMaxCandidates} approved providers race per task; only schema-valid output can be selected.` : "Set AI_PARALLEL_ENABLED=true to enable concurrent validated provider execution."} hideCloseButton />}
       {operations.isFetching && <InlineLoading description="Refreshing AI operations" />}
       <section className={styles.providerGrid}>{data.providers.map((provider) => {
         const quotaPercent = provider.quotaLimit > 0 ? Math.round(provider.quotaUsed * 100 / provider.quotaLimit) : 0
