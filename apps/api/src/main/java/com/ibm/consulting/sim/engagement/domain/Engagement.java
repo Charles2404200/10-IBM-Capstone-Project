@@ -34,6 +34,10 @@ public class Engagement extends BaseEntity {
     @Column(name = "difficulty_profile_snapshot", columnDefinition = "text")
     private String difficultyProfileSnapshot;
 
+    /** Immutable lineage link when this run was restarted after a failed meeting. */
+    @Column(name = "retry_of_engagement_id")
+    private UUID retryOfEngagementId;
+
     @OneToMany(mappedBy = "engagement", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
     @OrderBy("occurredAt ASC")
@@ -46,13 +50,21 @@ public class Engagement extends BaseEntity {
     }
 
     public static Engagement start(UUID userId, UUID scenarioId, UUID personaId, String difficultyProfileSnapshot) {
+        return start(userId, scenarioId, personaId, difficultyProfileSnapshot, null);
+    }
+
+    public static Engagement start(UUID userId, UUID scenarioId, UUID personaId, String difficultyProfileSnapshot,
+                                   UUID retryOfEngagementId) {
         Engagement e = new Engagement();
         e.userId = userId;
         e.scenarioId = scenarioId;
         e.personaId = personaId;
         e.difficultyProfileSnapshot = difficultyProfileSnapshot;
+        e.retryOfEngagementId = retryOfEngagementId;
         e.state = EngagementState.QUALIFYING;
-        e.recordEvent("Engagement started");
+        e.recordEvent(retryOfEngagementId == null
+                ? "Engagement started"
+                : "Retry started from failed engagement: " + retryOfEngagementId);
         return e;
     }
 
@@ -82,4 +94,5 @@ public class Engagement extends BaseEntity {
     public Instant getCompletedAt() { return completedAt; }
     public List<EngagementEvent> getEvents() { return Collections.unmodifiableList(events); }
     public String getDifficultyProfileSnapshot() { return difficultyProfileSnapshot; }
+    public UUID getRetryOfEngagementId() { return retryOfEngagementId; }
 }

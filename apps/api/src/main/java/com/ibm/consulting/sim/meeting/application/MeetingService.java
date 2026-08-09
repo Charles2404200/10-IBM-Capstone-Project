@@ -135,17 +135,16 @@ public class MeetingService {
         // one of ~11 sequential DB round trips this endpoint made per message).
         Engagement engagement = engagementRepository.findByIdAndUserId(meeting.getEngagementId(), userId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
-        if (meeting.getStatus() != MeetingStatus.IN_PROGRESS) {
-            throw new InvalidMeetingStateException("Meeting is not in progress: " + meeting.getId());
-        }
-        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
-
         if (clientMessageId != null && !clientMessageId.isBlank()) {
             MeetingTurnResult replay = tryReplayExisting(meeting, clientMessageId);
             if (replay != null) {
                 return replay;
             }
         }
+        if (meeting.getStatus() != MeetingStatus.IN_PROGRESS) {
+            throw new InvalidMeetingStateException("Meeting is not in progress: " + meeting.getId());
+        }
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
 
         List<ConversationTurn> existingTurns = turnRepository.findByMeetingIdOrderBySequenceAsc(meeting.getId());
         long learnerTurnCount = existingTurns.stream()
@@ -172,6 +171,23 @@ public class MeetingService {
                 clientMessageId);
         turnRepository.save(learnerTurn);
 
+        var immediateTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
+                .filter(decision -> decision.reason() == MeetingTerminationReason.UNPROFESSIONAL_CONDUCT);
+        if (immediateTermination.isPresent()) {
+            ConversationTurn personaTurn = ConversationTurn.personaTurn(
+                    meeting.getId(), nextSequence + 1,
+                    "I find that language unacceptable and unprofessional. I am ending this meeting.",
+                    "professionalism_breach");
+            turnRepository.save(personaTurn);
+            completeAutomatically(meeting, engagement, immediateTermination.get());
+            return new MeetingTurnResult(
+                    ConversationTurnResponse.from(learnerTurn),
+                    ConversationTurnResponse.from(personaTurn),
+                    PersonaStateResponse.from(state),
+                    List.of("professionalism_breach"),
+                    MeetingTerminationResponse.from(immediateTermination.get()));
+        }
+
         List<String> retrievedKnowledge = knowledgeRetrievalService.retrieveRelevantPassages(
                 KnowledgeCollection.SCENARIO_TRUTH, engagement.getScenarioId(), persona.getId(), learnerMessage);
 
@@ -196,11 +212,18 @@ public class MeetingService {
                 meeting.getId(), nextSequence + 1, aiResponse.spokenResponse(), signals);
         turnRepository.save(personaTurn);
 
+        var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
+                .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
+        if (relationshipTermination.isPresent()) {
+            completeAutomatically(meeting, engagement, relationshipTermination.get());
+        }
+
         return new MeetingTurnResult(
                 ConversationTurnResponse.from(learnerTurn),
                 ConversationTurnResponse.from(personaTurn),
                 PersonaStateResponse.from(state),
-                aiResponse.meetingSignals());
+                aiResponse.meetingSignals(),
+                relationshipTermination.map(MeetingTerminationResponse::from).orElse(null));
     }
 
     /**
@@ -241,7 +264,8 @@ public class MeetingService {
                 ConversationTurnResponse.from(secondLast),
                 ConversationTurnResponse.from(last),
                 PersonaStateResponse.from(state),
-                signals);
+                signals,
+                MeetingTerminationResponse.from(meeting));
     }
 
     /**
@@ -272,7 +296,8 @@ public class MeetingService {
                             ConversationTurnResponse.from(existingLearnerTurn),
                             ConversationTurnResponse.from(existingPersonaTurn),
                             PersonaStateResponse.from(state),
-                            signals);
+                            signals,
+                            MeetingTerminationResponse.from(meeting));
                 })
                 .orElse(null);
     }
@@ -326,6 +351,18 @@ public class MeetingService {
             signals.add("objection:" + response.objectionRaised());
         }
         return signals;
+    }
+
+    private void completeAutomatically(Meeting meeting, Engagement engagement,
+                                       MeetingTerminationDecision decision) {
+        meeting.complete(MeetingCompletionOutcome.FAILED, decision.message(), decision.retryGuidance(), decision.reason());
+        String storageReference = transcriptExportService.export(meeting);
+        meeting.recordTranscriptExport(storageReference);
+        meetingRepository.save(meeting);
+
+        engagement.transitionTo(EngagementState.MEETING_FAILED,
+                "Meeting automatically failed: " + decision.reason().name());
+        engagementRepository.save(engagement);
     }
 
     private String buildDebriefPrompt(PersonaState state, MeetingCompletionDecision decision,

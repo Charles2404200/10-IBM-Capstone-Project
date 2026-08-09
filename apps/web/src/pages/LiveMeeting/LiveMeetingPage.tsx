@@ -6,6 +6,7 @@ import {
   Grid,
   Heading,
   InlineNotification,
+  Modal,
   Stack,
   Tag,
   TextArea,
@@ -13,10 +14,11 @@ import {
 } from '@carbon/react'
 import { ArrowRight, Send } from '@carbon/icons-react'
 import { useCompleteMeeting, useMeeting, useMeetingTranscript } from '@/api/hooks/useMeeting'
+import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConversationTurn, PersonaState } from '@/api/types'
+import type { ConversationTurn, MeetingTermination, PersonaState } from '@/api/types'
 import styles from './LiveMeetingPage.module.scss'
 
 const MEETING_THRESHOLD = 70
@@ -62,15 +64,23 @@ function deriveHint(transcript: ConversationTurn[], signals: string[], state: Pe
   return guidance.slice(0, 3)
 }
 
+function toTermination(meetingReason: string | null, message: string | null, tips: string[]): MeetingTermination | null {
+  if (!meetingReason || !message) return null
+  if (meetingReason !== 'UNPROFESSIONAL_CONDUCT' && meetingReason !== 'RELATIONSHIP_THRESHOLD_BREACH') return null
+  return { reason: meetingReason, message, retryGuidance: tips }
+}
+
 export default function LiveMeetingPage() {
   const { engagementId, meetingId } = useParams<{ engagementId: string; meetingId: string }>()
   const navigate = useNavigate()
   const { data: meeting, isLoading: meetingLoading, isError: meetingError } = useMeeting(meetingId!)
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
-  const { streamingText, isStreaming, error, personaState, latestSignals, sendMessage } = useMeetingSocket(meetingId!)
+  const { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage } = useMeetingSocket(meetingId!)
+  const retryEngagement = useRetryEngagement(engagementId!)
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
+  const [terminationDismissed, setTerminationDismissed] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const turns = transcript ?? []
@@ -86,6 +96,11 @@ export default function LiveMeetingPage() {
 
   const isCompleted = meeting.status === 'COMPLETED'
   const debriefTips = meeting.debriefTips ?? []
+  const automaticTermination = termination ?? toTermination(
+    meeting.terminationReason,
+    meeting.terminationMessage,
+    debriefTips
+  )
   const pendingIsPersisted = pendingMessage !== null
     && turns.some((turn) => turn.actor === 'LEARNER' && turn.content === pendingMessage)
 
@@ -103,6 +118,12 @@ export default function LiveMeetingPage() {
 
   const handleComplete = () => {
     completeMeeting.mutate()
+  }
+
+  const handleRetry = () => {
+    retryEngagement.mutate(undefined, {
+      onSuccess: (retry) => navigate(`/dashboard/engagements/${retry.id}/intelligence`),
+    })
   }
 
   return (
@@ -186,7 +207,13 @@ export default function LiveMeetingPage() {
                     Continue to Discovery Synthesis
                   </Button>
                 ) : (
-                  <Button kind="secondary" onClick={() => navigate('/dashboard')}>Return to Command Centre</Button>
+                  <Button
+                    kind="secondary"
+                    disabled={Boolean(automaticTermination && retryEngagement.isPending)}
+                    onClick={() => automaticTermination ? handleRetry() : navigate('/dashboard')}
+                  >
+                    {automaticTermination ? 'Retry this lead from the start' : 'Return to Command Centre'}
+                  </Button>
                 )}
               </Stack>
             </Tile>
@@ -230,6 +257,40 @@ export default function LiveMeetingPage() {
           </aside>
         </Column>
       </Grid>
+
+      <Modal
+        open={Boolean(automaticTermination && !terminationDismissed)}
+        danger
+        modalLabel="Meeting ended"
+        modalHeading={automaticTermination?.reason === 'UNPROFESSIONAL_CONDUCT'
+          ? 'Meeting failed: unprofessional conduct'
+          : 'Meeting failed: relationship threshold breached'}
+        primaryButtonText={retryEngagement.isPending ? 'Starting retry...' : 'Retry this lead from the start'}
+        secondaryButtonText="Return to Command Centre"
+        primaryButtonDisabled={retryEngagement.isPending}
+        onRequestSubmit={handleRetry}
+        onSecondarySubmit={() => navigate('/dashboard')}
+        onRequestClose={() => setTerminationDismissed(true)}
+      >
+        <Stack gap={5}>
+          <p>{automaticTermination?.message}</p>
+          <p>This attempt is preserved for review. Retrying creates a new engagement from the same lead with a clean learner state.</p>
+          {automaticTermination?.retryGuidance.length ? (
+            <ul className={styles.terminationGuidance}>
+              {automaticTermination.retryGuidance.map((tip) => <li key={tip}>{tip}</li>)}
+            </ul>
+          ) : null}
+          {retryEngagement.isError && (
+            <InlineNotification
+              kind="error"
+              lowContrast
+              hideCloseButton
+              title="Retry could not be started"
+              subtitle="Please try again. Your failed attempt has not been changed."
+            />
+          )}
+        </Stack>
+      </Modal>
     </div>
   )
 }

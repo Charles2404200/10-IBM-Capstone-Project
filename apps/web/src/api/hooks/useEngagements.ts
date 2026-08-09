@@ -38,3 +38,14 @@ export function useStartEngagement() {
     onSuccess: () => qc.invalidateQueries({ queryKey: engagementKeys.all }),
   })
 }
+
+export function useRetryEngagement(engagementId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post<Engagement>(`/api/v1/engagements/${engagementId}/retry`)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: engagementKeys.all }),
+  })
+}

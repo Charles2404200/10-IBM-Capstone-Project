@@ -30,6 +30,12 @@ public class Meeting extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private MeetingCompletionOutcome completionOutcome;
 
+    @Enumerated(EnumType.STRING)
+    private MeetingTerminationReason terminationReason;
+
+    @Column(columnDefinition = "text")
+    private String terminationMessage;
+
     @Column(columnDefinition = "text")
     private String debriefFeedback;
 
@@ -50,10 +56,17 @@ public class Meeting extends BaseEntity {
     }
 
     public void complete(MeetingCompletionOutcome completionOutcome, String debriefFeedback, List<String> debriefTips) {
+        complete(completionOutcome, debriefFeedback, debriefTips, null);
+    }
+
+    public void complete(MeetingCompletionOutcome completionOutcome, String debriefFeedback, List<String> debriefTips,
+                         MeetingTerminationReason terminationReason) {
         this.status = MeetingStatus.COMPLETED;
         this.completedAt = Instant.now();
         this.completionOutcome = completionOutcome;
         this.debriefFeedback = debriefFeedback;
+        this.terminationReason = terminationReason;
+        this.terminationMessage = terminationReason == null ? null : debriefFeedback;
         this.debriefTips.clear();
         this.debriefTips.addAll(debriefTips);
     }
@@ -70,4 +83,6 @@ public class Meeting extends BaseEntity {
     public MeetingCompletionOutcome getCompletionOutcome() { return completionOutcome; }
     public String getDebriefFeedback() { return debriefFeedback; }
     public List<String> getDebriefTips() { return Collections.unmodifiableList(debriefTips); }
+    public MeetingTerminationReason getTerminationReason() { return terminationReason; }
+    public String getTerminationMessage() { return terminationMessage; }
 }

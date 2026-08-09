@@ -359,6 +359,8 @@ export interface Meeting {
   completionOutcome: 'PASSED' | 'FAILED' | null
   debriefFeedback: string | null
   debriefTips: string[]
+  terminationReason: 'UNPROFESSIONAL_CONDUCT' | 'RELATIONSHIP_THRESHOLD_BREACH' | null
+  terminationMessage: string | null
 }
 
 export type ConversationActor = 'LEARNER' | 'PERSONA'
@@ -386,6 +388,13 @@ export interface MeetingTurnResult {
   personaTurn: ConversationTurn
   personaState: PersonaState
   meetingSignals: string[]
+  termination: MeetingTermination | null
+}
+
+export interface MeetingTermination {
+  reason: 'UNPROFESSIONAL_CONDUCT' | 'RELATIONSHIP_THRESHOLD_BREACH'
+  message: string
+  retryGuidance: string[]
 }
 
 // ─── Proposal ─────────────────────────────────────────────────────────────────

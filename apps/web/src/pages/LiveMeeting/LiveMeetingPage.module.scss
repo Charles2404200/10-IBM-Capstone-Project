@@ -45,6 +45,8 @@
 .passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
 .debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
+.terminationGuidance { margin: 0; padding-left: $spacing-05; }
+.terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; }
 
 @media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
 @media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }

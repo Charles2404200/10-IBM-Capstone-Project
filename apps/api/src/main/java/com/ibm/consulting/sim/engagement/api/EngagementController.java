@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.engagement.api;
 import com.ibm.consulting.sim.engagement.application.EngagementQueryService;
 import com.ibm.consulting.sim.engagement.application.EngagementResponse;
 import com.ibm.consulting.sim.engagement.application.StartEngagementUseCase;
+import com.ibm.consulting.sim.engagement.application.RetryEngagementUseCase;
 import com.ibm.consulting.sim.identity.domain.User;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -19,11 +20,14 @@ public class EngagementController {
 
     private final StartEngagementUseCase startUseCase;
     private final EngagementQueryService queryService;
+    private final RetryEngagementUseCase retryUseCase;
 
     public EngagementController(StartEngagementUseCase startUseCase,
-                                EngagementQueryService queryService) {
+                                EngagementQueryService queryService,
+                                RetryEngagementUseCase retryUseCase) {
         this.startUseCase = startUseCase;
         this.queryService = queryService;
+        this.retryUseCase = retryUseCase;
     }
 
     record StartRequest(@NotNull UUID scenarioId, UUID personaId) {}
@@ -43,5 +47,11 @@ public class EngagementController {
     @GetMapping("/{id}")
     EngagementResponse getWorkspace(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         return queryService.getWorkspace(id, user.getId());
+    }
+
+    @PostMapping("/{id}/retry")
+    @ResponseStatus(HttpStatus.CREATED)
+    EngagementResponse retryFromLead(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        return retryUseCase.execute(id, user.getId());
     }
 }

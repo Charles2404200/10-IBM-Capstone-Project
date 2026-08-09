@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Client, type IMessage } from '@stomp/stompjs'
 import { useAuthStore } from '@/store/authStore'
 import { meetingKeys } from '@/api/hooks/useMeeting'
-import type { ConversationTurn, MeetingTurnResult, PersonaState } from '@/api/types'
+import type { ConversationTurn, Meeting, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
 
 interface UsePersonaTurnStreamResult {
   streamingText: string
@@ -11,6 +11,7 @@ interface UsePersonaTurnStreamResult {
   error: string | null
   personaState: PersonaState | null
   latestSignals: string[]
+  termination: MeetingTermination | null
   sendMessage: (message: string) => Promise<void>
 }
 
@@ -44,6 +45,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const [error, setError] = useState<string | null>(null)
   const [personaState, setPersonaState] = useState<PersonaState | null>(null)
   const [latestSignals, setLatestSignals] = useState<string[]>([])
+  const [termination, setTermination] = useState<MeetingTermination | null>(null)
   const qc = useQueryClient()
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -82,6 +84,20 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           })
           setPersonaState(result.personaState)
           setLatestSignals(result.meetingSignals ?? [])
+          const termination = result.termination
+          setTermination(termination ?? null)
+          if (termination) {
+            qc.setQueryData<Meeting>(meetingKeys.meeting(meetingId), (current) => current ? {
+              ...current,
+              status: 'COMPLETED',
+              completedAt: new Date().toISOString(),
+              completionOutcome: 'FAILED',
+              debriefFeedback: termination.message,
+              debriefTips: termination.retryGuidance,
+              terminationReason: termination.reason,
+              terminationMessage: termination.message,
+            } : current)
+          }
           setStreamingText('')
           setIsStreaming(false)
           sendingRef.current = false
@@ -153,5 +169,5 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     [meetingId]
   )
 
-  return { streamingText, isStreaming, error, personaState, latestSignals, sendMessage }
+  return { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage }
 }
