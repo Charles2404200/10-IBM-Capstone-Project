@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.proposal.application;
 
 import com.ibm.consulting.sim.proposal.domain.ProposalDraftContent;
 import com.ibm.consulting.sim.proposal.domain.ProposalEvidenceLink;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -25,6 +26,11 @@ public final class ProposalValidationEngine {
     private ProposalValidationEngine() {}
 
     public static List<ProposalValidationIssue> validate(ProposalDraftContent draft, List<ProposalSource> sources) {
+        return validate(draft, sources, null);
+    }
+
+    public static List<ProposalValidationIssue> validate(ProposalDraftContent draft, List<ProposalSource> sources,
+                                                         DifficultyProfile profile) {
         List<ProposalValidationIssue> issues = new ArrayList<>();
         if (draft.problemStatement().length() < 20) {
             issues.add(blocking("PROBLEM_REQUIRED", "Describe the client problem with enough specificity.", "PROBLEM"));
@@ -53,6 +59,16 @@ public final class ProposalValidationEngine {
                 .anyMatch(id -> id == null || !validSourceIds.contains(id));
         if (invalidLink) {
             issues.add(blocking("INVALID_EVIDENCE_LINK", "One or more attached sources are no longer available to this engagement.", "EVIDENCE"));
+        }
+        if (profile != null && !sources.isEmpty()) {
+            long distinctLinks = draft.evidenceLinks().stream().map(ProposalEvidenceLink::getSourceId).distinct().count();
+            int requiredSourceCount = Math.min(4, sources.size());
+            int coverage = clamp(Math.round(distinctLinks * 100f / requiredSourceCount));
+            if (coverage < profile.proposalEvidenceCoverageThreshold()) {
+                issues.add(blocking("DIFFICULTY_EVIDENCE_COVERAGE",
+                        "This scenario requires %d%% evidence coverage; the current proposal covers %d%%."
+                                .formatted(profile.proposalEvidenceCoverageThreshold(), coverage), "EVIDENCE"));
+            }
         }
 
         Set<String> groundedNumbers = extractNumbers(sources.stream().map(ProposalSource::content).toList());

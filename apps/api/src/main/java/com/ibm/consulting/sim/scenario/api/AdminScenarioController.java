@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.scenario.application.CreateScenarioRequest;
 import com.ibm.consulting.sim.scenario.application.ScenarioService;
 import com.ibm.consulting.sim.scenario.application.ScenarioSummary;
 import com.ibm.consulting.sim.scenario.application.UpdateRubricWeightsRequest;
+import com.ibm.consulting.sim.scenario.application.UpdateDifficultyProfileRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -61,5 +62,11 @@ public class AdminScenarioController {
     ScenarioSummary updateRubric(@PathVariable UUID scenarioId,
                                  @Valid @RequestBody UpdateRubricWeightsRequest request) {
         return scenarioService.updateRubricWeights(scenarioId, request.weights());
+    }
+
+    @PutMapping("/{scenarioId}/difficulty-profile")
+    ScenarioSummary updateDifficultyProfile(@PathVariable UUID scenarioId,
+                                            @Valid @RequestBody UpdateDifficultyProfileRequest request) {
+        return scenarioService.updateDifficultyProfile(scenarioId, request);
     }
 }

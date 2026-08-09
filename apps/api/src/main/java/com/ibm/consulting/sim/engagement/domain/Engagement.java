@@ -30,6 +30,10 @@ public class Engagement extends BaseEntity {
 
     private Instant completedAt;
 
+    /** Immutable JSON snapshot of the resolved gameplay profile for this run. */
+    @Column(name = "difficulty_profile_snapshot", columnDefinition = "text")
+    private String difficultyProfileSnapshot;
+
     @OneToMany(mappedBy = "engagement", cascade = CascadeType.ALL, orphanRemoval = true,
             fetch = FetchType.LAZY)
     @OrderBy("occurredAt ASC")
@@ -38,10 +42,15 @@ public class Engagement extends BaseEntity {
     protected Engagement() {}
 
     public static Engagement start(UUID userId, UUID scenarioId, UUID personaId) {
+        return start(userId, scenarioId, personaId, null);
+    }
+
+    public static Engagement start(UUID userId, UUID scenarioId, UUID personaId, String difficultyProfileSnapshot) {
         Engagement e = new Engagement();
         e.userId = userId;
         e.scenarioId = scenarioId;
         e.personaId = personaId;
+        e.difficultyProfileSnapshot = difficultyProfileSnapshot;
         e.state = EngagementState.QUALIFYING;
         e.recordEvent("Engagement started");
         return e;
@@ -72,4 +81,5 @@ public class Engagement extends BaseEntity {
     public UUID getSelectedLeadId() { return selectedLeadId; }
     public Instant getCompletedAt() { return completedAt; }
     public List<EngagementEvent> getEvents() { return Collections.unmodifiableList(events); }
+    public String getDifficultyProfileSnapshot() { return difficultyProfileSnapshot; }
 }

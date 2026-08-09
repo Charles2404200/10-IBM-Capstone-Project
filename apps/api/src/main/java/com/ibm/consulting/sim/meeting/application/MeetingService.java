@@ -13,7 +13,10 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.meeting.domain.*;
 import com.ibm.consulting.sim.scenario.application.PersonaCatalogService;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.PersonaProfile;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
+import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ public class MeetingService {
     private final ObjectMapper objectMapper;
     private final TranscriptExportService transcriptExportService;
     private final KnowledgeRetrievalService knowledgeRetrievalService;
+    private final DifficultyProfileService difficultyProfileService;
 
     public MeetingService(MeetingRepository meetingRepository,
                            ConversationTurnRepository turnRepository,
@@ -56,7 +60,8 @@ public class MeetingService {
                            AiOrchestrationService aiOrchestrationService,
                            ObjectMapper objectMapper,
                            TranscriptExportService transcriptExportService,
-                           KnowledgeRetrievalService knowledgeRetrievalService) {
+                           KnowledgeRetrievalService knowledgeRetrievalService,
+                           DifficultyProfileService difficultyProfileService) {
         this.meetingRepository = meetingRepository;
         this.turnRepository = turnRepository;
         this.personaStateRepository = personaStateRepository;
@@ -68,6 +73,7 @@ public class MeetingService {
         this.objectMapper = objectMapper;
         this.transcriptExportService = transcriptExportService;
         this.knowledgeRetrievalService = knowledgeRetrievalService;
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     @Transactional
@@ -87,8 +93,9 @@ public class MeetingService {
         Meeting meeting = Meeting.start(engagementId, engagement.getPersonaId());
         meetingRepository.save(meeting);
 
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
         personaStateRepository.findByEngagementId(engagementId)
-                .orElseGet(() -> personaStateRepository.save(PersonaState.initial(engagementId)));
+                .orElseGet(() -> personaStateRepository.save(PersonaState.initial(engagementId, profile)));
 
         return MeetingResponse.from(meeting);
     }
@@ -131,6 +138,7 @@ public class MeetingService {
         if (meeting.getStatus() != MeetingStatus.IN_PROGRESS) {
             throw new InvalidMeetingStateException("Meeting is not in progress: " + meeting.getId());
         }
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
 
         if (clientMessageId != null && !clientMessageId.isBlank()) {
             MeetingTurnResult replay = tryReplayExisting(meeting, clientMessageId);
@@ -140,6 +148,12 @@ public class MeetingService {
         }
 
         List<ConversationTurn> existingTurns = turnRepository.findByMeetingIdOrderBySequenceAsc(meeting.getId());
+        long learnerTurnCount = existingTurns.stream()
+                .filter(turn -> turn.getActor() == ConversationActor.LEARNER)
+                .count();
+        if (learnerTurnCount >= profile.meetingTurnLimit()) {
+            throw new MeetingTurnLimitReachedException(profile.meetingTurnLimit());
+        }
         MeetingTurnResult contentDuplicateReplay =
                 tryReplayRecentDuplicate(meeting, existingTurns, learnerMessage);
         if (contentDuplicateReplay != null) {
@@ -148,7 +162,7 @@ public class MeetingService {
 
         PersonaProfile persona = personaCatalogService.getPersona(meeting.getPersonaId());
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
-                .orElseGet(() -> PersonaState.initial(meeting.getEngagementId()));
+                .orElseGet(() -> PersonaState.initial(meeting.getEngagementId(), profile));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(meeting.getEngagementId());
         int transcriptStart = Math.max(0, existingTurns.size() - PROMPT_TRANSCRIPT_WINDOW);
         List<ConversationTurn> recentTurns = existingTurns.subList(transcriptStart, existingTurns.size());
@@ -162,7 +176,7 @@ public class MeetingService {
                 KnowledgeCollection.SCENARIO_TRUTH, engagement.getScenarioId(), persona.getId(), learnerMessage);
 
         String prompt = PersonaPromptAssembler.assemble(persona, state, evidence, retrievedKnowledge, recentTurns,
-                learnerMessage);
+                learnerMessage, profile);
         PersonaTurnResponseParser parser = new PersonaTurnResponseParser(objectMapper, Set.of());
 
         PersonaTurnResponse aiResponse = aiOrchestrationService.execute(
@@ -174,7 +188,7 @@ public class MeetingService {
                 () -> PersonaTurnResponse.safeFallback(
                         "Sorry, could you repeat that? I want to make sure I understand you correctly."));
 
-        PersonaStateEngine.apply(state, aiResponse);
+        PersonaStateEngine.apply(state, aiResponse, profile);
         personaStateRepository.save(state);
 
         String signals = String.join(",", combineSignals(aiResponse));
@@ -332,5 +346,11 @@ public class MeetingService {
                 %s
                 """.formatted(decision.outcome(), state.getTrust(), state.getInterest(), state.getPatience(),
                 MeetingCompletionPolicy.REQUIRED_SCORE, decision.unmetRequirements(), transcript);
+    }
+
+    public static class MeetingTurnLimitReachedException extends DomainException {
+        public MeetingTurnLimitReachedException(int limit) {
+            super("Meeting turn limit (%d) reached. Complete the meeting to receive your assessment.".formatted(limit));
+        }
     }
 }

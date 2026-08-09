@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.lead.domain;
 
 import java.util.List;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 
 /**
  * Deterministic gate that decides whether a learner's Client Intelligence
@@ -49,9 +50,15 @@ public final class ResearchReadinessPolicy {
     }
 
     public static boolean isResearchComplete(List<ResearchEvidence> evidence) {
-        return evidenceCount(evidence) >= MIN_EVIDENCE_COUNT
+        return isResearchComplete(evidence, null);
+    }
+
+    public static boolean isResearchComplete(List<ResearchEvidence> evidence, DifficultyProfile profile) {
+        int requiredEvidence = profile == null ? MIN_EVIDENCE_COUNT : profile.requiredEvidenceCount();
+        int requiredConfidence = profile == null ? MIN_CONFIDENCE_PERCENT : profile.requiredConfidencePercent();
+        return evidenceCount(evidence) >= requiredEvidence
                 && hasStakeholderEvidence(evidence)
                 && hasHypothesis(evidence)
-                && confidencePercent(evidence) >= MIN_CONFIDENCE_PERCENT;
+                && confidencePercent(evidence) >= requiredConfidence;
     }
 }

@@ -21,16 +21,18 @@ import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CACHE;
 public class ScenarioService {
 
     private final ScenarioRepository scenarioRepository;
+    private final DifficultyProfileService difficultyProfileService;
 
-    public ScenarioService(ScenarioRepository scenarioRepository) {
+    public ScenarioService(ScenarioRepository scenarioRepository, DifficultyProfileService difficultyProfileService) {
         this.scenarioRepository = scenarioRepository;
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = SCENARIOS_CACHE, key = "'active'")
     public List<ScenarioSummary> listActive() {
         return scenarioRepository.findAllActive().stream()
-                .map(ScenarioSummary::from)
+                .map(this::summary)
                 .toList();
     }
 
@@ -38,7 +40,7 @@ public class ScenarioService {
     @Cacheable(cacheNames = SCENARIO_CACHE, key = "#id")
     public ScenarioSummary getById(UUID id) {
         return scenarioRepository.findById(id)
-                .map(ScenarioSummary::from)
+                .map(this::summary)
                 .orElseThrow(() -> new NotFoundException("Scenario", id));
     }
 
@@ -46,7 +48,7 @@ public class ScenarioService {
     @Transactional(readOnly = true)
     public List<ScenarioSummary> listAllForAdmin() {
         return scenarioRepository.findAll().stream()
-                .map(ScenarioSummary::from)
+                .map(this::summary)
                 .toList();
     }
 
@@ -55,7 +57,7 @@ public class ScenarioService {
     public ScenarioSummary create(CreateScenarioRequest request) {
         Scenario scenario = Scenario.create(
                 request.title(), request.industry(), request.description(), request.difficulty());
-        return ScenarioSummary.from(scenarioRepository.save(scenario));
+        return summary(scenarioRepository.save(scenario));
     }
 
     /** Author/admin capability: attach a persona to an existing scenario. */
@@ -67,7 +69,7 @@ public class ScenarioService {
                 request.name(), request.jobTitle(), request.organisation(), request.communicationStyle(),
                 request.visibleConcerns(), request.hiddenConcerns(), request.businessGoals());
         scenarioRepository.save(scenario);
-        return ScenarioSummary.from(scenario);
+        return summary(scenario);
     }
 
     /** Author/admin capability: publish a DRAFT scenario so it becomes visible to learners. */
@@ -79,7 +81,7 @@ public class ScenarioService {
     public ScenarioSummary publish(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
         scenario.publish();
-        return ScenarioSummary.from(scenarioRepository.save(scenario));
+        return summary(scenarioRepository.save(scenario));
     }
 
     /** Author/admin capability: retire a scenario so it no longer appears for new engagements. */
@@ -91,7 +93,7 @@ public class ScenarioService {
     public ScenarioSummary archive(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
         scenario.archive();
-        return ScenarioSummary.from(scenarioRepository.save(scenario));
+        return summary(scenarioRepository.save(scenario));
     }
 
     /** Author/admin capability: customise how much each competency contributes to the overall score. */
@@ -100,11 +102,26 @@ public class ScenarioService {
     public ScenarioSummary updateRubricWeights(UUID scenarioId, Map<String, Integer> weights) {
         Scenario scenario = findScenario(scenarioId);
         scenario.updateRubricWeights(weights);
-        return ScenarioSummary.from(scenarioRepository.save(scenario));
+        return summary(scenarioRepository.save(scenario));
+    }
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+    })
+    public ScenarioSummary updateDifficultyProfile(UUID scenarioId, UpdateDifficultyProfileRequest request) {
+        Scenario scenario = findScenario(scenarioId);
+        difficultyProfileService.updateScenarioProfile(scenario, request.profile());
+        return summary(scenarioRepository.save(scenario));
     }
 
     private Scenario findScenario(UUID scenarioId) {
         return scenarioRepository.findById(scenarioId)
                 .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+    }
+
+    private ScenarioSummary summary(Scenario scenario) {
+        return ScenarioSummary.from(scenario, difficultyProfileService.forScenario(scenario));
     }
 }

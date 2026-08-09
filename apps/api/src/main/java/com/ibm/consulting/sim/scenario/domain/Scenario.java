@@ -43,6 +43,10 @@ public class Scenario extends BaseEntity {
     @Column(name = "commercial_pressure", nullable = false)
     private int commercialPressure = 3;
 
+    /** JSON configuration owned by DifficultyProfileService; null means use versioned defaults. */
+    @Column(name = "difficulty_profile_config", columnDefinition = "text")
+    private String difficultyProfileConfig;
+
     /** Pre-engagement briefing content, shown before the learner enters the Lead Pipeline. */
     @Column(name = "consultant_role", nullable = false)
     private String consultantRole = DEFAULT_ROLE;
@@ -97,6 +101,10 @@ public class Scenario extends BaseEntity {
         this.commercialPressure = clampDimension(commercialPressure);
     }
 
+    public void updateDifficultyProfileConfig(String difficultyProfileConfig) {
+        this.difficultyProfileConfig = difficultyProfileConfig;
+    }
+
     private int clampDimension(int value) {
         return Math.max(1, Math.min(5, value));
     }
@@ -136,6 +144,7 @@ public class Scenario extends BaseEntity {
     public int getInformationAmbiguity() { return informationAmbiguity; }
     public int getStakeholderComplexity() { return stakeholderComplexity; }
     public int getCommercialPressure() { return commercialPressure; }
+    public String getDifficultyProfileConfig() { return difficultyProfileConfig; }
     public String getConsultantRole() { return consultantRole; }
     public String getObjective() { return objective; }
     public List<String> getSuccessCriteria() {

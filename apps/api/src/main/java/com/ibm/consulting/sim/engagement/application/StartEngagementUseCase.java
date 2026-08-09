@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -16,11 +17,14 @@ public class StartEngagementUseCase {
 
     private final EngagementRepository engagementRepository;
     private final ScenarioRepository scenarioRepository;
+    private final DifficultyProfileService difficultyProfileService;
 
     public StartEngagementUseCase(EngagementRepository engagementRepository,
-                                  ScenarioRepository scenarioRepository) {
+                                  ScenarioRepository scenarioRepository,
+                                  DifficultyProfileService difficultyProfileService) {
         this.engagementRepository = engagementRepository;
         this.scenarioRepository = scenarioRepository;
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     /** Starts an engagement using the first persona defined for the scenario. */
@@ -47,7 +51,8 @@ public class StartEngagementUseCase {
                         .findFirst()
                         .orElseThrow(() -> new PersonaNotInScenarioException(personaId, scenarioId));
 
-        Engagement engagement = Engagement.start(userId, scenarioId, persona.getId());
+        Engagement engagement = Engagement.start(userId, scenarioId, persona.getId(),
+                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)));
         engagementRepository.save(engagement);
         return EngagementResponse.from(engagement);
     }

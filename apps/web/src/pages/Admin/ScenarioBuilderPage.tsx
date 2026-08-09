@@ -9,6 +9,7 @@ import {
   TextInput,
   TextArea,
   NumberInput,
+  Checkbox,
   Select,
   SelectItem,
   Tag,
@@ -24,6 +25,7 @@ import {
   useCreateScenario,
   usePublishScenario,
   useUpdateRubricWeights,
+  useUpdateGameplayDifficulty,
   useUploadKnowledgeDocument,
 } from '@/api/hooks/useAdminScenarios'
 import LoadingState from '@/components/shared/LoadingState'
@@ -32,8 +34,15 @@ import type {
   CreatePersonaRequest,
   CreateScenarioRequest,
   KnowledgeDocumentUploadRequest,
+  GameplayDifficultyProfile,
   ScenarioSummary,
 } from '@/api/types'
+
+function defaultGameplayProfile(difficulty: number): GameplayDifficultyProfile {
+  if (difficulty <= 2) return { level: 'EASY', researchArtifactsPerAction: 4, distractorArtifactsPerAction: 1, contradictionCount: 0, initialTrust: 65, initialInterest: 65, initialPatience: 75, meetingTurnLimit: 14, budgetVisible: true, timelinePressureDays: 30, requiredEvidenceCount: 2, requiredConfidencePercent: 40, outreachAcceptanceThreshold: 65, proposalEvidenceCoverageThreshold: 50, personaResistance: 20, scoringTolerance: 115 }
+  if (difficulty >= 4) return { level: 'HARD', researchArtifactsPerAction: 6, distractorArtifactsPerAction: 3, contradictionCount: 2, initialTrust: 40, initialInterest: 45, initialPatience: 35, meetingTurnLimit: 7, budgetVisible: false, timelinePressureDays: 14, requiredEvidenceCount: 4, requiredConfidencePercent: 80, outreachAcceptanceThreshold: 82, proposalEvidenceCoverageThreshold: 75, personaResistance: 65, scoringTolerance: 85 }
+  return { level: 'MEDIUM', researchArtifactsPerAction: 5, distractorArtifactsPerAction: 2, contradictionCount: 1, initialTrust: 50, initialInterest: 50, initialPatience: 55, meetingTurnLimit: 10, budgetVisible: false, timelinePressureDays: 18, requiredEvidenceCount: 3, requiredConfidencePercent: 60, outreachAcceptanceThreshold: 75, proposalEvidenceCoverageThreshold: 65, personaResistance: 50, scoringTolerance: 100 }
+}
 
 function CreateScenarioForm({ onCreated }: { onCreated: (scenarioId: string) => void }) {
   const createScenario = useCreateScenario()
@@ -177,6 +186,97 @@ function RubricWeightsForm({ scenario }: { scenario: ScenarioSummary }) {
   )
 }
 
+function GameplayDifficultyForm({ scenario }: { scenario: ScenarioSummary }) {
+  const updateGameplay = useUpdateGameplayDifficulty(scenario.id)
+  const [profile, setProfile] = useState<GameplayDifficultyProfile>(
+    scenario.gameplayDifficulty ?? defaultGameplayProfile(scenario.difficulty),
+  )
+  const updateNumber = (field: Exclude<keyof GameplayDifficultyProfile, 'level' | 'budgetVisible'>, value: number) =>
+    setProfile((current) => ({ ...current, [field]: value }))
+
+  return (
+    <Stack gap={5}>
+      <p style={{ color: '#525252', fontSize: '0.875rem' }}>
+        These rules apply to new engagements only. In-progress learners continue with the immutable profile captured when they started.
+      </p>
+      <Grid narrow>
+        <Column lg={4} md={4} sm={4}>
+          <Select id={`${scenario.id}-difficulty-level`} labelText="Gameplay tier" value={profile.level}
+            onChange={(event) => setProfile((current) => ({ ...current, level: event.target.value as GameplayDifficultyProfile['level'] }))}>
+            <SelectItem value="EASY" text="Easy" />
+            <SelectItem value="MEDIUM" text="Medium" />
+            <SelectItem value="HARD" text="Hard" />
+          </Select>
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-research-artifacts`} label="Research artefacts per action" value={profile.researchArtifactsPerAction} min={2} max={8}
+            onChange={(_event, state) => updateNumber('researchArtifactsPerAction', Number(state?.value ?? 2))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-research-distractors`} label="Distractor artefacts" value={profile.distractorArtifactsPerAction} min={0} max={7}
+            onChange={(_event, state) => updateNumber('distractorArtifactsPerAction', Number(state?.value ?? 0))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-contradictions`} label="Conflicting signals" value={profile.contradictionCount} min={0} max={6}
+            onChange={(_event, state) => updateNumber('contradictionCount', Number(state?.value ?? 0))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-turn-limit`} label="Meeting learner turns" value={profile.meetingTurnLimit} min={4} max={20}
+            onChange={(_event, state) => updateNumber('meetingTurnLimit', Number(state?.value ?? 4))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-persona-resistance`} label="Persona resistance" value={profile.personaResistance} min={0} max={100}
+            onChange={(_event, state) => updateNumber('personaResistance', Number(state?.value ?? 0))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-research-confidence`} label="Research confidence gate" value={profile.requiredConfidencePercent} min={20} max={90}
+            onChange={(_event, state) => updateNumber('requiredConfidencePercent', Number(state?.value ?? 20))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-outreach-gate`} label="Outreach acceptance gate" value={profile.outreachAcceptanceThreshold} min={50} max={95}
+            onChange={(_event, state) => updateNumber('outreachAcceptanceThreshold', Number(state?.value ?? 50))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-proposal-coverage`} label="Proposal evidence coverage" value={profile.proposalEvidenceCoverageThreshold} min={30} max={95}
+            onChange={(_event, state) => updateNumber('proposalEvidenceCoverageThreshold', Number(state?.value ?? 30))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-pressure-days`} label="Timeline pressure (days)" value={profile.timelinePressureDays} min={1} max={90}
+            onChange={(_event, state) => updateNumber('timelinePressureDays', Number(state?.value ?? 1))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-required-evidence`} label="Evidence items required" value={profile.requiredEvidenceCount} min={2} max={8}
+            onChange={(_event, state) => updateNumber('requiredEvidenceCount', Number(state?.value ?? 2))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-initial-trust`} label="Initial trust" value={profile.initialTrust} min={0} max={100}
+            onChange={(_event, state) => updateNumber('initialTrust', Number(state?.value ?? 0))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-initial-interest`} label="Initial interest" value={profile.initialInterest} min={0} max={100}
+            onChange={(_event, state) => updateNumber('initialInterest', Number(state?.value ?? 0))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-initial-patience`} label="Initial patience" value={profile.initialPatience} min={0} max={100}
+            onChange={(_event, state) => updateNumber('initialPatience', Number(state?.value ?? 0))} />
+        </Column>
+        <Column lg={4} md={4} sm={4}>
+          <NumberInput id={`${scenario.id}-scoring-tolerance`} label="Scoring tolerance" value={profile.scoringTolerance} min={70} max={130}
+            onChange={(_event, state) => updateNumber('scoringTolerance', Number(state?.value ?? 70))} />
+        </Column>
+        <Column lg={16} md={8} sm={4}>
+          <Checkbox id={`${scenario.id}-budget-visible`} labelText="Show the budget signal during research" checked={profile.budgetVisible}
+            onChange={(_event, state) => setProfile((current) => ({ ...current, budgetVisible: Boolean(state.checked) }))} />
+        </Column>
+      </Grid>
+      {updateGameplay.isError && <InlineNotification kind="error" title="Could not save gameplay rules" subtitle="No engagement was changed. Review the values and try again." />}
+      <Button size="sm" disabled={updateGameplay.isPending} onClick={() => updateGameplay.mutate(profile)}>
+        Save gameplay rules
+      </Button>
+    </Stack>
+  )
+}
+
 function KnowledgeDocumentForm({ scenario }: { scenario: ScenarioSummary }) {
   const uploadDocument = useUploadKnowledgeDocument(scenario.id)
   const [form, setForm] = useState<KnowledgeDocumentUploadRequest>({
@@ -285,6 +385,9 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
           </AccordionItem>
           <AccordionItem title="Rubric weights">
             <RubricWeightsForm scenario={scenario} />
+          </AccordionItem>
+          <AccordionItem title="Gameplay difficulty">
+            <GameplayDifficultyForm scenario={scenario} />
           </AccordionItem>
           <AccordionItem title="Knowledge documents (RAG)">
             <KnowledgeDocumentForm scenario={scenario} />

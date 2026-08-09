@@ -15,6 +15,8 @@ import com.ibm.consulting.sim.meeting.domain.PersonaStateRepository;
 import com.ibm.consulting.sim.proposal.domain.*;
 import com.ibm.consulting.sim.scenario.application.PersonaCatalogService;
 import com.ibm.consulting.sim.scenario.application.PersonaProfile;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,7 @@ public class ProposalService {
     private final AiOrchestrationService aiOrchestrationService;
     private final ObjectMapper objectMapper;
     private final PersonaCatalogService personaCatalogService;
+    private final DifficultyProfileService difficultyProfileService;
 
     public ProposalService(ProposalRepository proposalRepository,
                            EngagementRepository engagementRepository,
@@ -51,7 +54,8 @@ public class ProposalService {
                            ConversationTurnRepository turnRepository,
                            AiOrchestrationService aiOrchestrationService,
                            ObjectMapper objectMapper,
-                           PersonaCatalogService personaCatalogService) {
+                           PersonaCatalogService personaCatalogService,
+                           DifficultyProfileService difficultyProfileService) {
         this.proposalRepository = proposalRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -61,6 +65,7 @@ public class ProposalService {
         this.aiOrchestrationService = aiOrchestrationService;
         this.objectMapper = objectMapper;
         this.personaCatalogService = personaCatalogService;
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +100,8 @@ public class ProposalService {
     public ProposalReviewResponse review(UUID engagementId, UUID userId, ProposalDraftContent content) {
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
         List<ProposalSource> sources = sources(engagement);
-        List<ProposalValidationIssue> issues = ProposalValidationEngine.validate(content, sources);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        List<ProposalValidationIssue> issues = ProposalValidationEngine.validate(content, sources, profile);
         List<ClientAlignmentItem> alignment = ProposalValidationEngine.alignment(content, sources);
         ProposalReviewNarrative narrative = aiOrchestrationService.execute(
                 "proposal_review", engagementId, reviewPrompt(content, alignment, issues), PROMPT_VERSION,
@@ -122,7 +128,8 @@ public class ProposalService {
         }
 
         List<ProposalSource> sources = sources(engagement);
-        List<ProposalValidationIssue> issues = ProposalValidationEngine.validate(content, sources);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        List<ProposalValidationIssue> issues = ProposalValidationEngine.validate(content, sources, profile);
         if (enforceWorkspaceGate && issues.stream().anyMatch(issue -> "BLOCKING".equals(issue.severity()))) {
             throw new ProposalValidationException(issues);
         }
@@ -134,7 +141,7 @@ public class ProposalService {
                 .orElseGet(() -> PersonaState.initial(engagementId));
         ProposalDecisionSnapshot decisionSnapshot = ProposalDecisionEngine.evaluate(content,
                 sources.stream().map(source -> new ProposalDecisionSource(source.id(), source.content(), source.type())).toList(),
-                state.getTrust(), state.getInterest(), state.getPatience());
+                state.getTrust(), state.getInterest(), state.getPatience(), profile);
         PersonaProfile persona = personaCatalogService.getPersona(engagement.getPersonaId());
         ProposalClientDecision clientDecision = aiOrchestrationService.execute(
                 "proposal_client_decision", engagementId,

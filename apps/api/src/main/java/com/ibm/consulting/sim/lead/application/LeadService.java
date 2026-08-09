@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.lead.domain.*;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,12 +21,14 @@ public class LeadService {
     private final LeadRepository leadRepository;
     private final ResearchEvidenceRepository evidenceRepository;
     private final EngagementRepository engagementRepository;
+    private final DifficultyProfileService difficultyProfileService;
 
     public LeadService(LeadRepository leadRepository, ResearchEvidenceRepository evidenceRepository,
-                       EngagementRepository engagementRepository) {
+                       EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService) {
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.engagementRepository = engagementRepository;
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     @Transactional(readOnly = true)
@@ -132,7 +135,7 @@ public class LeadService {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
-        return ResearchGateStatus.from(engagement.getState(), evidence);
+        return ResearchGateStatus.from(engagement.getState(), evidence, difficultyProfileService.forEngagement(engagement));
     }
 
     /**
@@ -151,10 +154,11 @@ public class LeadService {
 
         if (engagement.getState() != EngagementState.CLIENT_INTELLIGENCE) {
             // Already past this gate (or not there yet) — return current status without re-transitioning.
-            return ResearchGateStatus.from(engagement.getState(), evidence);
+            return ResearchGateStatus.from(engagement.getState(), evidence, difficultyProfileService.forEngagement(engagement));
         }
 
-        if (!ResearchReadinessPolicy.isResearchComplete(evidence)) {
+        var profile = difficultyProfileService.forEngagement(engagement);
+        if (!ResearchReadinessPolicy.isResearchComplete(evidence, profile)) {
             throw new ResearchNotReadyException(
                     ResearchReadinessPolicy.evidenceCount(evidence),
                     ResearchReadinessPolicy.hasStakeholderEvidence(evidence),
@@ -165,7 +169,7 @@ public class LeadService {
         engagement.transitionTo(EngagementState.HYPOTHESIS_READY,
                 "Research completed with %d evidence items".formatted(evidence.size()));
         engagementRepository.save(engagement);
-        return ResearchGateStatus.from(engagement.getState(), evidence);
+        return ResearchGateStatus.from(engagement.getState(), evidence, profile);
     }
 
     /**

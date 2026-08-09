@@ -4,6 +4,7 @@ import type {
   CreatePersonaRequest,
   CreateScenarioRequest,
   KnowledgeDocumentUploadRequest,
+  GameplayDifficultyProfile,
   ScenarioSummary,
 } from '@/api/types'
 
@@ -73,6 +74,24 @@ export function useUpdateRubricWeights(scenarioId: string) {
       return res.data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenarios'] }),
+  })
+}
+
+/** Updates runtime rules for future engagements only; active engagements use their snapshot. */
+export function useUpdateGameplayDifficulty(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (profile: GameplayDifficultyProfile) => {
+      const res = await apiClient.put<ScenarioSummary>(
+        `/api/v1/admin/scenarios/${scenarioId}/difficulty-profile`,
+        { profile },
+      )
+      return res.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+    },
   })
 }
 

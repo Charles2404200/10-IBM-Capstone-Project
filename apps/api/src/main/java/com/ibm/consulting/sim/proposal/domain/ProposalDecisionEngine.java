@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 
 /**
  * Canonical decision engine for a submitted proposal. It is intentionally pure
@@ -24,6 +25,13 @@ public final class ProposalDecisionEngine {
     public static ProposalDecisionSnapshot evaluate(ProposalDraftContent proposal,
                                                     List<ProposalDecisionSource> sources,
                                                     int trust, int interest, int patience) {
+        return evaluate(proposal, sources, trust, interest, patience, null);
+    }
+
+    public static ProposalDecisionSnapshot evaluate(ProposalDraftContent proposal,
+                                                    List<ProposalDecisionSource> sources,
+                                                    int trust, int interest, int patience,
+                                                    DifficultyProfile profile) {
         List<ProposalEvidenceImpact> evidenceImpacts = evidenceImpacts(proposal, sources);
         int clientAlignment = clientAlignment(proposal, sources);
         int evidenceGrounding = evidenceGrounding(proposal, sources, evidenceImpacts);
@@ -44,8 +52,9 @@ public final class ProposalDecisionEngine {
                 riskManagement, stakeholderConfidence);
         int learnerPerformance = Math.round((clientAlignment + evidenceGrounding + commercialLogic
                 + deliveryFeasibility + riskManagement) / 5.0f);
+        int evidenceGate = profile == null ? EVIDENCE_GATE : profile.proposalEvidenceCoverageThreshold();
         ClientDecisionOutcome outcome = selectOutcome(decisionScore, evidenceGrounding, commercialLogic,
-                deliveryFeasibility, riskManagement, stakeholderConfidence);
+                deliveryFeasibility, riskManagement, stakeholderConfidence, evidenceGate);
         int confidence = confidence(decisionScore, evidenceGrounding, outcome);
         List<ProposalDecisionInsight> insights = insights(proposal, dimensions, evidenceImpacts, outcome);
         String rationale = "Client alignment %d, evidence grounding %d, commercial logic %d, delivery feasibility %d, risk management %d and stakeholder confidence %d produced a decision score of %d."
@@ -56,8 +65,8 @@ public final class ProposalDecisionEngine {
     }
 
     private static ClientDecisionOutcome selectOutcome(int score, int evidence, int commercial, int feasibility,
-                                                        int risk, int stakeholder) {
-        if (evidence < EVIDENCE_GATE) {
+                                                        int risk, int stakeholder, int evidenceGate) {
+        if (evidence < evidenceGate) {
             return score >= 60 ? ClientDecisionOutcome.REVISION_REQUESTED : ClientDecisionOutcome.FURTHER_DISCOVERY_REQUIRED;
         }
         if (score >= 90 && stakeholder >= 85 && commercial >= 80 && risk >= 80) return ClientDecisionOutcome.STRATEGIC_PARTNERSHIP;

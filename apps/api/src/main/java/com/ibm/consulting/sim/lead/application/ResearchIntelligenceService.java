@@ -13,6 +13,8 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.slf4j.Logger;
@@ -38,28 +40,31 @@ public class ResearchIntelligenceService {
     private final AiOrchestrationService aiOrchestrationService;
     private final ObjectMapper objectMapper;
     private final CacheManager cacheManager;
+    private final DifficultyProfileService difficultyProfileService;
 
     public ResearchIntelligenceService(EngagementRepository engagementRepository,
                                        LeadRepository leadRepository,
                                        ResearchEvidenceRepository evidenceRepository,
                                        AiOrchestrationService aiOrchestrationService,
                                        ObjectMapper objectMapper,
-                                       CacheManager cacheManager) {
+                                       CacheManager cacheManager, DifficultyProfileService difficultyProfileService) {
         this.engagementRepository = engagementRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.objectMapper = objectMapper;
         this.cacheManager = cacheManager;
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     @Transactional(readOnly = true)
     public List<ResearchArtifactResponse> generate(UUID engagementId, UUID userId, EvidenceType type) {
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
         Lead lead = loadLead(engagement);
-        Map<String, String> facts = canonicalFacts(lead);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible());
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
-        String cacheKey = cacheKey(lead, type, discovered);
+        String cacheKey = cacheKey(lead, type, discovered, profile);
         try {
             List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
             if (cached != null) {
@@ -69,17 +74,17 @@ public class ResearchIntelligenceService {
             List<ResearchArtifactResponse> artifacts = aiOrchestrationService.execute(
                     "client_intelligence",
                     engagementId,
-                    buildPrompt(lead, engagement, type, facts, discovered, null),
+                    buildPrompt(lead, engagement, type, facts, discovered, null, profile),
                     1,
                     parser,
-                    () -> templateGenerate(lead, type));
-            List<ResearchArtifactResponse> filtered = removeDuplicates(artifacts, discovered);
+                    () -> templateGenerate(lead, type, profile));
+            List<ResearchArtifactResponse> filtered = removeDuplicates(shapeForDifficulty(lead, type, artifacts, profile), discovered);
             cacheArtifacts(cacheKey, filtered);
             return filtered;
         } catch (RuntimeException e) {
             log.warn("Client intelligence AI path failed for engagement {} and type {}; using scenario-safe fallback",
                     engagementId, type, e);
-            return removeDuplicates(templateGenerate(lead, type), discovered);
+            return removeDuplicates(templateGenerate(lead, type, profile), discovered);
         }
     }
 
@@ -100,25 +105,26 @@ public class ResearchIntelligenceService {
         }
     }
 
-    private String cacheKey(Lead lead, EvidenceType type, List<ResearchEvidence> discovered) {
+    private String cacheKey(Lead lead, EvidenceType type, List<ResearchEvidence> discovered, DifficultyProfile profile) {
         String discoveredFingerprint = discovered.stream()
                 .map(e -> e.getId() + ":" + e.getEvidenceType() + ":" + e.getSequenceNo())
                 .sorted()
                 .collect(java.util.stream.Collectors.joining("|"));
         return "%s:%s:%s:%s".formatted(
-                lead.getId(), lead.getDifficulty().name(), type.name(),
+                lead.getId(), profile.hashCode(), type.name(),
                 Integer.toHexString(discoveredFingerprint.hashCode()));
     }
 
-    private List<ResearchArtifactResponse> templateGenerate(Lead lead, EvidenceType type) {
-        return switch (type) {
+    private List<ResearchArtifactResponse> templateGenerate(Lead lead, EvidenceType type, DifficultyProfile profile) {
+        List<ResearchArtifactResponse> base = switch (type) {
             case COMPANY_NEWS -> companyNews(lead);
             case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead);
-            case FINANCIAL_SIGNAL -> financialSignals(lead);
+            case FINANCIAL_SIGNAL -> financialSignals(lead, profile.budgetVisible());
             case TECHNOLOGY_INDICATOR -> technologySignals(lead);
             case MARKET_TREND -> marketTrends(lead);
             case OTHER, HYPOTHESIS -> List.of();
         };
+        return shapeForDifficulty(lead, type, base, profile);
     }
 
     private List<ResearchArtifactResponse> removeDuplicates(List<ResearchArtifactResponse> artifacts,
@@ -187,14 +193,14 @@ public class ResearchIntelligenceService {
                 .orElseThrow(() -> new NotFoundException("Lead", engagement.getSelectedLeadId()));
     }
 
-    private Map<String, String> canonicalFacts(Lead lead) {
+    private Map<String, String> canonicalFacts(Lead lead, boolean budgetVisible) {
         Map<String, String> facts = new java.util.LinkedHashMap<>();
         putFact(facts, "company_name", lead.getCompanyName());
         putFact(facts, "industry", lead.getIndustry());
         putFact(facts, "public_description", lead.getPublicDescription());
         putFact(facts, "decision_maker", lead.getDecisionMaker());
         putFact(facts, "technology_stack", lead.getTechnologyStack());
-        putFact(facts, "budget_signal", lead.getBudgetSignal());
+        if (budgetVisible) putFact(facts, "budget_signal", lead.getBudgetSignal());
         putFact(facts, "pain_severity", lead.getPainSeverity());
         putFact(facts, "potential_value_range", lead.getPotentialValueRange());
         lead.getSignals().forEach(signal -> putFact(facts, "signal_" + signal.getCategory().toLowerCase(Locale.ROOT),
@@ -209,7 +215,7 @@ public class ResearchIntelligenceService {
     }
 
     private String buildPrompt(Lead lead, Engagement engagement, EvidenceType type, Map<String, String> facts,
-                               List<ResearchEvidence> discovered, String userContext) {
+                               List<ResearchEvidence> discovered, String userContext, DifficultyProfile profile) {
         String factLines = facts.entrySet().stream()
                 .map(e -> "- %s: %s".formatted(e.getKey(), e.getValue()))
                 .collect(java.util.stream.Collectors.joining("\n"));
@@ -248,7 +254,8 @@ public class ResearchIntelligenceService {
 
                 Engagement state: %s
                 Research category: %s
-                Scenario difficulty: %s
+                Gameplay difficulty: %s. Return up to %d artifacts: no more than %d may be distractors or ambiguous context.
+                Sensitive budget visibility: %s. Contradiction pressure: %d. Do not disclose budget details when visibility is false.
                 Company: %s
 
                 Canonical facts:
@@ -263,11 +270,36 @@ public class ResearchIntelligenceService {
                 type.name(),
                 engagement.getState().name(),
                 type.name(),
-                lead.getDifficulty().name(),
+                profile.level().name(), profile.researchArtifactsPerAction(), profile.distractorArtifactsPerAction(),
+                profile.budgetVisible(), profile.contradictionCount(),
                 lead.getCompanyName(),
                 factLines,
                 discoveredLines.isBlank() ? "None" : discoveredLines,
                 userContext == null || userContext.isBlank() ? "None" : userContext);
+    }
+
+    /** Adds controlled non-decisive context; the model never chooses game truth or distractor volume. */
+    private List<ResearchArtifactResponse> shapeForDifficulty(Lead lead, EvidenceType type,
+                                                                List<ResearchArtifactResponse> artifacts,
+                                                                DifficultyProfile profile) {
+        if (type == EvidenceType.OTHER || type == EvidenceType.HYPOTHESIS) return List.copyOf(artifacts);
+        List<ResearchArtifactResponse> shaped = new ArrayList<>(artifacts.stream()
+                .limit(Math.max(1, profile.researchArtifactsPerAction() - profile.distractorArtifactsPerAction()))
+                .toList());
+        for (int index = 0; index < profile.distractorArtifactsPerAction(); index++) {
+            boolean ambiguity = index < Math.max(1, profile.contradictionCount() / 2);
+            String title = ambiguity ? "Context signal requires validation" : "Adjacent industry signal";
+            String summary = ambiguity
+                    ? "A public signal suggests change activity, but does not confirm that the operating problem is resolved or funded."
+                    : "%s organisations are discussing adjacent priorities that may not be material to this client decision."
+                    .formatted(lead.getIndustry());
+            shaped.add(new ResearchArtifactResponse("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
+                    title, "Controlled market context", summary, type.name(), ConfidenceLevel.LOW.name(),
+                    EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(7 + index),
+                    List.of("public_description"), List.of(),
+                    "Context only: test relevance against client evidence before adding it to the evidence board."));
+        }
+        return List.copyOf(shaped);
     }
 
     private List<ResearchArtifactResponse> companyNews(Lead lead) {
@@ -295,7 +327,18 @@ public class ResearchIntelligenceService {
                         EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, "stakeholder_complexity"));
     }
 
-    private List<ResearchArtifactResponse> financialSignals(Lead lead) {
+    private List<ResearchArtifactResponse> financialSignals(Lead lead, boolean budgetVisible) {
+        if (!budgetVisible) {
+            return List.of(
+                    artifact("financial-visibility-1", "Funding signals require discovery",
+                            "Financial intelligence", "No client-confirmed budget detail is available in the research phase. "
+                                    + "Use discovery to validate commercial priorities and investment appetite.",
+                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description"),
+                    artifact("financial-visibility-2", "Opportunity sizing remains provisional",
+                            "Commercial analysis", "Public context suggests an opportunity, but no approved budget range is available. "
+                                    + "Treat any estimate as a consultant assumption until the client validates it.",
+                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description"));
+        }
         return List.of(
                 artifact("financial-1", "Funding signal under review",
                         "Financial intelligence",

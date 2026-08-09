@@ -12,6 +12,9 @@ import com.ibm.consulting.sim.outreach.domain.OutreachOutcome;
 import com.ibm.consulting.sim.outreach.domain.OutreachNextAction;
 import com.ibm.consulting.sim.outreach.domain.OutreachRequestPolicy;
 import com.ibm.consulting.sim.outreach.domain.OutreachRepository;
+import com.ibm.consulting.sim.outreach.domain.OutreachOutcomePolicy;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
@@ -30,15 +33,18 @@ public class OutreachService {
     private final EngagementRepository engagementRepository;
     private final AiOrchestrationService aiOrchestrationService;
     private final OutreachEvaluationParser parser;
+    private final DifficultyProfileService difficultyProfileService;
 
     public OutreachService(OutreachRepository outreachRepository,
                            EngagementRepository engagementRepository,
                            AiOrchestrationService aiOrchestrationService,
-                           ObjectMapper objectMapper) {
+                           ObjectMapper objectMapper,
+                           DifficultyProfileService difficultyProfileService) {
         this.outreachRepository = outreachRepository;
         this.engagementRepository = engagementRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.parser = new OutreachEvaluationParser(objectMapper);
+        this.difficultyProfileService = difficultyProfileService;
     }
 
     @Transactional
@@ -62,16 +68,17 @@ public class OutreachService {
         }
 
         OutreachAttempt attempt = OutreachAttempt.create(engagementId, attemptCount + 1, subject, body);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
 
         OutreachEvaluationResult evaluation = aiOrchestrationService.execute(
                 "outreach_evaluation",
                 engagementId,
-                buildPrompt(subject, body),
+                buildPrompt(subject, body, profile),
                 PROMPT_VERSION,
                 parser,
                 OutreachEvaluationResult::safeFallback);
 
-        OutreachOutcome outcome = OutreachOutcome.valueOf(evaluation.outcome());
+        OutreachOutcome outcome = OutreachOutcomePolicy.decide(evaluation, profile);
         OutreachNextAction nextAction = OutreachRequestPolicy.nextActionFor(outcome, evaluation.clientReply());
         attempt.resolve(evaluation.clientReply(), outcome, nextAction,
                 evaluation.personalisation(), evaluation.relevance(),
@@ -89,7 +96,7 @@ public class OutreachService {
         return OutreachResponse.from(attempt);
     }
 
-    private String buildPrompt(String subject, String body) {
+    private String buildPrompt(String subject, String body, DifficultyProfile profile) {
         return """
                 You are evaluating a cold outreach email from a trainee consultant to a prospective client.
                 Assess personalisation, relevance, clarity and call-to-action strength, then write a realistic
@@ -98,9 +105,12 @@ public class OutreachService {
                  "scores": {"personalisation": 0-100, "relevance": 0-100, "clarity": 0-100, "callToAction": 0-100},
                  "reasonCodes": string[], "relationshipStateDelta": {"trust": int, "interest": int}}
 
+                The deterministic engine requires an average quality score of %d/100 before a meeting can be accepted.
+                You may recommend a likely outcome in the JSON, but the backend owns the final state transition.
+
                 Subject: %s
                 Body: %s
-                """.formatted(subject, body);
+                """.formatted(profile.outreachAcceptanceThreshold(), subject, body);
     }
 
     @Transactional(readOnly = true)

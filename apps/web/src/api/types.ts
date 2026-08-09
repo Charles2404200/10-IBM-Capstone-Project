@@ -24,6 +24,25 @@ export interface DifficultyProfile {
   commercialPressure: number
 }
 
+export interface GameplayDifficultyProfile {
+  level: 'EASY' | 'MEDIUM' | 'HARD'
+  researchArtifactsPerAction: number
+  distractorArtifactsPerAction: number
+  contradictionCount: number
+  initialTrust: number
+  initialInterest: number
+  initialPatience: number
+  meetingTurnLimit: number
+  budgetVisible: boolean
+  timelinePressureDays: number
+  requiredEvidenceCount: number
+  requiredConfidencePercent: number
+  outreachAcceptanceThreshold: number
+  proposalEvidenceCoverageThreshold: number
+  personaResistance: number
+  scoringTolerance: number
+}
+
 export interface ScenarioBriefing {
   consultantRole: string
   objective: string
@@ -42,6 +61,7 @@ export interface ScenarioSummary {
   personas: PersonaSummary[]
   rubricWeights: Record<string, number>
   difficultyProfile: DifficultyProfile
+  gameplayDifficulty?: GameplayDifficultyProfile
   briefing: ScenarioBriefing
 }
 

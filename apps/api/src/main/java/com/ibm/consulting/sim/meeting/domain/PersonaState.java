@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.meeting.domain;
 
 import com.ibm.consulting.sim.ai.domain.PersonaStateDelta;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import com.ibm.consulting.sim.shared.domain.BaseEntity;
 import jakarta.persistence.*;
 
@@ -40,11 +41,15 @@ public class PersonaState extends BaseEntity {
     protected PersonaState() {}
 
     public static PersonaState initial(UUID engagementId) {
+        return initial(engagementId, null);
+    }
+
+    public static PersonaState initial(UUID engagementId, DifficultyProfile profile) {
         PersonaState s = new PersonaState();
         s.engagementId = engagementId;
-        s.trust = INITIAL_VALUE;
-        s.interest = INITIAL_VALUE;
-        s.patience = INITIAL_VALUE;
+        s.trust = profile == null ? INITIAL_VALUE : profile.initialTrust();
+        s.interest = profile == null ? INITIAL_VALUE : profile.initialInterest();
+        s.patience = profile == null ? INITIAL_VALUE : profile.initialPatience();
         return s;
     }
 

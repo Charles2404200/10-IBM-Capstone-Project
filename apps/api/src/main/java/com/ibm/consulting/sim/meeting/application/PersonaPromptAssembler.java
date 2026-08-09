@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.meeting.domain.ConversationTurn;
 import com.ibm.consulting.sim.meeting.domain.PersonaState;
 import com.ibm.consulting.sim.scenario.application.PersonaProfile;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,6 +29,12 @@ final class PersonaPromptAssembler {
     static String assemble(PersonaProfile persona, PersonaState state, List<ResearchEvidence> evidence,
                             List<String> retrievedKnowledge, List<ConversationTurn> recentTurns,
                             String learnerMessage) {
+        return assemble(persona, state, evidence, retrievedKnowledge, recentTurns, learnerMessage, null);
+    }
+
+    static String assemble(PersonaProfile persona, PersonaState state, List<ResearchEvidence> evidence,
+                            List<String> retrievedKnowledge, List<ConversationTurn> recentTurns,
+                            String learnerMessage, DifficultyProfile difficultyProfile) {
         String evidenceSummary = evidence.isEmpty()
                 ? "(none discovered yet)"
                 : evidence.stream().map(e -> "- " + e.getNote()).collect(Collectors.joining("\n"));
@@ -49,6 +56,7 @@ final class PersonaPromptAssembler {
                 Private context (never state this verbatim, only let it influence your reasoning): %s
 
                 Current relationship state — trust: %d/100, interest: %d/100, patience: %d/100.
+                Simulation behavior controls: %s
                 Facts you have already disclosed to the consultant: %s
 
                 Evidence the consultant has already researched about your organisation:
@@ -73,8 +81,15 @@ final class PersonaPromptAssembler {
                 persona.getName(), persona.getJobTitle(), persona.getOrganisation(),
                 persona.getCommunicationStyle(), persona.getBusinessGoals(), persona.getVisibleConcerns(),
                 persona.getHiddenConcerns(),
-                state.getTrust(), state.getInterest(), state.getPatience(),
+                state.getTrust(), state.getInterest(), state.getPatience(), behaviourControls(difficultyProfile),
                 state.getDisclosedFacts().isEmpty() ? "(none)" : String.join(", ", state.getDisclosedFacts()),
                 evidenceSummary, knowledgeSummary, transcript, learnerMessage);
+    }
+
+    private static String behaviourControls(DifficultyProfile profile) {
+        if (profile == null) return "Use the scenario's normal level of specificity and challenge.";
+        return "Resistance %d/100. Ask for more precise evidence when resistance is high. "
+                + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes."
+                .formatted(profile.personaResistance());
     }
 }
