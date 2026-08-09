@@ -5,6 +5,7 @@ import {
   Column,
   Grid,
   Heading,
+  InlineLoading,
   InlineNotification,
   Modal,
   Stack,
@@ -13,7 +14,7 @@ import {
   Tile,
 } from '@carbon/react'
 import { ArrowRight, Send } from '@carbon/icons-react'
-import { useCompleteMeeting, useMeeting, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
+import { useCompleteMeeting, useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
@@ -77,6 +78,7 @@ export default function LiveMeetingPage() {
   const { data: meeting, isLoading: meetingLoading, isError: meetingError } = useMeeting(meetingId!)
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
+  const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
   const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
   const { streamingText, isStreaming, error, personaState, latestSignals, termination, sendMessage } = useMeetingSocket(meetingId!)
@@ -119,9 +121,8 @@ export default function LiveMeetingPage() {
   const pendingIsPersisted = pendingMessage !== null
     && turns.some((turn) => turn.actor === 'LEARNER' && turn.content === pendingMessage)
 
-  const handleSend = async () => {
-    if (!message.trim() || isStreaming) return
-    const outgoing = message.trim()
+  const sendResponse = async (outgoing: string) => {
+    if (!outgoing || isStreaming) return
     setMessage('')
     setPendingMessage(outgoing)
     try {
@@ -130,6 +131,8 @@ export default function LiveMeetingPage() {
       setPendingMessage(null)
     }
   }
+
+  const handleSend = async () => sendResponse(message.trim())
 
   const handleComplete = () => {
     completeMeeting.mutate()
@@ -182,7 +185,50 @@ export default function LiveMeetingPage() {
 
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
-            {!isCompleted && (
+            {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
+              <section className={styles.guidedComposer} aria-label="Guided response choices">
+                <div className={styles.guidedHeading}>
+                  <div>
+                    <p className={styles.eyebrow}>Guided response</p>
+                    <h3>Choose your next response</h3>
+                  </div>
+                  <Tag type="blue">Three options</Tag>
+                </div>
+                <p className={styles.guidedDescription}>Choose the response you would use with this client. Its impact is evaluated from the actual conversation.</p>
+                {responseOptionsLoading && <InlineLoading description="Preparing response options..." />}
+                {!responseOptionsLoading && responseOptions?.available && (
+                  <div className={styles.responseChoices}>
+                    {responseOptions.options.map((option, index) => (
+                      <button
+                        className={styles.responseChoice}
+                        disabled={isStreaming}
+                        key={`${responseOptions.sourceSequence}-${index}`}
+                        onClick={() => void sendResponse(option)}
+                        type="button"
+                      >
+                        <span className={styles.choiceNumber}>Option {index + 1}</span>
+                        <span className={styles.choiceContent}>{option}</span>
+                        <ArrowRight className={styles.choiceIcon} size={20} aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!responseOptionsLoading && (!responseOptions?.available || responseOptionsError) && (
+                  <div className={styles.responseOptionsUnavailable}>
+                    <InlineNotification
+                      kind="warning"
+                      lowContrast
+                      hideCloseButton
+                      title="Response options are unavailable"
+                      subtitle={responseOptions?.unavailableReason ?? 'Please try again to generate grounded response options.'}
+                    />
+                    <Button kind="tertiary" size="sm" onClick={() => void refetchResponseOptions()}>Try again</Button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {!isCompleted && responseOptions?.interactionMode === 'FREEFORM' && (
               <div className={styles.composer}>
                 <TextArea
                   id="message"

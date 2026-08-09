@@ -21,6 +21,19 @@
 .streamingBubble { border-left-color: $interactive; }
 .composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: $spacing-03; padding: $spacing-04; border-top: 1px solid $border-subtle; }
 .errorNotification { margin: $spacing-04; }
+.guidedComposer { padding: $spacing-05; border-top: 1px solid $border-subtle; background: $layer-02; }
+.guidedHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
+.guidedHeading h3 { @include type-style('heading-compact-02'); margin: 0; }
+.guidedDescription { margin: $spacing-03 0 $spacing-05; color: $text-secondary; @include type-style('body-compact-01'); }
+.responseChoices { display: grid; gap: $spacing-03; }
+.responseOptionsUnavailable { display: grid; justify-items: start; gap: $spacing-03; }
+.responseChoice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: $spacing-04; width: 100%; padding: $spacing-04; border: 1px solid $border-subtle; background: $layer-01; color: $text-primary; cursor: pointer; text-align: left; transition: border-color 160ms ease, background-color 160ms ease; }
+.responseChoice:hover:not(:disabled) { border-color: $interactive; background: $layer-hover-01; }
+.responseChoice:focus-visible { outline: 2px solid $focus; outline-offset: 2px; }
+.responseChoice:disabled { cursor: wait; opacity: .65; }
+.choiceNumber { @include type-style('label-01'); color: $text-secondary; white-space: nowrap; }
+.choiceContent { @include type-style('body-compact-01'); line-height: 1.45; }
+.choiceIcon { color: $interactive; margin-top: 2px; }
 
 .decisionRail { position: sticky; top: $spacing-05; display: grid; gap: $spacing-05; }
 .relationshipPanel { padding: $spacing-05; border-top: 3px solid $interactive; background: $layer-01; }
@@ -52,4 +65,4 @@
 .terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; }
 
 @media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
-@media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }
+@media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.responseChoice { grid-template-columns: 1fr auto; }.choiceNumber { grid-column: 1 / -1; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }

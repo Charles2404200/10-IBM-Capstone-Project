@@ -404,6 +404,16 @@ export interface MeetingTermination {
   meetingRetriesRemaining: number
 }
 
+export type MeetingInteractionMode = 'GUIDED' | 'FREEFORM'
+
+export interface MeetingResponseOptions {
+  interactionMode: MeetingInteractionMode
+  sourceSequence: number
+  options: string[]
+  available: boolean
+  unavailableReason: string | null
+}
+
 // ─── Proposal ─────────────────────────────────────────────────────────────────
 
 export type ProposalDecision = 'PENDING' | 'WON' | 'LOST'

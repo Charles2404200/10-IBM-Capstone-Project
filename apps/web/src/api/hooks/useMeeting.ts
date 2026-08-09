@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { Meeting, MeetingPreparation, ConversationTurn, PersonaState } from '@/api/types'
+import type { Meeting, MeetingPreparation, ConversationTurn, MeetingResponseOptions, PersonaState } from '@/api/types'
 
 export const meetingKeys = {
   preparation: (engagementId: string) => ['meeting-preparation', engagementId] as const,
   meeting: (meetingId: string) => ['meeting', meetingId] as const,
   transcript: (meetingId: string) => ['meeting-transcript', meetingId] as const,
   personaState: (meetingId: string) => ['meeting-persona-state', meetingId] as const,
+  responseOptions: (meetingId: string) => ['meeting-response-options', meetingId] as const,
 }
 
 export function useMeetingPreparation(engagementId: string) {
@@ -82,6 +83,19 @@ export function usePersonaState(meetingId: string) {
       return res.data
     },
     enabled: Boolean(meetingId),
+  })
+}
+
+export function useMeetingResponseOptions(meetingId: string, enabled = true) {
+  return useQuery({
+    queryKey: meetingKeys.responseOptions(meetingId),
+    queryFn: async () => {
+      const res = await apiClient.get<MeetingResponseOptions>(`/api/v1/meetings/${meetingId}/response-options`)
+      return res.data
+    },
+    enabled: Boolean(meetingId) && enabled,
+    retry: 1,
+    refetchOnWindowFocus: false,
   })
 }
 

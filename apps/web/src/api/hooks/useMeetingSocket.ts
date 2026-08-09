@@ -84,6 +84,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           })
           setPersonaState(result.personaState)
           qc.setQueryData(meetingKeys.personaState(meetingId), result.personaState)
+          void qc.invalidateQueries({ queryKey: meetingKeys.responseOptions(meetingId) })
           setLatestSignals(result.meetingSignals ?? [])
           const termination = result.termination
           setTermination(termination ?? null)

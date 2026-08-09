@@ -27,11 +27,14 @@ public class MeetingController {
 
     private final MeetingPreparationService preparationService;
     private final MeetingService meetingService;
+    private final GuidedMeetingResponseService guidedResponseService;
     private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
 
-    public MeetingController(MeetingPreparationService preparationService, MeetingService meetingService) {
+    public MeetingController(MeetingPreparationService preparationService, MeetingService meetingService,
+                             GuidedMeetingResponseService guidedResponseService) {
         this.preparationService = preparationService;
         this.meetingService = meetingService;
+        this.guidedResponseService = guidedResponseService;
     }
 
     record PreparationRequest(String objective, List<String> agenda, List<String> discoveryQuestions) {}
@@ -70,6 +73,11 @@ public class MeetingController {
     @GetMapping("/meetings/{meetingId}/persona-state")
     PersonaStateResponse personaState(@PathVariable UUID meetingId, @AuthenticationPrincipal User user) {
         return meetingService.personaState(meetingId, user.getId());
+    }
+
+    @GetMapping("/meetings/{meetingId}/response-options")
+    MeetingResponseOptionsResponse responseOptions(@PathVariable UUID meetingId, @AuthenticationPrincipal User user) {
+        return guidedResponseService.optionsFor(meetingId, user.getId());
     }
 
     /**
