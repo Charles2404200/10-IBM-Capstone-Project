@@ -31,9 +31,11 @@ export function useUpdateMeetingPreparation(engagementId: string) {
       )
       return res.data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: meetingKeys.preparation(engagementId) })
-      qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
+    onSuccess: (preparation) => {
+      // Retain the authoritative response in cache immediately. The editor owns
+      // unsaved local draft state, so background query refreshes cannot erase it.
+      qc.setQueryData(meetingKeys.preparation(engagementId), preparation)
+      void qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
     },
   })
 }
