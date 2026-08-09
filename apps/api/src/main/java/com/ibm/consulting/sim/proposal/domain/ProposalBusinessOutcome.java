@@ -14,10 +14,11 @@ public class ProposalBusinessOutcome {
 
     protected ProposalBusinessOutcome() {}
     public ProposalBusinessOutcome(String outcome, String metric, String target) {
-        this.outcome = outcome;
-        this.metric = metric;
-        this.target = target;
+        this.outcome = text(outcome);
+        this.metric = text(metric);
+        this.target = text(target);
     }
+    private static String text(String value) { return value == null ? "" : value.trim(); }
     public String getOutcome() { return outcome; }
     public String getMetric() { return metric; }
     public String getTarget() { return target; }

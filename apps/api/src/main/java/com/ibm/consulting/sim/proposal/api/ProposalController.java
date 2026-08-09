@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -52,10 +53,14 @@ public class ProposalController {
         ProposalDraftContent toContent() {
             return new ProposalDraftContent(problemStatement, solutionStrategy, components, budget,
                     timelineWeeks == null ? 1 : timelineWeeks, budgetConfidence, budgetSource,
-                    businessOutcomes == null ? List.of() : businessOutcomes.stream().map(OutcomeRequest::toDomain).toList(),
-                    milestones == null ? List.of() : milestones.stream().map(MilestoneRequest::toDomain).toList(),
-                    risks == null ? List.of() : risks.stream().map(RiskRequest::toDomain).toList(),
-                    assumptions, evidenceLinks == null ? List.of() : evidenceLinks.stream().map(EvidenceLinkRequest::toDomain).toList());
+                    nonNull(businessOutcomes).stream().map(OutcomeRequest::toDomain).toList(),
+                    nonNull(milestones).stream().map(MilestoneRequest::toDomain).toList(),
+                    nonNull(risks).stream().map(RiskRequest::toDomain).toList(),
+                    nonNull(assumptions), nonNull(evidenceLinks).stream().map(EvidenceLinkRequest::toDomain).toList());
+        }
+
+        private static <T> List<T> nonNull(List<T> values) {
+            return values == null ? List.of() : values.stream().filter(Objects::nonNull).toList();
         }
     }
 

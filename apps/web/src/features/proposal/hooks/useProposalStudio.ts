@@ -15,6 +15,11 @@ import {
   proposalToDraft,
   type ProposalSection,
 } from '../services/proposalDraftService'
+import {
+  clearRecoveredProposalDraft,
+  loadRecoveredProposalDraft,
+  storeProposalDraft,
+} from '../services/proposalDraftRecoveryService'
 
 export type DraftSaveState = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -30,6 +35,9 @@ export function useProposalStudio(engagementId: string) {
   const [saveState, setSaveState] = useState<DraftSaveState>('idle')
   const hydrated = useRef(false)
   const skipInitialAutosave = useRef(false)
+  const draftRef = useRef(draft)
+  const saveInFlight = useRef<Promise<boolean> | null>(null)
+  const saveQueued = useRef(false)
 
   const proposal = workspace.data?.proposal
   const submitted = proposal?.status === 'SUBMITTED'
@@ -37,29 +45,53 @@ export function useProposalStudio(engagementId: string) {
   useEffect(() => {
     if (!hydrated.current && workspace.data) {
       skipInitialAutosave.current = true
-      setDraft(workspace.data.proposal ? proposalToDraft(workspace.data.proposal) : createEmptyProposalDraft())
+      const recovered = loadRecoveredProposalDraft(engagementId)
+      const initialDraft = recovered ?? (workspace.data.proposal ? proposalToDraft(workspace.data.proposal) : createEmptyProposalDraft())
+      draftRef.current = initialDraft
+      setDraft(initialDraft)
       setSaveState('saved')
       hydrated.current = true
     }
-  }, [workspace.data])
+  }, [engagementId, workspace.data])
 
   const updateDraft = useCallback((updater: (current: ProposalDraftRequest) => ProposalDraftRequest) => {
-    setDraft((current) => updater(current))
+    const nextDraft = updater(draftRef.current)
+    draftRef.current = nextDraft
+    storeProposalDraft(engagementId, nextDraft)
+    if (saveInFlight.current) saveQueued.current = true
+    setDraft(nextDraft)
     setSaveState('idle')
-  }, [])
+  }, [engagementId])
 
   const persist = useCallback(async (): Promise<boolean> => {
     if (submitted) return true
-    setSaveState('saving')
-    try {
-      await saveDraft.mutateAsync(draft)
+    if (saveInFlight.current) {
+      saveQueued.current = true
+      return saveInFlight.current
+    }
+
+    const operation = (async () => {
+      do {
+        saveQueued.current = false
+        setSaveState('saving')
+        try {
+          await saveDraft.mutateAsync(draftRef.current)
+          clearRecoveredProposalDraft(engagementId)
+        } catch {
+          setSaveState('error')
+          return false
+        }
+      } while (saveQueued.current)
       setSaveState('saved')
       return true
-    } catch {
-      setSaveState('error')
-      return false
+    })()
+    saveInFlight.current = operation
+    try {
+      return await operation
+    } finally {
+      saveInFlight.current = null
     }
-  }, [draft, saveDraft, submitted])
+  }, [engagementId, saveDraft, submitted])
 
   useEffect(() => {
     if (skipInitialAutosave.current) {

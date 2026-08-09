@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.proposal.domain;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 /** Immutable command value used to update a learner-owned proposal draft. */
 public record ProposalDraftContent(
@@ -21,15 +22,23 @@ public record ProposalDraftContent(
     public ProposalDraftContent {
         problemStatement = problemStatement == null ? "" : problemStatement.trim();
         solutionStrategy = solutionStrategy == null ? "" : solutionStrategy.trim();
-        components = List.copyOf(components == null ? List.of() : components);
+        components = normalisedText(components);
         budget = budget == null ? BigDecimal.ZERO : budget;
         timelineWeeks = Math.max(1, timelineWeeks);
         budgetConfidence = budgetConfidence == null || budgetConfidence.isBlank() ? "UNCONFIRMED" : budgetConfidence;
         budgetSource = budgetSource == null ? "" : budgetSource.trim();
-        businessOutcomes = List.copyOf(businessOutcomes == null ? List.of() : businessOutcomes);
-        milestones = List.copyOf(milestones == null ? List.of() : milestones);
-        risks = List.copyOf(risks == null ? List.of() : risks);
-        assumptions = List.copyOf(assumptions == null ? List.of() : assumptions);
-        evidenceLinks = List.copyOf(evidenceLinks == null ? List.of() : evidenceLinks);
+        businessOutcomes = nonNull(businessOutcomes);
+        milestones = nonNull(milestones);
+        risks = nonNull(risks);
+        assumptions = normalisedText(assumptions);
+        evidenceLinks = nonNull(evidenceLinks);
+    }
+
+    private static List<String> normalisedText(List<String> values) {
+        return nonNull(values).stream().map(String::trim).filter(value -> !value.isEmpty()).toList();
+    }
+
+    private static <T> List<T> nonNull(List<T> values) {
+        return values == null ? List.of() : values.stream().filter(Objects::nonNull).toList();
     }
 }

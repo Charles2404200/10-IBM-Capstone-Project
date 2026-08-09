@@ -11,7 +11,8 @@ public class ProposalMilestone {
     private String duration;
 
     protected ProposalMilestone() {}
-    public ProposalMilestone(String phase, String duration) { this.phase = phase; this.duration = duration; }
+    public ProposalMilestone(String phase, String duration) { this.phase = text(phase); this.duration = text(duration); }
+    private static String text(String value) { return value == null ? "" : value.trim(); }
     public String getPhase() { return phase; }
     public String getDuration() { return duration; }
 }

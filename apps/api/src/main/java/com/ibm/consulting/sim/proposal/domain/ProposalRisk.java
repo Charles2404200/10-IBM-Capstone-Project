@@ -14,10 +14,11 @@ public class ProposalRisk {
 
     protected ProposalRisk() {}
     public ProposalRisk(String risk, String severity, String mitigation) {
-        this.risk = risk;
-        this.severity = severity;
-        this.mitigation = mitigation;
+        this.risk = text(risk);
+        this.severity = text(severity);
+        this.mitigation = text(mitigation);
     }
+    private static String text(String value) { return value == null ? "" : value.trim(); }
     public String getRisk() { return risk; }
     public String getSeverity() { return severity; }
     public String getMitigation() { return mitigation; }

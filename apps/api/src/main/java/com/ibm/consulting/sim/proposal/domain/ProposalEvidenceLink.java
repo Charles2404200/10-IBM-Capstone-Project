@@ -11,7 +11,11 @@ public class ProposalEvidenceLink {
     private String sourceId;
 
     protected ProposalEvidenceLink() {}
-    public ProposalEvidenceLink(String section, String sourceId) { this.section = section; this.sourceId = sourceId; }
+    public ProposalEvidenceLink(String section, String sourceId) {
+        this.section = text(section);
+        this.sourceId = text(sourceId);
+    }
+    private static String text(String value) { return value == null ? "" : value.trim(); }
     public String getSection() { return section; }
     public String getSourceId() { return sourceId; }
 }
