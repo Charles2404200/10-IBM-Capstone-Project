@@ -219,6 +219,12 @@
   color: #f4f4f4;
   font-size: 0.75rem;
   overflow-x: auto;
+  /* Follows the learner down long workspaces — the whole point is that phase
+     and client state are never more than a glance away. Sits below Carbon's
+     fixed header (z-index 8000) and above page content. */
+  position: sticky;
+  inset-block-start: 3rem;
+  z-index: 6000;
 }
 
 .hudGroup {

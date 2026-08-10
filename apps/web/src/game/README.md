@@ -98,6 +98,12 @@ npm run dev   →   http://localhost:3000/world-preview
 Dev builds only. Lets you switch phase, client mood and starting room to inspect the art and the
 lock states with no API, login or seeded database.
 
+The route renders through the real `AppShell`, so the persistent HUD and the shell's layout are
+exercised too — not just the canvas. That matters: Carbon's `Header` is `position: fixed` and
+compensates by giving a *sibling* `.cds--content` a 3rem top margin, so anything placed between
+the two lands underneath the header and vanishes. `AppShell` wraps the body in a div that owns
+that offset instead.
+
 ## Accessibility rules this layer must keep
 
 - The world is optional (`preferences.worldEnabled`, persisted) and is never the only route to a
@@ -112,7 +118,7 @@ lock states with no API, login or seeded database.
 
 ## Tests
 
-`game.test.ts` and `coaching/outreachRubric.test.ts` — 101 tests covering sprite integrity, map
+`game.test.ts` and `coaching/outreachRubric.test.ts` — 107 tests covering sprite integrity, map
 geometry and reachability, room detection, movement and wall-sliding, keyboard mapping,
 pathfinding, phase gating, and the rubric heuristics.
 

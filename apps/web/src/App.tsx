@@ -118,8 +118,14 @@ export default function App() {
             element={<RequireRole roles={['REVIEWER', 'ADMINISTRATOR']}><AiOperationsPage /></RequireRole>}
           />
         </Route>
-        {/* Backend-free harness for reviewing the pixel layer. Dev builds only. */}
-        {import.meta.env.DEV && <Route path="/world-preview" element={<WorldPreview />} />}
+        {/* Backend-free harness for reviewing the pixel layer. Dev builds only.
+            Rendered through the real AppShell so the persistent HUD and the
+            shell's layout are exercised too, not just the canvas. */}
+        {import.meta.env.DEV && (
+          <Route path="/world-preview" element={<AppShell />}>
+            <Route index element={<WorldPreview />} />
+          </Route>
+        )}
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

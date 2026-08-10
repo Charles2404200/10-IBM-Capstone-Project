@@ -56,14 +56,21 @@ export default function AppShell() {
           </HeaderGlobalAction>
         </HeaderGlobalBar>
       </Header>
-      {/* Persistent phase stepper and client-relationship meters. Rendered here,
-          outside <Content>, so every workspace inherits them — previously the
-          stepper appeared on some phase pages and not others, and the
-          relationship state was only visible inside the live meeting. */}
-      <GameHUD />
-      <Content>
-        <Outlet />
-      </Content>
+      {/* Carbon's Header is position: fixed, and it compensates by giving a
+          *sibling* .cds--content a 3rem top margin. Anything else placed
+          between the two lands underneath the fixed header and disappears.
+          Wrapping the body means that sibling rule no longer applies, so this
+          element owns the offset for both children instead. */}
+      <div style={{ paddingBlockStart: '3rem' }}>
+        {/* Persistent phase stepper and client-relationship meters, so every
+            workspace inherits them — previously the stepper appeared on some
+            phase pages and not others, and the relationship state was only
+            visible inside the live meeting. */}
+        <GameHUD />
+        <Content>
+          <Outlet />
+        </Content>
+      </div>
     </>
   )
 }
