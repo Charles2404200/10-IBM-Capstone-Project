@@ -1,11 +1,16 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import {
   Header,
   HeaderName,
   HeaderNavigation,
   HeaderMenuItem,
+  HeaderMenuButton,
   HeaderGlobalBar,
   HeaderGlobalAction,
+  HeaderSideNavItems,
+  SideNav,
+  SideNavItems,
   SkipToContent,
   Content,
 } from '@carbon/react'
@@ -16,7 +21,29 @@ import GameHUD from '@/game/components/GameHUD'
 export default function AppShell() {
   const { displayName, role, logout } = useAuthStore()
   const navigate = useNavigate()
+  // Carbon hides HeaderNavigation below 1056px and expects a SideNav to take
+  // over. Without one there was simply no navigation at all on a phone.
+  const [navOpen, setNavOpen] = useState(false)
   const canAccessAdmin = role === 'SCENARIO_AUTHOR' || role === 'REVIEWER' || role === 'ADMINISTRATOR'
+
+  const navItems = [
+    <HeaderMenuItem key="world" as={NavLink} to="/dashboard/world" onClick={() => setNavOpen(false)}>
+      Office floor
+    </HeaderMenuItem>,
+    <HeaderMenuItem key="command" as={NavLink} to="/dashboard" onClick={() => setNavOpen(false)}>
+      Command Centre
+    </HeaderMenuItem>,
+    <HeaderMenuItem key="portfolio" as={NavLink} to="/dashboard/portfolio" onClick={() => setNavOpen(false)}>
+      Portfolio
+    </HeaderMenuItem>,
+    ...(canAccessAdmin
+      ? [
+          <HeaderMenuItem key="admin" as={NavLink} to="/dashboard/admin" onClick={() => setNavOpen(false)}>
+            Admin Console
+          </HeaderMenuItem>,
+        ]
+      : []),
+  ]
 
   const handleLogout = () => {
     logout()
@@ -27,25 +54,27 @@ export default function AppShell() {
     <>
       <SkipToContent />
       <Header aria-label="IBM Consulting Simulation">
+        <HeaderMenuButton
+          aria-label={navOpen ? 'Close menu' : 'Open menu'}
+          isCollapsible
+          isActive={navOpen}
+          onClick={() => setNavOpen((open) => !open)}
+        />
         <HeaderName href="/dashboard" prefix="IBM">
           Consulting Sim
         </HeaderName>
-        <HeaderNavigation aria-label="Main navigation">
-          <HeaderMenuItem as={NavLink} to="/dashboard/world">
-            Office floor
-          </HeaderMenuItem>
-          <HeaderMenuItem as={NavLink} to="/dashboard">
-            Command Centre
-          </HeaderMenuItem>
-          <HeaderMenuItem as={NavLink} to="/dashboard/portfolio">
-            Portfolio
-          </HeaderMenuItem>
-          {canAccessAdmin && (
-            <HeaderMenuItem as={NavLink} to="/dashboard/admin">
-              Admin Console
-            </HeaderMenuItem>
-          )}
-        </HeaderNavigation>
+        <HeaderNavigation aria-label="Main navigation">{navItems}</HeaderNavigation>
+
+        <SideNav
+          aria-label="Main navigation"
+          expanded={navOpen}
+          isPersistent={false}
+          onSideNavBlur={() => setNavOpen(false)}
+        >
+          <SideNavItems>
+            <HeaderSideNavItems>{navItems}</HeaderSideNavItems>
+          </SideNavItems>
+        </SideNav>
         <HeaderGlobalBar>
           <HeaderGlobalAction
             aria-label={`Logout ${displayName ?? ''}`}

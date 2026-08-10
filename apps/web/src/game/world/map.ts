@@ -74,7 +74,10 @@ export interface Station {
   glyph: string
   /** Engagement phase this station represents; `null` for always-open rooms. */
   phase: EngagementPhase | null
-  /** Short name shown on the floor label and in the interaction prompt. */
+  /**
+   * The room's name. For a station bound to a phase this MUST equal
+   * `PHASE_LABEL[phase]` — one phase, one name, everywhere. A test enforces it.
+   */
   title: string
   /** One plain-language sentence. No consulting jargon — this is the onboarding. */
   blurb: string
@@ -96,7 +99,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'L',
     phase: 'LEAD',
-    title: 'Lead Pipeline',
+    title: 'Choose a client',
     blurb: 'Choose which client to chase. You only get a little information up front — that is the point.',
     route: (id) => `/dashboard/engagements/${id}/leads`,
     accent: 'blue',
@@ -104,7 +107,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'I',
     phase: 'CLIENT_INTELLIGENCE',
-    title: 'Research Library',
+    title: 'Research the client',
     blurb: 'Dig up facts about the client and commit to a hypothesis before you contact anyone.',
     route: (id) => `/dashboard/engagements/${id}/intelligence`,
     accent: 'teal',
@@ -112,7 +115,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'O',
     phase: 'OUTREACH',
-    title: 'Outreach Desk',
+    title: 'Make contact',
     blurb: 'Write the first email. The client owes you nothing and may simply ignore it.',
     route: (id) => `/dashboard/engagements/${id}/outreach`,
     accent: 'blue',
@@ -120,7 +123,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'P',
     phase: 'MEETING_PREPARATION',
-    title: 'Prep Room',
+    title: 'Prepare',
     blurb: 'Decide what you want out of the meeting and what you will ask, before you walk in.',
     route: (id) => `/dashboard/engagements/${id}/preparation`,
     accent: 'teal',
@@ -128,7 +131,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'M',
     phase: 'LIVE_MEETING',
-    title: 'Meeting Room',
+    title: 'The meeting',
     blurb: 'Sit down with the client. They react to what you actually say — there is no script.',
     route: (id) => `/dashboard/engagements/${id}/preparation`,
     accent: 'purple',
@@ -136,7 +139,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'R',
     phase: 'MEETING_REVIEW',
-    title: 'Debrief Nook',
+    title: 'Debrief',
     blurb: 'Go back over the meeting: what you learned, what you missed, what it cost you.',
     route: (id) => `/dashboard/engagements/${id}/assessment`,
     accent: 'grey',
@@ -144,7 +147,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'S',
     phase: 'PROPOSAL',
-    title: 'Proposal Studio',
+    title: 'Proposal',
     blurb: 'Turn evidence into a recommendation with a budget, a timeline and named risks.',
     route: (id) => `/dashboard/engagements/${id}/proposal`,
     accent: 'blue',
@@ -152,7 +155,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'U',
     phase: 'OUTCOME',
-    title: 'Client Decision',
+    title: 'Their decision',
     blurb: 'The client decides. Your research, your relationship and your proposal all count.',
     route: (id) => `/dashboard/engagements/${id}/assessment`,
     accent: 'green',
@@ -160,7 +163,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'A',
     phase: 'REVIEW',
-    title: 'Review Room',
+    title: 'Your review',
     blurb: 'A structured read on how you performed, and which competencies to work on next.',
     route: (id) => `/dashboard/engagements/${id}/assessment`,
     accent: 'purple',
@@ -168,7 +171,7 @@ export const STATIONS: readonly Station[] = [
   {
     glyph: 'F',
     phase: 'COMPLETED',
-    title: 'Portfolio Wall',
+    title: 'Portfolio',
     blurb: 'Your record: engagements run, contracts won, and how your competencies are trending.',
     route: () => '/dashboard/portfolio',
     accent: 'green',

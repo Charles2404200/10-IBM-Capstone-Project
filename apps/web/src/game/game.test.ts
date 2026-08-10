@@ -30,6 +30,7 @@ import { findPath, nearestWalkable } from './world/pathfinding'
 import {
   lifecycleProgress,
   PHASE_BRIEF,
+  PHASE_COUNT,
   PHASE_LABEL,
   PHASE_ORDER,
   phaseIndex,
@@ -498,6 +499,37 @@ function engagementAt(phase: EngagementPhase, overrides: Partial<Engagement> = {
     ...overrides,
   }
 }
+
+describe('one phase, one name', () => {
+  it('names every room exactly as its phase is named everywhere else', () => {
+    // The regression this guards against: a phase answering to "Make contact"
+    // in the stepper, "Outreach Desk" on the map and "Outreach Workspace" on
+    // the page. A learner cannot tell those are the same step.
+    for (const station of STATIONS) {
+      if (station.phase === null) continue
+      expect(
+        station.title,
+        `room "${station.title}" has drifted from PHASE_LABEL.${station.phase}`
+      ).toBe(PHASE_LABEL[station.phase])
+    }
+  })
+
+  it('binds each phase to exactly one room', () => {
+    const phases = STATIONS.map((s) => s.phase).filter((p): p is EngagementPhase => p !== null)
+    expect(new Set(phases).size).toBe(phases.length)
+  })
+
+  it('keeps names short enough for a stepper on a phone', () => {
+    for (const label of Object.values(PHASE_LABEL)) {
+      expect(label.length, `"${label}" is too long for a compact stepper`).toBeLessThanOrEqual(20)
+    }
+  })
+
+  it('reports the same phase count as the lifecycle it describes', () => {
+    expect(PHASE_COUNT).toBe(PHASE_ORDER.length)
+    expect(PHASE_COUNT).toBe(10)
+  })
+})
 
 describe('progression', () => {
   it('covers every phase with a label and a brief', () => {

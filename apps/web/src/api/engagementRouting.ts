@@ -29,6 +29,11 @@ export function resolveEngagementRoute(engagement: Engagement): string {
       // still correct, since MeetingPreparationPage lets the learner resume
       // into the live meeting from there.
       return engagement.meetingId ? `${base}/meetings/${engagement.meetingId}` : `${base}/preparation`
+    case 'MEETING_REVIEW':
+      // Previously fell through to `default` and sent the learner back to the
+      // Lead Pipeline — i.e. to the very start of an engagement they were
+      // two-thirds of the way through.
+      return `${base}/assessment`
     case 'PROPOSAL':
       return `${base}/proposal`
     case 'OUTCOME':

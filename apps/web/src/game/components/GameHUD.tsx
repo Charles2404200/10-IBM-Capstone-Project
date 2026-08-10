@@ -11,14 +11,14 @@
  * visible only while inside the live meeting — so for most of a session the
  * learner had no way to see the two variables their decisions were moving.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEngagement } from '@/api/hooks/useEngagements'
 import { usePersonaState } from '@/api/hooks/useMeeting'
 import type { EngagementPhase, PersonaState } from '@/api/types'
 import { audio } from '../audio/engine'
 import { useGameStore } from '../state/gameStore'
-import { PHASE_LABEL, PHASE_ORDER, phaseIndex } from '../state/progression'
+import { PHASE_COUNT, PHASE_LABEL, PHASE_ORDER, phaseIndex } from '../state/progression'
 import styles from '../styles/game.module.scss'
 
 /** Matches the threshold the live meeting already uses, so the HUD and the
@@ -139,6 +139,7 @@ export default function GameHUD() {
   const location = useLocation()
   const navigate = useNavigate()
   const worldEnabled = useGameStore((s) => s.preferences.worldEnabled)
+  const [expanded, setExpanded] = useState(false)
   const muted = useGameStore((s) => s.preferences.audio.muted)
   const setAudio = useGameStore((s) => s.setAudio)
 
@@ -203,34 +204,55 @@ export default function GameHUD() {
 
   const notMetYet = 'Not measured yet — the client has to meet you first.'
 
+  const currentPhase = engagement?.phase ?? null
+  const stepNumber = currentPhase ? phaseIndex(currentPhase) + 1 : 0
+
   return (
     <div className={styles.hud}>
-      <div className={styles.hudGroup}>
-        <button
-          type="button"
-          className={styles.iconButton}
-          onClick={() => {
-            audio.play('closePanel')
-            navigate('/dashboard/world')
-          }}
-          title="Back to the office floor"
-        >
-          ← Office
-        </button>
-        {engagement && (
-          <span className={styles.hudTitle}>
-            {engagement.leadCompanyName ?? engagement.scenarioTitle ?? 'Engagement'}
-          </span>
-        )}
-      </div>
+      {/* Compact summary: the only thing shown on a phone until expanded.
+          "← Office" used to live here and duplicated the "Office floor" nav
+          item two centimetres away, so it is gone. */}
+      <button
+        type="button"
+        className={styles.hudSummary}
+        onClick={() => setExpanded((open) => !open)}
+        aria-expanded={expanded}
+        aria-controls="hud-detail"
+      >
+        <span className={styles.hudStep}>
+          {currentPhase ? `${stepNumber}/${PHASE_COUNT}` : '—'}
+        </span>
+        <span className={styles.hudStepName}>
+          {currentPhase ? PHASE_LABEL[currentPhase] : 'No engagement running'}
+        </span>
+        <span className={styles.hudDots} aria-hidden="true">
+          {(['trust', 'interest', 'patience'] as const).map((key) => (
+            <span
+              key={key}
+              className={styles.hudDot}
+              style={{
+                backgroundColor: personaState ? meterColour(personaState[key]) : '#525252',
+              }}
+            />
+          ))}
+        </span>
+        <span className={styles.hudChevron} aria-hidden="true">
+          {expanded ? '▲' : '▼'}
+        </span>
+      </button>
 
-      <div className={`${styles.hudGroup} ${styles.hudGrow}`}>
-        <Stepper
-          currentPhase={engagement?.phase ?? null}
-          onJump={jump}
-          canJump={canJump}
-        />
-      </div>
+      <div className={styles.hudDetail} id="hud-detail" data-open={expanded ? 'true' : 'false'}>
+        <div className={`${styles.hudGroup} ${styles.hudGrow}`}>
+          <Stepper currentPhase={currentPhase} onJump={jump} canJump={canJump} />
+        </div>
+
+        <div className={styles.hudGroup}>
+          {engagement?.nextAction && (
+            <span className={styles.hudNext} title="Your next action">
+              {engagement.nextAction}
+            </span>
+          )}
+        </div>
 
       <div className={styles.hudGroup}>
         <span className={styles.hudLabel}>Client</span>
@@ -267,6 +289,7 @@ export default function GameHUD() {
         >
           {muted ? '🔇 Muted' : '🔊 Sound'}
         </button>
+        </div>
       </div>
     </div>
   )

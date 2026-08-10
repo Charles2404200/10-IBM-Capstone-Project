@@ -274,9 +274,21 @@ export default function HubWorld({
         const visible =
           px > -140 && px < rect.width + 140 && py > -60 && py < rect.height + 60
         plate.style.display = visible ? 'flex' : 'none'
-        if (visible) {
-          plate.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px) translate(-50%, 2px)`
-        }
+        if (!visible) continue
+
+        // Keep the plate inside the viewport. On a small screen a room's top
+        // row is often just off the edge, and a half-clipped label that reads
+        // "DONE" with no room name is worse than useless.
+        const halfWidth = plate.offsetWidth / 2
+        const clampedX = Math.min(
+          Math.max(px, halfWidth + 4),
+          Math.max(halfWidth + 4, rect.width - halfWidth - 4)
+        )
+        const clampedY = Math.min(
+          Math.max(py, 4),
+          Math.max(4, rect.height - plate.offsetHeight - 4)
+        )
+        plate.style.transform = `translate(${Math.round(clampedX)}px, ${Math.round(clampedY)}px) translate(-50%, 0)`
       }
 
       // Which station is actionable — room membership, not pad proximity.
@@ -428,6 +440,51 @@ export default function HubWorld({
           </span>
         </div>
       )}
+
+      {/* Touch controls. Shown only on coarse pointers, because a phone has no
+          arrow keys and tap-to-move alone cannot nudge you around a desk. The
+          buttons drive the same held-key set as a keyboard, so there is one
+          movement path to reason about. */}
+      <div className={styles.touchPad} aria-hidden="true">
+        {(
+          [
+            ['up', 'ArrowUp', '▲', styles.padUp],
+            ['left', 'ArrowLeft', '◀', styles.padLeft],
+            ['right', 'ArrowRight', '▶', styles.padRight],
+            ['down', 'ArrowDown', '▼', styles.padDown],
+          ] as const
+        ).map(([name, key, glyph, cls]) => (
+          <button
+            key={name}
+            type="button"
+            className={`${styles.padButton} ${cls}`}
+            onPointerDown={(event) => {
+              event.preventDefault()
+              audio.resume()
+              pathRef.current = []
+              heldRef.current.add(key)
+            }}
+            onPointerUp={() => heldRef.current.delete(key)}
+            onPointerLeave={() => heldRef.current.delete(key)}
+            onPointerCancel={() => heldRef.current.delete(key)}
+            tabIndex={-1}
+          >
+            {glyph}
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        className={styles.touchEnter}
+        onClick={() => {
+          audio.resume()
+          interact()
+        }}
+        disabled={!prompt || prompt.locked}
+      >
+        {prompt ? `Enter ${prompt.station.title}` : 'Walk to a room'}
+      </button>
 
       {/* Screen-reader and keyboard-only equivalent of walking up to a station. */}
       <div className={styles.srOnly}>

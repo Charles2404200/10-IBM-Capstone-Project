@@ -24,19 +24,19 @@
 .world {
   position: relative;
   width: 100%;
-  max-width: 960px;
-  /* Locked to the tilemap's proportions and to 21 tiles at 2x. Capping this by
-     viewport height instead would make the box a different shape from the map,
-     which forces the camera to crop — and cropping hides whole rooms, which is
-     the one thing this view exists to prevent. On a short window the page
-     scrolls a little; the floor plan is never cut. */
+  /* Matches the tilemap's proportions so the whole plan fits at an exact
+     integer zoom with no letterboxing. Capped at 21 tiles x 2x. Below that the
+     box simply gets smaller and the camera follows the avatar, which is the
+     right behaviour on a phone. */
   aspect-ratio: 30 / 21;
+  max-width: 960px;
   max-height: 672px;
   margin: 0 auto;
   background: #161616;
   border: 1px solid #393939;
   overflow: hidden;
   border-radius: 4px;
+  touch-action: none;
 }
 
 .worldCanvas {
@@ -209,22 +209,122 @@
 
 /* ── Persistent HUD ───────────────────────────────────────────────────────── */
 
+/* The HUD is one strip with two faces: a compact summary that always fits, and
+   a detail row that expands. On a wide screen the detail row is simply always
+   open; on a phone it is a disclosure. Before this the strip was 1045px wide
+   inside a 606px viewport and scrolled sideways, which is unusable. */
 .hud {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 0.5rem 1rem;
   background: #161616;
   border-bottom: 1px solid #393939;
   color: #f4f4f4;
   font-size: 0.75rem;
-  overflow-x: auto;
   /* Follows the learner down long workspaces — the whole point is that phase
      and client state are never more than a glance away. Sits below Carbon's
      fixed header (z-index 8000) and above page content. */
   position: sticky;
   inset-block-start: 3rem;
   z-index: 6000;
+}
+
+.hudSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: -2px;
+  }
+}
+
+.hudStep {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #78a9ff;
+  flex-shrink: 0;
+}
+
+.hudStepName {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hudDots {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.hudDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.hudChevron {
+  color: #8d8d8d;
+  font-size: 0.625rem;
+  flex-shrink: 0;
+}
+
+.hudDetail {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 1rem 0.75rem;
+
+  &[data-open='true'] {
+    display: flex;
+  }
+}
+
+.hudNext {
+  color: #c6c6c6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* From tablet up there is room for everything at once, so the disclosure
+   collapses into a single always-visible row and the summary disappears. */
+@media (min-width: 64rem) {
+  .hud {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .hudSummary {
+    display: none;
+  }
+
+  .hudDetail {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .hudNext {
+    max-width: 18rem;
+  }
 }
 
 .hudGroup {
@@ -259,6 +359,9 @@
 .stepper {
   display: flex;
   align-items: center;
+  /* Wraps rather than scrolling sideways: a horizontally scrolling progress
+     indicator hides exactly the steps the learner has not reached yet. */
+  flex-wrap: wrap;
   gap: 0;
   list-style: none;
   margin: 0;
@@ -705,5 +808,115 @@
   &:focus-visible {
     outline: 2px solid #0f62fe;
     outline-offset: 1px;
+  }
+}
+
+/* ── World page shell ─────────────────────────────────────────────────────── */
+
+.worldPage {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+}
+
+/* ── Touch controls ───────────────────────────────────────────────────────
+   Only rendered for coarse pointers. A phone has no arrow keys, and
+   tap-to-move alone cannot nudge the avatar a single tile around a desk. The
+   pad writes into the same held-key set the keyboard uses, so movement has one
+   implementation regardless of input device. */
+
+.touchPad,
+.touchEnter {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .touchPad {
+    position: absolute;
+    inset-block-end: 0.75rem;
+    inset-inline-start: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, 2.75rem);
+    grid-template-rows: repeat(3, 2.75rem);
+    gap: 0.15rem;
+    opacity: 0.85;
+  }
+
+  .padButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(22, 22, 22, 0.82);
+    border: 1px solid #6f6f6f;
+    border-radius: 6px;
+    color: #f4f4f4;
+    font-size: 0.9rem;
+    /* Stops the browser turning a held button into a text selection or a
+       double-tap zoom mid-walk. */
+    touch-action: none;
+    user-select: none;
+
+    &:active {
+      background: #0f62fe;
+      border-color: #78a9ff;
+    }
+  }
+
+  .padUp    { grid-column: 2; grid-row: 1; }
+  .padLeft  { grid-column: 1; grid-row: 2; }
+  .padRight { grid-column: 3; grid-row: 2; }
+  .padDown  { grid-column: 2; grid-row: 3; }
+
+  .touchEnter {
+    position: absolute;
+    inset-block-end: 1.5rem;
+    inset-inline-end: 0.75rem;
+    display: block;
+    max-width: 11rem;
+    padding: 0.75rem 1rem;
+    background: #0f62fe;
+    border: 1px solid #78a9ff;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    touch-action: manipulation;
+
+    &:disabled {
+      background: rgba(22, 22, 22, 0.82);
+      border-color: #525252;
+      color: #8d8d8d;
+    }
+  }
+
+  /* The keyboard hint is meaningless without a keyboard. */
+  .prompt {
+    display: none;
+  }
+}
+
+/* ── Small screens ────────────────────────────────────────────────────────── */
+
+@media (max-width: 42rem) {
+  .worldPage {
+    padding: 1rem 1rem 2.5rem;
+  }
+
+  .brief {
+    grid-template-columns: 1fr;
+  }
+
+  .stationList {
+    grid-template-columns: 1fr;
+  }
+
+  .meters {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .meter {
+    min-width: 5.5rem;
+    flex: 1 1 5.5rem;
   }
 }

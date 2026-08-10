@@ -22,19 +22,35 @@ export const PHASE_ORDER: readonly EngagementPhase[] = [
   'COMPLETED',
 ]
 
-/** Human labels, kept free of consulting jargon for first-time players. */
+/**
+ * **The** name of each phase. Not "a" label — the only one.
+ *
+ * Before this, a single phase answered to four different names depending on
+ * where you were standing: the stepper said "Make contact", the room said
+ * "Outreach Desk", the page said "Outreach Workspace" and the progress bar said
+ * "Outreach". A first-time learner has no way to know those are one thing, and
+ * that — far more than any missing feature — is why the product reads as
+ * confusing. Every surface now renders this string.
+ *
+ * Kept free of consulting jargon, and short enough to survive a stepper on a
+ * phone. `phaseNameMatchesStations` in the tests fails the build if a room ever
+ * drifts from this list again.
+ */
 export const PHASE_LABEL: Record<EngagementPhase, string> = {
-  LEAD: 'Pick a client',
-  CLIENT_INTELLIGENCE: 'Research them',
+  LEAD: 'Choose a client',
+  CLIENT_INTELLIGENCE: 'Research the client',
   OUTREACH: 'Make contact',
   MEETING_PREPARATION: 'Prepare',
-  LIVE_MEETING: 'Meet them',
+  LIVE_MEETING: 'The meeting',
   MEETING_REVIEW: 'Debrief',
-  PROPOSAL: 'Propose',
+  PROPOSAL: 'Proposal',
   OUTCOME: 'Their decision',
   REVIEW: 'Your review',
-  COMPLETED: 'Done',
+  COMPLETED: 'Portfolio',
 }
+
+/** Total steps in the lifecycle. The single source for "N of M phases". */
+export const PHASE_COUNT = PHASE_ORDER.length
 
 export type StationStatus = 'done' | 'current' | 'locked' | 'open'
 

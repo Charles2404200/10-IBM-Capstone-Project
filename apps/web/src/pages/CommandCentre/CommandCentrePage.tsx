@@ -22,6 +22,7 @@ import { resolveEngagementRoute } from '@/api/engagementRouting'
 import { isActiveEngagement, requiresMeetingRetry } from '@/features/engagement/services/engagementLifecycleService'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
+import { PHASE_COUNT, PHASE_LABEL } from '@/game/state/progression'
 import type { CompletedEngagementView, Engagement, ScenarioSummary } from '@/api/types'
 import styles from './CommandCentrePage.module.scss'
 
@@ -65,8 +66,14 @@ function attemptLabels(engagements: Engagement[]) {
   return labels
 }
 
+/** Uses the real lifecycle length rather than a hard-coded 8, which disagreed
+ *  with the ten-step stepper now shown on every workspace — the same screen was
+ *  telling the learner two different things about how long the job is. */
 function phasesComplete(engagement: Engagement) {
-  return Math.min(8, Math.max(1, Math.ceil((engagement.progressPercent / 100) * 8)))
+  return Math.min(
+    PHASE_COUNT,
+    Math.max(1, Math.ceil((engagement.progressPercent / 100) * PHASE_COUNT))
+  )
 }
 
 function EngagementStatusTag({ engagement }: { engagement: Engagement }) {
@@ -109,11 +116,11 @@ function FeaturedEngagement({
 
           <div className={styles.featuredProgressBlock}>
             <div className={styles.progressLabel}>
-              <span>{engagement.phaseLabel}</span>
+              <span>{PHASE_LABEL[engagement.phase] ?? engagement.phaseLabel}</span>
               <span>{engagement.progressPercent}%</span>
             </div>
             <ProgressBar label="Progress" hideLabel value={engagement.progressPercent} max={100} size="small" />
-            <span className={styles.phaseCount}>{phasesComplete(engagement)} of 8 phases</span>
+            <span className={styles.phaseCount}>{phasesComplete(engagement)} of {PHASE_COUNT} phases</span>
           </div>
 
           <div className={styles.nextActionBlock}>
@@ -161,7 +168,7 @@ function CompactEngagementRow({
 
       <div className={styles.compactProgress}>
         <div className={styles.progressLabel}>
-          <span>{engagement.phaseLabel}</span>
+          <span>{PHASE_LABEL[engagement.phase] ?? engagement.phaseLabel}</span>
           <span>{engagement.progressPercent}%</span>
         </div>
         <ProgressBar label="Progress" hideLabel value={engagement.progressPercent} max={100} size="small" />
@@ -362,7 +369,7 @@ export default function CommandCentrePage() {
           engagement.scenarioTitle,
           engagement.scenarioIndustry,
           engagement.leadCompanyName,
-          engagement.phaseLabel,
+          PHASE_LABEL[engagement.phase] ?? engagement.phaseLabel,
           engagement.nextAction,
         ].some((value) => value?.toLowerCase().includes(query))
       })

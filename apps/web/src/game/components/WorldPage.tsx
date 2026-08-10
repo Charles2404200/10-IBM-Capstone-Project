@@ -16,7 +16,7 @@ import type { Engagement } from '@/api/types'
 import type { SarahMood } from '../art/actors'
 import { audio } from '../audio/engine'
 import { useGameStore } from '../state/gameStore'
-import { PHASE_BRIEF, stationStatus, type StationStatus } from '../state/progression'
+import { PHASE_LABEL, stationStatus, type StationStatus } from '../state/progression'
 import { STATIONS, type StationPlacement } from '../world/map'
 import DayOne from './DayOne'
 import HubWorld from './HubWorld'
@@ -89,13 +89,8 @@ export default function WorldPage() {
     return <DayOne defaultName={displayName ?? ''} onFinish={() => undefined} />
   }
 
-  const brief = engagement ? PHASE_BRIEF[engagement.phase] : null
-  const currentStation = STATIONS.find(
-    (station) => stationStatus(station.phase, engagement) === 'current'
-  )
-
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem 3rem' }}>
+    <div className={styles.worldPage}>
       <div
         style={{
           display: 'flex',
@@ -109,10 +104,10 @@ export default function WorldPage() {
           <h1 style={{ fontSize: '2rem', fontWeight: 300 }}>The floor</h1>
           <p style={{ color: '#525252', marginTop: '0.25rem' }}>
             {engagement
-              ? `${engagement.leadCompanyName ?? engagement.scenarioTitle ?? 'Your engagement'} — ${
-                  engagement.nextAction
-                }`
-              : 'No engagement running. Start one from the Command Centre in the lobby.'}
+              ? `${engagement.leadCompanyName ?? engagement.scenarioTitle ?? 'Your engagement'} — next: ${
+                  PHASE_LABEL[engagement.phase]
+                }, marked in blue.`
+              : 'No engagement running. Open the Command Centre to start one.'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -131,45 +126,6 @@ export default function WorldPage() {
         </div>
       </div>
 
-      {brief && (
-        <div className={styles.brief} style={{ marginTop: '1.25rem' }}>
-          <div className={styles.briefCell}>
-            <p className={styles.briefLabel}>What this step is for</p>
-            <p className={styles.briefText}>{brief.goal}</p>
-          </div>
-          <div className={styles.briefCell}>
-            <p className={styles.briefLabel}>You are done when</p>
-            <p className={styles.briefText}>{brief.done}</p>
-          </div>
-          <div className={styles.briefCell}>
-            <p className={styles.briefLabel}>Then</p>
-            <p className={styles.briefText}>{brief.next}</p>
-          </div>
-        </div>
-      )}
-
-      {/* The one sentence that answers "what now?". Sits directly above the
-          map so it is read before the floor plan, not after it. */}
-      {worldEnabled && (
-        <div className={styles.objective}>
-          <span className={styles.objectiveLabel}>Next</span>
-          <span className={styles.objectiveText}>
-            {currentStation ? (
-              <>
-                {engagement?.nextAction ?? 'Continue the engagement'} — go to the{' '}
-                <span className={styles.objectiveRoom}>{currentStation.title}</span>, marked in
-                blue. Walk there, or click it on the map.
-              </>
-            ) : (
-              <>
-                Nothing is running yet. Start a scenario from the{' '}
-                <span className={styles.objectiveRoom}>Command Centre</span>.
-              </>
-            )}
-          </span>
-        </div>
-      )}
-
       {worldEnabled ? (
         <HubWorld engagement={engagement} sarahMood={mood} onEnter={enter} />
       ) : (
@@ -182,9 +138,11 @@ export default function WorldPage() {
         />
       )}
 
+      {!worldEnabled && (
+        <>
       <h2 style={{ marginTop: '2rem', fontSize: '1.25rem', fontWeight: 400 }}>Rooms on this floor</h2>
       <p style={{ color: '#525252', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-        Walk to a room and press E, or use these buttons.
+        Pick a room to open it.
       </p>
 
       <ul className={styles.stationList}>
@@ -209,6 +167,8 @@ export default function WorldPage() {
           )
         })}
       </ul>
+        </>
+      )}
     </div>
   )
 }
