@@ -13,42 +13,39 @@
  */
 import type { EngagementPhase } from '@/api/types'
 
-export const MAP_WIDTH = 30
-export const MAP_HEIGHT = 21
+export const MAP_WIDTH = 38
+export const MAP_HEIGHT = 14
 
 /**
- * Tightened after playtesting: the first floor plan was 40x26 with two
- * full-width halls, and crossing it felt like a toll rather than a journey.
- * This one is 30x21 with 370 walkable tiles (down from 702) — rooms sized to
- * what is in them, and no room bigger than the threshold at which interaction
- * falls back to pad proximity, so E works anywhere inside every station room.
+ * Wide and short, deliberately.
  *
- * Layout: two room bands and a bottom band, joined by a pair of corridors that
- * meet in a vertical link on the east side.
+ * The previous plan was 30x21 — very nearly square — while the space a browser
+ * leaves below its chrome, the app header and the HUD is wide and shallow. The
+ * map was therefore always bound by height and had to shrink to 1x to fit,
+ * which is why it read as small and lost in empty space no matter how the
+ * container was sized. No CSS fixes a shape mismatch; the plan has to match the
+ * screen. At 38x14 it renders at 2x on a normal laptop and 1.5x on a short
+ * window, instead of 1x on both.
+ *
+ * Layout: two room bands either side of a single corridor. Five rooms above,
+ * six below, in lifecycle order left to right.
  */
 /* eslint-disable no-multi-spaces */
 export const HUB_MAP: readonly string[] = [
-  '##w##w##w##w##w##w##w##w##w###',
-  '#t....#t....#....t#.........t#',
-  '#..C..#..L..#..I..#....O.....#',
-  '#.....#.....#.....#..........#',
-  '#...dh#...dh#ee.e.#.dh....o..#',
-  '###+#####+#####+#######+######',
-  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-  '###+########+########+####,,,#',
-  '#t....#.f.........#.....t#,,,#',
-  '#..P..#.....M.....#..R...#,,,#',
-  '#.....#...........#......#,,,#',
-  '#..b..#....yyyy...#.dh...#,,,#',
-  '##########################,,,#',
-  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-  '###+#####+#####+#######+######',
-  '#.....#t....#.....#........f.#',
-  '#..S..#..U..#..A..#....F.....#',
-  '#.dh..#...y.#...qq#.eee......#',
-  '##############################',
+  '##w###w###w###w###w###w###w###w###w###',
+  '#t.....#t.....#t.....#t.....#t...o...#',
+  '#..C...#..L...#..I...#..O...#...P....#',
+  '#......#......#......#......#........#',
+  '#....dh#....dh#..eedh#....dh#......dh#',
+  '##+######+######+######+######+#######',
+  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+  '##+#####+#####+#####+#####+#####+#####',
+  '#f....#.....#.....#.....#.....#.....f#',
+  '#..M..#..R..#..S..#..U..#..A..#..F...#',
+  '#.....#.....#.....#.....#.....#......#',
+  '#.yyy.#...dh#...dh#.y...#.qq..#.eee..#',
+  '######################################',
 ]
 /* eslint-enable no-multi-spaces */
 
@@ -200,10 +197,10 @@ export function placeStations(): StationPlacement[] {
 }
 
 /** Where the player character spawns — the main corridor, in reach of everything. */
-export const SPAWN = { tileX: 14, tileY: 7 } as const
+export const SPAWN = { tileX: 19, tileY: 6 } as const
 
 /** Where Sarah Chen stands in the meeting room, beside the table. */
-export const SARAH_POSITION = { tileX: 13, tileY: 10 } as const
+export const SARAH_POSITION = { tileX: 4, tileY: 10 } as const
 
 // ─── Integrity ───────────────────────────────────────────────────────────────
 

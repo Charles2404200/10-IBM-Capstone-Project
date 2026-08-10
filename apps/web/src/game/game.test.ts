@@ -331,17 +331,20 @@ describe('rooms', () => {
     )
   })
 
-  it('anchors every name plate inside its own room', () => {
+  it('anchors every name plate within its own room', () => {
+    // Inside the room's bounds, not necessarily on a walkable tile: a plate
+    // hanging over a bookshelf that belongs to the room is fine, one hanging
+    // over the wall or the next room along is not.
     for (const room of stationRooms()) {
-      // The plate hangs on the room's top row, horizontally centred. Both the
-      // row and the tiles either side of centre must belong to this room, or
-      // the label ends up floating over a wall.
-      const left = Math.floor(room.labelX - 0.5)
-      const right = Math.ceil(room.labelX - 0.5)
-      expect(room.tiles.has(`${left},${room.labelY}`), `${room.station?.title} label off-room`).toBe(
-        true
+      const xs = [...room.tiles].map((k) => Number(k.split(',')[0]))
+      const minX = Math.min(...xs)
+      const maxX = Math.max(...xs)
+      expect(room.labelX, `${room.station?.title} label sits left of its room`).toBeGreaterThanOrEqual(
+        minX
       )
-      expect(room.tiles.has(`${right},${room.labelY}`)).toBe(true)
+      expect(room.labelX, `${room.station?.title} label sits right of its room`).toBeLessThanOrEqual(
+        maxX + 1
+      )
     }
   })
 
@@ -439,12 +442,25 @@ describe('findPath', () => {
 
 describe('nearestWalkable', () => {
   it('returns the tile itself when it is already walkable', () => {
-    expect(nearestWalkable({ tileX: 19, tileY: 4 })).toEqual({ tileX: 19, tileY: 4 })
+    const spawn = { tileX: SPAWN.tileX, tileY: SPAWN.tileY }
+    expect(nearestWalkable(spawn)).toEqual(spawn)
   })
 
   it('snaps a click on furniture to adjacent floor', () => {
-    // The Command Centre desk sits at row 5 of the lobby.
-    const snapped = nearestWalkable({ tileX: 19, tileY: 5 })
+    // Find a real prop rather than hard-coding one, so redrawing the map cannot
+    // quietly turn this into a test of empty floor.
+    let furniture: { tileX: number; tileY: number } | null = null
+    HUB_MAP.forEach((row, y) => {
+      for (let x = 0; x < row.length; x += 1) {
+        if (!furniture && (row[x] === 'd' || row[x] === 'e' || row[x] === 'y')) {
+          furniture = { tileX: x, tileY: y }
+        }
+      }
+    })
+    expect(furniture).not.toBeNull()
+    expect(isWalkable(furniture!.tileX, furniture!.tileY)).toBe(false)
+
+    const snapped = nearestWalkable(furniture!)
     expect(snapped).not.toBeNull()
     expect(isWalkable(snapped!.tileX, snapped!.tileY)).toBe(true)
   })

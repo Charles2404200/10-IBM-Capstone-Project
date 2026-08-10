@@ -967,8 +967,12 @@
    screen, where there really is space around the map to fill. */
 .stage {
   display: flex;
-  width: fit-content;
-  margin: 0 auto;
+  justify-content: center;
+  /* Full width on purpose. `fit-content` here created a measuring loop: the
+     stage sized itself to the map while the map sized itself from the stage,
+     and the two collapsed each other to a fraction of the space. There is no
+     background outside full screen, so a full-width box shows no bars. */
+  width: 100%;
 }
 
 .stage:fullscreen {
