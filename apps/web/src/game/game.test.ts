@@ -37,7 +37,8 @@ import {
   stationStatus,
 } from './state/progression'
 import { engagementIdFromPath } from './components/GameHUD'
-import { moodFor, selectActiveEngagement } from './components/WorldPage'
+import { moodFor } from './components/WorldPage'
+import { selectActiveEngagement } from './state/activeEngagement'
 import type { Engagement, EngagementPhase } from '@/api/types'
 
 // ─── Art ─────────────────────────────────────────────────────────────────────

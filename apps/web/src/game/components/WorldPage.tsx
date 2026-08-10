@@ -12,9 +12,9 @@ import { useMyEngagements } from '@/api/hooks/useEngagements'
 import { usePersonaState } from '@/api/hooks/useMeeting'
 import { useAuthStore } from '@/store/authStore'
 import LoadingState from '@/components/shared/LoadingState'
-import type { Engagement } from '@/api/types'
 import type { SarahMood } from '../art/actors'
 import { audio } from '../audio/engine'
+import { selectActiveEngagement } from '../state/activeEngagement'
 import { useGameStore } from '../state/gameStore'
 import { PHASE_LABEL, stationStatus, type StationStatus } from '../state/progression'
 import { STATIONS, type StationPlacement } from '../world/map'
@@ -22,15 +22,7 @@ import DayOne from './DayOne'
 import HubWorld from './HubWorld'
 import styles from '../styles/game.module.scss'
 
-/** Chooses the engagement the world should represent: the one still in flight. */
-export function selectActiveEngagement(engagements: Engagement[] | undefined): Engagement | null {
-  if (!engagements || engagements.length === 0) return null
-  const live = engagements.filter((e) => e.phase !== 'COMPLETED')
-  const pool = live.length > 0 ? live : engagements
-  return [...pool].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )[0]
-}
+export { selectActiveEngagement }
 
 /**
  * Maps the client's relationship state onto a facial expression.
@@ -155,14 +147,10 @@ export default function WorldPage() {
         />
       )}
 
-      {!worldEnabled && (
-        <>
-      <h2 style={{ marginTop: '2rem', fontSize: '1.25rem', fontWeight: 400 }}>Rooms on this floor</h2>
-      <p style={{ color: '#525252', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-        Pick a room to open it.
-      </p>
-
-      <ul className={styles.stationList}>
+      {/* Jump straight to a room. Removing these was an over-correction: they
+          are navigation, not a second explanation of the map, and they are the
+          only route for anyone not using a pointer on the canvas. */}
+      <ul className={worldEnabled ? styles.jumpRow : styles.stationList}>
         {STATIONS.map((station) => {
           const status = stationStatus(station.phase, engagement)
           const locked = status === 'locked'
@@ -170,22 +158,31 @@ export default function WorldPage() {
             <li key={station.glyph}>
               <button
                 type="button"
-                className={`${styles.stationCard} ${
-                  status === 'current' ? styles.stationCardCurrent : ''
-                } ${status === 'done' ? styles.stationCardDone : ''}`}
+                className={
+                  worldEnabled
+                    ? `${styles.jumpChip} ${status === 'current' ? styles.jumpChipCurrent : ''} ${
+                        status === 'done' ? styles.jumpChipDone : ''
+                      }`
+                    : `${styles.stationCard} ${
+                        status === 'current' ? styles.stationCardCurrent : ''
+                      } ${status === 'done' ? styles.stationCardDone : ''}`
+                }
                 onClick={() => enter(station)}
                 disabled={locked || (!engagement && station.phase !== null)}
+                title={`${station.title} — ${STATUS_LABEL[status]}. ${station.blurb}`}
               >
-                <span className={styles.stationStatus}>{STATUS_LABEL[status]}</span>
-                <span className={styles.stationTitle}>{station.title}</span>
-                <span className={styles.stationBlurb}>{station.blurb}</span>
+                {!worldEnabled && (
+                  <span className={styles.stationStatus}>{STATUS_LABEL[status]}</span>
+                )}
+                <span className={worldEnabled ? undefined : styles.stationTitle}>
+                  {station.title}
+                </span>
+                {!worldEnabled && <span className={styles.stationBlurb}>{station.blurb}</span>}
               </button>
             </li>
           )
         })}
       </ul>
-        </>
-      )}
     </div>
   )
 }

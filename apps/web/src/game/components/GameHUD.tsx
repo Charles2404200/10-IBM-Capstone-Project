@@ -13,10 +13,11 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useEngagement } from '@/api/hooks/useEngagements'
+import { useEngagement, useMyEngagements } from '@/api/hooks/useEngagements'
 import { usePersonaState } from '@/api/hooks/useMeeting'
 import type { EngagementPhase, PersonaState } from '@/api/types'
 import { audio } from '../audio/engine'
+import { selectActiveEngagement } from '../state/activeEngagement'
 import { useGameStore } from '../state/gameStore'
 import { PHASE_COUNT, PHASE_LABEL, PHASE_ORDER, phaseIndex } from '../state/progression'
 import styles from '../styles/game.module.scss'
@@ -145,8 +146,15 @@ export default function GameHUD() {
   const muted = useGameStore((s) => s.preferences.audio.muted)
   const setAudio = useGameStore((s) => s.setAudio)
 
+  // Workspace routes carry the id; /dashboard and /dashboard/world do not, and
+  // on those the HUD used to render an empty stepper with no current step —
+  // exactly where a learner is most likely to be looking for their bearings.
   const engagementId = engagementIdFromPath(location.pathname)
-  const { data: engagement } = useEngagement(engagementId ?? '')
+  const { data: routeEngagement } = useEngagement(engagementId ?? '')
+  const { data: allEngagements } = useMyEngagements()
+  const engagement = engagementId
+    ? routeEngagement
+    : (selectActiveEngagement(allEngagements) ?? undefined)
   const { data: personaState } = usePersonaState(engagement?.meetingId ?? '')
 
   // Remember the previous relationship reading so the HUD can show a delta —
