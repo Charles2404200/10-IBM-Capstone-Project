@@ -19,15 +19,14 @@
 
 /* ── World canvas ─────────────────────────────────────────────────────────── */
 
-/* Matched to the tilemap's own proportions (30x21 tiles) so the whole floor
-   fits at an exact integer zoom with no letterbox bars on either axis. */
 .world {
   position: relative;
   /* Width and height are set in JS to exactly the map's size at the chosen
      integer zoom — see the resizeStage effect in HubWorld. Guessing here with
      aspect-ratio plus a max-height either letterboxed or cropped the plan. */
   width: 100%;
-  aspect-ratio: 30 / 21;
+  /* Placeholder for the first paint only; JS sets the real size. */
+  aspect-ratio: 38 / 14;
   margin: 0 auto;
   background: #161616;
   border: 1px solid #393939;
@@ -1044,4 +1043,47 @@
 .jumpChipDone {
   border-color: #a7f0ba;
   color: #0e6027;
+}
+
+/* ── Narrow-screen navigation ─────────────────────────────────────────────
+   Carbon hides HeaderNavigation below 1056px and expects its SideNav to take
+   over, but that component computed to zero width here regardless of what was
+   set on it, so the menu never appeared and the hamburger did nothing. This is
+   a plain panel under the header, rendered from the same link list as the wide
+   header bar. */
+
+.mobileNav {
+  position: fixed;
+  inset-block-start: 3rem;
+  inset-inline: 0;
+  z-index: 7000;
+  display: flex;
+  flex-direction: column;
+  background: #161616;
+  border-bottom: 1px solid #393939;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.mobileNavLink {
+  padding: 0.9rem 1rem;
+  color: #c6c6c6;
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #262626;
+
+  &:hover {
+    background: #262626;
+    color: #f4f4f4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: -2px;
+  }
+}
+
+.mobileNavLinkActive {
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #0f62fe;
 }

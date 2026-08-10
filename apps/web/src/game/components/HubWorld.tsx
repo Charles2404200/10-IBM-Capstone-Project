@@ -254,12 +254,13 @@ export default function HubWorld({
         wrapper.style.width = `${Math.round(MAP_PIXEL_WIDTH * zoom)}px`
         wrapper.style.height = `${Math.round(MAP_PIXEL_HEIGHT * zoom)}px`
       } else {
-        // Too small to show it all — a phone, or a very short window. Fill the
-        // space and let the camera follow the avatar. Shrinking the art below
-        // 1x to fit would make a floor plan nobody can read, which is worse
-        // than showing part of a legible one.
-        wrapper.style.width = `${Math.max(160, Math.floor(availableWidth))}px`
-        wrapper.style.height = `${Math.max(160, Math.floor(availableHeight))}px`
+        // Too narrow to show it all — a phone. Show as much as fits at 1x and
+        // let the camera follow the avatar; shrinking the art further would
+        // make a plan nobody can read, which is worse than showing part of a
+        // legible one. Never grow past the map itself, or the stage gains empty
+        // bands above and below a floor that is only 224px tall.
+        wrapper.style.width = `${Math.max(160, Math.min(Math.floor(availableWidth), MAP_PIXEL_WIDTH))}px`
+        wrapper.style.height = `${Math.max(120, Math.min(Math.floor(availableHeight), MAP_PIXEL_HEIGHT))}px`
       }
     }
 
@@ -327,6 +328,12 @@ export default function HubWorld({
 
       // Move the room name plates with the camera. Done by writing transforms
       // directly rather than through state, so this costs nothing per frame.
+      // On a stage too small to hold the whole plan, eleven plates pile on top
+      // of one another and the map becomes unreadable. Keep only the two that
+      // answer "where am I" and "where next".
+      const crowded = rect.width < MAP_PIXEL_WIDTH
+      const standingIn = crowded ? activeStation(player)?.glyph : undefined
+
       for (const placement of placements) {
         const plate = plateRefs.current.get(placement.glyph)
         if (!plate) continue
@@ -334,8 +341,12 @@ export default function HubWorld({
         if (!anchor) continue
         const px = (anchor.x * TILE - camera.x) * camera.zoom
         const py = (anchor.y * TILE - camera.y) * camera.zoom
+        const essential =
+          !crowded ||
+          placement.glyph === standingIn ||
+          statusRef.current(placement) === 'current'
         const visible =
-          px > -140 && px < rect.width + 140 && py > -60 && py < rect.height + 60
+          essential && px > -140 && px < rect.width + 140 && py > -60 && py < rect.height + 60
         plate.style.display = visible ? 'flex' : 'none'
         if (!visible) continue
 

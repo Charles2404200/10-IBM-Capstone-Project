@@ -8,42 +8,36 @@ import {
   HeaderMenuButton,
   HeaderGlobalBar,
   HeaderGlobalAction,
-  HeaderSideNavItems,
-  SideNav,
-  SideNavItems,
   SkipToContent,
   Content,
 } from '@carbon/react'
 import { Logout } from '@carbon/icons-react'
 import { useAuthStore } from '@/store/authStore'
 import GameHUD from '@/game/components/GameHUD'
+import styles from '@/game/styles/game.module.scss'
 
 export default function AppShell() {
   const { displayName, role, logout } = useAuthStore()
   const navigate = useNavigate()
-  // Carbon hides HeaderNavigation below 1056px and expects a SideNav to take
-  // over. Without one there was simply no navigation at all on a phone.
+  // Carbon hides HeaderNavigation below 1056px, and hides this button above it,
+  // so exactly one of the two is on screen at any width.
   const [navOpen, setNavOpen] = useState(false)
   const canAccessAdmin = role === 'SCENARIO_AUTHOR' || role === 'REVIEWER' || role === 'ADMINISTRATOR'
 
-  const navItems = [
-    <HeaderMenuItem key="world" as={NavLink} to="/dashboard/world" onClick={() => setNavOpen(false)}>
-      Office floor
-    </HeaderMenuItem>,
-    <HeaderMenuItem key="command" as={NavLink} to="/dashboard" onClick={() => setNavOpen(false)}>
-      Command Centre
-    </HeaderMenuItem>,
-    <HeaderMenuItem key="portfolio" as={NavLink} to="/dashboard/portfolio" onClick={() => setNavOpen(false)}>
-      Portfolio
-    </HeaderMenuItem>,
-    ...(canAccessAdmin
-      ? [
-          <HeaderMenuItem key="admin" as={NavLink} to="/dashboard/admin" onClick={() => setNavOpen(false)}>
-            Admin Console
-          </HeaderMenuItem>,
-        ]
-      : []),
+  // Declared once and rendered twice — the wide header bar and the narrow
+  // panel can never drift apart.
+  const links = [
+    { to: '/dashboard/world', label: 'Office floor', end: false },
+    { to: '/dashboard', label: 'Command Centre', end: true },
+    { to: '/dashboard/portfolio', label: 'Portfolio', end: false },
+    ...(canAccessAdmin ? [{ to: '/dashboard/admin', label: 'Admin Console', end: false }] : []),
   ]
+
+  const navItems = links.map((link) => (
+    <HeaderMenuItem key={link.to} as={NavLink} to={link.to} end={link.end}>
+      {link.label}
+    </HeaderMenuItem>
+  ))
 
   const handleLogout = () => {
     logout()
@@ -56,7 +50,6 @@ export default function AppShell() {
       <Header aria-label="IBM Consulting Simulation">
         <HeaderMenuButton
           aria-label={navOpen ? 'Close menu' : 'Open menu'}
-          isCollapsible
           isActive={navOpen}
           onClick={() => setNavOpen((open) => !open)}
         />
@@ -64,17 +57,6 @@ export default function AppShell() {
           Consulting Sim
         </HeaderName>
         <HeaderNavigation aria-label="Main navigation">{navItems}</HeaderNavigation>
-
-        <SideNav
-          aria-label="Main navigation"
-          expanded={navOpen}
-          isPersistent={false}
-          onSideNavBlur={() => setNavOpen(false)}
-        >
-          <SideNavItems>
-            <HeaderSideNavItems>{navItems}</HeaderSideNavItems>
-          </SideNavItems>
-        </SideNav>
         <HeaderGlobalBar>
           <HeaderGlobalAction
             aria-label={`Logout ${displayName ?? ''}`}
@@ -90,6 +72,24 @@ export default function AppShell() {
           between the two lands underneath the fixed header and disappears.
           Wrapping the body means that sibling rule no longer applies, so this
           element owns the offset for both children instead. */}
+      {navOpen && (
+        <nav className={styles.mobileNav} aria-label="Main navigation">
+          {links.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              className={({ isActive }) =>
+                `${styles.mobileNavLink} ${isActive ? styles.mobileNavLinkActive : ''}`
+              }
+              onClick={() => setNavOpen(false)}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+
       <div style={{ paddingBlockStart: '3rem' }}>
         {/* Persistent phase stepper and client-relationship meters, so every
             workspace inherits them — previously the stepper appeared on some
