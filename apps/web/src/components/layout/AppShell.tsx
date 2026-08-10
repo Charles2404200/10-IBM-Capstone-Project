@@ -11,6 +11,7 @@ import {
 } from '@carbon/react'
 import { Logout } from '@carbon/icons-react'
 import { useAuthStore } from '@/store/authStore'
+import GameHUD from '@/game/components/GameHUD'
 
 export default function AppShell() {
   const { displayName, role, logout } = useAuthStore()
@@ -30,6 +31,9 @@ export default function AppShell() {
           Consulting Sim
         </HeaderName>
         <HeaderNavigation aria-label="Main navigation">
+          <HeaderMenuItem as={NavLink} to="/dashboard/world">
+            Office floor
+          </HeaderMenuItem>
           <HeaderMenuItem as={NavLink} to="/dashboard">
             Command Centre
           </HeaderMenuItem>
@@ -52,6 +56,11 @@ export default function AppShell() {
           </HeaderGlobalAction>
         </HeaderGlobalBar>
       </Header>
+      {/* Persistent phase stepper and client-relationship meters. Rendered here,
+          outside <Content>, so every workspace inherits them — previously the
+          stepper appeared on some phase pages and not others, and the
+          relationship state was only visible inside the live meeting. */}
+      <GameHUD />
       <Content>
         <Outlet />
       </Content>

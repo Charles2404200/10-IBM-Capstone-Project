@@ -1,0 +1,570 @@
+/* Styles for the pixel layer.
+ *
+ * Colours are the Carbon palette hexes used elsewhere in this app, so the world
+ * chrome and the Carbon work surfaces stay in the same family. The pixel world
+ * is a canvas; everything that carries text is real DOM at real font sizes —
+ * legibility is never traded for texture. */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── World canvas ─────────────────────────────────────────────────────────── */
+
+.world {
+  position: relative;
+  width: 100%;
+  height: clamp(400px, 66vh, 720px);
+  background: #161616;
+  border: 1px solid #393939;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.worldCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  background: rgba(22, 22, 22, 0.92);
+  border: 1px solid #0f62fe;
+  border-radius: 4px;
+  color: #f4f4f4;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.promptLocked {
+  border-color: #6f6f6f;
+  color: #c6c6c6;
+}
+
+.promptKey {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.375rem;
+  border: 1px solid #8d8d8d;
+  border-bottom-width: 3px;
+  border-radius: 3px;
+  background: #393939;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Persistent HUD ───────────────────────────────────────────────────────── */
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: #161616;
+  border-bottom: 1px solid #393939;
+  color: #f4f4f4;
+  font-size: 0.75rem;
+  overflow-x: auto;
+}
+
+.hudGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.hudGrow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hudLabel {
+  color: #a8a8a8;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 0.6875rem;
+}
+
+.hudTitle {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16rem;
+}
+
+/* ── Stepper ──────────────────────────────────────────────────────────────── */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+}
+
+.stepButton {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.375rem;
+  color: #6f6f6f;
+  font-size: 0.6875rem;
+  cursor: default;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.stepButtonActionable {
+  cursor: pointer;
+
+  &:hover {
+    background: #262626;
+    color: #f4f4f4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 1px;
+  }
+}
+
+.stepDot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  border: 2px solid #6f6f6f;
+  flex-shrink: 0;
+}
+
+.stepDotDone {
+  background: #24a148;
+  border-color: #24a148;
+}
+
+.stepDotCurrent {
+  background: #0f62fe;
+  border-color: #78a9ff;
+  box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.28);
+}
+
+.stepCurrentLabel {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.stepDoneLabel {
+  color: #a8a8a8;
+}
+
+.stepConnector {
+  width: 0.75rem;
+  height: 2px;
+  background: #393939;
+  flex-shrink: 0;
+}
+
+.stepConnectorDone {
+  background: #24a148;
+}
+
+/* ── Relationship meters ──────────────────────────────────────────────────── */
+
+.meters {
+  display: flex;
+  gap: 0.875rem;
+  flex-shrink: 0;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-width: 4.5rem;
+}
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  color: #c6c6c6;
+}
+
+.meterTrack {
+  height: 6px;
+  background: #393939;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 420ms ease, background-color 420ms ease;
+}
+
+.meterUnknown {
+  color: #6f6f6f;
+  font-style: italic;
+}
+
+.meterDelta {
+  font-weight: 600;
+}
+
+.meterDeltaUp {
+  color: #42be65;
+}
+
+.meterDeltaDown {
+  color: #fa4d56;
+}
+
+/* ── Station list (the accessible equivalent of walking) ──────────────────── */
+
+.stationList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.stationCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.875rem;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #8d8d8d;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+
+  &:hover:not(:disabled) {
+    border-color: #0f62fe;
+    border-left-color: #0f62fe;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: #f4f4f4;
+    color: #8d8d8d;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 2px;
+  }
+}
+
+.stationCardCurrent {
+  border-left-color: #0f62fe;
+  box-shadow: 0 0 0 1px #0f62fe inset;
+}
+
+.stationCardDone {
+  border-left-color: #24a148;
+}
+
+.stationTitle {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.stationBlurb {
+  font-size: 0.8125rem;
+  color: #525252;
+  line-height: 1.35;
+}
+
+.stationStatus {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #6f6f6f;
+}
+
+/* ── Onboarding ───────────────────────────────────────────────────────────── */
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: #161616;
+  color: #f4f4f4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.onboardingPanel {
+  width: min(46rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.onboardingKicker {
+  color: #78a9ff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.onboardingTitle {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 300;
+}
+
+.onboardingBody {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: #c6c6c6;
+  max-width: 42rem;
+}
+
+.onboardingActions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.onboardingProgress {
+  display: flex;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.onboardingPip {
+  width: 1.75rem;
+  height: 3px;
+  background: #393939;
+  border-radius: 2px;
+}
+
+.onboardingPipActive {
+  background: #0f62fe;
+}
+
+.avatarRow {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.avatarOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #262626;
+  border: 2px solid #393939;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #c6c6c6;
+  font-size: 0.75rem;
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 2px;
+  }
+}
+
+.avatarOptionSelected {
+  border-color: #0f62fe;
+  color: #ffffff;
+}
+
+.avatarCanvas {
+  image-rendering: pixelated;
+  display: block;
+}
+
+.lifecycleMap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lifecycleNode {
+  padding: 0.625rem 0.75rem;
+  background: #262626;
+  border-left: 3px solid #0f62fe;
+  border-radius: 3px;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: nodeIn 380ms ease forwards;
+}
+
+.lifecycleNodeName {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  display: block;
+  margin-bottom: 0.125rem;
+}
+
+.lifecycleNodeBlurb {
+  font-size: 0.75rem;
+  color: #a8a8a8;
+  line-height: 1.35;
+}
+
+@keyframes nodeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifecycleNode {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .meterFill {
+    transition: none;
+  }
+}
+
+/* ── Phase frame (Brief / Consequence / Debrief) ──────────────────────────── */
+
+.brief {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1px;
+  background: #e0e0e0;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.briefCell {
+  background: #ffffff;
+  padding: 0.875rem 1rem;
+}
+
+.briefLabel {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #6f6f6f;
+  margin-bottom: 0.25rem;
+}
+
+.briefText {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #161616;
+}
+
+.consequence {
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #0f62fe;
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  background: #f4f4f4;
+  margin: 1.5rem 0;
+}
+
+.consequenceTitle {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.deltaList {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* ── Settings ─────────────────────────────────────────────────────────────── */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 18rem;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: 1px solid #525252;
+  color: #f4f4f4;
+  border-radius: 3px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  cursor: pointer;
+
+  &:hover {
+    background: #262626;
+    border-color: #8d8d8d;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 1px;
+  }
+}

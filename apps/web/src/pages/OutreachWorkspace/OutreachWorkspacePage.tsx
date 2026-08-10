@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
@@ -17,9 +17,13 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
+import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt } from '@/api/types'
 import { getProblemDetail } from '@/api/problemDetails'
+import PhaseBrief from '@/game/components/PhaseBrief'
+import LiveRubric from '@/game/components/LiveRubric'
+import { keywordsFrom, stakeholderNameFrom } from '@/game/coaching/outreachRubric'
 import styles from './OutreachWorkspacePage.module.scss'
 
 const emailSchema = z.object({
@@ -226,9 +230,30 @@ export default function OutreachWorkspacePage() {
   const { data: attempts, isLoading } = useOutreach(engagementId!)
   const { data: brief } = useCapabilityBrief(engagementId!)
   const sendOutreach = useSendOutreach(engagementId!)
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<EmailFormValues>({
+  const { data: intelligence } = useLeadIntelligence(engagementId!)
+  const { data: evidence } = useResearch(engagementId!)
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
   })
+
+  // Watched so the self-check updates as the learner types.
+  const draftBody = watch('body') ?? ''
+
+  // Context for the self-check: who they are writing to, and the terms their own
+  // research turned up. Derived from data the page already has, so this adds no
+  // extra round trip.
+  const rubricContext = useMemo(
+    () => ({
+      personaName: stakeholderNameFrom(intelligence?.decisionMaker?.value),
+      companyName: intelligence?.companyName ?? null,
+      keywords: keywordsFrom([
+        ...(evidence ?? []).map((item) => item.note),
+        intelligence?.painSeverity?.value,
+        intelligence?.technologyStack?.value,
+      ]),
+    }),
+    [evidence, intelligence]
+  )
 
   if (isLoading) return <LoadingState />
 
@@ -245,6 +270,7 @@ export default function OutreachWorkspacePage() {
           <p className={styles.eyebrow}>Engagement workflow</p>
           <Heading>Outreach Workspace</Heading>
           <p className={styles.pageSubtitle}>Respond to the client’s latest request and earn the next step in the engagement.</p>
+          <PhaseBrief phase="OUTREACH" />
         </Column>
       </Grid>
 
@@ -293,7 +319,16 @@ export default function OutreachWorkspacePage() {
                       <p className={styles.formIntro}>Use the latest response as context. Give the client one clear reason and a low-friction next step.</p>
                     </div>
                     <TextInput id="subject" labelText="Subject" invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
-                    <TextArea id="body" labelText="Message" rows={10} helperText="Minimum 50 characters." invalid={Boolean(errors.body)} invalidText={errors.body?.message} {...register('body')} />
+                    <TextArea
+                      id="body"
+                      labelText="Message"
+                      rows={10}
+                      helperText={`Minimum 50 characters — ${draftBody.length} so far.`}
+                      invalid={Boolean(errors.body)}
+                      invalidText={errors.body?.message}
+                      {...register('body')}
+                    />
+                    <LiveRubric body={draftBody} context={rubricContext} />
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}

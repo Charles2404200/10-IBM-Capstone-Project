@@ -7,6 +7,8 @@ import LoadingState from '@/components/shared/LoadingState'
 const LandingPage = lazy(() => import('@/pages/Landing/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/Auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/Auth/RegisterPage'))
+const WorldPage = lazy(() => import('@/game/components/WorldPage'))
+const WorldPreview = lazy(() => import('@/game/components/WorldPreview'))
 const CommandCentrePage = lazy(() => import('@/pages/CommandCentre/CommandCentrePage'))
 const LeadPipelinePage = lazy(() => import('@/pages/LeadPipeline/LeadPipelinePage'))
 const ClientIntelligencePage = lazy(() => import('@/pages/ClientIntelligence/ClientIntelligencePage'))
@@ -78,6 +80,7 @@ export default function App() {
           }
         >
           <Route index element={<CommandCentrePage />} />
+          <Route path="world" element={<WorldPage />} />
           <Route path="engagements/:engagementId/leads" element={<LeadPipelinePage />} />
           <Route path="engagements/:engagementId/intelligence" element={<ClientIntelligencePage />} />
           <Route path="engagements/:engagementId/outreach" element={<OutreachWorkspacePage />} />
@@ -115,6 +118,8 @@ export default function App() {
             element={<RequireRole roles={['REVIEWER', 'ADMINISTRATOR']}><AiOperationsPage /></RequireRole>}
           />
         </Route>
+        {/* Backend-free harness for reviewing the pixel layer. Dev builds only. */}
+        {import.meta.env.DEV && <Route path="/world-preview" element={<WorldPreview />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
