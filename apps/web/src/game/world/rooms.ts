@@ -21,6 +21,10 @@ export interface Room {
   /** Tile coordinate of the station pad, for the camera and overhead markers. */
   padX: number
   padY: number
+  /** Where the room's name plate hangs: horizontally centred, on its top row,
+   *  so the label sits inside the room rather than over the wall above it. */
+  labelX: number
+  labelY: number
 }
 
 /** Doorways separate rooms; standing in one belongs to neither side. */
@@ -44,6 +48,10 @@ function buildRooms(): { rooms: Room[]; index: Map<string, number> } {
       let padX = x
       let padY = y
 
+      let minX = x
+      let maxX = x
+      let minY = y
+
       const queue: Array<[number, number]> = [[x, y]]
       while (queue.length > 0) {
         const [cx, cy] = queue.pop() as [number, number]
@@ -51,6 +59,10 @@ function buildRooms(): { rooms: Room[]; index: Map<string, number> } {
         if (tiles.has(ckey) || !isWalkable(cx, cy) || isBoundary(cx, cy)) continue
         tiles.add(ckey)
         index.set(ckey, id)
+
+        if (cx < minX) minX = cx
+        if (cx > maxX) maxX = cx
+        if (cy < minY) minY = cy
 
         const found = STATION_BY_GLYPH.get(HUB_MAP[cy][cx])
         if (found) {
@@ -62,7 +74,15 @@ function buildRooms(): { rooms: Room[]; index: Map<string, number> } {
         queue.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1])
       }
 
-      rooms.push({ id, tiles, station, padX, padY })
+      rooms.push({
+        id,
+        tiles,
+        station,
+        padX,
+        padY,
+        labelX: (minX + maxX + 1) / 2,
+        labelY: minY,
+      })
     }
   }
 

@@ -33,6 +33,7 @@ import {
 } from '../world/engine'
 import { findPath, nearestWalkable, type TilePoint } from '../world/pathfinding'
 import { SARAH_POSITION } from '../world/map'
+import { roomAtTile } from '../world/rooms'
 import {
   buildMapCanvas,
   bubbleCanvas,
@@ -59,6 +60,14 @@ function avatarSprite(base: Sprite, avatar: AvatarChoice): Sprite {
   return recolour(base, { h: avatar.hair, b: avatar.suit, s: avatar.skin })
 }
 
+/** Plain-language status shown under each room name. */
+const PLATE_STATUS: Record<ReturnType<typeof stationStatus>, string> = {
+  current: 'Go here next',
+  done: 'Done',
+  locked: 'Locked',
+  open: 'Open any time',
+}
+
 export default function HubWorld({
   engagement,
   sarahMood,
@@ -77,6 +86,7 @@ export default function HubWorld({
   const pathRef = useRef<TilePoint[]>([])
   const stuckRef = useRef<number>(0)
   const cameraRef = useRef<ReturnType<typeof cameraFor> | null>(null)
+  const plateRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const avatar = useGameStore((s) => s.avatar)
   const reducedMotion = useGameStore((s) => s.preferences.reducedMotion)
@@ -96,6 +106,21 @@ export default function HubWorld({
   )
 
   const placements = useMemo(() => stationPlacements(), [])
+
+  /** Where each room's name plate hangs, in tile coordinates. */
+  const plateAnchors = useMemo(() => {
+    const anchors = new Map<string, { x: number; y: number }>()
+    for (const placement of placements) {
+      const room = roomAtTile(placement.tileX, placement.tileY)
+      anchors.set(
+        placement.glyph,
+        room
+          ? { x: room.labelX, y: room.labelY }
+          : { x: placement.tileX + 0.5, y: placement.tileY }
+      )
+    }
+    return anchors
+  }, [placements])
 
   const statusFor = useCallback(
     (station: StationPlacement) => stationStatus(station.phase, engagement),
@@ -237,6 +262,23 @@ export default function HubWorld({
 
       drawFrame(ctx, mapCanvas, camera, actors, dpr)
 
+      // Move the room name plates with the camera. Done by writing transforms
+      // directly rather than through state, so this costs nothing per frame.
+      for (const placement of placements) {
+        const plate = plateRefs.current.get(placement.glyph)
+        if (!plate) continue
+        const anchor = plateAnchors.get(placement.glyph)
+        if (!anchor) continue
+        const px = (anchor.x * TILE - camera.x) * camera.zoom
+        const py = (anchor.y * TILE - camera.y) * camera.zoom
+        const visible =
+          px > -140 && px < rect.width + 140 && py > -60 && py < rect.height + 60
+        plate.style.display = visible ? 'flex' : 'none'
+        if (visible) {
+          plate.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px) translate(-50%, 2px)`
+        }
+      }
+
       // Which station is actionable — room membership, not pad proximity.
       // Pushed to React only when it actually changes.
       const station = activeStation(player)
@@ -346,6 +388,36 @@ export default function HubWorld({
         onClick={handleClick}
         aria-hidden="true"
       />
+
+      {/* Room name plates. Without these the floor is a set of anonymous boxes
+          and the learner has no way to tell where anything is. */}
+      <div className={styles.plates} aria-hidden="true">
+        {placements.map((placement) => {
+          const status = statusFor(placement)
+          const cls =
+            status === 'current'
+              ? styles.plateCurrent
+              : status === 'done'
+                ? styles.plateDone
+                : status === 'open'
+                  ? styles.plateOpen
+                  : styles.plateLocked
+          return (
+            <div
+              key={placement.glyph}
+              ref={(node) => {
+                if (node) plateRefs.current.set(placement.glyph, node)
+                else plateRefs.current.delete(placement.glyph)
+              }}
+              className={`${styles.plate} ${cls}`}
+            >
+              <span className={styles.plateName}>{placement.title}</span>
+              <span className={styles.plateStatus}>{PLATE_STATUS[status]}</span>
+              {status === 'current' && <span className={styles.plateBeacon} />}
+            </div>
+          )
+        })}
+      </div>
 
       {prompt && (
         <div className={`${styles.prompt} ${prompt.locked ? styles.promptLocked : ''}`}>

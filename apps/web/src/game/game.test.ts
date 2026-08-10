@@ -329,6 +329,27 @@ describe('rooms', () => {
     )
   })
 
+  it('anchors every name plate inside its own room', () => {
+    for (const room of stationRooms()) {
+      // The plate hangs on the room's top row, horizontally centred. Both the
+      // row and the tiles either side of centre must belong to this room, or
+      // the label ends up floating over a wall.
+      const left = Math.floor(room.labelX - 0.5)
+      const right = Math.ceil(room.labelX - 0.5)
+      expect(room.tiles.has(`${left},${room.labelY}`), `${room.station?.title} label off-room`).toBe(
+        true
+      )
+      expect(room.tiles.has(`${right},${room.labelY}`)).toBe(true)
+    }
+  })
+
+  it('puts each plate on the topmost row of its room', () => {
+    for (const room of stationRooms()) {
+      const topmost = Math.min(...[...room.tiles].map((k) => Number(k.split(',')[1])))
+      expect(room.labelY).toBe(topmost)
+    }
+  })
+
   it('keeps every station room small enough for room-wide interaction', () => {
     for (const room of stationRooms()) {
       expect(room.tiles.size, `${room.station?.title} is too large`).toBeLessThanOrEqual(

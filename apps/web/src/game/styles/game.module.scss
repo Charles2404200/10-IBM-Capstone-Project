@@ -25,9 +25,13 @@
   position: relative;
   width: 100%;
   max-width: 960px;
+  /* Locked to the tilemap's proportions and to 21 tiles at 2x. Capping this by
+     viewport height instead would make the box a different shape from the map,
+     which forces the camera to crop — and cropping hides whole rooms, which is
+     the one thing this view exists to prevent. On a short window the page
+     scrolls a little; the floor plan is never cut. */
   aspect-ratio: 30 / 21;
-  /* 672px is exactly 21 tiles at 2x — the point at which the whole plan fits. */
-  max-height: min(672px, 82vh);
+  max-height: 672px;
   margin: 0 auto;
   background: #161616;
   border: 1px solid #393939;
@@ -40,6 +44,129 @@
   width: 100%;
   height: 100%;
   image-rendering: pixelated;
+}
+
+/* ── Room name plates ─────────────────────────────────────────────────────
+   Drawn as DOM over the canvas, not painted into it: they carry the single
+   most important piece of information in the world — which room is which —
+   and that must stay crisp, selectable and readable at any zoom. Positioned
+   each frame by the render loop via refs, so they never re-render React. */
+
+.plates {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.plate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.25rem 0.5rem;
+  background: rgba(22, 22, 22, 0.86);
+  border: 1px solid #525252;
+  border-radius: 3px;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.plateName {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f4f4f4;
+  line-height: 1.1;
+}
+
+.plateStatus {
+  font-size: 0.5625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.plateDone {
+  border-color: #24a148;
+
+  .plateStatus { color: #42be65; }
+}
+
+.plateOpen {
+  border-color: #8d8d8d;
+
+  .plateStatus { color: #a8a8a8; }
+}
+
+.plateLocked {
+  background: rgba(22, 22, 22, 0.6);
+  border-color: #525252;
+
+  .plateName { color: #a8a8a8; }
+  .plateStatus { color: #6f6f6f; }
+}
+
+/* The one room the learner should walk to next. Everything else is quieter so
+   this reads first — the world should answer "where do I go" at a glance. */
+.plateCurrent {
+  background: #0f62fe;
+  border-color: #78a9ff;
+  box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.3);
+
+  .plateName { color: #ffffff; }
+  .plateStatus { color: #d0e2ff; }
+}
+
+.plateBeacon {
+  position: absolute;
+  left: 50%;
+  bottom: -0.9rem;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #0f62fe;
+  animation: beacon 1.1s ease-in-out infinite;
+}
+
+@keyframes beacon {
+  0%, 100% { transform: translate(-50%, 0); }
+  50%      { transform: translate(-50%, 4px); }
+}
+
+/* ── Objective banner ─────────────────────────────────────────────────────── */
+
+.objective {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: #edf5ff;
+  border: 1px solid #a6c8ff;
+  border-left: 4px solid #0f62fe;
+  border-radius: 4px;
+}
+
+.objectiveLabel {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0043ce;
+  font-weight: 600;
+}
+
+.objectiveText {
+  font-size: 0.9375rem;
+  color: #161616;
+}
+
+.objectiveRoom {
+  font-weight: 600;
 }
 
 .prompt {

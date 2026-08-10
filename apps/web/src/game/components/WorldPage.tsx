@@ -90,6 +90,9 @@ export default function WorldPage() {
   }
 
   const brief = engagement ? PHASE_BRIEF[engagement.phase] : null
+  const currentStation = STATIONS.find(
+    (station) => stationStatus(station.phase, engagement) === 'current'
+  )
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem 3rem' }}>
@@ -142,6 +145,28 @@ export default function WorldPage() {
             <p className={styles.briefLabel}>Then</p>
             <p className={styles.briefText}>{brief.next}</p>
           </div>
+        </div>
+      )}
+
+      {/* The one sentence that answers "what now?". Sits directly above the
+          map so it is read before the floor plan, not after it. */}
+      {worldEnabled && (
+        <div className={styles.objective}>
+          <span className={styles.objectiveLabel}>Next</span>
+          <span className={styles.objectiveText}>
+            {currentStation ? (
+              <>
+                {engagement?.nextAction ?? 'Continue the engagement'} — go to the{' '}
+                <span className={styles.objectiveRoom}>{currentStation.title}</span>, marked in
+                blue. Walk there, or click it on the map.
+              </>
+            ) : (
+              <>
+                Nothing is running yet. Start a scenario from the{' '}
+                <span className={styles.objectiveRoom}>Command Centre</span>.
+              </>
+            )}
+          </span>
         </div>
       )}
 
