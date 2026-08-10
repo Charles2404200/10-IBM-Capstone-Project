@@ -15,8 +15,6 @@ import {
   Checkbox,
   DatePicker,
   DatePickerInput,
-  ProgressIndicator,
-  ProgressStep,
   Accordion,
   AccordionItem,
   Tooltip,
@@ -28,12 +26,12 @@ import {
   CheckmarkFilled, CircleDash,
 } from '@carbon/icons-react'
 import { useForm, Controller } from 'react-hook-form'
-import { useEngagement } from '@/api/hooks/useEngagements'
 import { useAnalyzeUserContext, useGenerateResearchIntelligence, useLeadIntelligence, useResearch, useResearchGateStatus, useCompleteResearch, useSaveResearch } from '@/api/hooks/useLeads'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConfidenceLevel, EngagementPhase, EvidenceType, IntelligenceField, ResearchArtifact, ResearchEvidence } from '@/api/types'
+import type { ConfidenceLevel, EvidenceType, IntelligenceField, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
+import { PHASE_LABEL } from '@/game/state/progression'
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -169,44 +167,6 @@ function ResearchArtifactCard({
         </Button>
       </Stack>
     </Tile>
-  )
-}
-
-// ─── Consulting lifecycle stepper, driven by the real backend phase (not a
-// hardcoded local guess), so completed / current / upcoming always reflect
-// actual engagement state. ───
-const PHASE_ORDER: EngagementPhase[] = [
-  'LEAD', 'CLIENT_INTELLIGENCE', 'OUTREACH', 'MEETING_PREPARATION',
-  'LIVE_MEETING', 'MEETING_REVIEW', 'PROPOSAL', 'OUTCOME', 'REVIEW', 'COMPLETED',
-]
-
-const PHASE_LABELS: Record<EngagementPhase, string> = {
-  LEAD: 'Lead',
-  CLIENT_INTELLIGENCE: 'Client Intelligence',
-  OUTREACH: 'Outreach',
-  MEETING_PREPARATION: 'Meeting Prep',
-  LIVE_MEETING: 'Live Meeting',
-  MEETING_REVIEW: 'Meeting Review',
-  PROPOSAL: 'Proposal',
-  OUTCOME: 'Outcome',
-  REVIEW: 'AI Review',
-  COMPLETED: 'Completed',
-}
-
-function PhaseStepper({ currentPhase }: { currentPhase: EngagementPhase }) {
-  const currentIndex = PHASE_ORDER.indexOf(currentPhase)
-  return (
-    <ProgressIndicator spaceEqually>
-      {PHASE_ORDER.map((phase, idx) => (
-        <ProgressStep
-          key={phase}
-          label={PHASE_LABELS[phase]}
-          current={idx === currentIndex}
-          complete={idx < currentIndex}
-          disabled={idx > currentIndex}
-        />
-      ))}
-    </ProgressIndicator>
   )
 }
 
@@ -490,7 +450,6 @@ function HypothesisWorkspace({
 export default function ClientIntelligencePage() {
   const { engagementId } = useParams<{ engagementId: string }>()
   const navigate = useNavigate()
-  const { data: engagement } = useEngagement(engagementId!)
   const { data: evidence, isLoading, isError } = useResearch(engagementId!)
   const saveResearch = useSaveResearch(engagementId!)
   const generateResearch = useGenerateResearchIntelligence(engagementId!)
@@ -594,14 +553,13 @@ export default function ClientIntelligencePage() {
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <div className={styles.progressBanner}>
-          <PhaseStepper currentPhase={engagement?.phase ?? 'CLIENT_INTELLIGENCE'} />
         </div>
       </Column>
 
       <Column lg={16} md={8} sm={4}>
         <div className={styles.pageHeader}>
           <div>
-            <Heading className={styles.heading}>Client Intelligence</Heading>
+            <Heading className={styles.heading}>{PHASE_LABEL.CLIENT_INTELLIGENCE}</Heading>
             <p className={styles.subheading}>
               Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach unlocks.
             </p>

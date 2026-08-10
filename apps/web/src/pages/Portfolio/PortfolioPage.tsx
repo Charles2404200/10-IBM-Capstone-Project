@@ -16,6 +16,7 @@ import { useMyAchievements } from '@/api/hooks/useAchievements'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
+import { PHASE_LABEL } from '@/game/state/progression'
 
 function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
   return (
@@ -228,7 +229,7 @@ export default function PortfolioPage() {
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
           <div>
-            <Heading>Portfolio &amp; Progression</Heading>
+            <Heading>{PHASE_LABEL.COMPLETED}</Heading>
             <p style={{ color: '#525252', marginTop: '0.5rem' }}>
               Your competency growth and completed engagement history across every scenario.
             </p>

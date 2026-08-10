@@ -9,6 +9,7 @@ import { useProposalStudio } from '@/features/proposal/hooks/useProposalStudio'
 import { proposalSections } from '@/features/proposal/services/proposalDraftService'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
+import { PHASE_LABEL } from '@/game/state/progression'
 
 export default function ProposalStudioPage() {
   const { engagementId = '' } = useParams<{ engagementId: string }>()
@@ -25,7 +26,7 @@ export default function ProposalStudioPage() {
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>Evidence-grounded proposal</p>
-          <Heading>Proposal Studio</Heading>
+          <Heading>{PHASE_LABEL.PROPOSAL}</Heading>
           <p className={styles.subtitle}>Turn research and discovery into a client-ready recommendation. AI reviews your thinking; it does not write the proposal for you.</p>
         </div>
         <div className={styles.headerActions}>

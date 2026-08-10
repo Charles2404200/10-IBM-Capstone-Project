@@ -26,6 +26,7 @@ import {
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
+import { PHASE_LABEL } from '@/game/state/progression'
 
 interface DraftListItem {
   id: string
@@ -208,7 +209,7 @@ export default function MeetingPreparationPage() {
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
             <div>
-              <Heading>Meeting Preparation</Heading>
+              <Heading>{PHASE_LABEL.MEETING_PREPARATION}</Heading>
               <p>Define the meeting plan before the live client conversation.</p>
             </div>
             <div className={styles.headerActions}>

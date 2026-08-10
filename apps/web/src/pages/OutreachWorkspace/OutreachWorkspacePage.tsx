@@ -25,6 +25,7 @@ import PhaseBrief from '@/game/components/PhaseBrief'
 import LiveRubric from '@/game/components/LiveRubric'
 import { keywordsFrom, stakeholderNameFrom } from '@/game/coaching/outreachRubric'
 import styles from './OutreachWorkspacePage.module.scss'
+import { PHASE_LABEL } from '@/game/state/progression'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -268,7 +269,7 @@ export default function OutreachWorkspacePage() {
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <p className={styles.eyebrow}>Engagement workflow</p>
-          <Heading>Outreach Workspace</Heading>
+          <Heading>{PHASE_LABEL.OUTREACH}</Heading>
           <p className={styles.pageSubtitle}>Respond to the client’s latest request and earn the next step in the engagement.</p>
           <PhaseBrief phase="OUTREACH" />
         </Column>
