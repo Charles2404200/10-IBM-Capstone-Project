@@ -19,10 +19,16 @@
 
 /* ── World canvas ─────────────────────────────────────────────────────────── */
 
+/* Matched to the tilemap's own proportions (30x21 tiles) so the whole floor
+   fits at an exact integer zoom with no letterbox bars on either axis. */
 .world {
   position: relative;
   width: 100%;
-  height: clamp(400px, 66vh, 720px);
+  max-width: 960px;
+  aspect-ratio: 30 / 21;
+  /* 672px is exactly 21 tiles at 2x — the point at which the whole plan fits. */
+  max-height: min(672px, 82vh);
+  margin: 0 auto;
   background: #161616;
   border: 1px solid #393939;
   overflow: hidden;

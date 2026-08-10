@@ -15,13 +15,18 @@ import {
   STATIONS,
 } from './world/map'
 import {
+  activeStation,
   axisFromKeys,
   canStand,
+  followPath,
   initialPlayer,
+  LARGE_ROOM_TILES,
   nearestStation,
   step,
   WALK_SPEED,
 } from './world/engine'
+import { allRooms, roomAtTile, stationRooms } from './world/rooms'
+import { findPath, nearestWalkable } from './world/pathfinding'
 import {
   lifecycleProgress,
   PHASE_BRIEF,
@@ -187,15 +192,17 @@ describe('movement', () => {
   })
 
   it('slides along a wall instead of sticking when pushing into it diagonally', () => {
-    // Stand in the lobby hard against its north wall, then push up-and-right:
-    // the Y axis is blocked by the wall but X must still advance.
-    const player = { ...initialPlayer(), x: 300, y: 38 }
+    // Stand in the main corridor hard against its north wall, then push
+    // up-and-right: the Y axis is blocked but X must still advance.
+    // dt matches the loop's own cap, so the step can never tunnel a tile.
+    const dt = 0.05
+    const player = { ...initialPlayer(), x: 200, y: 104 }
     expect(canStand(player.x, player.y)).toBe(true)
 
-    const blocked = step(player, { x: 0, y: -1 }, 0.2)
+    const blocked = step(player, { x: 0, y: -1 }, dt)
     expect(blocked.y).toBe(player.y)
 
-    const sliding = step(player, { x: 1, y: -1 }, 0.2)
+    const sliding = step(player, { x: 1, y: -1 }, dt)
     expect(sliding.y).toBe(player.y)
     expect(sliding.x).toBeGreaterThan(player.x)
   })
@@ -252,6 +259,195 @@ describe('station proximity', () => {
       y: command.tileY * 16 + 8,
     })
     expect(near?.station.glyph).toBe('C')
+  })
+})
+
+// ─── Rooms ───────────────────────────────────────────────────────────────────
+
+/** Places the player's feet in the middle of a tile. */
+function standingAt(tileX: number, tileY: number) {
+  return { ...initialPlayer(), x: tileX * 16 + 8, y: tileY * 16 + 16 }
+}
+
+function stationTile(glyph: string) {
+  const found = placeStations().find((s) => s.glyph === glyph)
+  if (!found) throw new Error(`Station ${glyph} is missing from the map`)
+  return found
+}
+
+/**
+ * A walkable tile in the same room as a station but not its pad — the case that
+ * used to fail, and the reason room-based interaction exists.
+ */
+function tileInRoomAwayFromPad(glyph: string): { tileX: number; tileY: number } {
+  const station = stationTile(glyph)
+  const room = roomAtTile(station.tileX, station.tileY)
+  if (!room) throw new Error(`Station ${glyph} is not inside a room`)
+  for (const key of room.tiles) {
+    const [x, y] = key.split(',').map(Number)
+    if (x !== station.tileX || y !== station.tileY) return { tileX: x, tileY: y }
+  }
+  throw new Error(`Room for ${glyph} has only its pad`)
+}
+
+describe('rooms', () => {
+  it('carves the floor into more than one region', () => {
+    expect(allRooms().length).toBeGreaterThan(5)
+  })
+
+  it('gives every enclosed station room exactly one station', () => {
+    for (const room of stationRooms()) {
+      expect(room.station).not.toBeNull()
+    }
+  })
+
+  it('treats doorways as belonging to neither side', () => {
+    let checked = 0
+    HUB_MAP.forEach((row, y) => {
+      for (let x = 0; x < row.length; x += 1) {
+        if (row[x] !== '+') continue
+        expect(roomAtTile(x, y), `doorway at ${x},${y} was absorbed into a room`).toBeNull()
+        checked += 1
+      }
+    })
+    expect(checked, 'the map has no doorways to check').toBeGreaterThan(0)
+  })
+
+  it('puts the whole of a room in the same region', () => {
+    const library = stationTile('I')
+    const atPad = roomAtTile(library.tileX, library.tileY)
+    const elsewhere = tileInRoomAwayFromPad('I')
+    expect(atPad).not.toBeNull()
+    expect(roomAtTile(elsewhere.tileX, elsewhere.tileY)?.id).toBe(atPad?.id)
+  })
+
+  it('does not merge two rooms that are only joined through the corridor', () => {
+    const lead = stationTile('L')
+    const library = stationTile('I')
+    expect(roomAtTile(lead.tileX, lead.tileY)?.id).not.toBe(
+      roomAtTile(library.tileX, library.tileY)?.id
+    )
+  })
+
+  it('keeps every station room small enough for room-wide interaction', () => {
+    for (const room of stationRooms()) {
+      expect(room.tiles.size, `${room.station?.title} is too large`).toBeLessThanOrEqual(
+        LARGE_ROOM_TILES
+      )
+    }
+  })
+})
+
+describe('activeStation', () => {
+  it('lets the learner press E anywhere inside a room, not just on the pad', () => {
+    // The case that used to fail and made the world feel fiddly.
+    for (const glyph of ['C', 'L', 'I', 'O', 'P', 'M', 'R', 'S', 'U', 'A', 'F']) {
+      const offPad = tileInRoomAwayFromPad(glyph)
+      const player = standingAt(offPad.tileX, offPad.tileY)
+      expect(canStand(player.x, player.y), `${glyph}: off-pad tile is not standable`).toBe(true)
+      expect(activeStation(player)?.glyph, `${glyph}: E does not work off the pad`).toBe(glyph)
+    }
+  })
+
+  it('still resolves when standing exactly on the pad', () => {
+    const outreach = stationTile('O')
+    expect(activeStation(standingAt(outreach.tileX, outreach.tileY))?.glyph).toBe('O')
+  })
+
+  it('offers nothing from the corridor, which belongs to no station', () => {
+    const inCorridor = standingAt(SPAWN.tileX, SPAWN.tileY)
+    expect(canStand(inCorridor.x, inCorridor.y)).toBe(true)
+    expect(activeStation(inCorridor)).toBeNull()
+  })
+})
+
+// ─── Pathfinding ─────────────────────────────────────────────────────────────
+
+describe('findPath', () => {
+  it('returns an empty path when already at the goal', () => {
+    expect(findPath({ tileX: 19, tileY: 4 }, { tileX: 19, tileY: 4 })).toEqual([])
+  })
+
+  it('excludes the starting tile', () => {
+    const start = { tileX: SPAWN.tileX, tileY: SPAWN.tileY }
+    const goal = { tileX: SPAWN.tileX + 3, tileY: SPAWN.tileY }
+    const path = findPath(start, goal)
+    expect(path[0]).not.toEqual(start)
+    expect(path.at(-1)).toEqual(goal)
+  })
+
+  it('produces a contiguous route of walkable tiles', () => {
+    const library = stationTile('I')
+    const path = findPath(
+      { tileX: SPAWN.tileX, tileY: SPAWN.tileY },
+      { tileX: library.tileX, tileY: library.tileY }
+    )
+    expect(path.length).toBeGreaterThan(0)
+    let previous: { tileX: number; tileY: number } = { tileX: SPAWN.tileX, tileY: SPAWN.tileY }
+    for (const stepTile of path) {
+      expect(isWalkable(stepTile.tileX, stepTile.tileY)).toBe(true)
+      const distance =
+        Math.abs(stepTile.tileX - previous.tileX) + Math.abs(stepTile.tileY - previous.tileY)
+      expect(distance).toBe(1)
+      previous = stepTile
+    }
+  })
+
+  it('routes to every station from spawn', () => {
+    for (const station of placeStations()) {
+      const path = findPath(
+        { tileX: SPAWN.tileX, tileY: SPAWN.tileY },
+        { tileX: station.tileX, tileY: station.tileY }
+      )
+      expect(path.length, `no route to ${station.title}`).toBeGreaterThan(0)
+    }
+  })
+
+  it('returns nothing for an unreachable goal', () => {
+    expect(findPath({ tileX: SPAWN.tileX, tileY: SPAWN.tileY }, { tileX: 0, tileY: 0 })).toEqual([])
+  })
+
+  it('finds the shortest route along an open corridor', () => {
+    const y = SPAWN.tileY
+    const path = findPath({ tileX: 5, tileY: y }, { tileX: 12, tileY: y })
+    expect(path).toHaveLength(7)
+  })
+})
+
+describe('nearestWalkable', () => {
+  it('returns the tile itself when it is already walkable', () => {
+    expect(nearestWalkable({ tileX: 19, tileY: 4 })).toEqual({ tileX: 19, tileY: 4 })
+  })
+
+  it('snaps a click on furniture to adjacent floor', () => {
+    // The Command Centre desk sits at row 5 of the lobby.
+    const snapped = nearestWalkable({ tileX: 19, tileY: 5 })
+    expect(snapped).not.toBeNull()
+    expect(isWalkable(snapped!.tileX, snapped!.tileY)).toBe(true)
+  })
+
+  it('gives up on a click deep inside solid wall', () => {
+    expect(nearestWalkable({ tileX: 0, tileY: 0 }, 1)).toBeNull()
+  })
+})
+
+describe('followPath', () => {
+  it('produces no movement for an empty path', () => {
+    expect(followPath(initialPlayer(), []).axis).toEqual({ x: 0, y: 0 })
+  })
+
+  it('consumes a waypoint once the player is standing on it', () => {
+    const target = { tileX: 19, tileY: 4 }
+    const player = standingAt(target.tileX, target.tileY)
+    const result = followPath(player, [target, { tileX: 20, tileY: 4 }])
+    expect(result.remaining).toHaveLength(1)
+  })
+
+  it('steers towards a waypoint that is still ahead', () => {
+    const player = standingAt(19, 4)
+    const result = followPath(player, [{ tileX: 24, tileY: 4 }])
+    expect(result.axis.x).toBeGreaterThan(0)
+    expect(result.remaining).toHaveLength(1)
   })
 })
 

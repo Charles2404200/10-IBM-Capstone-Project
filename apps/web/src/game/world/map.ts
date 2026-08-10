@@ -13,37 +13,42 @@
  */
 import type { EngagementPhase } from '@/api/types'
 
-export const MAP_WIDTH = 40
-export const MAP_HEIGHT = 26
+export const MAP_WIDTH = 30
+export const MAP_HEIGHT = 21
 
+/**
+ * Tightened after playtesting: the first floor plan was 40x26 with two
+ * full-width halls, and crossing it felt like a toll rather than a journey.
+ * This one is 30x21 with 370 walkable tiles (down from 702) — rooms sized to
+ * what is in them, and no room bigger than the threshold at which interaction
+ * falls back to pad proximity, so E works anywhere inside every station room.
+ *
+ * Layout: two room bands and a bottom band, joined by a pair of corridors that
+ * meet in a vertical link on the east side.
+ */
 /* eslint-disable no-multi-spaces */
 export const HUB_MAP: readonly string[] = [
-  '########################################',
-  '#wwww##wwww##wwww##wwww##wwww##wwww#####',
-  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-  '#,t,,,,,,,,,,,,,,,,C,,,,,,,,,,,,,,,,,t,#',
-  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
-  '#,,,,,,,,,,,,,,,,,,dh,,,,,,,,,,,,,,,,,,#',
-  '###+#####+########+#########+######+####',
-  '#....#......#...........#.......#......#',
-  '#.L..#..I...#....O......#...P...#..o...#',
-  '#....e..e...#...dh......#...b...#......#',
-  '#.dh.e..e...#...........#.......#..t...#',
-  '#....#......#...........#.......#......#',
-  '###+#####+########+#########+######+####',
-  '#......................................#',
-  '#.f..,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.#',
-  '#....,,,,,,,,,,,,,,,M,,,,,,,,,,,,,,,,,.#',
-  '#.t..,,,,,,,,,,,,,,yyyy,,,,,,,,,,,,,,,.#',
-  '#....,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.#',
-  '#......................................#',
-  '###+#######+#########+#######+######+###',
-  '#......#........#.........#......#.....#',
-  '#..R...#...S....#....U....#..A...#..F..#',
-  '#..y...#...dh...#....dh...#..q...#..e..#',
-  '#..h...#........#.........#..q...#..e..#',
-  '#..t...#...t....#....t....#......#..t..#',
-  '########################################',
+  '##w##w##w##w##w##w##w##w##w###',
+  '#t....#t....#....t#.........t#',
+  '#..C..#..L..#..I..#....O.....#',
+  '#.....#.....#.....#..........#',
+  '#...dh#...dh#ee.e.#.dh....o..#',
+  '###+#####+#####+#######+######',
+  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+  '###+########+########+####,,,#',
+  '#t....#.f.........#.....t#,,,#',
+  '#..P..#.....M.....#..R...#,,,#',
+  '#.....#...........#......#,,,#',
+  '#..b..#....yyyy...#.dh...#,,,#',
+  '##########################,,,#',
+  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+  '#,,,,,,,,,,,,,,,,,,,,,,,,,,,,#',
+  '###+#####+#####+#######+######',
+  '#.....#t....#.....#........f.#',
+  '#..S..#..U..#..A..#....F.....#',
+  '#.dh..#...y.#...qq#.eee......#',
+  '##############################',
 ]
 /* eslint-enable no-multi-spaces */
 
@@ -191,11 +196,11 @@ export function placeStations(): StationPlacement[] {
   return found
 }
 
-/** Where the player character spawns on first entry — the lobby, by the doors. */
-export const SPAWN = { tileX: 19, tileY: 4 } as const
+/** Where the player character spawns — the main corridor, in reach of everything. */
+export const SPAWN = { tileX: 14, tileY: 7 } as const
 
-/** Where Sarah Chen stands in the meeting room. */
-export const SARAH_POSITION = { tileX: 21, tileY: 15 } as const
+/** Where Sarah Chen stands in the meeting room, beside the table. */
+export const SARAH_POSITION = { tileX: 13, tileY: 10 } as const
 
 // ─── Integrity ───────────────────────────────────────────────────────────────
 

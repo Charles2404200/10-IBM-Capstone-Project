@@ -5,12 +5,17 @@
  */
 import { TILE } from '../art/tiles'
 import { isWalkable, placeStations, SPAWN, type StationPlacement } from './map'
+import { roomAtTile } from './rooms'
 import { centreCamera, fitZoom, type Camera } from './renderer'
 import type { Facing } from '../art/actors'
+import type { TilePoint } from './pathfinding'
 
-/** Walking speed in map pixels per second. Tuned so crossing the floor reads as
- *  a short walk (~4s) rather than a chore. */
-export const WALK_SPEED = 62
+/** Walking speed in map pixels per second.
+ *
+ *  Raised from 62 after playtesting: at the old speed crossing the floor took
+ *  long enough to feel like a toll on every navigation, which is exactly the
+ *  friction the world was supposed to remove. */
+export const WALK_SPEED = 96
 
 /** Seconds per walk-cycle frame. */
 const FRAME_TIME = 0.13
@@ -131,6 +136,83 @@ export function nearestStation(player: PlayerState): NearbyStation | null {
   return best
 }
 
+/** The tile the player's feet are standing on. */
+export function playerTile(player: PlayerState): { tileX: number; tileY: number } {
+  return {
+    tileX: Math.floor(player.x / TILE),
+    tileY: Math.floor((player.y - 1) / TILE),
+  }
+}
+
+/**
+ * The station the player can currently act on.
+ *
+ * Room membership, not pad proximity: being anywhere inside the Research
+ * Library is enough to enter it. Falls back to pad proximity so the lobby and
+ * the central hall — which are one big room each — still resolve to their
+ * station only when you are actually near its desk, rather than from forty
+ * tiles away.
+ */
+export function activeStation(player: PlayerState): StationPlacement | null {
+  const { tileX, tileY } = playerTile(player)
+  const room = roomAtTile(tileX, tileY)
+  if (!room || !room.station) return nearestStation(player)?.station ?? null
+
+  const placement = PLACEMENTS.find((p) => p.glyph === room.station?.glyph) ?? null
+  if (!placement) return null
+
+  // Large open areas keep the proximity rule; enclosed rooms do not.
+  if (room.tiles.size > LARGE_ROOM_TILES) {
+    return nearestStation(player)?.station ?? null
+  }
+  return placement
+}
+
+/** Above this many tiles a region is treated as a hall rather than a room. */
+export const LARGE_ROOM_TILES = 90
+
+// ─── Path following ──────────────────────────────────────────────────────────
+
+/** How close to a waypoint's centre counts as having reached it. */
+const WAYPOINT_TOLERANCE = 2.5
+
+/**
+ * Converts the next waypoint into an input axis, so a clicked route and a held
+ * key drive the exact same movement code — including collision and sliding.
+ * Returns a zero axis and the shortened path once a waypoint is reached.
+ */
+export function followPath(
+  player: PlayerState,
+  path: readonly TilePoint[]
+): { axis: InputAxis; remaining: readonly TilePoint[] } {
+  if (path.length === 0) return { axis: { x: 0, y: 0 }, remaining: path }
+
+  const target = path[0]
+  const tx = target.tileX * TILE + TILE / 2
+  const ty = target.tileY * TILE + TILE
+  const dx = tx - player.x
+  const dy = ty - player.y
+
+  if (Math.hypot(dx, dy) <= WAYPOINT_TOLERANCE) {
+    return { axis: { x: 0, y: 0 }, remaining: path.slice(1) }
+  }
+
+  // Normalise to a unit-ish axis; `step` re-normalises, so magnitude is free.
+  return { axis: { x: Math.sign(dx) * Math.min(1, Math.abs(dx)), y: Math.sign(dy) * Math.min(1, Math.abs(dy)) }, remaining: path }
+}
+
+/** Converts a click in canvas CSS pixels into a map tile. */
+export function tileFromCanvasPoint(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number },
+  camera: Camera
+): TilePoint {
+  const mapX = camera.x + (clientX - rect.left) / camera.zoom
+  const mapY = camera.y + (clientY - rect.top) / camera.zoom
+  return { tileX: Math.floor(mapX / TILE), tileY: Math.floor(mapY / TILE) }
+}
+
 // ─── Keyboard ────────────────────────────────────────────────────────────────
 
 const MOVE_KEYS: Record<string, InputAxis> = {
@@ -175,7 +257,7 @@ export function cameraFor(
   viewHeight: number,
   previous?: Camera
 ): Camera {
-  const zoom = previous?.zoom ?? fitZoom(viewWidth)
+  const zoom = previous?.zoom ?? fitZoom(viewWidth, viewHeight)
   const base: Camera = { x: 0, y: 0, zoom, viewWidth, viewHeight }
   return centreCamera(base, player.x, player.y - TILE / 2)
 }

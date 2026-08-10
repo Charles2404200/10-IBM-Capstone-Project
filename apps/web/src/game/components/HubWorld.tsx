@@ -18,16 +18,20 @@ import { audio } from '../audio/engine'
 import { useGameStore, type AvatarChoice } from '../state/gameStore'
 import { stationStatus } from '../state/progression'
 import {
+  activeStation,
   axisFromKeys,
   cameraFor,
+  followPath,
   initialPlayer,
   INTERACT_KEYS,
   isMoveKey,
-  nearestStation,
+  playerTile,
   stationPlacements,
   step,
+  tileFromCanvasPoint,
   type PlayerState,
 } from '../world/engine'
+import { findPath, nearestWalkable, type TilePoint } from '../world/pathfinding'
 import { SARAH_POSITION } from '../world/map'
 import {
   buildMapCanvas,
@@ -70,6 +74,9 @@ export default function HubWorld({
   const lastTimeRef = useRef<number>(0)
   const stepSoundRef = useRef<number>(0)
   const focusedRef = useRef<string | null>(null)
+  const pathRef = useRef<TilePoint[]>([])
+  const stuckRef = useRef<number>(0)
+  const cameraRef = useRef<ReturnType<typeof cameraFor> | null>(null)
 
   const avatar = useGameStore((s) => s.avatar)
   const reducedMotion = useGameStore((s) => s.preferences.reducedMotion)
@@ -135,16 +142,16 @@ export default function HubWorld({
   }, [spawnAt])
 
   const interact = useCallback(() => {
-    const near = nearestStation(playerRef.current)
-    if (!near) return
-    const status = statusRef.current(near.station)
+    const station = activeStation(playerRef.current)
+    if (!station) return
+    const status = statusRef.current(station)
     if (status === 'locked') {
       audio.play('deny')
       return
     }
     audio.play('enter')
-    markVisited(near.station.glyph)
-    onEnterRef.current(near.station)
+    markVisited(station.glyph)
+    onEnterRef.current(station)
   }, [markVisited])
 
   // ── Input ──────────────────────────────────────────────────────────────────
@@ -201,6 +208,7 @@ export default function HubWorld({
       const player = playerRef.current
       const rect = { width: canvas.width / dpr, height: canvas.height / dpr }
       const camera = cameraFor(player, rect.width, rect.height)
+      cameraRef.current = camera
 
       // Station overheads.
       const actors: ActorDraw[] = []
@@ -229,14 +237,15 @@ export default function HubWorld({
 
       drawFrame(ctx, mapCanvas, camera, actors, dpr)
 
-      // Proximity prompt — pushed to React only when it actually changes.
-      const near = nearestStation(player)
-      const nextKey = near ? near.station.glyph : null
+      // Which station is actionable — room membership, not pad proximity.
+      // Pushed to React only when it actually changes.
+      const station = activeStation(player)
+      const nextKey = station ? station.glyph : null
       if (nextKey !== focusedRef.current) {
         focusedRef.current = nextKey
-        const status = near ? statusRef.current(near.station) : null
-        setPrompt(near ? { station: near.station, locked: status === 'locked' } : null)
-        onFocusChangeRef.current?.(near?.station ?? null, status ?? 'locked')
+        const status = station ? statusRef.current(station) : null
+        setPrompt(station ? { station, locked: status === 'locked' } : null)
+        onFocusChangeRef.current?.(station ?? null, status ?? 'locked')
       }
     }
 
@@ -255,8 +264,32 @@ export default function HubWorld({
       const dt = lastTimeRef.current === 0 ? 0 : Math.min(0.05, (time - lastTimeRef.current) / 1000)
       lastTimeRef.current = time
 
-      const axis = axisFromKeys(heldRef.current)
+      // Keyboard always wins: touching a movement key abandons a clicked route
+      // rather than fighting it.
+      const keyAxis = axisFromKeys(heldRef.current)
+      let axis = keyAxis
+      if (keyAxis.x !== 0 || keyAxis.y !== 0) {
+        pathRef.current = []
+      } else if (pathRef.current.length > 0) {
+        const followed = followPath(playerRef.current, pathRef.current)
+        pathRef.current = followed.remaining as TilePoint[]
+        axis = followed.axis
+      }
+
       const player = step(playerRef.current, axis, dt)
+
+      // A clicked route that stops making progress (blocked by a chair that was
+      // not there when the path was planned) is dropped rather than looping.
+      if (pathRef.current.length > 0 && player.x === playerRef.current.x && player.y === playerRef.current.y) {
+        stuckRef.current += dt
+        if (stuckRef.current > 0.35) {
+          pathRef.current = []
+          stuckRef.current = 0
+        }
+      } else {
+        stuckRef.current = 0
+      }
+
       playerRef.current = player
 
       // Footstep cue, throttled to the walk cycle rather than the frame rate.
@@ -283,9 +316,36 @@ export default function HubWorld({
     }
   }, [bubbles, engagement, mapCanvas, placements, sarahMood, sarahSprite, spawnAt, spriteFor])
 
+  /** Click anywhere walkable to route the avatar there. */
+  const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    const camera = cameraRef.current
+    const canvas = canvasRef.current
+    if (!camera || !canvas) return
+
+    audio.resume()
+    const rect = canvas.getBoundingClientRect()
+    const clicked = tileFromCanvasPoint(event.clientX, event.clientY, rect, camera)
+    const destination = nearestWalkable(clicked)
+    if (!destination) {
+      audio.play('deny')
+      return
+    }
+
+    const path = findPath(playerTile(playerRef.current), destination)
+    if (path.length === 0) return
+    pathRef.current = path
+    stuckRef.current = 0
+    audio.play('blip')
+  }, [])
+
   return (
     <div ref={wrapperRef} className={styles.world}>
-      <canvas ref={canvasRef} className={styles.worldCanvas} aria-hidden="true" />
+      <canvas
+        ref={canvasRef}
+        className={styles.worldCanvas}
+        onClick={handleClick}
+        aria-hidden="true"
+      />
 
       {prompt && (
         <div className={`${styles.prompt} ${prompt.locked ? styles.promptLocked : ''}`}>
@@ -301,8 +361,8 @@ export default function HubWorld({
       <div className={styles.srOnly}>
         <h2>Office floor</h2>
         <p>
-          Use the arrow keys or W A S D to walk, and E to enter a room. Every room is also listed as
-          a button below the map.
+          Walk with the arrow keys or W A S D, or click where you want to go. Press E anywhere
+          inside a room to enter it. Every room is also listed as a button below the map.
         </p>
       </div>
     </div>

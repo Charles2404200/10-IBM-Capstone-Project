@@ -144,11 +144,19 @@ export function centreCamera(camera: Camera, targetX: number, targetY: number): 
   }
 }
 
-/** Picks the largest integer zoom that still shows a useful slice of the floor. */
-export function fitZoom(viewWidth: number): number {
-  // Aim to show roughly 18 tiles across; never below 2x or the art disappears.
-  const ideal = viewWidth / (18 * TILE)
-  return Math.max(2, Math.min(5, Math.floor(ideal) || 2))
+/**
+ * Picks the largest integer zoom that still fits the whole floor in view.
+ *
+ * Showing the entire plan at once was the fix for the world reading as empty:
+ * scrolling through a corridor makes a building feel like a tunnel, whereas
+ * seeing all eleven rooms at once makes it read as one compact office — and it
+ * puts the shape of the engagement on screen without the learner walking it.
+ * Integer zoom only, so the pixel grid never lands on half a texel.
+ */
+export function fitZoom(viewWidth: number, viewHeight: number): number {
+  const byWidth = viewWidth / MAP_PIXEL_WIDTH
+  const byHeight = viewHeight / MAP_PIXEL_HEIGHT
+  return Math.max(2, Math.min(5, Math.floor(Math.min(byWidth, byHeight)) || 2))
 }
 
 // ─── Frame drawing ───────────────────────────────────────────────────────────

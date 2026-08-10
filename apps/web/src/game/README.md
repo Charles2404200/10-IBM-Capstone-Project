@@ -58,17 +58,28 @@ Adding a sprite: add it to the module, and add it to the module's `ALL_*` export
 `game.test.ts` asserts it is rectangular and uses only declared palette keys. A miscounted row
 should fail CI, not render torn.
 
-The whole floor plan composites once into a 640×416 canvas (`world/renderer.ts`), so a frame
-costs one `drawImage` plus a few actor blits.
+The whole floor plan composites once into a 480×336 canvas (`world/renderer.ts`), so a frame
+costs one `drawImage` plus a few actor blits. `fitZoom` then picks the largest integer zoom that
+fits the entire plan on screen — seeing all eleven rooms at once is what stops the world reading
+as a corridor.
 
 ## Map
 
-`world/map.ts` holds the tilemap as strings. Lower-case characters and symbols are terrain;
-upper-case characters are station pads bound to an `EngagementPhase`.
+`world/map.ts` holds the tilemap as strings (30x21). Lower-case characters and symbols are
+terrain; upper-case characters are station pads bound to an `EngagementPhase`.
 
 `assertMapIntegrity()` checks the grid is rectangular, that every declared station is placed,
 and — via a flood fill from the spawn point — that every station is reachable on foot. Run it
 after any map edit; `game.test.ts` does this automatically.
+
+**Rooms, not pads.** `world/rooms.ts` flood-fills the floor into rooms, treating walls *and*
+doorways as boundaries, so pressing E anywhere inside a room enters it. Keep every station room
+at or under `LARGE_ROOM_TILES` (90) — above that the room is treated as a hall and interaction
+falls back to pad proximity, which is what the original oversized floor plan did and what made
+it feel fiddly. A test asserts this for every station room.
+
+**Editing the map.** Doorways must have walkable floor on both sides — a prop placed in front
+of a door silently seals the room. The reachability test catches it.
 
 ## Audio
 
@@ -91,6 +102,8 @@ lock states with no API, login or seeded database.
 
 - The world is optional (`preferences.worldEnabled`, persisted) and is never the only route to a
   station — `WorldPage` renders every room as a real button.
+- Movement has three inputs: arrow keys, WASD, and click-to-move (`world/pathfinding.ts`, BFS).
+  Keyboard input always cancels a clicked route rather than fighting it.
 - The canvas is `aria-hidden`; the surrounding DOM carries the accessible description.
 - `prefers-reduced-motion` holds the walk cycle on its rest pose and disables transitions.
 - Audio is mutable from the HUD and defaults quiet.
@@ -99,9 +112,9 @@ lock states with no API, login or seeded database.
 
 ## Tests
 
-`game.test.ts` and `coaching/outreachRubric.test.ts` — 80 tests covering sprite integrity, map
-geometry and reachability, movement and wall-sliding, keyboard mapping, phase gating, and the
-rubric heuristics.
+`game.test.ts` and `coaching/outreachRubric.test.ts` — 101 tests covering sprite integrity, map
+geometry and reachability, room detection, movement and wall-sliding, keyboard mapping,
+pathfinding, phase gating, and the rubric heuristics.
 
 ```
 npx vitest run src/game
