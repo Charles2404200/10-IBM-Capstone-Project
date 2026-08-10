@@ -123,7 +123,9 @@ function Stepper({ currentPhase, onJump, canJump }: StepperProps) {
                 aria-hidden="true"
               />
               <span
-                className={current ? styles.stepCurrentLabel : done ? styles.stepDoneLabel : undefined}
+                className={`${styles.stepLabel} ${
+                  current ? styles.stepCurrentLabel : done ? styles.stepDoneLabel : ''
+                }`}
               >
                 {PHASE_LABEL[phase]}
               </span>

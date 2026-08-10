@@ -5,7 +5,7 @@
  * station list underneath the canvas. The world is the pleasurable path, never
  * the only one.
  */
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, InlineNotification, Toggle } from '@carbon/react'
 import { useMyEngagements } from '@/api/hooks/useEngagements'
@@ -71,6 +71,26 @@ export default function WorldPage() {
     personaState?.patience ?? null
   )
 
+  // Full screen is the honest answer to "the map should fill the screen": on a
+  // laptop the browser chrome, the app header and the HUD leave under half the
+  // window for the floor plan.
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+    } else {
+      void stageRef.current?.requestFullscreen?.()
+    }
+  }, [])
+
   const enter = useCallback(
     (station: StationPlacement | (typeof STATIONS)[number]) => {
       const status = stationStatus(station.phase, engagement)
@@ -91,26 +111,16 @@ export default function WorldPage() {
 
   return (
     <div className={styles.worldPage}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 300 }}>The floor</h1>
-          <p style={{ color: '#525252', marginTop: '0.25rem' }}>
-            {engagement
-              ? `${engagement.leadCompanyName ?? engagement.scenarioTitle ?? 'Your engagement'} — next: ${
-                  PHASE_LABEL[engagement.phase]
-                }, marked in blue.`
-              : 'No engagement running. Open the Command Centre to start one.'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+      {/* One compact row. The old two-line heading plus a caption cost ~120px
+          of height, which is height the map does not get. */}
+      <div className={styles.worldBar}>
+        <p className={styles.worldBarText}>
+          {engagement
+            ? `${engagement.leadCompanyName ?? engagement.scenarioTitle ?? 'Your engagement'} — next: `
+            : 'No engagement running. Open the Command Centre to start one.'}
+          {engagement && <strong>{PHASE_LABEL[engagement.phase]}</strong>}
+        </p>
+        <div className={styles.worldBarActions}>
           <Toggle
             id="world-enabled"
             size="sm"
@@ -120,6 +130,11 @@ export default function WorldPage() {
             toggled={worldEnabled}
             onToggle={(checked) => setPreferences({ worldEnabled: checked })}
           />
+          {worldEnabled && (
+            <Button kind="ghost" size="sm" onClick={toggleFullscreen}>
+              {isFullscreen ? 'Exit full screen' : 'Full screen'}
+            </Button>
+          )}
           <Button kind="ghost" size="sm" onClick={resetOnboarding}>
             Replay intro
           </Button>
@@ -127,7 +142,9 @@ export default function WorldPage() {
       </div>
 
       {worldEnabled ? (
-        <HubWorld engagement={engagement} sarahMood={mood} onEnter={enter} />
+        <div ref={stageRef} className={styles.stage}>
+          <HubWorld engagement={engagement} sarahMood={mood} onEnter={enter} />
+        </div>
       ) : (
         <InlineNotification
           kind="info"

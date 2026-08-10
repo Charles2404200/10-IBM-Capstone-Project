@@ -38,6 +38,8 @@ import {
   buildMapCanvas,
   bubbleCanvas,
   drawFrame,
+  MAP_PIXEL_HEIGHT,
+  MAP_PIXEL_WIDTH,
   type ActorDraw,
   type BubbleKind,
 } from '../world/renderer'
@@ -211,6 +213,67 @@ export default function HubWorld({
       window.removeEventListener('blur', blur)
     }
   }, [interact])
+
+  /**
+   * Sizes the stage to exactly the map's pixel size at the largest integer zoom
+   * that fits the space actually available.
+   *
+   * CSS alone cannot do this: `aspect-ratio` plus a `max-height` guess either
+   * letterboxes (box wider than the map) or crops (box shorter than the map),
+   * and both were happening. Measuring gives an exact fit at every window size,
+   * so the floor plan is never cut and never floats in empty bars.
+   */
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+
+    const resizeStage = () => {
+      const parent = wrapper.parentElement
+      if (!parent) return
+      const availableWidth = parent.clientWidth
+      // Space from the stage's top edge to the bottom of the window, less a
+      // margin so the page never *quite* fills and the learner can tell there
+      // is nothing hidden below.
+      const top = wrapper.getBoundingClientRect().top
+      const availableHeight = window.innerHeight - top - 24
+
+      // Crispness needs a whole number of *device* pixels per art pixel, not a
+      // whole number of CSS pixels. On a 2x display that permits half steps
+      // (1.5x, 2.5x), which is often the difference between a cramped 1x plan
+      // and one that uses the space properly.
+      const dpr = Math.max(1, Math.min(2, Math.round(window.devicePixelRatio || 1)))
+      const raw = Math.min(
+        availableWidth / MAP_PIXEL_WIDTH,
+        availableHeight / MAP_PIXEL_HEIGHT
+      )
+
+      if (raw >= 1) {
+        // Enough room for the whole plan: size the stage to it exactly, so the
+        // floor is never cropped and never sits in letterbox bars.
+        const zoom = Math.min(4, Math.floor(raw * dpr) / dpr)
+        wrapper.style.width = `${Math.round(MAP_PIXEL_WIDTH * zoom)}px`
+        wrapper.style.height = `${Math.round(MAP_PIXEL_HEIGHT * zoom)}px`
+      } else {
+        // Too small to show it all — a phone, or a very short window. Fill the
+        // space and let the camera follow the avatar. Shrinking the art below
+        // 1x to fit would make a floor plan nobody can read, which is worse
+        // than showing part of a legible one.
+        wrapper.style.width = `${Math.max(160, Math.floor(availableWidth))}px`
+        wrapper.style.height = `${Math.max(160, Math.floor(availableHeight))}px`
+      }
+    }
+
+    resizeStage()
+    window.addEventListener('resize', resizeStage)
+    // The HUD can wrap to a second line and shift the stage down; re-measure
+    // when anything above it changes height.
+    const observer = new ResizeObserver(resizeStage)
+    if (document.body) observer.observe(document.body)
+    return () => {
+      window.removeEventListener('resize', resizeStage)
+      observer.disconnect()
+    }
+  }, [])
 
   // ── Frame loop ─────────────────────────────────────────────────────────────
   useEffect(() => {

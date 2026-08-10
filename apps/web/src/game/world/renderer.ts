@@ -156,7 +156,13 @@ export function centreCamera(camera: Camera, targetX: number, targetY: number): 
 export function fitZoom(viewWidth: number, viewHeight: number): number {
   const byWidth = viewWidth / MAP_PIXEL_WIDTH
   const byHeight = viewHeight / MAP_PIXEL_HEIGHT
-  return Math.max(2, Math.min(5, Math.floor(Math.min(byWidth, byHeight)) || 2))
+  // Half steps are crisp on a 2x display — see the sizing comment in HubWorld.
+  const dpr =
+    typeof window === 'undefined'
+      ? 1
+      : Math.max(1, Math.min(2, Math.round(window.devicePixelRatio || 1)))
+  const raw = Math.min(byWidth, byHeight)
+  return Math.max(1, Math.min(4, Math.floor(raw * dpr) / dpr || 1))
 }
 
 // ─── Frame drawing ───────────────────────────────────────────────────────────

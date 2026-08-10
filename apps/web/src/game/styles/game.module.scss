@@ -23,14 +23,11 @@
    fits at an exact integer zoom with no letterbox bars on either axis. */
 .world {
   position: relative;
+  /* Width and height are set in JS to exactly the map's size at the chosen
+     integer zoom — see the resizeStage effect in HubWorld. Guessing here with
+     aspect-ratio plus a max-height either letterboxed or cropped the plan. */
   width: 100%;
-  /* Matches the tilemap's proportions so the whole plan fits at an exact
-     integer zoom with no letterboxing. Capped at 21 tiles x 2x. Below that the
-     box simply gets smaller and the camera follows the avatar, which is the
-     right behaviour on a phone. */
   aspect-ratio: 30 / 21;
-  max-width: 960px;
-  max-height: 672px;
   margin: 0 auto;
   background: #161616;
   border: 1px solid #393939;
@@ -426,6 +423,24 @@
 .stepCurrentLabel {
   color: #ffffff;
   font-weight: 600;
+}
+
+/* Below this the ten labels wrap to a second line, which pushes the map down
+   and gets it cut off. Under that width the stepper keeps its dots but names
+   only the step you are on; the rest stay reachable by tooltip and to screen
+   readers. */
+@media (max-width: 90rem) {
+  .stepLabel {
+    display: none;
+  }
+
+  .stepLabel.stepCurrentLabel {
+    display: inline;
+  }
+
+  .stepConnector {
+    width: 0.5rem;
+  }
 }
 
 .stepDoneLabel {
@@ -919,4 +934,42 @@
     min-width: 5.5rem;
     flex: 1 1 5.5rem;
   }
+}
+
+/* ── World page bar ───────────────────────────────────────────────────────── */
+
+.worldBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.worldBarText {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #393939;
+  min-width: 0;
+}
+
+.worldBarActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Wraps the stage so full screen paints a proper backdrop behind the map
+   rather than leaving the page's white showing around it. */
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #161616;
+}
+
+.stage:fullscreen {
+  padding: 1rem;
 }
