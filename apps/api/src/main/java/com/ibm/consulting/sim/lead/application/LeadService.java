@@ -6,6 +6,8 @@ import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.lead.domain.*;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +24,18 @@ public class LeadService {
     private final ResearchEvidenceRepository evidenceRepository;
     private final EngagementRepository engagementRepository;
     private final DifficultyProfileService difficultyProfileService;
+    private final ScenarioRepository scenarioRepository;
+    private final ScenarioAuthoringConfigService authoringConfigService;
 
     public LeadService(LeadRepository leadRepository, ResearchEvidenceRepository evidenceRepository,
-                       EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService) {
+                       EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService,
+                       ScenarioRepository scenarioRepository, ScenarioAuthoringConfigService authoringConfigService) {
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.engagementRepository = engagementRepository;
         this.difficultyProfileService = difficultyProfileService;
+        this.scenarioRepository = scenarioRepository;
+        this.authoringConfigService = authoringConfigService;
     }
 
     @Transactional(readOnly = true)
@@ -188,6 +195,9 @@ public class LeadService {
         Lead lead = leadRepository.findById(leadId)
                 .orElseThrow(() -> new NotFoundException("Lead", leadId));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
-        return LeadIntelligenceSummary.from(lead, evidence);
+        var authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
+                .map(authoringConfigService::forScenario)
+                .orElseGet(com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig::defaults);
+        return LeadIntelligenceSummary.from(lead, evidence, authoringConfig);
     }
 }

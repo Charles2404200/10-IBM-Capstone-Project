@@ -694,6 +694,74 @@ export interface KnowledgeDocumentUploadRequest {
   content: string
 }
 
+export type RevealTarget = 'DECISION_MAKER' | 'PAIN_SEVERITY' | 'TECHNOLOGY_STACK' | 'BUDGET_SIGNAL' | 'POTENTIAL_VALUE'
+
+export interface CanonicalFact {
+  id: string
+  label: string
+  value: string
+  evidenceType: EvidenceType
+  availableInResearch: boolean
+}
+
+export interface RevealRule {
+  target: RevealTarget
+  requiredEvidenceTypes: EvidenceType[]
+  minimumEvidenceCount: number
+}
+
+export interface ScenarioAuthoringConfig {
+  canonicalFacts: CanonicalFact[]
+  revealRules: RevealRule[]
+}
+
+export interface ScenarioPublishReadiness {
+  readyToPublish: boolean
+  blockers: string[]
+  personaCount: number
+  leadCount: number
+  canonicalFactCount: number
+  revealRuleCount: number
+}
+
+export interface ScenarioAuthoringView {
+  scenario: ScenarioSummary
+  lineageId: string
+  config: ScenarioAuthoringConfig
+  readiness: ScenarioPublishReadiness
+}
+
+export interface UpdateScenarioBlueprintRequest {
+  title: string
+  industry: string
+  description: string
+  difficulty: number
+  consultantRole: string
+  objective: string
+  successCriteria: string[]
+  simulatedDays: number
+  informationAmbiguity: number
+  stakeholderComplexity: number
+  commercialPressure: number
+}
+
+export interface LeadAuthoringRequest {
+  companyName: string
+  industry: string
+  publicDescription: string
+  difficulty: LeadSummary['difficulty']
+  potentialValueRange: string
+  decisionMaker: string
+  technologyStack: string
+  budgetSignal: string
+  painSeverity: string
+  signals: Array<{ label: string; category: string }>
+}
+
+export interface LeadAuthoringView extends LeadAuthoringRequest {
+  id: string
+}
+
 // ─── Admin: User Management ───────────────────────────────────────────────────
 
 export interface UserSummary {

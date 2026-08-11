@@ -4,6 +4,10 @@ import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadIntelligencePolicy;
 import com.ibm.consulting.sim.lead.domain.LeadIntelligencePolicy.Insight;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
+import com.ibm.consulting.sim.lead.domain.EvidenceType;
+import com.ibm.consulting.sim.scenario.domain.RevealRule;
+import com.ibm.consulting.sim.scenario.domain.RevealTarget;
+import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,15 +44,35 @@ public record LeadIntelligenceSummary(
     }
 
     public static LeadIntelligenceSummary from(Lead lead, List<ResearchEvidence> evidence) {
+        return from(lead, evidence, ScenarioAuthoringConfig.defaults());
+    }
+
+    /** Applies author-owned reveal rules; facts remain derived from learner evidence. */
+    public static LeadIntelligenceSummary from(Lead lead, List<ResearchEvidence> evidence,
+                                              ScenarioAuthoringConfig config) {
         return new LeadIntelligenceSummary(
                 lead.getId(), lead.getCompanyName(), lead.getIndustry(), evidence.size(),
                 LeadIntelligencePolicy.confidenceLabel(evidence),
                 LeadIntelligencePolicy.confidenceScore(evidence),
                 LeadIntelligencePolicy.confidenceFactors(evidence),
-                Field.from(LeadIntelligencePolicy.potentialValue(evidence, lead.getPotentialValueRange())),
-                Field.from(LeadIntelligencePolicy.decisionMaker(evidence)),
-                Field.from(LeadIntelligencePolicy.technologyStack(evidence)),
-                Field.from(LeadIntelligencePolicy.budgetSignal(evidence)),
-                Field.from(LeadIntelligencePolicy.painSeverity(evidence)));
+                Field.from(gate(LeadIntelligencePolicy.potentialValue(evidence, lead.getPotentialValueRange()), evidence,
+                        config.ruleFor(RevealTarget.POTENTIAL_VALUE))),
+                Field.from(gate(LeadIntelligencePolicy.decisionMaker(evidence), evidence,
+                        config.ruleFor(RevealTarget.DECISION_MAKER))),
+                Field.from(gate(LeadIntelligencePolicy.technologyStack(evidence), evidence,
+                        config.ruleFor(RevealTarget.TECHNOLOGY_STACK))),
+                Field.from(gate(LeadIntelligencePolicy.budgetSignal(evidence), evidence,
+                        config.ruleFor(RevealTarget.BUDGET_SIGNAL))),
+                Field.from(gate(LeadIntelligencePolicy.painSeverity(evidence), evidence,
+                        config.ruleFor(RevealTarget.PAIN_SEVERITY))));
+    }
+
+    private static Insight gate(Insight insight, List<ResearchEvidence> evidence, RevealRule rule) {
+        boolean everyTypeCovered = rule.requiredEvidenceTypes().stream()
+                .allMatch(type -> evidence.stream().anyMatch(item -> item.getEvidenceType() == type));
+        long matchingEvidence = evidence.stream()
+                .filter(item -> rule.requiredEvidenceTypes().contains(item.getEvidenceType())).count();
+        return everyTypeCovered && matchingEvidence >= rule.minimumEvidenceCount()
+                ? insight : new Insight(null, List.of());
     }
 }

@@ -8,4 +8,5 @@ public interface LeadRepository {
     List<Lead> findByScenarioId(UUID scenarioId);
     Optional<Lead> findById(UUID id);
     Lead save(Lead lead);
+    void delete(Lead lead);
 }

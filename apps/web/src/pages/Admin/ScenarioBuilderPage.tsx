@@ -28,7 +28,9 @@ import {
   useUpdateRubricWeights,
   useUpdateGameplayDifficulty,
   useUploadKnowledgeDocument,
+  useScenarioAuthoring,
 } from '@/api/hooks/useAdminScenarios'
+import ScenarioBlueprintWorkspace from '@/components/admin/ScenarioBlueprintWorkspace'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type {
@@ -343,6 +345,8 @@ function KnowledgeDocumentForm({ scenario }: { scenario: ScenarioSummary }) {
 function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
   const publish = usePublishScenario()
   const archive = useArchiveScenario()
+  const authoring = useScenarioAuthoring(scenario.id)
+  const readyToPublish = authoring.data?.readiness.readyToPublish ?? false
 
   return (
     <Tile>
@@ -362,7 +366,7 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
 
         <div className={styles.lifecycleActions}>
           {scenario.status === 'DRAFT' && (
-            <Button size="sm" onClick={() => publish.mutate(scenario.id)} disabled={publish.isPending}>
+            <Button size="sm" onClick={() => publish.mutate(scenario.id)} disabled={publish.isPending || !readyToPublish} title={readyToPublish ? 'Publish this scenario revision' : 'Complete the publishing checklist first'}>
               Publish
             </Button>
           )}
@@ -374,6 +378,9 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
         </div>
 
         <Accordion>
+          <AccordionItem title="Authoring blueprint">
+            <ScenarioBlueprintWorkspace scenario={scenario} />
+          </AccordionItem>
           <AccordionItem title={`Personas (${scenario.personas.length})`}>
             <Stack gap={4}>
               {scenario.personas.map((p) => (
@@ -381,17 +388,33 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
                   <strong>{p.name}</strong> — {p.jobTitle} @ {p.organisation}
                 </div>
               ))}
-              <AddPersonaForm scenarioId={scenario.id} />
+              {scenario.status === 'DRAFT' ? (
+                <AddPersonaForm scenarioId={scenario.id} />
+              ) : (
+                <p>Personas are locked in this published revision. Create a revision to make changes.</p>
+              )}
             </Stack>
           </AccordionItem>
           <AccordionItem title="Rubric weights">
-            <RubricWeightsForm scenario={scenario} />
+            {scenario.status === 'DRAFT' ? (
+              <RubricWeightsForm scenario={scenario} />
+            ) : (
+              <p>Rubric weights are locked in this published revision. Create a revision to make changes.</p>
+            )}
           </AccordionItem>
           <AccordionItem title="Gameplay difficulty">
-            <GameplayDifficultyForm scenario={scenario} />
+            {scenario.status === 'DRAFT' ? (
+              <GameplayDifficultyForm scenario={scenario} />
+            ) : (
+              <p>Difficulty rules are locked in this published revision. Create a revision to make changes.</p>
+            )}
           </AccordionItem>
           <AccordionItem title="Knowledge documents (RAG)">
-            <KnowledgeDocumentForm scenario={scenario} />
+            {scenario.status === 'DRAFT' ? (
+              <KnowledgeDocumentForm scenario={scenario} />
+            ) : (
+              <p>Knowledge documents are locked in this published revision. Create a revision to make changes.</p>
+            )}
           </AccordionItem>
         </Accordion>
       </Stack>

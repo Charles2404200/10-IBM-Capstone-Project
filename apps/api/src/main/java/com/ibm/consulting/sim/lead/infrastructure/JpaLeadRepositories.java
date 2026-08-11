@@ -24,6 +24,7 @@ class JpaLeadRepository implements LeadRepository {
     @Override public List<Lead> findByScenarioId(UUID scenarioId) { return repo.findByScenarioId(scenarioId); }
     @Override public Optional<Lead> findById(UUID id) { return repo.findById(id); }
     @Override public Lead save(Lead lead) { return repo.save(lead); }
+    @Override public void delete(Lead lead) { repo.delete(lead); }
 }
 
 @Repository
