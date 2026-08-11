@@ -15,6 +15,7 @@ import java.util.UUID;
 @Repository
 interface SpringDataScenarioRepository extends JpaRepository<Scenario, UUID> {
     List<Scenario> findByStatus(ScenarioStatus status);
+    List<Scenario> findByScenarioLineageIdAndStatus(UUID scenarioLineageId, ScenarioStatus status);
 }
 
 @Repository
@@ -28,6 +29,9 @@ class JpaScenarioRepository implements ScenarioRepository {
 
     @Override public List<Scenario> findAllActive() { return repo.findByStatus(ScenarioStatus.ACTIVE); }
     @Override public List<Scenario> findAll() { return repo.findAll(); }
+    @Override public List<Scenario> findByLineageIdAndStatus(UUID lineageId, ScenarioStatus status) {
+        return repo.findByScenarioLineageIdAndStatus(lineageId, status);
+    }
     @Override public Optional<Scenario> findById(UUID id) { return repo.findById(id); }
     @Override public Scenario save(Scenario scenario) { return repo.save(scenario); }
 }

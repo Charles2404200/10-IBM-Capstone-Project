@@ -5,7 +5,13 @@ import type {
   CreateScenarioRequest,
   KnowledgeDocumentUploadRequest,
   GameplayDifficultyProfile,
+  LeadAuthoringRequest,
+  LeadAuthoringView,
+  LeadSummary,
+  ScenarioAuthoringConfig,
+  ScenarioAuthoringView,
   ScenarioSummary,
+  UpdateScenarioBlueprintRequest,
 } from '@/api/types'
 
 const adminScenarioKeys = {
@@ -38,9 +44,7 @@ export function useAddPersona(scenarioId: string) {
       )
       return res.data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scenarios'] })
-    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
   })
 }
 
@@ -51,7 +55,7 @@ export function usePublishScenario() {
       const res = await apiClient.patch<ScenarioSummary>(`/api/v1/admin/scenarios/${scenarioId}/publish`)
       return res.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenarios'] }),
+    onSuccess: (_, scenarioId) => invalidateScenarioAuthoring(queryClient, scenarioId),
   })
 }
 
@@ -62,7 +66,7 @@ export function useArchiveScenario() {
       const res = await apiClient.patch<ScenarioSummary>(`/api/v1/admin/scenarios/${scenarioId}/archive`)
       return res.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenarios'] }),
+    onSuccess: (_, scenarioId) => invalidateScenarioAuthoring(queryClient, scenarioId),
   })
 }
 
@@ -73,7 +77,7 @@ export function useUpdateRubricWeights(scenarioId: string) {
       const res = await apiClient.put<ScenarioSummary>(`/api/v1/admin/scenarios/${scenarioId}/rubric`, { weights })
       return res.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['scenarios'] }),
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
   })
 }
 
@@ -96,6 +100,7 @@ export function useUpdateGameplayDifficulty(scenarioId: string) {
 }
 
 export function useUploadKnowledgeDocument(scenarioId: string) {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (request: KnowledgeDocumentUploadRequest) => {
       const res = await apiClient.post<{ documentId: string }>(
@@ -104,6 +109,7 @@ export function useUploadKnowledgeDocument(scenarioId: string) {
       )
       return res.data
     },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
   })
 }
 
@@ -115,5 +121,98 @@ export function useAllScenariosForAdmin() {
       const res = await apiClient.get<ScenarioSummary[]>('/api/v1/admin/scenarios')
       return res.data
     },
+  })
+}
+
+export function useScenarioAuthoring(scenarioId: string) {
+  return useQuery({
+    queryKey: [...adminScenarioKeys.all, scenarioId, 'authoring'],
+    queryFn: async () => {
+      const res = await apiClient.get<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/authoring`)
+      return res.data
+    },
+    enabled: Boolean(scenarioId),
+  })
+}
+
+function invalidateScenarioAuthoring(queryClient: ReturnType<typeof useQueryClient>, scenarioId: string) {
+  queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
+  queryClient.invalidateQueries({ queryKey: [...adminScenarioKeys.all, scenarioId, 'authoring'] })
+  queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+  queryClient.invalidateQueries({ queryKey: ['leads', scenarioId] })
+  queryClient.invalidateQueries({ queryKey: [...adminScenarioKeys.all, scenarioId, 'leads'] })
+}
+
+export function useUpdateScenarioBlueprint(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (request: UpdateScenarioBlueprintRequest) => {
+      const res = await apiClient.put<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/blueprint`, request)
+      return res.data
+    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+export function useUpdateScenarioAuthoringConfig(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (config: ScenarioAuthoringConfig) => {
+      const res = await apiClient.put<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/authoring-config`, { config })
+      return res.data
+    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+export function useCreateScenarioRevision(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/revisions`)
+      return res.data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all }),
+  })
+}
+
+export function useCreateScenarioLead(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (request: LeadAuthoringRequest) => {
+      const res = await apiClient.post<LeadSummary>(`/api/v1/admin/scenarios/${scenarioId}/leads`, request)
+      return res.data
+    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+export function useScenarioAuthoringLeads(scenarioId: string) {
+  return useQuery({
+    queryKey: [...adminScenarioKeys.all, scenarioId, 'leads'],
+    queryFn: async () => {
+      const res = await apiClient.get<LeadAuthoringView[]>(`/api/v1/admin/scenarios/${scenarioId}/leads`)
+      return res.data
+    },
+    enabled: Boolean(scenarioId),
+  })
+}
+
+export function useUpdateScenarioLead(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ leadId, request }: { leadId: string; request: LeadAuthoringRequest }) => {
+      const res = await apiClient.put<LeadSummary>(`/api/v1/admin/scenarios/${scenarioId}/leads/${leadId}`, request)
+      return res.data
+    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+export function useDeleteScenarioLead(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (leadId: string) => apiClient.delete(`/api/v1/admin/scenarios/${scenarioId}/leads/${leadId}`),
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
   })
 }

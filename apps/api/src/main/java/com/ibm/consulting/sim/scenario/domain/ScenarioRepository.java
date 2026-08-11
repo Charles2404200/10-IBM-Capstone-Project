@@ -7,6 +7,7 @@ import java.util.UUID;
 public interface ScenarioRepository {
     List<Scenario> findAllActive();
     List<Scenario> findAll();
+    List<Scenario> findByLineageIdAndStatus(UUID lineageId, ScenarioStatus status);
     Optional<Scenario> findById(UUID id);
     Scenario save(Scenario scenario);
 }

@@ -63,6 +63,46 @@ public class Lead extends BaseEntity {
         return l;
     }
 
+    public static Lead copyForScenario(Lead source, UUID scenarioId) {
+        Lead copy = create(scenarioId, source.companyName, source.industry, source.publicDescription, source.difficulty);
+        copy.potentialValueRange = source.potentialValueRange;
+        copy.decisionMaker = source.decisionMaker;
+        copy.technologyStack = source.technologyStack;
+        copy.budgetSignal = source.budgetSignal;
+        copy.painSeverity = source.painSeverity;
+        source.signals.forEach(signal -> copy.addSignal(signal.getLabel(), signal.getCategory()));
+        return copy;
+    }
+
+    public void configure(String companyName, String industry, String publicDescription, LeadDifficulty difficulty,
+                          String potentialValueRange, String decisionMaker, String technologyStack,
+                          String budgetSignal, String painSeverity, List<SignalInput> configuredSignals) {
+        this.companyName = required(companyName, "Company name");
+        this.industry = required(industry, "Industry");
+        this.publicDescription = publicDescription == null ? "" : publicDescription.trim();
+        this.difficulty = difficulty == null ? LeadDifficulty.MEDIUM : difficulty;
+        this.potentialValueRange = nullable(potentialValueRange);
+        this.decisionMaker = nullable(decisionMaker);
+        this.technologyStack = nullable(technologyStack);
+        this.budgetSignal = nullable(budgetSignal);
+        this.painSeverity = nullable(painSeverity);
+        this.signals.clear();
+        if (configuredSignals != null) configuredSignals.forEach(signal -> addSignal(signal.label(), signal.category()));
+    }
+
+    public void addSignal(String label, String category) {
+        this.signals.add(LeadSignal.create(this, required(label, "Signal label"), required(category, "Signal category")));
+    }
+
+    public record SignalInput(String label, String category) {}
+
+    private static String required(String value, String field) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
+        return value.trim();
+    }
+
+    private static String nullable(String value) { return value == null || value.isBlank() ? null : value.trim(); }
+
     public UUID getScenarioId() { return scenarioId; }
     public String getCompanyName() { return companyName; }
     public String getIndustry() { return industry; }

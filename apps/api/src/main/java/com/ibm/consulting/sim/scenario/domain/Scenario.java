@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Entity
 @Table(name = "scenarios")
@@ -64,6 +65,14 @@ public class Scenario extends BaseEntity {
     @Column(name = "content_version", nullable = false)
     private int contentVersion;
 
+    /** Stable product identity shared by immutable scenario revisions. */
+    @Column(name = "scenario_lineage_id", nullable = false, updatable = false)
+    private UUID scenarioLineageId;
+
+    /** JSON owned by ScenarioAuthoringConfigService; null retains seeded-scenario defaults. */
+    @Column(name = "authoring_config", columnDefinition = "text")
+    private String authoringConfig;
+
     @Column(name = "rubric_weights")
     private String rubricWeightsEncoded;
 
@@ -80,14 +89,50 @@ public class Scenario extends BaseEntity {
         s.difficulty = difficulty;
         s.status = ScenarioStatus.DRAFT;
         s.contentVersion = 1;
+        s.scenarioLineageId = s.getId();
         return s;
     }
 
-    public void publish() { this.status = ScenarioStatus.ACTIVE; }
+    public void publish() {
+        if (status != ScenarioStatus.DRAFT) throw new ScenarioNotEditableException(status);
+        this.status = ScenarioStatus.ACTIVE;
+    }
     public void archive() { this.status = ScenarioStatus.ARCHIVED; }
+
+    /** Creates a new DRAFT revision while preserving the published revision for active engagements. */
+    public Scenario createRevision() {
+        Scenario revision = new Scenario();
+        revision.title = title;
+        revision.industry = industry;
+        revision.description = description;
+        revision.difficulty = difficulty;
+        revision.informationAmbiguity = informationAmbiguity;
+        revision.stakeholderComplexity = stakeholderComplexity;
+        revision.commercialPressure = commercialPressure;
+        revision.difficultyProfileConfig = difficultyProfileConfig;
+        revision.consultantRole = consultantRole;
+        revision.objective = objective;
+        revision.successCriteria = successCriteria;
+        revision.simulatedDays = simulatedDays;
+        revision.rubricWeightsEncoded = rubricWeightsEncoded;
+        revision.authoringConfig = authoringConfig;
+        revision.scenarioLineageId = scenarioLineageId;
+        revision.contentVersion = contentVersion + 1;
+        revision.status = ScenarioStatus.DRAFT;
+        return revision;
+    }
+
+    public void updateMetadata(String title, String industry, String description, int difficulty) {
+        assertDraftEditable();
+        this.title = required(title, "Title");
+        this.industry = required(industry, "Industry");
+        this.description = required(description, "Description");
+        this.difficulty = Math.max(1, Math.min(5, difficulty));
+    }
 
     /** Author/admin capability: configure the pre-engagement briefing shown to learners. */
     public void updateBriefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays) {
+        assertDraftEditable();
         this.consultantRole = (consultantRole == null || consultantRole.isBlank()) ? DEFAULT_ROLE : consultantRole;
         this.objective = objective == null ? "" : objective;
         this.successCriteria = successCriteria == null ? "" : String.join(CRITERIA_DELIMITER, successCriteria);
@@ -96,13 +141,20 @@ public class Scenario extends BaseEntity {
 
     /** Author/admin capability: configure how the difficulty is broken down for learners. */
     public void updateDifficultyDimensions(int informationAmbiguity, int stakeholderComplexity, int commercialPressure) {
+        assertDraftEditable();
         this.informationAmbiguity = clampDimension(informationAmbiguity);
         this.stakeholderComplexity = clampDimension(stakeholderComplexity);
         this.commercialPressure = clampDimension(commercialPressure);
     }
 
     public void updateDifficultyProfileConfig(String difficultyProfileConfig) {
+        assertDraftEditable();
         this.difficultyProfileConfig = difficultyProfileConfig;
+    }
+
+    public void updateAuthoringConfig(String authoringConfig) {
+        assertDraftEditable();
+        this.authoringConfig = authoringConfig;
     }
 
     private int clampDimension(int value) {
@@ -111,6 +163,7 @@ public class Scenario extends BaseEntity {
 
     public Persona addPersona(String name, String jobTitle, String organisation, String communicationStyle,
                                String visibleConcerns, String hiddenConcerns, String businessGoals) {
+        assertDraftEditable();
         Persona persona = Persona.create(this, name, jobTitle, organisation, communicationStyle,
                 visibleConcerns, hiddenConcerns, businessGoals);
         this.personas.add(persona);
@@ -123,6 +176,7 @@ public class Scenario extends BaseEntity {
      * clears any customisation and restores the equal-weight default.
      */
     public void updateRubricWeights(Map<String, Integer> weights) {
+        assertDraftEditable();
         if (weights != null && !weights.isEmpty()) {
             int total = weights.values().stream().mapToInt(Integer::intValue).sum();
             if (total != 100) {
@@ -153,7 +207,24 @@ public class Scenario extends BaseEntity {
     }
     public int getSimulatedDays() { return simulatedDays; }
     public int getContentVersion() { return contentVersion; }
+    public UUID getScenarioLineageId() { return scenarioLineageId; }
+    public String getAuthoringConfig() { return authoringConfig; }
     public List<Persona> getPersonas() { return Collections.unmodifiableList(personas); }
+
+    private void assertDraftEditable() {
+        if (status != ScenarioStatus.DRAFT) throw new ScenarioNotEditableException(status);
+    }
+
+    private String required(String value, String field) {
+        if (value == null || value.isBlank()) throw new InvalidScenarioAuthoringConfigException(field + " is required");
+        return value.trim();
+    }
+
+    public static class ScenarioNotEditableException extends DomainException {
+        public ScenarioNotEditableException(ScenarioStatus status) {
+            super("Scenario is " + status + ". Create a new revision before changing authored content.");
+        }
+    }
 
     public static class InvalidRubricWeightsException extends DomainException {
         public InvalidRubricWeightsException(int total) {

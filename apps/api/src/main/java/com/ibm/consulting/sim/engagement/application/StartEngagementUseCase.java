@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
+import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
@@ -42,6 +43,9 @@ public class StartEngagementUseCase {
     public EngagementResponse execute(UUID userId, UUID scenarioId, UUID personaId) {
         var scenario = scenarioRepository.findById(scenarioId)
                 .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        if (scenario.getStatus() != ScenarioStatus.ACTIVE) {
+            throw new ScenarioUnavailableException(scenarioId);
+        }
 
         Persona persona = personaId == null
                 ? scenario.getPersonas().stream().findFirst()
@@ -60,6 +64,12 @@ public class StartEngagementUseCase {
     public static class PersonaNotInScenarioException extends DomainException {
         public PersonaNotInScenarioException(UUID personaId, UUID scenarioId) {
             super("Persona " + personaId + " does not belong to scenario " + scenarioId);
+        }
+    }
+
+    public static class ScenarioUnavailableException extends DomainException {
+        public ScenarioUnavailableException(UUID scenarioId) {
+            super("Scenario " + scenarioId + " is not published for new engagements");
         }
     }
 }
