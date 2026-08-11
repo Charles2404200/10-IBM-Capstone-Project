@@ -173,10 +173,24 @@ public class ResearchIntelligenceService {
         Lead lead = loadLead(engagement);
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
         EvidenceType inferredType = inferType(context);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        ScenarioAuthoringConfig authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
+                .map(authoringConfigService::forScenario)
+                .orElseGet(ScenarioAuthoringConfig::defaults);
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, inferredType);
         List<String> relatedEvidence = evidence.stream()
                 .filter(e -> e.getEvidenceType() == inferredType)
                 .map(e -> "E-%02d".formatted(e.getSequenceNo()))
                 .toList();
+
+        ResearchArtifactResponse aiCorrelation = aiOrchestrationService.execute(
+                "client_intelligence",
+                engagementId,
+                buildPrompt(lead, engagement, inferredType, facts, evidence, context, profile),
+                2,
+                new ClientIntelligenceResponseParser(objectMapper, facts, inferredType),
+                () -> List.of(externalContextFallback(context, inferredType))).stream().findFirst()
+                .orElseGet(() -> externalContextFallback(context, inferredType));
 
         String summary = "User-supplied intelligence: %s".formatted(context.trim());
         String rationale = relatedEvidence.isEmpty()
@@ -193,10 +207,17 @@ public class ResearchIntelligenceService {
                 ConfidenceLevel.LOW.name(),
                 EvidenceOrigin.USER_SUPPLIED.name(),
                 LocalDate.now(),
+                35,
                 List.of("user_supplied_unverified"),
                 relatedEvidence,
-                "%s Canonical truth for %s is not overwritten by this input."
-                        .formatted(rationale, lead.getCompanyName()));
+                "%s AI correlation reviewed approved scenario facts (%s). Canonical truth for %s is not overwritten by this input."
+                        .formatted(rationale, String.join(", ", aiCorrelation.allowedFactKeys()), lead.getCompanyName()));
+    }
+
+    private ResearchArtifactResponse externalContextFallback(String context, EvidenceType type) {
+        return new ResearchArtifactResponse("external-context", "External Intelligence Review", "User-supplied context",
+                context.trim(), type.name(), ConfidenceLevel.LOW.name(), EvidenceOrigin.USER_SUPPLIED.name(),
+                LocalDate.now(), 35, List.of(), List.of(), "Unverified learner context.");
     }
 
     private Engagement loadOwnedEngagement(UUID engagementId, UUID userId) {
@@ -321,6 +342,7 @@ public class ResearchIntelligenceService {
             shaped.add(new ResearchArtifactResponse("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
                     title, "Controlled market context", summary, type.name(), ConfidenceLevel.LOW.name(),
                     EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(7 + index),
+                    ambiguity ? 25 : 15,
                     List.of("public_description"), List.of(),
                     "Context only: test relevance against client evidence before adding it to the evidence board."));
         }
@@ -399,8 +421,16 @@ public class ResearchIntelligenceService {
     private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
                                               EvidenceType type, ConfidenceLevel confidence, String factKey) {
         return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
-                EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(14), List.of(factKey), List.of(),
+                EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
                 "Generated from scenario-approved facts only; learner must decide whether it is relevant.");
+    }
+
+    private int relevanceFor(ConfidenceLevel confidence) {
+        return switch (confidence) {
+            case HIGH -> 90;
+            case MEDIUM -> 72;
+            case LOW -> 30;
+        };
     }
 
     private EvidenceType inferType(String context) {

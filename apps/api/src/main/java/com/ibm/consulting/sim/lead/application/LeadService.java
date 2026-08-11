@@ -80,6 +80,7 @@ public class LeadService {
                                                 String sourceUrl, String sourceTitle,
                                                 EvidenceOrigin origin, EvidenceVerificationStatus verificationStatus,
                                                 LocalDate occurredOn, ConfidenceLevel confidence,
+                                                Integer relevanceScore,
                                                 Set<UUID> supportingEvidenceIds) {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
@@ -103,11 +104,25 @@ public class LeadService {
                 .verificationStatus(verificationStatus)
                 .occurredOn(occurredOn)
                 .confidence(confidence)
+                .relevanceScore(normalizeRelevance(origin, relevanceScore))
                 .sequenceNo(nextSequence)
                 .supportingEvidenceIds(validatedSupportingIds)
                 .build();
         evidenceRepository.save(evidence);
         return ResearchEvidenceSummary.from(evidence);
+    }
+
+    /** The browser can suggest relevance from a reviewed artifact, but unverified
+     * learner input can never claim the same weight as scenario-controlled evidence. */
+    private int normalizeRelevance(EvidenceOrigin origin, Integer requestedScore) {
+        int defaultScore = switch (origin == null ? EvidenceOrigin.USER_SUPPLIED : origin) {
+            case SCENARIO_CURATED -> 85;
+            case AI_SYNTHESIZED -> 80;
+            case MEETING_DISCOVERY -> 90;
+            case USER_SUPPLIED -> 35;
+        };
+        int score = requestedScore == null ? defaultScore : Math.max(0, Math.min(100, requestedScore));
+        return origin == EvidenceOrigin.USER_SUPPLIED ? Math.min(score, 45) : score;
     }
 
     /** Guards against a hypothesis citing evidence IDs from another engagement or that don't exist. */
@@ -166,11 +181,7 @@ public class LeadService {
 
         var profile = difficultyProfileService.forEngagement(engagement);
         if (!ResearchReadinessPolicy.isResearchComplete(evidence, profile)) {
-            throw new ResearchNotReadyException(
-                    ResearchReadinessPolicy.evidenceCount(evidence),
-                    ResearchReadinessPolicy.hasStakeholderEvidence(evidence),
-                    ResearchReadinessPolicy.hasHypothesis(evidence),
-                    ResearchReadinessPolicy.confidencePercent(evidence));
+            throw new ResearchNotReadyException(evidence, profile);
         }
 
         engagement.transitionTo(EngagementState.HYPOTHESIS_READY,

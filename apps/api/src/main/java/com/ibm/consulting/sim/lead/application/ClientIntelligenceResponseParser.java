@@ -54,6 +54,7 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                         reliability.name(),
                         EvidenceOrigin.AI_SYNTHESIZED.name(),
                         LocalDate.now(),
+                        relevancePercent(node.path("relevance").asDouble(0.8d)),
                         factIds,
                         List.of(),
                         "AI-synthesized from canonical fact ids: " + String.join(", ", factIds)));
@@ -86,6 +87,11 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
         List<String> values = new ArrayList<>();
         node.forEach(item -> values.add(item.asText()));
         return values;
+    }
+
+    private static int relevancePercent(double relevance) {
+        double normalized = relevance <= 1d ? relevance * 100d : relevance;
+        return (int) Math.round(Math.max(0d, Math.min(100d, normalized)));
     }
 
     private static <E extends Enum<E>> E parseEnum(Class<E> type, String value) {

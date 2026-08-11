@@ -12,6 +12,7 @@ public record ResearchArtifactResponse(
         String confidence,
         String origin,
         LocalDate publishedOn,
+        int relevanceScore,
         List<String> allowedFactKeys,
         List<String> correlatesWithEvidence,
         String relevanceRationale) {

@@ -15,6 +15,8 @@ import com.ibm.consulting.sim.lead.domain.EvidenceType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -50,6 +52,7 @@ public class LeadController {
             EvidenceVerificationStatus verificationStatus,
             LocalDate occurredOn,
             ConfidenceLevel confidence,
+            @Min(0) @Max(100) Integer relevanceScore,
             Set<UUID> supportingEvidenceIds) {}
 
     record GenerateResearchRequest(@NotNull EvidenceType evidenceType) {}
@@ -82,6 +85,7 @@ public class LeadController {
                         : defaultVerification(req.origin()),
                 req.occurredOn(),
                 req.confidence() != null ? req.confidence() : ConfidenceLevel.MEDIUM,
+                req.relevanceScore(),
                 req.supportingEvidenceIds());
     }
 

@@ -184,6 +184,7 @@ export interface ResearchEvidence {
   verificationStatus: EvidenceVerificationStatus
   occurredOn: string | null
   confidence: ConfidenceLevel
+  relevanceScore: number
   sequenceNo: number
   supportingEvidenceIds: string[]
   createdAt: string
@@ -199,6 +200,7 @@ export interface SaveResearchPayload {
   verificationStatus?: EvidenceVerificationStatus
   occurredOn?: string
   confidence?: ConfidenceLevel
+  relevanceScore?: number
   supportingEvidenceIds?: string[]
 }
 
@@ -211,6 +213,7 @@ export interface ResearchArtifact {
   confidence: ConfidenceLevel
   origin: EvidenceOrigin
   publishedOn: string
+  relevanceScore: number
   allowedFactKeys: string[]
   correlatesWithEvidence: string[]
   relevanceRationale: string
@@ -226,6 +229,13 @@ export interface ResearchGateStatus {
   confidencePercent: number
   requiredConfidencePercent: number
   ready: boolean
+  coverageCount: number
+  requiredCoverageCount: number
+  groundedHypothesis: boolean
+  reliabilityScore: number
+  verificationScore: number
+  relevanceScore: number
+  coaching: string[]
 }
 
 // ─── Engagement ───────────────────────────────────────────────────────────────
