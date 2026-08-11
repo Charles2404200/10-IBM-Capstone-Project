@@ -51,6 +51,14 @@ springdoc:
 app:
   observability:
     token: ${OBSERVABILITY_TOKEN:}
+    loki:
+      # Railway containers cannot mount another service's stdout. In production the
+      # API ships its structured events directly to Loki over private networking.
+      enabled: ${LOKI_ENABLED:false}
+      push-url: ${LOKI_PUSH_URL:}
+      service-name: ${LOKI_SERVICE_NAME:consulting-simulation-api}
+      batch-size: ${LOKI_BATCH_SIZE:100}
+      flush-interval-ms: ${LOKI_FLUSH_INTERVAL_MS:1000}
   # Comma-separated list of origins allowed to call the API (CORS) and open the
   # STOMP/WebSocket handshake (see WebSocketConfig). Defaults cover local dev
   # (Vite on 3000/5173); production deployments (Railway, IBM Cloud, ...) set
