@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
   Heading,
   InlineNotification,
+  Modal,
   Stack,
   Tag,
   TextArea,
@@ -16,7 +17,6 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
 import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
-import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
 import { assessDraftSafety, evaluateOutreach, keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt, ResearchEvidence } from '@/api/types'
@@ -236,6 +236,7 @@ export default function OutreachWorkspacePage() {
   const sendOutreach = useSendOutreach(engagementId!)
   const { data: intelligence } = useLeadIntelligence(engagementId!)
   const { data: evidence } = useResearch(engagementId!)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
   })
@@ -356,7 +357,7 @@ export default function OutreachWorkspacePage() {
                       invalidText={errors.body?.message}
                       {...register('body')}
                     />
-                    <OutreachSelfCheck body={draftBody} context={rubricContext} />
+                    {draftSafety.message && <p className={styles.draftNotice} data-risk={draftSafety.risk}>{draftSafety.message}</p>}
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
@@ -393,7 +394,6 @@ export default function OutreachWorkspacePage() {
                 </div>
               ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
             </section>
-            <ThreadHistory attempts={thread} />
         </section>
 
         <aside className={styles.decisionRail}>
@@ -414,6 +414,7 @@ export default function OutreachWorkspacePage() {
                 {latestAttempt && <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>}
               </div>
               {latestAttempt?.clientReply ? <p className={styles.clientReply}>{latestAttempt.clientReply}</p> : leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
+              {thread.length > 0 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>View full thread</Button>}
             </Tile>
 
             <Tile className={styles.checklistPanel}>
@@ -445,6 +446,9 @@ export default function OutreachWorkspacePage() {
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
         </aside>
       </main>
+      <Modal open={historyOpen} modalHeading="Outreach conversation" passiveModal onRequestClose={() => setHistoryOpen(false)}>
+        <ThreadHistory attempts={thread} />
+      </Modal>
     </div>
   )
 }
