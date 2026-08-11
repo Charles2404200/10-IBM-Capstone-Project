@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
@@ -17,10 +17,15 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
+import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
+import PhaseBrief from '@/lifecycle/components/PhaseBrief'
+import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
+import { keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt } from '@/api/types'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -226,9 +231,29 @@ export default function OutreachWorkspacePage() {
   const { data: attempts, isLoading } = useOutreach(engagementId!)
   const { data: brief } = useCapabilityBrief(engagementId!)
   const sendOutreach = useSendOutreach(engagementId!)
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<EmailFormValues>({
+  const { data: intelligence } = useLeadIntelligence(engagementId!)
+  const { data: evidence } = useResearch(engagementId!)
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
   })
+
+  // Watched so the self-check updates as the learner types.
+  const draftBody = watch('body') ?? ''
+
+  // Context for the self-check, derived from data this page already has, so it
+  // costs no extra round trip.
+  const rubricContext = useMemo(
+    () => ({
+      personaName: stakeholderNameFrom(intelligence?.decisionMaker?.value),
+      companyName: intelligence?.companyName ?? null,
+      keywords: keywordsFrom([
+        ...(evidence ?? []).map((item) => item.note),
+        intelligence?.painSeverity?.value,
+        intelligence?.technologyStack?.value,
+      ]),
+    }),
+    [evidence, intelligence]
+  )
 
   if (isLoading) return <LoadingState />
 
@@ -243,8 +268,9 @@ export default function OutreachWorkspacePage() {
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <p className={styles.eyebrow}>Engagement workflow</p>
-          <Heading>Outreach Workspace</Heading>
+          <Heading>{PHASE_LABEL.OUTREACH}</Heading>
           <p className={styles.pageSubtitle}>Respond to the client’s latest request and earn the next step in the engagement.</p>
+          <PhaseBrief phase="OUTREACH" />
         </Column>
       </Grid>
 
@@ -259,7 +285,7 @@ export default function OutreachWorkspacePage() {
                   <p>The client has accepted a discovery conversation. Carry this context into your preparation.</p>
                 </div>
                 <Button renderIcon={ArrowRight} onClick={() => navigate(`/dashboard/engagements/${engagementId}/preparation`)}>
-                  Continue to Meeting Preparation
+                  Continue to {PHASE_LABEL.MEETING_PREPARATION}
                 </Button>
               </Tile>
             )}
@@ -293,7 +319,16 @@ export default function OutreachWorkspacePage() {
                       <p className={styles.formIntro}>Use the latest response as context. Give the client one clear reason and a low-friction next step.</p>
                     </div>
                     <TextInput id="subject" labelText="Subject" invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
-                    <TextArea id="body" labelText="Message" rows={10} helperText="Minimum 50 characters." invalid={Boolean(errors.body)} invalidText={errors.body?.message} {...register('body')} />
+                    <TextArea
+                      id="body"
+                      labelText="Message"
+                      rows={10}
+                      helperText={`Minimum 50 characters — ${draftBody.length} so far.`}
+                      invalid={Boolean(errors.body)}
+                      invalidText={errors.body?.message}
+                      {...register('body')}
+                    />
+                    <OutreachSelfCheck body={draftBody} context={rubricContext} />
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}

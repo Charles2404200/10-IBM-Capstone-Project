@@ -199,3 +199,12 @@
   .historyItem summary { grid-template-columns: auto 1fr; }
   .historySubject { grid-column: 1 / -1; }
 }
+
+/* Carbon's Grid keeps its gutters at every breakpoint, which pushes the outer
+   columns past the viewport on a narrow screen. Clipping the page's own
+   horizontal overflow keeps the layout intact without touching the grid. */
+@media (max-width: 42rem) {
+  .page {
+    overflow-x: hidden;
+  }
+}
