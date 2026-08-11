@@ -9,8 +9,8 @@
  * actually uses visible *before* the attempt, so practice can be deliberate.
  */
 import { useMemo } from 'react'
-import { CheckmarkFilled, CircleDash } from '@carbon/icons-react'
-import { evaluateOutreach, type RubricContext } from '../coaching/outreachRubric'
+import { CheckmarkFilled, CircleDash, WarningAltFilled } from '@carbon/icons-react'
+import { assessDraftSafety, evaluateOutreach, type RubricContext } from '../coaching/outreachRubric'
 import styles from '../lifecycle.module.scss'
 
 export interface OutreachSelfCheckProps {
@@ -20,6 +20,7 @@ export interface OutreachSelfCheckProps {
 
 export default function OutreachSelfCheck({ body, context }: OutreachSelfCheckProps) {
   const result = useMemo(() => evaluateOutreach(body, context), [body, context])
+  const safety = useMemo(() => assessDraftSafety(body), [body])
   const words = body.trim() === '' ? 0 : body.trim().split(/\s+/).length
 
   return (
@@ -31,6 +32,20 @@ export default function OutreachSelfCheck({ body, context }: OutreachSelfCheckPr
         These are the four things the client's team assesses. This is your own check before you
         send — the client still decides.
       </p>
+
+      {safety.message && (
+        <div
+          role="status"
+          style={{
+            display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.75rem',
+            padding: '0.75rem', borderLeft: `3px solid ${safety.risk === 'blocking' ? '#da1e28' : '#f1c21b'}`,
+            background: safety.risk === 'blocking' ? '#fff1f1' : '#fff8e1', fontSize: '0.8125rem', lineHeight: 1.4,
+          }}
+        >
+          <WarningAltFilled size={16} style={{ fill: safety.risk === 'blocking' ? '#da1e28' : '#8a3800', flexShrink: 0, marginTop: '0.1rem' }} />
+          <span>{safety.message}</span>
+        </div>
+      )}
 
       <ul style={{ display: 'grid', gap: '0.5rem', listStyle: 'none', padding: 0, margin: 0 }}>
         {result.checks.map((check) => (

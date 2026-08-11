@@ -184,6 +184,7 @@
 .historyBody { display: grid; gap: $spacing-05; padding: 0 $spacing-05 $spacing-05; }
 .historyBody > div > p:last-child { white-space: pre-wrap; color: $text-secondary; margin: 0; line-height: 1.5; }
 .clientReplyCompact { border-left: 3px solid $interactive; padding-left: $spacing-04; }
+.attemptHint { border-left: 3px solid $support-info; padding-left: $spacing-04; }
 .scoreList { display: grid; gap: $spacing-03; }
 
 @media (max-width: 1055px) {
@@ -208,3 +209,33 @@
     overflow-x: hidden;
   }
 }
+
+.makeContactHero { display: flex; align-items: center; gap: $spacing-05; }
+.heroIcon { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; color: $interactive; background: $layer-accent-01; border-radius: 6px; }
+.phaseCards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $spacing-04; margin-top: $spacing-06; }
+.phaseCards :global(.cds--tile) { display: flex; gap: $spacing-04; border: 1px solid $border-subtle; padding: $spacing-05; }
+.phaseCards svg { color: $interactive; flex: 0 0 auto; }
+.phaseCards strong, .phaseCards span { display: block; }
+.phaseCards strong { @include type-style('body-compact-01'); color: $text-primary; margin-bottom: $spacing-02; }
+.phaseCards span { @include type-style('body-compact-01'); color: $text-secondary; line-height: 1.4; }
+.composeHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: $spacing-04; }
+.emailAddressRow { display: flex; align-items: center; gap: $spacing-03; padding: $spacing-03 $spacing-04; background: $layer-accent-01; @include type-style('body-compact-01'); }
+.emailAddressRow > span:first-child { color: $text-secondary; width: 2rem; }
+.emailAddressRow > span:last-child { color: $text-secondary; margin-left: auto; }
+.clientOverview, .evidenceReference { border: 1px solid $border-subtle; padding: $spacing-05; background: $layer-01; }
+.overviewHeading { display: flex; justify-content: space-between; align-items: center; margin-bottom: $spacing-04; }
+.overviewHeading h3 { @include type-style('heading-compact-02'); margin: 0; }
+.clientIdentity { display: flex; align-items: center; gap: $spacing-04; }
+.clientIdentity strong { display: block; margin-bottom: $spacing-02; }
+.clientMonogram { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: $interactive; color: $text-on-color; @include type-style('heading-03'); }
+.clientDetails { display: grid; gap: $spacing-03; margin: $spacing-05 0 0; }
+.clientDetails div { display: grid; grid-template-columns: 7rem 1fr; gap: $spacing-03; }
+.clientDetails dt { color: $text-secondary; @include type-style('label-01'); }
+.clientDetails dd { margin: 0; @include type-style('body-compact-01'); }
+.evidenceReference { display: grid; gap: $spacing-02; }
+.evidenceReferenceItem { width: 100%; border: 0; border-top: 1px solid $border-subtle; background: transparent; cursor: pointer; padding: $spacing-03 0; text-align: left; }
+.evidenceReferenceItem span, .evidenceReferenceItem small { display: block; }
+.evidenceReferenceItem span { color: $interactive; @include type-style('label-01'); }
+.evidenceReferenceItem small { color: $text-secondary; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: $spacing-02; }
+.evidenceReferenceItem:hover span { text-decoration: underline; }
+@media (max-width: 1055px) { .phaseCards { grid-template-columns: 1fr; } }

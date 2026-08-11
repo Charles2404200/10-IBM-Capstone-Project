@@ -12,7 +12,7 @@ import {
   TextInput,
   Tile,
 } from '@carbon/react'
-import { ArrowRight, CheckmarkFilled, Document, Send } from '@carbon/icons-react'
+import { ArrowRight, CheckmarkFilled, Document, Send, Email, UserAvatar, Light, Link as LinkIcon } from '@carbon/icons-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -20,7 +20,7 @@ import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBr
 import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
 import PhaseBrief from '@/lifecycle/components/PhaseBrief'
 import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
-import { keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
+import { assessDraftSafety, keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt } from '@/api/types'
 import { getProblemDetail } from '@/api/problemDetails'
@@ -86,6 +86,12 @@ function ThreadHistory({ attempts }: { attempts: OutreachAttempt[] }) {
                 <div className={styles.clientReplyCompact}>
                   <p className={styles.eyebrow}>Client response</p>
                   <p>{attempt.clientReply}</p>
+                </div>
+              )}
+              {attempt.coachingHint && (
+                <div className={styles.attemptHint}>
+                  <p className={styles.eyebrow}>Coaching note</p>
+                  <p>{attempt.coachingHint}</p>
                 </div>
               )}
               <div className={styles.scoreList}>
@@ -239,6 +245,8 @@ export default function OutreachWorkspacePage() {
 
   // Watched so the self-check updates as the learner types.
   const draftBody = watch('body') ?? ''
+  const draftSubject = watch('subject') ?? ''
+  const draftSafety = assessDraftSafety(draftBody)
 
   // Context for the self-check, derived from data this page already has, so it
   // costs no extra round trip.
@@ -267,10 +275,20 @@ export default function OutreachWorkspacePage() {
     <div className={styles.page}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
-          <p className={styles.eyebrow}>Engagement workflow</p>
-          <Heading>{PHASE_LABEL.OUTREACH}</Heading>
+          <div className={styles.makeContactHero}>
+            <div className={styles.heroIcon}><Email size={30} /></div>
+            <div>
+              <p className={styles.eyebrow}>Engagement workflow · step 3</p>
+              <Heading>{PHASE_LABEL.OUTREACH}</Heading>
+            </div>
+          </div>
           <p className={styles.pageSubtitle}>Respond to the client’s latest request and earn the next step in the engagement.</p>
           <PhaseBrief phase="OUTREACH" />
+          <div className={styles.phaseCards}>
+            <Tile><Light size={20} /><div><strong>What this step is for</strong><span>Earn a meeting through one clear, relevant email.</span></div></Tile>
+            <Tile><CheckmarkFilled size={20} /><div><strong>You are done when</strong><span>The client agrees to meet or asks for a specific deliverable.</span></div></Tile>
+            <Tile><ArrowRight size={20} /><div><strong>What happens next</strong><span>Use the client response to prepare a valuable conversation.</span></div></Tile>
+          </div>
         </Column>
       </Grid>
 
@@ -313,16 +331,17 @@ export default function OutreachWorkspacePage() {
               <Tile className={styles.editor}>
                 <form onSubmit={handleSubmit(sendEmail)}>
                   <Stack gap={4}>
-                    <div>
+                    <div className={styles.composeHeading}>
                       <p className={styles.eyebrow}>{latestAttempt ? 'Follow-up message' : 'First contact'}</p>
                       <h2>{latestAttempt ? 'Respond to the client' : 'Compose outreach'}</h2>
                       <p className={styles.formIntro}>Use the latest response as context. Give the client one clear reason and a low-friction next step.</p>
                     </div>
-                    <TextInput id="subject" labelText="Subject" invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
+                    <div className={styles.emailAddressRow}><span>To</span><strong>{rubricContext.personaName ?? 'Client stakeholder'}</strong><span>{rubricContext.companyName ?? 'Client organisation'}</span></div>
+                    <TextInput id="subject" labelText="Subject" helperText={`${draftSubject.length} characters`} invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
                     <TextArea
                       id="body"
                       labelText="Message"
-                      rows={10}
+                      rows={9}
                       helperText={`Minimum 50 characters — ${draftBody.length} so far.`}
                       invalid={Boolean(errors.body)}
                       invalidText={errors.body?.message}
@@ -332,7 +351,7 @@ export default function OutreachWorkspacePage() {
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
-                    <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending}>
+                    <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending || draftSafety.risk === 'blocking'}>
                       {sendOutreach.isPending ? 'Sending...' : 'Send message'}
                     </Button>
                   </Stack>
@@ -347,6 +366,17 @@ export default function OutreachWorkspacePage() {
 
         <Column lg={6} md={8} sm={4}>
           <aside className={styles.decisionRail}>
+            <Tile className={styles.clientOverview}>
+              <div className={styles.overviewHeading}><h3>Client overview</h3><UserAvatar size={20} /></div>
+              <div className={styles.clientIdentity}>
+                <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
+                <div><strong>{intelligence?.companyName ?? 'Client organisation'}</strong><div><Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></div></div>
+              </div>
+              <dl className={styles.clientDetails}>
+                <div><dt>Key stakeholder</dt><dd>{rubricContext.personaName ?? 'Continue research to identify'}</dd></div>
+                <div><dt>Priority signal</dt><dd>{intelligence?.painSeverity?.value ?? 'Use evidence to uncover the priority'}</dd></div>
+              </dl>
+            </Tile>
             <Tile className={styles.latestReply}>
               <Stack gap={4}>
                 <div className={styles.replyHeading}>
@@ -378,6 +408,15 @@ export default function OutreachWorkspacePage() {
             ) : null}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
+            <Tile className={styles.evidenceReference}>
+              <div className={styles.overviewHeading}><h3>Evidence you can reference</h3><LinkIcon size={18} /></div>
+              {(evidence ?? []).filter((item) => item.evidenceType !== 'HYPOTHESIS').slice(0, 4).map((item) => (
+                <button type="button" key={item.id} className={styles.evidenceReferenceItem} onClick={() => navigator.clipboard?.writeText(item.note)}>
+                  <span>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</span><small>{item.note}</small>
+                </button>
+              ))}
+              {(evidence ?? []).filter((item) => item.evidenceType !== 'HYPOTHESIS').length === 0 && <p className={styles.emptyReply}>Research evidence will appear here for quick reference.</p>}
+            </Tile>
           </aside>
         </Column>
       </Grid>

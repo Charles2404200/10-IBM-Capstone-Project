@@ -7,12 +7,16 @@ import com.ibm.consulting.sim.ai.infrastructure.OutreachEvaluationParser;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.engagement.domain.EngagementState;
+import com.ibm.consulting.sim.lead.domain.Lead;
+import com.ibm.consulting.sim.lead.domain.LeadRepository;
+import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.outreach.domain.OutreachAttempt;
 import com.ibm.consulting.sim.outreach.domain.OutreachOutcome;
 import com.ibm.consulting.sim.outreach.domain.OutreachNextAction;
 import com.ibm.consulting.sim.outreach.domain.OutreachRequestPolicy;
 import com.ibm.consulting.sim.outreach.domain.OutreachRepository;
 import com.ibm.consulting.sim.outreach.domain.OutreachOutcomePolicy;
+import com.ibm.consulting.sim.outreach.domain.OutreachContentPolicy;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import com.ibm.consulting.sim.shared.domain.DomainException;
@@ -35,17 +39,23 @@ public class OutreachService {
     private final AiOrchestrationService aiOrchestrationService;
     private final OutreachEvaluationParser parser;
     private final DifficultyProfileService difficultyProfileService;
+    private final LeadRepository leadRepository;
+    private final ResearchEvidenceRepository evidenceRepository;
 
     public OutreachService(OutreachRepository outreachRepository,
                            EngagementRepository engagementRepository,
                            AiOrchestrationService aiOrchestrationService,
                            ObjectMapper objectMapper,
-                           DifficultyProfileService difficultyProfileService) {
+                           DifficultyProfileService difficultyProfileService,
+                           LeadRepository leadRepository,
+                           ResearchEvidenceRepository evidenceRepository) {
         this.outreachRepository = outreachRepository;
         this.engagementRepository = engagementRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.parser = new OutreachEvaluationParser(objectMapper);
         this.difficultyProfileService = difficultyProfileService;
+        this.leadRepository = leadRepository;
+        this.evidenceRepository = evidenceRepository;
     }
 
     @Transactional
@@ -75,14 +85,21 @@ public class OutreachService {
 
         OutreachAttempt attempt = OutreachAttempt.create(engagementId, attemptCount + 1, subject, body);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        Lead lead = leadRepository.findById(engagement.getSelectedLeadId())
+                .orElseThrow(() -> new NotFoundException("Lead", engagement.getSelectedLeadId()));
+        List<String> evidenceNotes = evidenceRepository.findByEngagementId(engagementId).stream()
+                .map(evidence -> evidence.getNote())
+                .toList();
 
         OutreachEvaluationResult evaluation = aiOrchestrationService.execute(
                 "outreach_evaluation",
                 engagementId,
-                buildPrompt(subject, body, profile),
+                buildPrompt(subject, body, profile, lead, evidenceNotes),
                 PROMPT_VERSION,
                 parser,
                 OutreachEvaluationResult::safeFallback);
+        evaluation = OutreachContentPolicy.apply(evaluation, subject, body, lead.getCompanyName(),
+                lead.getDecisionMaker(), evidenceNotes);
 
         OutreachOutcome outcome = OutreachOutcomePolicy.decide(evaluation, profile);
         OutreachNextAction nextAction = OutreachRequestPolicy.nextActionFor(outcome, evaluation.clientReply());
@@ -111,7 +128,8 @@ public class OutreachService {
         }
     }
 
-    private String buildPrompt(String subject, String body, DifficultyProfile profile) {
+    private String buildPrompt(String subject, String body, DifficultyProfile profile, Lead lead,
+                               List<String> evidenceNotes) {
         return """
                 You are evaluating a cold outreach email from a trainee consultant to a prospective client.
                 Assess personalisation, relevance, clarity and call-to-action strength, then write a realistic
@@ -123,9 +141,16 @@ public class OutreachService {
                 The deterministic engine requires an average quality score of %d/100 before a meeting can be accepted.
                 You may recommend a likely outcome in the JSON, but the backend owns the final state transition.
 
+                Client company: %s
+                Named stakeholder: %s
+                Client industry: %s
+                Canonical client context the learner discovered (use only for relevance assessment): %s
+
                 Subject: %s
                 Body: %s
-                """.formatted(profile.outreachAcceptanceThreshold(), subject, body);
+                """.formatted(profile.outreachAcceptanceThreshold(), lead.getCompanyName(),
+                lead.getDecisionMaker() == null ? "Not yet identified" : lead.getDecisionMaker(), lead.getIndustry(),
+                String.join(" | ", evidenceNotes.stream().limit(8).toList()), subject, body);
     }
 
     @Transactional(readOnly = true)

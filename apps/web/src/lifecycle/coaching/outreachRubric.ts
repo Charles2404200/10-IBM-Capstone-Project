@@ -38,6 +38,13 @@ export interface RubricResult {
   metCount: number
 }
 
+export type DraftRisk = 'clear' | 'warning' | 'blocking'
+
+export interface DraftSafetyResult {
+  risk: DraftRisk
+  message: string | null
+}
+
 const MEETING_WORDS = [
   'call',
   'meet',
@@ -52,6 +59,9 @@ const MEETING_WORDS = [
 ]
 
 const TIME_WORDS = ['minute', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'week', 'next']
+
+const UNPROFESSIONAL_LANGUAGE = /\b(fuck|fucking|shit|bullshit|wtf|idiot|moron|stupid|shut up|who tf)\b/i
+const LOW_SIGNAL_DRAFTS = new Set(['hi', 'hello', 'hey', 'test', 'asdf', 'i dont know', "i don't know", 'n/a', 'no idea'])
 
 function normalise(text: string): string {
   return text.toLowerCase()
@@ -122,6 +132,31 @@ export function hasSingleClearAsk(body: string): boolean {
   const isConcrete = TIME_WORDS.some((w) => haystack.includes(w)) || /\d/.test(body)
   const questionCount = (body.match(/\?/g) ?? []).length
   return asksForTime && isConcrete && questionCount <= 1
+}
+
+/**
+ * A local warning only. The server repeats and enforces these boundaries before
+ * deciding an outcome, so a client-side check can never be used to bypass the
+ * learning rules.
+ */
+export function assessDraftSafety(body: string): DraftSafetyResult {
+  const compact = normalise(body).replace(/\s+/g, ' ').trim()
+  if (!compact) return { risk: 'clear', message: null }
+  if (UNPROFESSIONAL_LANGUAGE.test(compact)) {
+    return {
+      risk: 'blocking',
+      message: 'Rewrite this before sending. Unprofessional or abusive language ends the outreach attempt.',
+    }
+  }
+  const words = compact.split(' ').filter(Boolean)
+  const uniqueWords = new Set(words).size
+  if (LOW_SIGNAL_DRAFTS.has(compact) || /(.)\1{7,}/.test(compact) || words.length < 12 || uniqueWords <= 3) {
+    return {
+      risk: 'warning',
+      message: 'This does not yet communicate a client-specific reason to engage. Add one relevant signal and one clear ask.',
+    }
+  }
+  return { risk: 'clear', message: null }
 }
 
 export function evaluateOutreach(body: string, context: RubricContext = {}): RubricResult {

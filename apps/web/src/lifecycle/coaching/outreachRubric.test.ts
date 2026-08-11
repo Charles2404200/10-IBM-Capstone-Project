@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assessDraftSafety,
   evaluateOutreach,
   hasSingleClearAsk,
   keywordsFrom,
@@ -150,6 +151,21 @@ describe('evaluateOutreach', () => {
   it('degrades to a generic hint when no stakeholder is known', () => {
     const check = evaluateOutreach('', {}).checks[0]
     expect(check.advice).not.toContain('undefined')
+  })
+})
+
+describe('draft safety', () => {
+  it('blocks abusive language before the learner sends', () => {
+    expect(assessDraftSafety('This is bullshit and you are wasting my time.').risk).toBe('blocking')
+  })
+
+  it('warns when a draft does not communicate a meaningful reason', () => {
+    expect(assessDraftSafety('hello').risk).toBe('warning')
+    expect(assessDraftSafety('asdfasdfasdf').risk).toBe('warning')
+  })
+
+  it('leaves a substantive professional message unblocked', () => {
+    expect(assessDraftSafety(GOOD_EMAIL).risk).toBe('clear')
   })
 })
 
