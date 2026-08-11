@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
@@ -472,7 +472,6 @@ export default function ClientIntelligencePage() {
   const generateResearch = useGenerateResearchIntelligence(engagementId!)
   const analyzeUserContext = useAnalyzeUserContext(engagementId!)
   const { data: gate } = useResearchGateStatus(engagementId!)
-  const noteRef = useRef<HTMLTextAreaElement | null>(null)
   const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
   const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
 
@@ -488,7 +487,6 @@ export default function ClientIntelligencePage() {
     reset: resetExternalContext,
     formState: { errors: externalContextErrors },
   } = useForm<ExternalContextFormValues>()
-  const { ref: noteFieldRef, ...noteFieldProps } = register('note', { required: true })
 
   const citableEvidence = useMemo(() => evidence ?? [], [evidence])
   const codeById = useMemo(
@@ -601,7 +599,7 @@ export default function ClientIntelligencePage() {
         </section>
       </Column>
 
-      <Column lg={3} md={3} sm={4}>
+      <Column lg={3} md={3} sm={4} className={styles.workspaceColumn}>
         <aside className={styles.sideRail}>
           <div className={styles.researchActions}>
             <h4 className={styles.researchActionsTitle}>Research Actions</h4>
@@ -630,7 +628,7 @@ export default function ClientIntelligencePage() {
         </aside>
       </Column>
 
-      <Column lg={8} md={5} sm={4}>
+      <Column lg={8} md={5} sm={4} className={styles.workspaceColumn}>
         <main className={styles.mainWorkspace}>
           <section className={styles.researchResultsPanel}>
             <div className={styles.panelHeader}>
@@ -755,9 +753,9 @@ export default function ClientIntelligencePage() {
                 <Button
                   kind="tertiary"
                   size="sm"
-                  onClick={() => noteRef.current?.focus()}
+                  onClick={() => selectResearchAction('COMPANY_NEWS')}
                 >
-                  Add your first evidence
+                  Start company research
                 </Button>
               </Tile>
             )}
@@ -771,21 +769,18 @@ export default function ClientIntelligencePage() {
         </main>
       </Column>
 
-      <Column lg={5} md={8} sm={4}>
+      <Column lg={5} md={8} sm={4} className={styles.workspaceColumn}>
         <aside className={styles.decisionRail}>
           <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
           <ResearchGateChecklist
             engagementId={engagementId!}
             onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
           />
-          <ClientProfilePanel engagementId={engagementId!} />
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Tile className={styles.formTile}>
+          {nonHypothesisEvidence.length > 0 && <ClientProfilePanel engagementId={engagementId!} />}
+          <Accordion className={styles.manualEvidence} align="start">
+            <AccordionItem title="Add manual evidence">
+              <form onSubmit={handleSubmit(onSubmit)}>
               <Stack gap={4}>
-                <h4 className={styles.formTitle}>
-                  Manual Evidence Entry
-                </h4>
-
                 {activePrompt && (
                   <p style={{ color: '#525252', fontSize: '0.8125rem', marginTop: '-0.5rem' }}>{activePrompt}</p>
                 )}
@@ -810,11 +805,7 @@ export default function ClientIntelligencePage() {
                   rows={3}
                   invalid={Boolean(errors.note)}
                   invalidText="Required"
-                  {...noteFieldProps}
-                  ref={(el) => {
-                    noteFieldRef(el)
-                    noteRef.current = el
-                  }}
+                  {...register('note', { required: true })}
                 />
 
                 <Accordion align="start">
@@ -859,8 +850,9 @@ export default function ClientIntelligencePage() {
                   Add Evidence
                 </Button>
               </Stack>
-            </Tile>
-          </form>
+              </form>
+            </AccordionItem>
+          </Accordion>
         </aside>
       </Column>
     </Grid>
