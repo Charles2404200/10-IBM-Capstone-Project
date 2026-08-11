@@ -16,6 +16,7 @@ import { useScenario } from '@/api/hooks/useScenarios'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { LeadSummary } from '@/api/types'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 
 const DIFFICULTY_TYPE = { EASY: 'green', MEDIUM: 'magenta', HARD: 'red' } as const
 
@@ -97,7 +98,7 @@ export default function LeadPipelinePage() {
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
           <div>
-            <Heading>Lead Pipeline</Heading>
+            <Heading>{PHASE_LABEL.LEAD}</Heading>
             <p style={{ color: '#525252', marginTop: '0.5rem' }}>
               Review available leads. Signals are visible — hidden details emerge through research.
             </p>
@@ -136,7 +137,7 @@ export default function LeadPipelinePage() {
               <InlineNotification
                 kind="info"
                 title="Lead already selected"
-                subtitle="This engagement has already locked in a lead — continue to Client Intelligence to keep researching it."
+                subtitle={`This engagement has already locked in a lead — continue to ${PHASE_LABEL.CLIENT_INTELLIGENCE} to keep researching it.`}
                 hideCloseButton
                 lowContrast
               />
@@ -146,7 +147,7 @@ export default function LeadPipelinePage() {
                 renderIcon={ArrowRight}
                 onClick={() => navigate(`/dashboard/engagements/${engagementId}/intelligence`)}
               >
-                Continue to Client Intelligence
+                Continue to {PHASE_LABEL.CLIENT_INTELLIGENCE}
               </Button>
             </Stack>
           )}
