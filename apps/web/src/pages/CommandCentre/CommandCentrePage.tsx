@@ -341,7 +341,7 @@ export default function CommandCentrePage() {
   const [sortMode, setSortMode] = useState<SortMode>('RECENT')
   const [searchTerm, setSearchTerm] = useState('')
 
-  const allEngagements = engagements ?? []
+  const allEngagements = useMemo(() => engagements ?? [], [engagements])
   const labelsByEngagement = useMemo(() => attemptLabels(allEngagements), [allEngagements])
 
   const activeEngagements = useMemo(
