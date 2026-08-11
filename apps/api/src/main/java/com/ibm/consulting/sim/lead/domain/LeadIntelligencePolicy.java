@@ -104,9 +104,7 @@ public final class LeadIntelligencePolicy {
      *  average evidence reliability (30%) — deliberately NOT evidence count,
      *  so spamming ten low-value notes in one category can't fake a HIGH score. */
     public static int confidenceScore(List<ResearchEvidence> evidence) {
-        int coverageRatio = Math.round(coverageCount(evidence) * 100f / COVERAGE_BUCKETS.size());
-        int reliability = averageReliability(evidence);
-        return Math.round(coverageRatio * 0.7f + reliability * 0.3f);
+        return ResearchReadinessPolicy.confidencePercent(evidence);
     }
 
     /** Coarse-grained label the frontend renders as "Research confidence: LOW/MEDIUM/HIGH". */
@@ -120,16 +118,12 @@ public final class LeadIntelligencePolicy {
     /** Human-readable factors behind the confidence score, for the "Why HIGH?" tooltip
      *  — e.g. "4/4 research areas covered", "3 high-reliability findings". */
     public static List<String> confidenceFactors(List<ResearchEvidence> evidence) {
-        List<ResearchEvidence> substantive = substantiveEvidence(evidence);
+        ResearchReadinessPolicy.QualityAssessment quality = ResearchReadinessPolicy.assess(evidence);
         List<String> factors = new ArrayList<>();
-        factors.add("%d/%d research areas covered".formatted(coverageCount(evidence), COVERAGE_BUCKETS.size()));
-
-        long high = substantive.stream().filter(e -> e.getConfidence() == ConfidenceLevel.HIGH).count();
-        long medium = substantive.stream().filter(e -> e.getConfidence() == ConfidenceLevel.MEDIUM).count();
-        long low = substantive.stream().filter(e -> e.getConfidence() == ConfidenceLevel.LOW).count();
-        if (high > 0) factors.add(high + " high-reliability finding" + (high > 1 ? "s" : ""));
-        if (medium > 0) factors.add(medium + " medium-reliability finding" + (medium > 1 ? "s" : ""));
-        if (low > 0) factors.add(low + " low-reliability finding" + (low > 1 ? "s" : ""));
+        factors.add("%d/%d research areas covered".formatted(quality.coverageCount(), COVERAGE_BUCKETS.size()));
+        factors.add("%d%% average reliability".formatted(quality.reliabilityScore()));
+        factors.add("%d%% source verification".formatted(quality.verificationScore()));
+        factors.add("%d%% client relevance".formatted(quality.relevanceScore()));
         return List.copyOf(factors);
     }
 
@@ -151,11 +145,21 @@ public final class LeadIntelligencePolicy {
     private static Insight insightFor(List<ResearchEvidence> evidence, Set<EvidenceType> types) {
         List<ResearchEvidence> matches = evidence.stream()
                 .filter(e -> types.contains(e.getEvidenceType()))
+                .filter(LeadIntelligencePolicy::trustedForReveal)
                 .sorted(Comparator.comparing(ResearchEvidence::getSequenceNo))
                 .toList();
         if (matches.isEmpty()) return Insight.UNREVEALED;
         String value = matches.get(matches.size() - 1).getNote();
         List<Integer> sequence = matches.stream().map(ResearchEvidence::getSequenceNo).toList();
         return new Insight(value, sequence);
+    }
+
+    /** Unverified learner input can be kept on the board, but may not reveal
+     * canonical client truth until a scenario or client source corroborates it. */
+    private static boolean trustedForReveal(ResearchEvidence evidence) {
+        return evidence.getVerificationStatus() != EvidenceVerificationStatus.CONTRADICTED
+                && (evidence.getOrigin() != EvidenceOrigin.USER_SUPPLIED
+                || evidence.getVerificationStatus() == EvidenceVerificationStatus.CORROBORATED
+                || evidence.getVerificationStatus() == EvidenceVerificationStatus.VERIFIED);
     }
 }

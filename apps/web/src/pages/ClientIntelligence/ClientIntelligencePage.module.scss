@@ -24,6 +24,21 @@ $accent-blue-dark: #0043ce;
   border-bottom: 1px solid $border-subtle;
 }
 
+.workflowState {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  color: $text-secondary;
+  font-size: 0.875rem;
+}
+
+.workflowStateLabel {
+  color: $accent-blue-dark;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .stageMetaRow {
   display: flex;
   justify-content: space-between;
@@ -52,6 +67,31 @@ $accent-blue-dark: #0043ce;
   align-items: flex-start;
   gap: $spacing-05;
   margin-bottom: $spacing-05;
+}
+
+.nextActionPanel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $spacing-05;
+  margin-bottom: $spacing-06;
+  padding: $spacing-05 $spacing-06;
+  background: #edf5ff;
+  border-left: 4px solid $accent-blue;
+
+  strong {
+    color: $text-primary;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+}
+
+.nextActionScore {
+  flex-shrink: 0;
+  color: $accent-blue-dark;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .sideRail,
@@ -122,7 +162,7 @@ $accent-blue-dark: #0043ce;
 .researchOptionCard {
   background: $layer-bg;
   border: 1px solid $border-subtle;
-  min-height: 12rem;
+  min-height: 13.5rem;
 
   h4 {
     color: $text-primary;
@@ -363,6 +403,20 @@ $accent-blue-dark: #0043ce;
   border-radius: 6px;
   padding: $spacing-06;
   min-height: 24rem;
+}
+
+.gateCoaching {
+  margin-top: $spacing-05;
+  padding: $spacing-04;
+  background: #edf5ff;
+  border-left: 3px solid $accent-blue;
+
+  p:last-child {
+    color: $text-secondary;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    margin: $spacing-02 0 0;
+  }
 }
 
 .evidenceBoardHeader {
@@ -678,12 +732,17 @@ $accent-blue-dark: #0043ce;
   }
 
   .pageHeader,
+  .nextActionPanel,
   .panelHeader,
   .evidenceBoardHeader,
   .hypothesisWorkspaceHeader,
   .clientProfileHeader {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .nextActionScore {
+    align-self: flex-start;
   }
 
   .researchOptions {

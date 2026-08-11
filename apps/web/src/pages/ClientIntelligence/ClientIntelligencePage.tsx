@@ -90,6 +90,9 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
           <Tag type={CONFIDENCE_TAG_TYPE[item.confidence]} size="sm">
             {item.confidence} confidence
           </Tag>
+          <Tag type={item.relevanceScore >= 70 ? 'green' : item.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
+            {item.relevanceScore}% relevant
+          </Tag>
         </div>
 
         <p className={styles.evidenceNote}>{item.note}</p>
@@ -149,6 +152,9 @@ function ResearchArtifactCard({
           <Tag type={CONFIDENCE_TAG_TYPE[artifact.confidence]} size="sm">{artifact.confidence}</Tag>
           <Tag type={artifact.origin === 'USER_SUPPLIED' ? 'warm-gray' : 'cyan'} size="sm">
             {artifact.origin.replace(/_/g, ' ')}
+          </Tag>
+          <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
+            {artifact.relevanceScore}% relevant
           </Tag>
         </div>
         <div>
@@ -233,12 +239,23 @@ function ResearchGateChecklist({
           label={`At least ${gate.requiredEvidenceCount} evidence items (${gate.evidenceCount}/${gate.requiredEvidenceCount})`}
         />
         <GateRequirement met={gate.hasStakeholderEvidence} label="Stakeholder evidence identified" />
-        <GateRequirement met={gate.hasHypothesis} label="Hypothesis submitted" />
+        <GateRequirement
+          met={gate.coverageCount >= gate.requiredCoverageCount}
+          label={`${gate.requiredCoverageCount} research areas covered (${gate.coverageCount}/${gate.requiredCoverageCount})`}
+        />
+        <GateRequirement met={gate.groundedHypothesis} label="Grounded hypothesis submitted" />
         <GateRequirement
           met={gate.confidencePercent >= gate.requiredConfidencePercent}
           label={`Research confidence at least ${gate.requiredConfidencePercent}% (${gate.confidencePercent}%)`}
         />
       </Stack>
+
+      {gate.coaching?.length > 0 && (
+        <div className={styles.gateCoaching}>
+          <p className={styles.sectionEyebrow}>Next best action</p>
+          <p>{gate.coaching[0]}</p>
+        </div>
+      )}
 
       {completeResearch.isError && (
         <p className={styles.gateError}>Complete the requirements above before proceeding.</p>
@@ -454,6 +471,7 @@ export default function ClientIntelligencePage() {
   const saveResearch = useSaveResearch(engagementId!)
   const generateResearch = useGenerateResearchIntelligence(engagementId!)
   const analyzeUserContext = useAnalyzeUserContext(engagementId!)
+  const { data: gate } = useResearchGateStatus(engagementId!)
   const noteRef = useRef<HTMLTextAreaElement | null>(null)
   const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
   const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
@@ -504,6 +522,7 @@ export default function ClientIntelligencePage() {
         occurredOn: artifact.publishedOn,
         confidence: artifact.confidence,
         origin: artifact.origin,
+        relevanceScore: artifact.relevanceScore,
       },
       {
         onSuccess: () => {
@@ -553,6 +572,10 @@ export default function ClientIntelligencePage() {
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <div className={styles.progressBanner}>
+          <div className={styles.workflowState}>
+            <span className={styles.workflowStateLabel}>Client intelligence</span>
+            <span>{gate?.ready ? 'Research gate ready' : 'Build evidence and test a hypothesis'}</span>
+          </div>
         </div>
       </Column>
 
@@ -566,6 +589,16 @@ export default function ClientIntelligencePage() {
           </div>
           <Tag type="blue" size="md">{nonHypothesisEvidence.length} evidence items</Tag>
         </div>
+
+        <section className={styles.nextActionPanel} aria-label="Recommended next action">
+          <div>
+            <p className={styles.sectionEyebrow}>Recommended next action</p>
+            <strong>{gate?.coaching?.[0] ?? 'Select an intelligence area to start your investigation.'}</strong>
+          </div>
+          <span className={styles.nextActionScore}>
+            {gate ? `${gate.confidencePercent}% research quality` : 'Loading quality'}
+          </span>
+        </section>
       </Column>
 
       <Column lg={3} md={3} sm={4}>
@@ -740,12 +773,12 @@ export default function ClientIntelligencePage() {
 
       <Column lg={5} md={8} sm={4}>
         <aside className={styles.decisionRail}>
-          <ClientProfilePanel engagementId={engagementId!} />
           <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
           <ResearchGateChecklist
             engagementId={engagementId!}
             onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
           />
+          <ClientProfilePanel engagementId={engagementId!} />
           <form onSubmit={handleSubmit(onSubmit)}>
             <Tile className={styles.formTile}>
               <Stack gap={4}>
