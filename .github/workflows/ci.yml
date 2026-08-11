@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Make Gradle wrapper executable
+        working-directory: apps/api
+        run: chmod +x gradlew
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -43,6 +46,9 @@ jobs:
       - name: Type-check
         working-directory: apps/web
         run: npm run type-check
+      - name: Type-check tests
+        working-directory: apps/web
+        run: npm run type-check:tests
       - name: Lint
         working-directory: apps/web
         run: npm run lint

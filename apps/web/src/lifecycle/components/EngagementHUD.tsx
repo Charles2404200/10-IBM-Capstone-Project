@@ -22,15 +22,15 @@ import styles from '../lifecycle.module.scss'
 
 /** Matches the threshold the live meeting already uses, so the bar and the
  *  meeting page never disagree about what "healthy" means. */
-export const RELATIONSHIP_THRESHOLD = 70
+const RELATIONSHIP_THRESHOLD = 70
 
 /** Pulls the engagement id out of the URL. AppShell is the parent route, so it
  *  cannot read a child route's params directly. */
-export function engagementIdFromPath(pathname: string): string | null {
+function engagementIdFromPath(pathname: string): string | null {
   return /\/dashboard\/engagements\/([^/]+)/.exec(pathname)?.[1] ?? null
 }
 
-export function meterColour(value: number): string {
+function meterColour(value: number): string {
   if (value >= RELATIONSHIP_THRESHOLD) return '#24a148'
   if (value >= 50) return '#f1c21b'
   return '#da1e28'
