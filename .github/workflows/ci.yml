@@ -65,4 +65,8 @@ jobs:
       - name: Build API image
         run: docker build -t consulting-sim-api:${{ github.sha }} apps/api
       - name: Build Web image
-        run: docker build -t consulting-sim-web:${{ github.sha }} apps/web
+        run: >-
+          docker build
+          --build-arg VITE_API_BASE_URL=https://api.example.test
+          -t consulting-sim-web:${{ github.sha }}
+          apps/web
