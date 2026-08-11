@@ -18,9 +18,10 @@
 }
 
 .pageHeader { min-height: 0; }
-.makeContactHero { display: flex; align-items: flex-start; gap: $spacing-05; }
-.heroIcon { display: grid; place-items: center; width: 3rem; height: 3rem; flex: 0 0 auto; color: $interactive; background: #edf3ff; border-radius: 8px; }
-.pageSubtitle { max-width: 52rem; margin: $spacing-03 0 0; color: $text-secondary; @include type-style('body-01'); }
+.makeContactHero { display: flex; align-items: flex-start; gap: $spacing-04; }
+.pageHeader h1 { @include type-style('heading-05'); }
+.heroIcon { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: 0 0 auto; color: $interactive; background: #edf3ff; border-radius: 8px; }
+.pageSubtitle { max-width: 52rem; margin: $spacing-02 0 0; color: $text-secondary; @include type-style('body-compact-01'); }
 .eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; letter-spacing: 0; margin: 0 0 $spacing-02; }
 
 .phaseCards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $spacing-04; min-height: 0; }
@@ -69,6 +70,12 @@
 .assistActions button { display: flex; justify-content: space-between; align-items: center; gap: $spacing-03; width: 100%; padding: $spacing-03 $spacing-04; border: 1px solid #c6d8ff; border-radius: 5px; background: $layer-01; color: $interactive; text-align: left; cursor: pointer; @include type-style('body-compact-01'); }
 .assistActions button:hover:not(:disabled) { background: #edf3ff; }
 .assistActions button:disabled { color: $text-disabled; cursor: not-allowed; }
+.bestEvidence { display: grid; gap: $spacing-02; margin-top: $spacing-04; padding: $spacing-03 $spacing-04; border: 1px solid #b9d7ff; border-radius: 6px; background: #edf5ff; }
+.bestEvidence > .eyebrow { margin: 0; color: #0f62fe; }
+.bestEvidence strong { overflow: hidden; color: $text-primary; text-overflow: ellipsis; white-space: nowrap; @include type-style('body-compact-01'); }
+.bestEvidence > span { display: -webkit-box; overflow: hidden; color: $text-secondary; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; @include type-style('label-01'); }
+.bestEvidence button { display: inline-flex; align-items: center; gap: $spacing-02; width: max-content; padding: 0; border: 0; background: transparent; color: $interactive; cursor: pointer; @include type-style('label-01'); }
+.bestEvidence button:hover { text-decoration: underline; }
 .coachingCallout { display: grid; gap: $spacing-02; margin-top: $spacing-05; padding: $spacing-04; border-left: 3px solid $interactive; background: $layer-01; color: $text-secondary; line-height: 1.4; @include type-style('body-compact-01'); }
 .coachingCallout strong { color: $text-primary; }
 
@@ -140,6 +147,9 @@
   .nextActionPanel { display: none; }
   .emailComposer :global(.cds--text-area__wrapper) { min-height: 10rem; }
   .decisionRail { grid-auto-rows: max-content; }
+  .assistActions { gap: $spacing-02; margin-top: $spacing-03; }
+  .assistActions button { padding: $spacing-02 $spacing-03; }
+  .bestEvidence { margin-top: $spacing-03; }
 }
 
 @media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.page { height: auto; overflow: visible; }.primaryColumn { grid-template-rows: auto; } }

@@ -18,6 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
 import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
 import { assessDraftSafety, evaluateOutreach, keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
+import { rankOutreachEvidence } from '@/lifecycle/coaching/outreachEvidence'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt, ResearchEvidence } from '@/api/types'
 import { getProblemDetail } from '@/api/problemDetails'
@@ -269,7 +270,7 @@ export default function OutreachWorkspacePage() {
   const documentRequired = latestAttempt?.nextAction === 'SUBMIT_CAPABILITY_BRIEF' && brief?.outcome !== 'ACCEPTED'
   const meetingSecured = latestAttempt?.outcome === 'ACCEPTED' || brief?.outcome === 'ACCEPTED'
   const sendEmail = (data: EmailFormValues) => sendOutreach.mutate(data, { onSuccess: () => reset() })
-  const evidenceForReference = (evidence ?? []).filter((item) => item.evidenceType !== 'HYPOTHESIS')
+  const evidenceForReference = rankOutreachEvidence(evidence ?? [])
   const leadSignal = evidenceForReference[0] as ResearchEvidence | undefined
   const appendEvidenceReference = (source?: ResearchEvidence) => {
     if (!source) return
@@ -371,6 +372,16 @@ export default function OutreachWorkspacePage() {
                 <p className={styles.eyebrow}>Evidence assistant</p>
                 <h3>Need help getting started?</h3>
                 <p>Build your own message with a verified signal. The assistant never sends or submits work for you.</p>
+                {leadSignal && (
+                  <section className={styles.bestEvidence} aria-label="Best evidence to use">
+                    <p className={styles.eyebrow}>Best evidence to use</p>
+                    <strong>{leadSignal.sourceTitle || leadSignal.evidenceType.replace(/_/g, ' ')}</strong>
+                    <span>{leadSignal.note}</span>
+                    <button type="button" onClick={() => appendEvidenceReference(leadSignal)}>
+                      Use this evidence <ArrowRight size={16} />
+                    </button>
+                  </section>
+                )}
                 <div className={styles.assistActions}>
                   <button type="button" onClick={() => appendEvidenceReference(leadSignal)} disabled={!leadSignal}>Reference the latest client signal <ArrowRight size={16} /></button>
                   <button type="button" onClick={() => setValue('body', `${draftBody.trim()}${draftBody.trim() ? '\n\n' : ''}Would a 20-minute conversation next week be useful?`, { shouldDirty: true, shouldValidate: true })}>Invite a short conversation <ArrowRight size={16} /></button>
