@@ -316,6 +316,7 @@ export interface OutreachAttempt {
   requestTitle: string | null
   requestSummary: string | null
   requestRequirements: string[]
+  coachingHint?: string | null
   createdAt: string
 }
 
