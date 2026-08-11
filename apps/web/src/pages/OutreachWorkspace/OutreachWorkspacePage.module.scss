@@ -4,238 +4,111 @@
 
 .page {
   min-height: 100%;
-  background: $background;
-  padding: $spacing-07 0 $spacing-10;
-}
-
-.headerGrid,
-.workspaceGrid {
-  max-width: 96rem;
+  max-width: 104rem;
   margin: 0 auto;
+  padding: $spacing-07 $spacing-06 $spacing-10;
+  background: $background;
 }
 
-.workspaceGrid {
-  margin-top: $spacing-07;
-}
+.pageHeader { margin-bottom: $spacing-06; }
+.makeContactHero { display: flex; align-items: flex-start; gap: $spacing-05; }
+.heroIcon { display: grid; place-items: center; width: 3rem; height: 3rem; flex: 0 0 auto; color: $interactive; background: #edf3ff; border-radius: 8px; }
+.pageSubtitle { max-width: 52rem; margin: $spacing-03 0 0; color: $text-secondary; @include type-style('body-01'); }
+.eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; letter-spacing: 0; margin: 0 0 $spacing-02; }
 
-.pageSubtitle,
-.formIntro,
-.editorHeading p,
-.successPanel p,
-.hintPanel p {
-  color: $text-secondary;
-  margin-top: $spacing-03;
-}
-
-.eyebrow {
-  @include type-style('label-01');
-  color: $text-secondary;
-  text-transform: uppercase;
-  letter-spacing: 0;
-  margin: 0 0 $spacing-02;
-}
-
-.editor,
-.latestReply,
-.hintPanel,
-.briefReview,
-.successPanel {
-  border: 1px solid $border-subtle;
-  background: $layer-01;
-}
-
-.editor {
-  padding: $spacing-06;
-}
-
-.editorHeading,
-.replyHeading,
-.reviewHeading,
-.successPanel,
-.historyHeading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $spacing-05;
-}
-
-.editorHeading h2,
-.replyHeading h2,
-.reviewHeading h2,
-.successPanel h2 {
-  @include type-style('heading-04');
-  margin: 0;
-}
-
-.editorGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $spacing-05;
-}
-
-.requirementList {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $spacing-03 $spacing-05;
-  padding: $spacing-05;
-  background: $layer-accent-01;
-
-  > p {
-    grid-column: 1 / -1;
-    @include type-style('label-01');
-    margin: 0;
-  }
-
-  span {
-    display: flex;
-    align-items: flex-start;
-    gap: $spacing-03;
-    color: $text-primary;
-    @include type-style('body-compact-01');
-  }
-
-  svg { color: $support-success; flex: 0 0 auto; }
-}
-
-.decisionRail {
-  position: sticky;
-  top: $spacing-05;
-  display: grid;
-  gap: $spacing-05;
-}
-
-.latestReply {
-  border-top: 3px solid $interactive;
-  padding: $spacing-06;
-}
-
-.clientReply {
-  white-space: pre-wrap;
-  color: $text-primary;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.emptyReply { color: $text-secondary; margin: 0; }
-
-.hintPanel {
-  padding: $spacing-05;
-  background: $layer-accent-01;
-
-  h3 { @include type-style('heading-compact-02'); margin: 0; }
-  ul { margin: $spacing-04 0 0; padding-left: $spacing-05; }
-  li { color: $text-primary; margin-bottom: $spacing-03; @include type-style('body-compact-01'); }
-}
-
-.successPanel {
-  padding: $spacing-06;
-  border-left: 4px solid $support-success;
-  align-items: center;
-}
-
-.briefReview {
-  padding: $spacing-05;
-}
-
-.reviewGrid {
-  display: grid;
-  gap: $spacing-03;
-}
-
-.scoreRow {
-  display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr) 2rem;
-  align-items: center;
-  gap: $spacing-03;
-  color: $text-secondary;
-  @include type-style('label-01');
-
-  strong { color: $text-primary; font-weight: 400; text-align: right; }
-}
-
-.scoreTrack { height: 4px; background: $border-subtle; }
-.scoreGood, .scoreModerate, .scoreLow { height: 100%; }
-.scoreGood { background: $support-success; }
-.scoreModerate { background: $support-warning; }
-.scoreLow { background: $support-error; }
-
-.history { padding-top: $spacing-05; border-top: 1px solid $border-subtle; }
-.historyHeading { align-items: center; margin-bottom: $spacing-04; }
-.historyHeading h3 { @include type-style('heading-compact-02'); margin: 0; }
-.historyHeading span { color: $text-secondary; @include type-style('label-01'); }
-
-.historyItem {
-  border: 1px solid $border-subtle;
-  background: $layer-01;
-
-  summary {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    align-items: center;
-    gap: $spacing-03;
-    padding: $spacing-04;
-    cursor: pointer;
-    list-style: none;
-  }
-  summary::-webkit-details-marker { display: none; }
-}
-
-.historySubject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $text-secondary; }
-.historyBody { display: grid; gap: $spacing-05; padding: 0 $spacing-05 $spacing-05; }
-.historyBody > div > p:last-child { white-space: pre-wrap; color: $text-secondary; margin: 0; line-height: 1.5; }
-.clientReplyCompact { border-left: 3px solid $interactive; padding-left: $spacing-04; }
-.attemptHint { border-left: 3px solid $support-info; padding-left: $spacing-04; }
-.scoreList { display: grid; gap: $spacing-03; }
-
-@media (max-width: 1055px) {
-  .decisionRail { position: static; margin-top: $spacing-06; }
-}
-
-@media (max-width: 671px) {
-  .page { padding-top: $spacing-05; }
-  .editor { padding: $spacing-05; }
-  .editorGrid, .requirementList { grid-template-columns: 1fr; }
-  .successPanel { align-items: flex-start; flex-direction: column; }
-  .scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }
-  .historyItem summary { grid-template-columns: auto 1fr; }
-  .historySubject { grid-column: 1 / -1; }
-}
-
-/* Carbon's Grid keeps its gutters at every breakpoint, which pushes the outer
-   columns past the viewport on a narrow screen. Clipping the page's own
-   horizontal overflow keeps the layout intact without touching the grid. */
-@media (max-width: 42rem) {
-  .page {
-    overflow-x: hidden;
-  }
-}
-
-.makeContactHero { display: flex; align-items: center; gap: $spacing-05; }
-.heroIcon { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; color: $interactive; background: $layer-accent-01; border-radius: 6px; }
-.phaseCards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $spacing-04; margin-top: $spacing-06; }
-.phaseCards :global(.cds--tile) { display: flex; gap: $spacing-04; border: 1px solid $border-subtle; padding: $spacing-05; }
-.phaseCards svg { color: $interactive; flex: 0 0 auto; }
+.phaseCards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $spacing-04; margin-bottom: $spacing-06; }
+.phaseCards :global(.cds--tile) { display: flex; align-items: flex-start; gap: $spacing-04; min-height: 5.5rem; padding: $spacing-05; border: 1px solid $border-subtle; border-radius: 8px; background: $layer-01; }
+.phaseCards svg { flex: 0 0 auto; color: $interactive; }
 .phaseCards strong, .phaseCards span { display: block; }
-.phaseCards strong { @include type-style('body-compact-01'); color: $text-primary; margin-bottom: $spacing-02; }
-.phaseCards span { @include type-style('body-compact-01'); color: $text-secondary; line-height: 1.4; }
-.composeHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: $spacing-04; }
-.emailAddressRow { display: flex; align-items: center; gap: $spacing-03; padding: $spacing-03 $spacing-04; background: $layer-accent-01; @include type-style('body-compact-01'); }
-.emailAddressRow > span:first-child { color: $text-secondary; width: 2rem; }
-.emailAddressRow > span:last-child { color: $text-secondary; margin-left: auto; }
-.clientOverview, .evidenceReference { border: 1px solid $border-subtle; padding: $spacing-05; background: $layer-01; }
-.overviewHeading { display: flex; justify-content: space-between; align-items: center; margin-bottom: $spacing-04; }
-.overviewHeading h3 { @include type-style('heading-compact-02'); margin: 0; }
-.clientIdentity { display: flex; align-items: center; gap: $spacing-04; }
+.phaseCards strong { margin-bottom: $spacing-02; color: $text-primary; @include type-style('body-compact-01'); }
+.phaseCards span { color: $text-secondary; line-height: 1.4; @include type-style('body-compact-01'); }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 25rem; gap: $spacing-06; align-items: start; }
+.primaryColumn { min-width: 0; display: grid; gap: $spacing-06; }
+.decisionRail { position: sticky; top: $spacing-05; display: grid; gap: $spacing-04; }
+
+.composeWorkspace { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; overflow: hidden; border: 1px solid $border-subtle; border-radius: 10px; background: $layer-01; box-shadow: 0 1px 3px rgb(15 38 71 / 8%); }
+.emailComposer, .assistPanel { border: 0; background: transparent; }
+.emailComposer { padding: $spacing-06; }
+.composerHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; padding-bottom: $spacing-05; }
+.composerHeader h2, .replyHeading h2, .stripHeading h2 { margin: 0; @include type-style('heading-compact-02'); }
+.composerHeader p, .assistPanel > p:not(.eyebrow), .nextActionPanel p, .hintPanel p { margin: $spacing-02 0 0; color: $text-secondary; line-height: 1.45; @include type-style('body-compact-01'); }
+.mailMeta { display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; gap: $spacing-03; min-height: 2.25rem; padding: 0 $spacing-04; border-top: 1px solid $border-subtle; background: $layer-accent-01; @include type-style('body-compact-01'); }
+.mailMeta span, .mailMeta small { color: $text-secondary; }
+.mailMeta small { text-align: right; }
+.emailComposer :global(.cds--text-input-wrapper), .emailComposer :global(.cds--text-area__wrapper) { margin-top: $spacing-04; }
+.checkPills { display: flex; flex-wrap: wrap; gap: $spacing-02; margin-top: $spacing-04; }
+.checkPills span { display: inline-flex; align-items: center; gap: $spacing-02; padding: $spacing-02 $spacing-03; border-radius: 999px; color: $text-secondary; background: $layer-accent-01; @include type-style('label-01'); }
+.checkPills .met { color: #0e6027; background: #d9f7e3; }
+.composerFooter { display: flex; justify-content: space-between; align-items: center; gap: $spacing-04; margin-top: $spacing-05; }
+.composerFooter small { color: $text-secondary; @include type-style('label-01'); }
+
+.assistPanel { padding: $spacing-06 $spacing-05; border-left: 1px solid $border-subtle; background: #f7faff; }
+.assistPanel h3, .clientOverview h3, .checklistPanel h3, .nextActionPanel h3, .hintPanel h3 { margin: 0; @include type-style('heading-compact-02'); }
+.assistActions { display: grid; gap: $spacing-03; margin-top: $spacing-05; }
+.assistActions button { display: flex; justify-content: space-between; align-items: center; gap: $spacing-03; width: 100%; padding: $spacing-03 $spacing-04; border: 1px solid #c6d8ff; border-radius: 5px; background: $layer-01; color: $interactive; text-align: left; cursor: pointer; @include type-style('body-compact-01'); }
+.assistActions button:hover:not(:disabled) { background: #edf3ff; }
+.assistActions button:disabled { color: $text-disabled; cursor: not-allowed; }
+.coachingCallout { display: grid; gap: $spacing-02; margin-top: $spacing-05; padding: $spacing-04; border-left: 3px solid $interactive; background: $layer-01; color: $text-secondary; line-height: 1.4; @include type-style('body-compact-01'); }
+.coachingCallout strong { color: $text-primary; }
+
+.clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel, .briefReview, .successPanel, .evidenceStrip { border: 1px solid $border-subtle; border-radius: 8px; background: $layer-01; }
+.clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel { padding: $spacing-05; }
+.overviewHeading, .replyHeading, .stripHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
+.clientIdentity { display: flex; align-items: center; gap: $spacing-04; margin-top: $spacing-04; }
 .clientIdentity strong { display: block; margin-bottom: $spacing-02; }
-.clientMonogram { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%; background: $interactive; color: $text-on-color; @include type-style('heading-03'); }
+.clientMonogram { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; color: $text-on-color; background: #0f2b6d; @include type-style('heading-03'); }
 .clientDetails { display: grid; gap: $spacing-03; margin: $spacing-05 0 0; }
-.clientDetails div { display: grid; grid-template-columns: 7rem 1fr; gap: $spacing-03; }
+.clientDetails div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: $spacing-03; }
 .clientDetails dt { color: $text-secondary; @include type-style('label-01'); }
 .clientDetails dd { margin: 0; @include type-style('body-compact-01'); }
-.evidenceReference { display: grid; gap: $spacing-02; }
-.evidenceReferenceItem { width: 100%; border: 0; border-top: 1px solid $border-subtle; background: transparent; cursor: pointer; padding: $spacing-03 0; text-align: left; }
-.evidenceReferenceItem span, .evidenceReferenceItem small { display: block; }
-.evidenceReferenceItem span { color: $interactive; @include type-style('label-01'); }
-.evidenceReferenceItem small { color: $text-secondary; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: $spacing-02; }
-.evidenceReferenceItem:hover span { text-decoration: underline; }
-@media (max-width: 1055px) { .phaseCards { grid-template-columns: 1fr; } }
+.latestReply { border-top: 3px solid $interactive; }
+.clientReply { margin: $spacing-04 0 0; white-space: pre-wrap; color: $text-primary; line-height: 1.5; @include type-style('body-compact-01'); }
+.emptyReply { margin: $spacing-04 0 0; color: $text-secondary; @include type-style('body-compact-01'); }
+.checklistPanel > .overviewHeading > strong { color: #198038; }
+.checklistRow { display: flex; align-items: center; gap: $spacing-03; padding-top: $spacing-03; color: $text-secondary; @include type-style('body-compact-01'); }
+.checklistRow svg { color: $text-secondary; }
+.checklistRow:has(svg path[fill='#24a148']) { color: $text-primary; }
+.nextActionPanel { display: flex; align-items: flex-start; gap: $spacing-04; border-color: #c6d8ff; background: #f7faff; }
+.nextActionPanel > svg { flex: 0 0 auto; color: $interactive; }
+.hintPanel { background: $layer-accent-01; }
+.hintPanel ul { margin: $spacing-04 0 0; padding-left: $spacing-05; }
+.hintPanel li { margin-bottom: $spacing-03; color: $text-primary; @include type-style('body-compact-01'); }
+
+.evidenceStrip { padding: $spacing-05; }
+.stripHeading > span { padding: $spacing-02 $spacing-03; border-radius: 999px; color: $interactive; background: #edf3ff; @include type-style('label-01'); }
+.evidenceCards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $spacing-04; margin-top: $spacing-04; }
+.evidenceCards button { display: grid; gap: $spacing-02; min-width: 0; padding: $spacing-04; border: 1px solid $border-subtle; border-radius: 6px; background: $layer-01; text-align: left; cursor: pointer; }
+.evidenceCards button:hover { border-color: $interactive; background: #f7faff; }
+.evidenceCards svg { color: $interactive; }
+.evidenceCards strong { overflow: hidden; color: $text-primary; text-overflow: ellipsis; white-space: nowrap; @include type-style('body-compact-01'); }
+.evidenceCards p { display: -webkit-box; overflow: hidden; margin: 0; color: $text-secondary; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 3; @include type-style('label-01'); }
+.evidenceCards small { display: inline-flex; align-items: center; gap: $spacing-02; color: $interactive; @include type-style('label-01'); }
+
+.successPanel { display: flex; justify-content: space-between; align-items: center; gap: $spacing-05; padding: $spacing-06; border-left: 4px solid $support-success; }
+.successPanel h2, .reviewHeading h2 { margin: 0; @include type-style('heading-04'); }
+.successPanel p, .editorHeading p { margin-top: $spacing-03; color: $text-secondary; }
+.editor, .briefReview { padding: $spacing-06; }
+.editorHeading, .reviewHeading, .historyHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
+.editorGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-05; }
+.requirementList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-03 $spacing-05; padding: $spacing-05; background: $layer-accent-01; }
+.requirementList > p { grid-column: 1 / -1; margin: 0; @include type-style('label-01'); }
+.requirementList span { display: flex; gap: $spacing-03; @include type-style('body-compact-01'); }
+.requirementList svg { color: $support-success; flex: 0 0 auto; }
+.reviewGrid, .scoreList { display: grid; gap: $spacing-03; }
+.scoreRow { display: grid; grid-template-columns: 9rem minmax(0, 1fr) 2rem; gap: $spacing-03; align-items: center; color: $text-secondary; @include type-style('label-01'); }
+.scoreRow strong { color: $text-primary; font-weight: 400; text-align: right; }
+.scoreTrack { height: 4px; background: $border-subtle; }
+.scoreGood, .scoreModerate, .scoreLow { height: 100%; }
+.scoreGood { background: $support-success; }.scoreModerate { background: $support-warning; }.scoreLow { background: $support-error; }
+
+.history { border-top: 1px solid $border-subtle; padding-top: $spacing-05; }
+.historyHeading { align-items: center; margin-bottom: $spacing-04; }.historyHeading h3 { margin: 0; @include type-style('heading-compact-02'); }.historyHeading span { color: $text-secondary; @include type-style('label-01'); }
+.historyItem { border: 1px solid $border-subtle; border-radius: 6px; background: $layer-01; }
+.historyItem summary { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: $spacing-03; align-items: center; padding: $spacing-04; cursor: pointer; list-style: none; }.historyItem summary::-webkit-details-marker { display: none; }
+.historySubject { overflow: hidden; color: $text-secondary; text-overflow: ellipsis; white-space: nowrap; }
+.historyBody { display: grid; gap: $spacing-05; padding: 0 $spacing-05 $spacing-05; }.historyBody > div > p:last-child { margin: 0; color: $text-secondary; line-height: 1.5; white-space: pre-wrap; }.clientReplyCompact, .attemptHint { padding-left: $spacing-04; border-left: 3px solid $interactive; }.attemptHint { border-color: $support-info; }
+
+@media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .page { padding: $spacing-05 $spacing-04 $spacing-08; }.workspace { grid-template-columns: 1fr; }.decisionRail { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }.nextActionPanel, .hintPanel { grid-column: span 2; }.phaseCards { grid-template-columns: 1fr; }.phaseCards :global(.cds--tile) { min-height: auto; } }
+@media (max-width: 600px) { .makeContactHero { gap: $spacing-04; }.heroIcon { width: 2.75rem; height: 2.75rem; }.emailComposer, .assistPanel, .evidenceStrip { padding: $spacing-04; }.mailMeta { grid-template-columns: 3rem minmax(0, 1fr); }.mailMeta small { grid-column: 2; text-align: left; }.composerFooter, .successPanel { align-items: flex-start; flex-direction: column; }.assistActions, .decisionRail, .evidenceCards, .editorGrid, .requirementList { grid-template-columns: 1fr; }.nextActionPanel, .hintPanel { grid-column: auto; }.scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }.historyItem summary { grid-template-columns: auto 1fr; }.historySubject { grid-column: 1 / -1; } }
