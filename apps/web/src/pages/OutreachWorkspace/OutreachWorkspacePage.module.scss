@@ -47,7 +47,7 @@
 .mailMeta span, .mailMeta small { color: $text-secondary; }
 .mailMeta small { text-align: right; }
 .emailComposer :global(.cds--text-input-wrapper), .emailComposer :global(.cds--text-area__wrapper) { margin-top: $spacing-03; }
-.emailComposer :global(.cds--text-area__wrapper textarea) { min-height: 10rem; resize: none; }
+.emailComposer :global(.cds--text-area__wrapper textarea) { min-height: 6rem; height: 6rem; resize: none; }
 .checkPills { display: flex; flex-wrap: wrap; gap: $spacing-02; margin-top: $spacing-04; }
 .checkPills span { display: inline-flex; align-items: center; gap: $spacing-02; padding: $spacing-02 $spacing-03; border-radius: 999px; color: $text-secondary; background: $layer-accent-01; @include type-style('label-01'); }
 .checkPills .met { color: #0e6027; background: #d9f7e3; }
@@ -91,11 +91,11 @@
 .evidenceStrip { padding: $spacing-04 $spacing-05; }
 .stripHeading > span { padding: $spacing-02 $spacing-03; border-radius: 999px; color: $interactive; background: #edf3ff; @include type-style('label-01'); }
 .evidenceCards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $spacing-03; margin-top: $spacing-03; }
-.evidenceCards button { display: grid; gap: $spacing-02; min-width: 0; min-height: 6.75rem; padding: $spacing-03; border: 1px solid $border-subtle; border-radius: 6px; background: $layer-01; text-align: left; cursor: pointer; }
+.evidenceCards button { display: grid; gap: $spacing-02; min-width: 0; min-height: 5rem; padding: $spacing-03; border: 1px solid $border-subtle; border-radius: 6px; background: $layer-01; text-align: left; cursor: pointer; }
 .evidenceCards button:hover { border-color: $interactive; background: #f7faff; }
 .evidenceCards svg { color: $interactive; }
 .evidenceCards strong { overflow: hidden; color: $text-primary; text-overflow: ellipsis; white-space: nowrap; @include type-style('body-compact-01'); }
-.evidenceCards p { display: -webkit-box; overflow: hidden; margin: 0; color: $text-secondary; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; @include type-style('label-01'); }
+.evidenceCards p { display: -webkit-box; overflow: hidden; margin: 0; color: $text-secondary; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 1; @include type-style('label-01'); }
 .evidenceCards small { display: inline-flex; align-items: center; gap: $spacing-02; color: $interactive; @include type-style('label-01'); }
 
 .successPanel { display: flex; justify-content: space-between; align-items: center; gap: $spacing-05; padding: $spacing-06; border-left: 4px solid $support-success; }

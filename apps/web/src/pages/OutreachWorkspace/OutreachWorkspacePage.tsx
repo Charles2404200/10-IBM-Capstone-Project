@@ -351,7 +351,7 @@ export default function OutreachWorkspacePage() {
                     <TextArea
                       id="body"
                       labelText="Message"
-                      rows={10}
+                      rows={6}
                       helperText={`${draftBody.trim() ? draftBody.trim().split(/\s+/).length : 0} words / ${draftBody.length} characters`}
                       invalid={Boolean(errors.body)}
                       invalidText={errors.body?.message}
