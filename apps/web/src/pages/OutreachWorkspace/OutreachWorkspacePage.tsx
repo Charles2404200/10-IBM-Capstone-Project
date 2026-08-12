@@ -312,28 +312,6 @@ export default function OutreachWorkspacePage() {
               </Tile>
             )}
 
-            {latestAttempt?.clientReply && !meetingSecured && (
-              <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
-                <div className={styles.clientResponseHeading}>
-                  <div>
-                    <p className={styles.eyebrow}>Latest client response</p>
-                    <h2>What the client said</h2>
-                  </div>
-                  <div className={styles.responseActions}>
-                    <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>
-                    {thread.length > 1 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>View conversation</Button>}
-                  </div>
-                </div>
-                <blockquote>{latestAttempt.clientReply}</blockquote>
-                {(latestAttempt.requestTitle || latestAttempt.coachingHint) && (
-                  <div className={styles.responseGuidance}>
-                    <strong>{latestAttempt.requestTitle ?? 'Recommended next step'}</strong>
-                    <span>{latestAttempt.requestSummary ?? latestAttempt.coachingHint}</span>
-                  </div>
-                )}
-              </section>
-            )}
-
             {documentRequired && brief?.outcome !== 'FOLLOW_UP_REQUIRED' && (
               <CapabilityBriefEditor
                 engagementId={engagementId!}
@@ -441,7 +419,27 @@ export default function OutreachWorkspacePage() {
                 <div><dt>Priority signal</dt><dd>{intelligence?.painSeverity?.value ?? 'Use evidence to uncover the priority'}</dd></div>
               </dl>
             </Tile>
-            {!latestAttempt?.clientReply && (
+            {latestAttempt?.clientReply ? (
+              <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
+                <div className={styles.clientResponseHeading}>
+                  <div>
+                    <p className={styles.eyebrow}>Latest client response</p>
+                    <h2>What the client said</h2>
+                  </div>
+                  <div className={styles.responseActions}>
+                    <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>
+                    {thread.length > 1 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>History</Button>}
+                  </div>
+                </div>
+                <blockquote>{latestAttempt.clientReply}</blockquote>
+                {(latestAttempt.requestTitle || latestAttempt.coachingHint) && (
+                  <div className={styles.responseGuidance}>
+                    <strong>{latestAttempt.requestTitle ?? 'Recommended next step'}</strong>
+                    <span>{latestAttempt.requestSummary ?? latestAttempt.coachingHint}</span>
+                  </div>
+                )}
+              </section>
+            ) : (
               <Tile className={styles.latestReply}>
                 <div className={styles.replyHeading}>
                   <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
@@ -455,11 +453,11 @@ export default function OutreachWorkspacePage() {
               {draftReview.checks.map((check) => <div key={check.dimension} className={styles.checklistRow}>{check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}<span>{check.label}</span></div>)}
             </Tile>
 
-            <Tile className={styles.nextActionPanel}>
+            {!latestAttempt?.clientReply && <Tile className={styles.nextActionPanel}>
               <Light size={22} /><div><p className={styles.eyebrow}>Next best action</p><h3>{latestAttempt?.coachingHint ? 'Refine before you send' : 'Use one client signal'}</h3><p>{latestAttempt?.coachingHint ?? 'Reference a verified source, then ask for a short, time-bound conversation.'}</p></div>
-            </Tile>
+            </Tile>}
 
-            {latestAttempt?.requestRequirements?.length ? (
+            {!latestAttempt?.clientReply && latestAttempt?.requestRequirements?.length && (
               <Tile className={styles.hintPanel}>
                 <p className={styles.eyebrow}>What the client is asking for</p>
                 <h3>{latestAttempt.requestTitle}</h3>
@@ -468,13 +466,7 @@ export default function OutreachWorkspacePage() {
                   {latestAttempt.requestRequirements.map((requirement) => <li key={requirement}>{requirement}</li>)}
                 </ul>
               </Tile>
-            ) : latestAttempt?.clientReply && !meetingSecured ? (
-              <Tile className={styles.hintPanel}>
-                <p className={styles.eyebrow}>Response-based hint</p>
-                <h3>Address the latest response</h3>
-                <p>{latestAttempt.coachingHint ?? 'Use the client response above to acknowledge their constraint, then make one specific next-step request.'}</p>
-              </Tile>
-            ) : null}
+            )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
         </aside>
