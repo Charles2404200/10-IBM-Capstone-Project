@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import apiClient from '@/api/client'
 import { adminPlatformKeys } from '@/api/hooks/useAdminPlatformOverview'
 import type {
@@ -11,12 +12,55 @@ import type {
   LeadSummary,
   ScenarioAuthoringConfig,
   ScenarioAuthoringView,
+  ScenarioCatalogPage,
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
 } from '@/api/types'
 
 const adminScenarioKeys = {
   all: ['admin', 'scenarios'] as const,
+  catalog: (filters: AdminScenarioCatalogFilters) => ['admin', 'scenarios', 'catalog', filters] as const,
+}
+
+export interface AdminScenarioCatalogFilters {
+  search?: string
+  status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
+  page: number
+  size: number
+}
+
+async function fetchAdminScenarioCatalog(filters: AdminScenarioCatalogFilters) {
+  const response = await apiClient.get<ScenarioCatalogPage>('/api/v1/admin/scenarios/catalog', { params: filters })
+  return response.data
+}
+
+/**
+ * Bounded authoring library query. Keeping this separate from the legacy full
+ * list endpoint lets existing integrations continue unchanged while authors
+ * work fluidly with thousands of scenarios.
+ */
+export function useAdminScenarioCatalog(filters: AdminScenarioCatalogFilters, enabled = true) {
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: adminScenarioKeys.catalog(filters),
+    queryFn: () => fetchAdminScenarioCatalog(filters),
+    placeholderData: keepPreviousData,
+    staleTime: 45_000,
+    refetchOnWindowFocus: false,
+    enabled,
+  })
+
+  useEffect(() => {
+    if (!query.data || filters.page + 1 >= query.data.totalPages) return
+    const nextFilters = { ...filters, page: filters.page + 1 }
+    void queryClient.prefetchQuery({
+      queryKey: adminScenarioKeys.catalog(nextFilters),
+      queryFn: () => fetchAdminScenarioCatalog(nextFilters),
+      staleTime: 45_000,
+    })
+  }, [filters, query.data, queryClient])
+
+  return query
 }
 
 /** Admin/author scenario authoring mutations — create scenario, add persona,
@@ -31,6 +75,7 @@ export function useCreateScenario() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
       queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+      queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
     },
   })
 }

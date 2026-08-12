@@ -9,8 +9,11 @@ import com.ibm.consulting.sim.scenario.application.UpdateDifficultyProfileReques
 import com.ibm.consulting.sim.scenario.application.UpdateScenarioBlueprintRequest;
 import com.ibm.consulting.sim.scenario.application.UpdateScenarioAuthoringConfigRequest;
 import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringView;
+import com.ibm.consulting.sim.scenario.application.ScenarioCatalogResponse;
 import com.ibm.consulting.sim.scenario.application.LeadAuthoringRequest;
 import com.ibm.consulting.sim.scenario.application.LeadAuthoringView;
+import com.ibm.consulting.sim.scenario.domain.AdminScenarioCatalogQuery;
+import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import com.ibm.consulting.sim.lead.application.LeadSummary;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -40,6 +43,15 @@ public class AdminScenarioController {
     @GetMapping
     List<ScenarioSummary> listAll() {
         return scenarioService.listAllForAdmin();
+    }
+
+    /** Fast, bounded library query for the authoring console. The legacy list endpoint remains available. */
+    @GetMapping("/catalog")
+    ScenarioCatalogResponse listCatalog(@RequestParam(required = false) String search,
+                                        @RequestParam(required = false) ScenarioStatus status,
+                                        @RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "12") int size) {
+        return scenarioService.listCatalogForAdmin(new AdminScenarioCatalogQuery(search, status, page, size));
     }
 
     @PostMapping
