@@ -1,5 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import apiClient from '@/api/client'
+import { adminPlatformKeys } from '@/api/hooks/useAdminPlatformOverview'
 import type {
   CreatePersonaRequest,
   CreateScenarioRequest,
@@ -10,12 +12,55 @@ import type {
   LeadSummary,
   ScenarioAuthoringConfig,
   ScenarioAuthoringView,
+  ScenarioCatalogPage,
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
 } from '@/api/types'
 
 const adminScenarioKeys = {
   all: ['admin', 'scenarios'] as const,
+  catalog: (filters: AdminScenarioCatalogFilters) => ['admin', 'scenarios', 'catalog', filters] as const,
+}
+
+export interface AdminScenarioCatalogFilters {
+  search?: string
+  status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
+  page: number
+  size: number
+}
+
+async function fetchAdminScenarioCatalog(filters: AdminScenarioCatalogFilters) {
+  const response = await apiClient.get<ScenarioCatalogPage>('/api/v1/admin/scenarios/catalog', { params: filters })
+  return response.data
+}
+
+/**
+ * Bounded authoring library query. Keeping this separate from the legacy full
+ * list endpoint lets existing integrations continue unchanged while authors
+ * work fluidly with thousands of scenarios.
+ */
+export function useAdminScenarioCatalog(filters: AdminScenarioCatalogFilters, enabled = true) {
+  const queryClient = useQueryClient()
+  const query = useQuery({
+    queryKey: adminScenarioKeys.catalog(filters),
+    queryFn: () => fetchAdminScenarioCatalog(filters),
+    placeholderData: keepPreviousData,
+    staleTime: 45_000,
+    refetchOnWindowFocus: false,
+    enabled,
+  })
+
+  useEffect(() => {
+    if (!query.data || filters.page + 1 >= query.data.totalPages) return
+    const nextFilters = { ...filters, page: filters.page + 1 }
+    void queryClient.prefetchQuery({
+      queryKey: adminScenarioKeys.catalog(nextFilters),
+      queryFn: () => fetchAdminScenarioCatalog(nextFilters),
+      staleTime: 45_000,
+    })
+  }, [filters, query.data, queryClient])
+
+  return query
 }
 
 /** Admin/author scenario authoring mutations — create scenario, add persona,
@@ -30,6 +75,7 @@ export function useCreateScenario() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
       queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+      queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
     },
   })
 }
@@ -95,6 +141,7 @@ export function useUpdateGameplayDifficulty(scenarioId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
       queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+      queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
     },
   })
 }
@@ -114,13 +161,16 @@ export function useUploadKnowledgeDocument(scenarioId: string) {
 }
 
 /** All scenarios regardless of status (DRAFT/ACTIVE/ARCHIVED) for the admin builder. */
-export function useAllScenariosForAdmin() {
+export function useAllScenariosForAdmin(enabled = true) {
   return useQuery({
     queryKey: adminScenarioKeys.all,
     queryFn: async () => {
       const res = await apiClient.get<ScenarioSummary[]>('/api/v1/admin/scenarios')
       return res.data
     },
+    enabled,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -131,6 +181,8 @@ export function useScenarioAuthoring(scenarioId: string) {
       const res = await apiClient.get<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/authoring`)
       return res.data
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     enabled: Boolean(scenarioId),
   })
 }
@@ -141,6 +193,7 @@ function invalidateScenarioAuthoring(queryClient: ReturnType<typeof useQueryClie
   queryClient.invalidateQueries({ queryKey: ['scenarios'] })
   queryClient.invalidateQueries({ queryKey: ['leads', scenarioId] })
   queryClient.invalidateQueries({ queryKey: [...adminScenarioKeys.all, scenarioId, 'leads'] })
+  queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
 }
 
 export function useUpdateScenarioBlueprint(scenarioId: string) {
@@ -172,7 +225,10 @@ export function useCreateScenarioRevision(scenarioId: string) {
       const res = await apiClient.post<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/revisions`)
       return res.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
+      queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
+    },
   })
 }
 

@@ -37,19 +37,19 @@ public class Lead extends BaseEntity {
     // ─── Hidden intelligence — never returned by LeadSummary; only exposed
     // progressively through LeadIntelligencePolicy as the learner researches. ───
 
-    @Column(name = "potential_value_range", length = 100)
+    @Column(name = "potential_value_range", columnDefinition = "text")
     private String potentialValueRange;
 
-    @Column(name = "decision_maker", length = 150)
+    @Column(name = "decision_maker", columnDefinition = "text")
     private String decisionMaker;
 
-    @Column(name = "technology_stack", length = 200)
+    @Column(name = "technology_stack", columnDefinition = "text")
     private String technologyStack;
 
-    @Column(name = "budget_signal", length = 150)
+    @Column(name = "budget_signal", columnDefinition = "text")
     private String budgetSignal;
 
-    @Column(name = "pain_severity", length = 100)
+    @Column(name = "pain_severity", columnDefinition = "text")
     private String painSeverity;
 
     protected Lead() {}

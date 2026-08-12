@@ -11,8 +11,8 @@ import {
   TextInput,
   Tile,
 } from '@carbon/react'
-import { ArrowRight, CheckmarkFilled, Document, Send, Email, UserAvatar, Light, Link as LinkIcon } from '@carbon/icons-react'
-import { useForm } from 'react-hook-form'
+import { ArrowRight, CheckmarkFilled, Document, Send, Email, Light, Link as LinkIcon } from '@carbon/icons-react'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
@@ -39,6 +39,13 @@ const briefSchema = z.object({
 
 type EmailFormValues = z.infer<typeof emailSchema>
 type BriefFormValues = z.infer<typeof briefSchema>
+
+const BRIEF_SECTIONS: Array<{ key: keyof BriefFormValues; label: string; guidance: string }> = [
+  { key: 'relevantExperience', label: 'Experience', guidance: 'Describe relevant industry or operational experience.' },
+  { key: 'approach', label: 'Approach', guidance: 'Explain the phased implementation approach and control points.' },
+  { key: 'caseExample', label: 'Case example', guidance: 'Provide a comparable example with a measurable outcome.' },
+  { key: 'clientFit', label: 'Client fit', guidance: 'Connect this brief directly to the client’s requested outcome.' },
+]
 
 const OUTCOME_TAG: Record<OutreachAttempt['outcome'], 'green' | 'magenta' | 'red' | 'gray'> = {
   ACCEPTED: 'green',
@@ -141,7 +148,8 @@ function CapabilityBriefEditor({
   requirements: string[]
 }) {
   const submitBrief = useSubmitCapabilityBrief(engagementId)
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<BriefFormValues>({
+  const [activeSection, setActiveSection] = useState<keyof BriefFormValues>('relevantExperience')
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<BriefFormValues>({
     resolver: zodResolver(briefSchema),
     defaultValues: brief ?? undefined,
   })
@@ -157,10 +165,21 @@ function CapabilityBriefEditor({
     }
   }, [brief, reset])
 
+  const active = BRIEF_SECTIONS.find((section) => section.key === activeSection) ?? BRIEF_SECTIONS[0]
+  const activeValue = watch(active.key) ?? ''
+  const completedSections = BRIEF_SECTIONS.filter((section) => (watch(section.key) ?? '').trim().length >= 80).length
+  const submit = handleSubmit(
+    (data) => submitBrief.mutate(data),
+    (invalidFields) => {
+      const firstInvalid = BRIEF_SECTIONS.find((section) => invalidFields[section.key])
+      if (firstInvalid) setActiveSection(firstInvalid.key)
+    },
+  )
+
   return (
     <Tile className={styles.editor}>
-      <form onSubmit={handleSubmit((data) => submitBrief.mutate(data))}>
-        <Stack gap={5}>
+      <form onSubmit={submit}>
+        <div className={styles.editorForm}>
           <div className={styles.editorHeading}>
             <div>
               <p className={styles.eyebrow}>Requested deliverable</p>
@@ -177,53 +196,69 @@ function CapabilityBriefEditor({
               ))}
             </div>
           )}
-          <div className={styles.editorGrid}>
-            <TextArea
-              id="relevantExperience"
-              labelText="Relevant experience"
-              rows={4}
-              invalid={Boolean(errors.relevantExperience)}
-              invalidText={errors.relevantExperience?.message}
-              {...register('relevantExperience')}
-            />
-            <TextArea
-              id="approach"
-              labelText="Implementation approach"
-              rows={4}
-              invalid={Boolean(errors.approach)}
-              invalidText={errors.approach?.message}
-              {...register('approach')}
-            />
-            <TextArea
-              id="caseExample"
-              labelText="Relevant case example"
-              rows={4}
-              invalid={Boolean(errors.caseExample)}
-              invalidText={errors.caseExample?.message}
-              {...register('caseExample')}
-            />
-            <TextArea
-              id="clientFit"
-              labelText="Why this fits the client"
-              rows={4}
-              invalid={Boolean(errors.clientFit)}
-              invalidText={errors.clientFit?.message}
-              {...register('clientFit')}
-            />
+          <div className={styles.briefEditorBody}>
+            <div className={styles.briefSectionTabs} role="tablist" aria-label="Capability brief sections">
+              {BRIEF_SECTIONS.map((section) => {
+                const complete = (watch(section.key) ?? '').trim().length >= 80
+                return (
+                  <button
+                    key={section.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active.key === section.key}
+                    className={active.key === section.key ? styles.activeBriefSection : undefined}
+                    onClick={() => setActiveSection(section.key)}
+                  >
+                    {complete ? <CheckmarkFilled size={14} /> : <span className={styles.sectionNumber}>{BRIEF_SECTIONS.indexOf(section) + 1}</span>}
+                    {section.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div className={styles.briefSectionPanel} role="tabpanel">
+              <div>
+                <h3>{active.label}</h3>
+                <p>{active.guidance}</p>
+              </div>
+          <Controller
+            key={active.key}
+            name={active.key}
+            control={control}
+            render={({ field }) => (
+              <TextArea
+                id={active.key}
+                labelText={active.label}
+                hideLabel
+                rows={6}
+                placeholder="Write a concise, client-specific section..."
+                invalid={Boolean(errors[active.key])}
+                invalidText={errors[active.key]?.message}
+                name={field.name}
+                value={field.value ?? ''}
+                onBlur={field.onBlur}
+                onChange={(event) => field.onChange(event.target.value)}
+              />
+            )}
+          />
+              <small>{activeValue.trim().length} / 80 characters minimum</small>
+            </div>
           </div>
-          {submitBrief.isError && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              title="Brief could not be submitted"
-              subtitle={getProblemDetail(submitBrief.error, 'The client request may have changed. Refresh the workspace and try again.')}
-              hideCloseButton
-            />
-          )}
-          <Button type="submit" renderIcon={Send} disabled={submitBrief.isPending}>
-            {submitBrief.isPending ? 'Submitting to client...' : 'Submit to Client'}
-          </Button>
-        </Stack>
+          <div className={styles.editorFooter}>
+            <span className={styles.briefProgress}>{completedSections}/4 sections ready</span>
+            {submitBrief.isError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                title="Brief could not be submitted"
+                subtitle={getProblemDetail(submitBrief.error, 'The client request may have changed. Refresh the workspace and try again.')}
+                hideCloseButton
+              />
+            )}
+            <Button type="submit" renderIcon={Send} disabled={submitBrief.isPending}>
+              {submitBrief.isPending ? 'Submitting to client...' : 'Submit to Client'}
+            </Button>
+          </div>
+        </div>
       </form>
     </Tile>
   )
@@ -408,36 +443,52 @@ export default function OutreachWorkspacePage() {
         </section>
 
         <aside className={styles.decisionRail}>
-            <Tile className={styles.clientOverview}>
-              <div className={styles.overviewHeading}><h3>Client overview</h3><UserAvatar size={20} /></div>
-              <div className={styles.clientIdentity}>
-                <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
-                <div><strong>{intelligence?.companyName ?? 'Client organisation'}</strong><div><Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></div></div>
-              </div>
-              <dl className={styles.clientDetails}>
-                <div><dt>Key stakeholder</dt><dd>{rubricContext.personaName ?? 'Continue research to identify'}</dd></div>
-                <div><dt>Priority signal</dt><dd>{intelligence?.painSeverity?.value ?? 'Use evidence to uncover the priority'}</dd></div>
-              </dl>
-            </Tile>
-            <Tile className={styles.latestReply}>
-              <div className={styles.replyHeading}>
-                <div><p className={styles.eyebrow}>Latest client signal</p><h2>{latestAttempt?.clientReply ? 'Client response' : 'What to use'}</h2></div>
-                {latestAttempt && <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>}
-              </div>
-              {latestAttempt?.clientReply ? <p className={styles.clientReply}>{latestAttempt.clientReply}</p> : leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
-              {thread.length > 0 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>View full thread</Button>}
-            </Tile>
+            {latestAttempt?.clientReply ? (
+              <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
+                <div className={styles.responseClientIdentity}>
+                  <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
+                  <div>
+                    <strong>{intelligence?.companyName ?? 'Client organisation'}</strong>
+                    <span>{rubricContext.personaName ?? 'Client stakeholder'} <Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></span>
+                  </div>
+                </div>
+                <div className={styles.clientResponseHeading}>
+                  <div>
+                    <p className={styles.eyebrow}>Latest client response</p>
+                    <h2>What the client said</h2>
+                  </div>
+                  <div className={styles.responseActions}>
+                    <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>
+                    {thread.length > 1 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>History</Button>}
+                  </div>
+                </div>
+                <blockquote>{latestAttempt.clientReply}</blockquote>
+                {(latestAttempt.requestTitle || latestAttempt.coachingHint) && (
+                  <div className={styles.responseGuidance}>
+                    <strong>{latestAttempt.requestTitle ?? 'Recommended next step'}</strong>
+                    <span>{latestAttempt.requestSummary ?? latestAttempt.coachingHint}</span>
+                  </div>
+                )}
+              </section>
+            ) : (
+              <Tile className={`${styles.clientOverview} ${styles.latestReply}`}>
+                <div className={styles.replyHeading}>
+                  <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
+                </div>
+                {leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
+              </Tile>
+            )}
 
             <Tile className={styles.checklistPanel}>
               <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
               {draftReview.checks.map((check) => <div key={check.dimension} className={styles.checklistRow}>{check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}<span>{check.label}</span></div>)}
             </Tile>
 
-            <Tile className={styles.nextActionPanel}>
+            {!latestAttempt?.clientReply && <Tile className={styles.nextActionPanel}>
               <Light size={22} /><div><p className={styles.eyebrow}>Next best action</p><h3>{latestAttempt?.coachingHint ? 'Refine before you send' : 'Use one client signal'}</h3><p>{latestAttempt?.coachingHint ?? 'Reference a verified source, then ask for a short, time-bound conversation.'}</p></div>
-            </Tile>
+            </Tile>}
 
-            {latestAttempt?.requestRequirements?.length ? (
+            {!latestAttempt?.clientReply && latestAttempt?.requestRequirements?.length && (
               <Tile className={styles.hintPanel}>
                 <p className={styles.eyebrow}>What the client is asking for</p>
                 <h3>{latestAttempt.requestTitle}</h3>
@@ -446,13 +497,7 @@ export default function OutreachWorkspacePage() {
                   {latestAttempt.requestRequirements.map((requirement) => <li key={requirement}>{requirement}</li>)}
                 </ul>
               </Tile>
-            ) : latestAttempt?.clientReply && !meetingSecured ? (
-              <Tile className={styles.hintPanel}>
-                <p className={styles.eyebrow}>Response-based hint</p>
-                <h3>Address the latest response</h3>
-                <p>{latestAttempt.coachingHint ?? 'Use the client response above to acknowledge their constraint, then make one specific next-step request.'}</p>
-              </Tile>
-            ) : null}
+            )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
         </aside>

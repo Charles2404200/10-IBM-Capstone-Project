@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.scenario.infrastructure;
 
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
+import com.ibm.consulting.sim.scenario.domain.AdminScenarioCatalogQuery;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogPage;
 import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogQuery;
@@ -48,6 +49,11 @@ class JpaScenarioRepository implements ScenarioRepository {
                 query.page(), query.size(), Sort.by(Sort.Direction.ASC, "title")));
         return new ScenarioCatalogPage(page.getContent(), page.getTotalElements(), page.getNumber(), page.getSize(), page.getTotalPages());
     }
+    @Override public ScenarioCatalogPage findAdminCatalog(AdminScenarioCatalogQuery query) {
+        var page = repo.findAll(adminCatalogueSpecification(query), PageRequest.of(
+                query.page(), query.size(), Sort.by(Sort.Direction.DESC, "updatedAt")));
+        return new ScenarioCatalogPage(page.getContent(), page.getTotalElements(), page.getNumber(), page.getSize(), page.getTotalPages());
+    }
     @Override public List<String> findCatalogIndustries() { return repo.findDistinctIndustries(ScenarioStatus.ACTIVE); }
     @Override public List<Scenario> findAll() { return repo.findAll(); }
     @Override public List<Scenario> findByLineageIdAndStatus(UUID lineageId, ScenarioStatus status) {
@@ -76,6 +82,23 @@ class JpaScenarioRepository implements ScenarioRepository {
                         builder.like(builder.lower(root.get("description")), pattern)));
             }
             return builder.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
+    private Specification<Scenario> adminCatalogueSpecification(AdminScenarioCatalogQuery query) {
+        return (root, criteriaQuery, builder) -> {
+            var predicates = new java.util.ArrayList<Predicate>();
+            if (query.status() != null) {
+                predicates.add(builder.equal(root.get("status"), query.status()));
+            }
+            if (query.search() != null) {
+                String pattern = "%" + query.search() + "%";
+                predicates.add(builder.or(
+                        builder.like(builder.lower(root.get("title")), pattern),
+                        builder.like(builder.lower(root.get("industry")), pattern),
+                        builder.like(builder.lower(root.get("description")), pattern)));
+            }
+            return predicates.isEmpty() ? builder.conjunction() : builder.and(predicates.toArray(Predicate[]::new));
         };
     }
 }

@@ -6,6 +6,7 @@ import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_PLATFORM_OVERVIEW_CACHE;
 
 @Service
 public class PlatformOverviewService {
@@ -29,6 +32,7 @@ public class PlatformOverviewService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, key = "'global'")
     public PlatformOverviewResponse getOverview() {
         List<Engagement> engagements = engagementRepository.findAll();
         Map<UUID, Assessment> assessments = assessmentRepository.findAllByEngagementIdIn(
@@ -41,6 +45,8 @@ public class PlatformOverviewService {
         Integer averageScore = averageScore(assessments.values().stream().toList());
         Map<String, Long> byState = engagements.stream().collect(Collectors.groupingBy(
                 engagement -> engagement.getState().name(), Collectors.counting()));
+        Map<String, Long> scenariosByStatus = scenarios.values().stream().collect(Collectors.groupingBy(
+                scenario -> scenario.getStatus().name(), Collectors.counting()));
         List<PlatformOverviewResponse.ScenarioActivity> activity = engagements.stream()
                 .collect(Collectors.groupingBy(Engagement::getScenarioId)).entrySet().stream()
                 .map(entry -> scenarioActivity(entry.getKey(), entry.getValue(), assessments, scenarios))
@@ -48,7 +54,7 @@ public class PlatformOverviewService {
                 .toList();
         return new PlatformOverviewResponse(engagements.size(), active, completed,
                 engagements.isEmpty() ? 0 : Math.round(completed * 100f / engagements.size()), averageScore,
-                Map.copyOf(byState), activity);
+                Map.copyOf(byState), Map.copyOf(scenariosByStatus), activity);
     }
 
     private PlatformOverviewResponse.ScenarioActivity scenarioActivity(UUID scenarioId, List<Engagement> engagements,

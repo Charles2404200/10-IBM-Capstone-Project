@@ -37,7 +37,7 @@
 .phaseCards :global(.cds--tile:nth-child(2)) svg { color: #198038; }
 .phaseCards :global(.cds--tile:nth-child(3)) svg { color: #8a3ffc; }
 
-.workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 25rem; gap: $spacing-06; align-items: stretch; }
+.workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 25rem; gap: $spacing-05; align-items: stretch; }
 .primaryColumn { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: $spacing-04; }
 .decisionRail { min-height: 0; display: grid; align-content: start; gap: $spacing-04; }
 
@@ -80,6 +80,17 @@
 .coachingCallout strong { color: $text-primary; }
 
 .clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel, .briefReview, .successPanel, .evidenceStrip { border: 1px solid $border-subtle; border-radius: 8px; background: $layer-01; }
+.clientResponse { padding: $spacing-04 $spacing-05; border: 1px solid #b9d7ff; border-left: 4px solid $interactive; border-radius: 8px; background: #f7faff; box-shadow: 0 1px 2px rgb(15 38 71 / 6%); }
+.responseClientIdentity { display: flex; align-items: center; gap: $spacing-03; padding-bottom: $spacing-03; border-bottom: 1px solid #d0e2ff; }
+.responseClientIdentity strong, .responseClientIdentity span { display: block; }
+.responseClientIdentity strong { @include type-style('body-compact-01'); }
+.responseClientIdentity span { display: flex; align-items: center; flex-wrap: wrap; gap: $spacing-02; margin-top: 2px; color: $text-secondary; @include type-style('label-01'); }
+.clientResponseHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
+.clientResponseHeading h2 { margin: 0; @include type-style('heading-compact-02'); }
+.responseActions { display: flex; align-items: center; gap: $spacing-02; flex: 0 0 auto; }
+.clientResponse blockquote { margin: $spacing-03 0 0; padding: 0 0 0 $spacing-03; border-left: 2px solid #a6c8ff; color: $text-primary; line-height: 1.38; white-space: pre-wrap; @include type-style('body-compact-01'); }
+.responseGuidance { display: grid; gap: $spacing-02; margin-top: $spacing-03; padding: $spacing-03 $spacing-04; border-radius: 5px; background: $layer-01; color: $text-secondary; @include type-style('label-01'); }
+.responseGuidance strong { color: $text-primary; @include type-style('label-01'); }
 .clientOverview { min-height: 10.25rem; }
 .clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel { padding: $spacing-04 $spacing-05; }
 .overviewHeading, .replyHeading, .stripHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
@@ -94,7 +105,7 @@
 .clientReply { display: -webkit-box; overflow: hidden; margin: $spacing-03 0 0; color: $text-primary; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 3; @include type-style('body-compact-01'); }
 .emptyReply { margin: $spacing-04 0 0; color: $text-secondary; @include type-style('body-compact-01'); }
 .checklistPanel > .overviewHeading > strong { color: #198038; }
-.checklistRow { display: flex; align-items: center; gap: $spacing-03; padding-top: $spacing-03; color: $text-secondary; @include type-style('body-compact-01'); }
+.checklistRow { display: flex; align-items: center; gap: $spacing-03; padding-top: $spacing-02; color: $text-secondary; @include type-style('body-compact-01'); }
 .checklistRow svg { color: $text-secondary; }
 .checklistRow:has(svg path[fill='#24a148']) { color: $text-primary; }
 .nextActionPanel { display: flex; align-items: flex-start; gap: $spacing-04; border-color: #c6d8ff; background: #f7faff; }
@@ -117,12 +128,30 @@
 .successPanel h2, .reviewHeading h2 { margin: 0; @include type-style('heading-04'); }
 .successPanel p, .editorHeading p { margin-top: $spacing-03; color: $text-secondary; }
 .editor, .briefReview { padding: $spacing-06; }
+.editor { min-height: 0; height: 100%; overflow: hidden; }
+.editor form, .editorForm { min-height: 0; height: 100%; }
+.editorForm { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: $spacing-04; }
 .editorHeading, .reviewHeading, .historyHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
-.editorGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-05; }
-.requirementList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-03 $spacing-05; padding: $spacing-05; background: $layer-accent-01; }
+.requirementList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-02 $spacing-05; padding: $spacing-04; background: $layer-accent-01; }
 .requirementList > p { grid-column: 1 / -1; margin: 0; @include type-style('label-01'); }
 .requirementList span { display: flex; gap: $spacing-03; @include type-style('body-compact-01'); }
 .requirementList svg { color: $support-success; flex: 0 0 auto; }
+.briefEditorBody { display: grid; min-height: 0; grid-template-columns: 11rem minmax(0, 1fr); border: 1px solid $border-subtle; border-radius: 6px; overflow: hidden; }
+.briefSectionTabs { display: grid; align-content: start; gap: $spacing-02; padding: $spacing-03; border-right: 1px solid $border-subtle; background: $layer-accent-01; }
+.briefSectionTabs button { display: flex; align-items: center; gap: $spacing-03; width: 100%; padding: $spacing-03; border: 0; border-left: 3px solid transparent; border-radius: 4px; background: transparent; color: $text-secondary; text-align: left; cursor: pointer; @include type-style('body-compact-01'); }
+.briefSectionTabs button:hover { background: #edf3ff; color: $text-primary; }
+.briefSectionTabs .activeBriefSection { border-left-color: $interactive; background: $layer-01; color: $text-primary; font-weight: 600; }
+.briefSectionTabs svg { color: $support-success; flex: 0 0 auto; }
+.sectionNumber { display: grid; place-items: center; width: 1rem; height: 1rem; border: 1px solid $border-strong-01; border-radius: 50%; color: $text-secondary; @include type-style('label-01'); }
+.briefSectionPanel { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; gap: $spacing-03; padding: $spacing-04; }
+.briefSectionPanel h3 { margin: 0; @include type-style('heading-compact-02'); }
+.briefSectionPanel p { margin: $spacing-02 0 0; color: $text-secondary; @include type-style('body-compact-01'); }
+.briefSectionPanel :global(.cds--text-area__wrapper) { display: flex; min-height: 0; height: 100%; flex-direction: column; }
+.briefSectionPanel :global(.cds--text-area) { min-height: 0; height: 100%; resize: none; }
+.briefSectionPanel small { color: $text-secondary; @include type-style('label-01'); }
+.editorFooter { display: flex; align-items: center; justify-content: space-between; gap: $spacing-04; }
+.editorFooter :global(.cds--inline-notification) { flex: 1 1 auto; }
+.briefProgress { color: $text-secondary; @include type-style('label-01'); }
 .reviewGrid, .scoreList { display: grid; gap: $spacing-03; }
 .scoreRow { display: grid; grid-template-columns: 9rem minmax(0, 1fr) 2rem; gap: $spacing-03; align-items: center; color: $text-secondary; @include type-style('label-01'); }
 .scoreRow strong { color: $text-primary; font-weight: 400; text-align: right; }
@@ -141,17 +170,39 @@
    still available through the evidence-assistant actions; the compact strip
    returns automatically on taller displays. */
 @media (min-width: 1151px) and (max-height: 68rem) {
-  .primaryColumn { grid-template-rows: minmax(0, 1fr); }
+  .page { padding: $spacing-04 $spacing-06; gap: $spacing-04; }
+  .pageHeader h1 { @include type-style('heading-04'); }
+  .pageSubtitle { margin-top: 2px; }
+  .phaseCards { gap: $spacing-03; }
+  .phaseCards :global(.cds--tile) { min-height: 4rem; padding: $spacing-03 $spacing-04; }
+  .phaseCards strong { margin-bottom: 2px; }
   .composeWorkspace { height: 100%; }
-  .evidenceStrip { display: none; }
   .nextActionPanel { display: none; }
-  .emailComposer :global(.cds--text-area__wrapper) { min-height: 10rem; }
+  .clientResponse { padding: $spacing-03 $spacing-04; }
+  .emailComposer { padding: $spacing-04; }
+  .composerHeader { padding-bottom: $spacing-03; }
+  .mailMeta { min-height: 1.9rem; }
+  .emailComposer :global(.cds--text-input-wrapper), .emailComposer :global(.cds--text-area__wrapper) { margin-top: $spacing-02; }
+  .checkPills { margin-top: $spacing-03; }
+  .checkPills span { padding: 2px $spacing-02; }
+  .emailComposer :global(.cds--text-area__wrapper) { min-height: 5.75rem; }
+  .composerFooter { margin-top: $spacing-03; }
+  .evidenceStrip { padding: $spacing-03 $spacing-04; }
+  .evidenceCards { gap: $spacing-02; margin-top: $spacing-02; }
+  .evidenceCards button { min-height: 3.75rem; padding: $spacing-02 $spacing-03; }
+  .evidenceCards p { display: none; }
   .decisionRail { grid-auto-rows: max-content; }
   .assistActions { gap: $spacing-02; margin-top: $spacing-03; }
   .assistActions button { padding: $spacing-02 $spacing-03; }
   .bestEvidence { margin-top: $spacing-03; }
+  .coachingCallout { display: none; }
+  .editor { padding: $spacing-04; }
+  .editorForm { gap: $spacing-03; }
+  .editorHeading p { margin-top: $spacing-02; }
+  .requirementList { padding: $spacing-03; }
+  .briefSectionPanel { padding: $spacing-03; }
 }
 
 @media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.page { height: auto; overflow: visible; }.primaryColumn { grid-template-rows: auto; } }
 @media (max-width: 900px) { .page { height: auto; padding: $spacing-05 $spacing-04 $spacing-08; overflow: visible; }.workspace { grid-template-columns: 1fr; }.decisionRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }.nextActionPanel, .hintPanel { grid-column: span 2; }.phaseCards { grid-template-columns: 1fr; }.phaseCards :global(.cds--tile) { min-height: auto; } }
-@media (max-width: 600px) { .makeContactHero { gap: $spacing-04; }.heroIcon { width: 2.75rem; height: 2.75rem; }.emailComposer, .assistPanel, .evidenceStrip { padding: $spacing-04; }.mailMeta { grid-template-columns: 3rem minmax(0, 1fr); }.mailMeta small { grid-column: 2; text-align: left; }.composerFooter, .successPanel { align-items: flex-start; flex-direction: column; }.assistActions, .decisionRail, .evidenceCards, .editorGrid, .requirementList { grid-template-columns: 1fr; }.nextActionPanel, .hintPanel { grid-column: auto; }.scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }.historyItem summary { grid-template-columns: auto 1fr; }.historySubject { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .makeContactHero { gap: $spacing-04; }.heroIcon { width: 2.75rem; height: 2.75rem; }.emailComposer, .assistPanel, .evidenceStrip { padding: $spacing-04; }.mailMeta { grid-template-columns: 3rem minmax(0, 1fr); }.mailMeta small { grid-column: 2; text-align: left; }.composerFooter, .successPanel, .clientResponseHeading { align-items: flex-start; flex-direction: column; }.responseActions { align-self: stretch; justify-content: space-between; }.assistActions, .decisionRail, .evidenceCards, .editorGrid, .requirementList { grid-template-columns: 1fr; }.nextActionPanel, .hintPanel { grid-column: auto; }.scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }.historyItem summary { grid-template-columns: auto 1fr; }.historySubject { grid-column: 1 / -1; } }

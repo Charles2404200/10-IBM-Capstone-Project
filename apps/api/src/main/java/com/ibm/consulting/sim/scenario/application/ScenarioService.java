@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.scenario.application;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogQuery;
+import com.ibm.consulting.sim.scenario.domain.AdminScenarioCatalogQuery;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
@@ -30,6 +31,8 @@ import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CATALOG_
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEADS_BY_SCENARIO_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_FACETS_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_PLATFORM_OVERVIEW_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_SCENARIO_CATALOG_CACHE;
 
 @Service
 public class ScenarioService {
@@ -66,6 +69,12 @@ public class ScenarioService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, key = "#query.cacheKey()")
+    public ScenarioCatalogResponse listCatalogForAdmin(AdminScenarioCatalogQuery query) {
+        return ScenarioCatalogResponse.from(scenarioRepository.findAdminCatalog(query), this::summary);
+    }
+
+    @Transactional(readOnly = true)
     @Cacheable(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, key = "'industries'")
     public List<String> listCatalogIndustries() {
         return scenarioRepository.findCatalogIndustries();
@@ -89,6 +98,7 @@ public class ScenarioService {
 
     /** Author/admin capability: create a new scenario in DRAFT state. */
     @Transactional
+    @CacheEvict(cacheNames = {ADMIN_PLATFORM_OVERVIEW_CACHE, ADMIN_SCENARIO_CATALOG_CACHE}, allEntries = true)
     public ScenarioSummary create(CreateScenarioRequest request) {
         Scenario scenario = Scenario.create(
                 request.title(), request.industry(), request.description(), request.difficulty());
@@ -97,7 +107,11 @@ public class ScenarioService {
 
     /** Author/admin capability: attach a persona to an existing scenario. */
     @Transactional
-    @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
+    })
     public ScenarioSummary addPersona(UUID scenarioId, CreatePersonaRequest request) {
         Scenario scenario = findScenario(scenarioId);
         Persona persona = scenario.addPersona(
@@ -115,7 +129,9 @@ public class ScenarioService {
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioSummary publish(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
@@ -133,7 +149,9 @@ public class ScenarioService {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioSummary archive(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
@@ -143,7 +161,11 @@ public class ScenarioService {
 
     /** Author/admin capability: customise how much each competency contributes to the overall score. */
     @Transactional
-    @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
+    })
     public ScenarioSummary updateRubricWeights(UUID scenarioId, Map<String, Integer> weights) {
         Scenario scenario = findScenario(scenarioId);
         scenario.updateRubricWeights(weights);
@@ -157,7 +179,9 @@ public class ScenarioService {
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioSummary updateDifficultyProfile(UUID scenarioId, UpdateDifficultyProfileRequest request) {
         Scenario scenario = findScenario(scenarioId);
@@ -176,7 +200,9 @@ public class ScenarioService {
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView updateBlueprint(UUID scenarioId, UpdateScenarioBlueprintRequest request) {
         Scenario scenario = findScenario(scenarioId);
@@ -191,7 +217,9 @@ public class ScenarioService {
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView updateAuthoringConfig(UUID scenarioId, ScenarioAuthoringConfig config) {
         Scenario scenario = findScenario(scenarioId);
@@ -206,7 +234,9 @@ public class ScenarioService {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView createRevision(UUID scenarioId) {
         Scenario source = findScenario(scenarioId);
@@ -230,7 +260,8 @@ public class ScenarioService {
             @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId"),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true)
     })
     public LeadSummary createLead(UUID scenarioId, LeadAuthoringRequest request) {
         Scenario scenario = findScenario(scenarioId);
@@ -250,7 +281,8 @@ public class ScenarioService {
     @Caching(evict = {
             @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId"),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true)
     })
     public LeadSummary updateLead(UUID scenarioId, UUID leadId, LeadAuthoringRequest request) {
         Scenario scenario = findScenario(scenarioId);
@@ -265,7 +297,8 @@ public class ScenarioService {
     @Caching(evict = {
             @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId"),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true)
     })
     public void deleteLead(UUID scenarioId, UUID leadId) {
         Scenario scenario = findScenario(scenarioId);

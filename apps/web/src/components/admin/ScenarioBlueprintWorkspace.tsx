@@ -36,6 +36,7 @@ import type {
   UpdateScenarioBlueprintRequest,
 } from '@/api/types'
 import styles from '@/pages/Admin/ScenarioBuilderPage.module.css'
+import { getProblemDetail } from '@/api/problemDetails'
 
 const evidenceTypes: EvidenceType[] = ['COMPANY_NEWS', 'STAKEHOLDER_PROFILE', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR', 'MARKET_TREND']
 const targets: RevealTarget[] = ['DECISION_MAKER', 'PAIN_SEVERITY', 'TECHNOLOGY_STACK', 'BUDGET_SIGNAL', 'POTENTIAL_VALUE']
@@ -223,7 +224,13 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
             <TextInput id={`${scenario.id}-lead-pain`} labelText="Pain severity" value={lead.painSeverity} onChange={(event) => setLead({ ...lead, painSeverity: event.target.value })} />
             <TextArea id={`${scenario.id}-lead-signals`} className={styles.fullWidth} labelText="Visible signals (one per line: signal | category)" rows={3} value={lead.signals.map((signal) => `${signal.label} | ${signal.category}`).join('\n')} onChange={(event) => setLead({ ...lead, signals: parseSignals(event.target.value) })} />
           </div>
-          {(createLead.isError || updateLead.isError) && <InlineNotification kind="error" title="Lead could not be saved" subtitle="Check required lead fields and try again." />}
+          {(createLead.isError || updateLead.isError) && (
+            <InlineNotification
+              kind="error"
+              title="Lead could not be saved"
+              subtitle={getProblemDetail(createLead.error ?? updateLead.error, 'Check the required lead fields and try again.')}
+            />
+          )}
           <div className={styles.inlineActions}>
             <Button size="sm" renderIcon={editingLeadId ? Edit : Add} disabled={createLead.isPending || updateLead.isPending || !lead.companyName.trim() || !lead.industry.trim()} onClick={() => editingLeadId ? updateLead.mutate({ leadId: editingLeadId, request: lead }, { onSuccess: resetLeadForm }) : createLead.mutate(lead, { onSuccess: resetLeadForm })}>{editingLeadId ? 'Save lead' : 'Add lead'}</Button>
             {editingLeadId && <Button size="sm" kind="tertiary" onClick={resetLeadForm}>Cancel</Button>}

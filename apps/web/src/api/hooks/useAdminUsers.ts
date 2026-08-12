@@ -8,6 +8,8 @@ export function useAdminUsers() {
   return useQuery({
     queryKey: adminUserKeys.all,
     queryFn: async () => (await apiClient.get<AdminUserSummary[]>('/api/v1/admin/users')).data,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   })
 }
 

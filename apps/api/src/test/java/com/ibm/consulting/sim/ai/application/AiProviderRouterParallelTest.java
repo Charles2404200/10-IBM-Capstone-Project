@@ -72,6 +72,7 @@ class AiProviderRouterParallelTest {
                 "gemini-free,watsonx-granite,openrouter-free",
                 "watsonx-granite,gemini-free,openrouter-free",
                 "gemini-free,watsonx-granite,openrouter-free",
+                "gemini-free,watsonx-granite,openrouter-free",
                 1000, 1000, 1000, executor, true, 3);
     }
 

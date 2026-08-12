@@ -15,10 +15,10 @@ public class LeadSignal {
     @JoinColumn(name = "lead_id", nullable = false)
     private Lead lead;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     private String label;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     private String category;
 
     protected LeadSignal() {}

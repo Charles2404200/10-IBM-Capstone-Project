@@ -58,6 +58,14 @@ public class CacheConfig {
     /** Short-lived per-learner read models used on the Command Centre. */
     public static final String ENGAGEMENT_DASHBOARD_CACHE = "engagementDashboard";
     public static final String PORTFOLIO_SUMMARY_CACHE = "portfolioSummary";
+    /** Short-lived, cross-user read model backing the administrative cockpit. */
+    public static final String ADMIN_PLATFORM_OVERVIEW_CACHE = "adminPlatformOverview";
+    /** Paged authoring catalogue; intentionally separate from learner-visible scenarios. */
+    public static final String ADMIN_SCENARIO_CATALOG_CACHE = "adminScenarioCatalog";
+    /** Immutable AI coaching result keyed by the complete proposal and source snapshot. */
+    public static final String PROPOSAL_REVIEW_CACHE = "proposalReview";
+    /** Natural-language rendering of an already-determined client decision. */
+    public static final String PROPOSAL_DECISION_NARRATIVE_CACHE = "proposalDecisionNarrative";
 
     @Bean
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
@@ -74,7 +82,11 @@ public class CacheConfig {
                 localCache(PERSONA_CACHE, Duration.ofMinutes(30)),
                 localCache(CLIENT_INTELLIGENCE_CACHE, Duration.ofMinutes(10)),
                 localCache(ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30)),
-                localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60))));
+                localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60)),
+                localCache(ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20)),
+                localCache(ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45)),
+                localCache(PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15)),
+                localCache(PROPOSAL_DECISION_NARRATIVE_CACHE, Duration.ofHours(1))));
         manager.initializeCaches();
         return manager;
     }
@@ -99,7 +111,11 @@ public class CacheConfig {
         Map<String, Duration> ttlOverrides = Map.of(
                 PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds),
                 ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30),
-                PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60));
+                PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60),
+                ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20),
+                ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45),
+                PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15),
+                PROPOSAL_DECISION_NARRATIVE_CACHE, Duration.ofHours(1));
         return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
     }
 }
