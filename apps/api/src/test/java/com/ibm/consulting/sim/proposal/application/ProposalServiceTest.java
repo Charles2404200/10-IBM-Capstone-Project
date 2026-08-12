@@ -16,7 +16,9 @@ import com.ibm.consulting.sim.proposal.domain.ProposalDraftContent;
 import com.ibm.consulting.sim.proposal.domain.ProposalRepository;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.PersonaCatalogService;
+import com.ibm.consulting.sim.shared.config.CacheConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -50,7 +52,8 @@ class ProposalServiceTest {
         ProposalService service = new ProposalService(proposalRepository, engagementRepository,
                 mock(ResearchEvidenceRepository.class), mock(PersonaStateRepository.class), meetingRepository,
                 mock(ConversationTurnRepository.class), mock(AiOrchestrationService.class), new ObjectMapper(),
-                mock(PersonaCatalogService.class), mock(DifficultyProfileService.class));
+                mock(PersonaCatalogService.class), mock(DifficultyProfileService.class),
+                new ConcurrentMapCacheManager(CacheConfig.PROPOSAL_REVIEW_CACHE));
 
         service.saveDraft(engagementId, userId, draft());
 

@@ -115,20 +115,22 @@ export function useProposalStudio(engagementId: string) {
 
   const reviewCurrentDraft = useCallback(async () => {
     if (!await persist()) return
-    reviewProposal.mutate(draft, { onSuccess: setReview })
-  }, [draft, persist, reviewProposal])
+    const reviewDraft = draftRef.current
+    reviewProposal.mutate(reviewDraft, { onSuccess: setReview })
+  }, [persist, reviewProposal])
 
   const challengeCurrentDraft = useCallback(async () => {
     if (!await persist()) return
-    challengeProposal.mutate(draft)
-  }, [challengeProposal, draft, persist])
+    challengeProposal.mutate(draftRef.current)
+  }, [challengeProposal, persist])
 
   const submit = useCallback(async () => {
     if (!await persist()) return
-    const result = await reviewProposal.mutateAsync(draft)
+    const reviewDraft = draftRef.current
+    const result = await reviewProposal.mutateAsync(reviewDraft)
     setReview(result)
-    if (result.readyToSubmit) submitProposal.mutate(draft)
-  }, [draft, persist, reviewProposal, submitProposal])
+    if (result.readyToSubmit) submitProposal.mutate(reviewDraft)
+  }, [persist, reviewProposal, submitProposal])
 
   const attachedSourceIds = useMemo(() => new Set(
     draft.evidenceLinks.filter((link) => link.section === activeSection).map((link) => link.sourceId),

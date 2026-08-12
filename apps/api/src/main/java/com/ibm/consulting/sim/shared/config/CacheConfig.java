@@ -62,6 +62,8 @@ public class CacheConfig {
     public static final String ADMIN_PLATFORM_OVERVIEW_CACHE = "adminPlatformOverview";
     /** Paged authoring catalogue; intentionally separate from learner-visible scenarios. */
     public static final String ADMIN_SCENARIO_CATALOG_CACHE = "adminScenarioCatalog";
+    /** Immutable AI coaching result keyed by the complete proposal and source snapshot. */
+    public static final String PROPOSAL_REVIEW_CACHE = "proposalReview";
 
     @Bean
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
@@ -80,7 +82,8 @@ public class CacheConfig {
                 localCache(ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30)),
                 localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60)),
                 localCache(ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20)),
-                localCache(ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45))));
+                localCache(ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45)),
+                localCache(PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15))));
         manager.initializeCaches();
         return manager;
     }
@@ -107,7 +110,8 @@ public class CacheConfig {
                 ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30),
                 PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60),
                 ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20),
-                ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45));
+                ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45),
+                PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15));
         return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
     }
 }

@@ -29,6 +29,7 @@ public enum AiTaskType {
     CONVERSATION,
     CLASSIFICATION,
     CLIENT_INTELLIGENCE,
+    PROPOSAL_REVIEW,
     ASSESSMENT,
     EVIDENCE_EXTRACTION;
 
@@ -44,7 +45,8 @@ public enum AiTaskType {
             return CONVERSATION;
         }
         return switch (useCase.toLowerCase(Locale.ROOT)) {
-            case "assessment_feedback", "proposal_review", "proposal_client_decision",
+            case "proposal_review" -> PROPOSAL_REVIEW;
+            case "assessment_feedback", "proposal_client_decision",
                     "proposal_decision_explanation", "proposal_counterfactual" -> ASSESSMENT;
             case "client_intelligence" -> CLIENT_INTELLIGENCE;
             case "evidence_extraction", "knowledge_summarisation" -> EVIDENCE_EXTRACTION;

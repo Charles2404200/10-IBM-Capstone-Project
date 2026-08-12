@@ -19,14 +19,24 @@ import com.ibm.consulting.sim.scenario.application.PersonaCatalogService;
 import com.ibm.consulting.sim.scenario.application.PersonaProfile;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
+import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Proposal application boundary. Canonical evidence and transcript entries are
@@ -47,6 +57,9 @@ public class ProposalService {
     private final ObjectMapper objectMapper;
     private final PersonaCatalogService personaCatalogService;
     private final DifficultyProfileService difficultyProfileService;
+    private final CacheManager cacheManager;
+    /** Avoids duplicate provider calls when two browser requests review the same draft concurrently. */
+    private final ConcurrentMap<String, CompletableFuture<ProposalReviewResponse>> reviewRequests = new ConcurrentHashMap<>();
 
     public ProposalService(ProposalRepository proposalRepository,
                            EngagementRepository engagementRepository,
@@ -57,7 +70,8 @@ public class ProposalService {
                            AiOrchestrationService aiOrchestrationService,
                            ObjectMapper objectMapper,
                            PersonaCatalogService personaCatalogService,
-                           DifficultyProfileService difficultyProfileService) {
+                           DifficultyProfileService difficultyProfileService,
+                           CacheManager cacheManager) {
         this.proposalRepository = proposalRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -68,6 +82,7 @@ public class ProposalService {
         this.objectMapper = objectMapper;
         this.personaCatalogService = personaCatalogService;
         this.difficultyProfileService = difficultyProfileService;
+        this.cacheManager = cacheManager;
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +118,32 @@ public class ProposalService {
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
         List<ProposalSource> sources = sources(engagement);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        String cacheKey = reviewCacheKey(engagementId, content, sources, profile);
+        ProposalReviewResponse cachedReview = readCachedReview(cacheKey);
+        if (cachedReview != null) {
+            return cachedReview;
+        }
+        CompletableFuture<ProposalReviewResponse> pending = new CompletableFuture<>();
+        CompletableFuture<ProposalReviewResponse> existing = reviewRequests.putIfAbsent(cacheKey, pending);
+        if (existing != null) {
+            return awaitInFlightReview(existing);
+        }
+
+        try {
+            ProposalReviewResponse response = createReview(engagementId, content, sources, profile);
+            writeCachedReview(cacheKey, response);
+            pending.complete(response);
+            return response;
+        } catch (RuntimeException failure) {
+            pending.completeExceptionally(failure);
+            throw failure;
+        } finally {
+            reviewRequests.remove(cacheKey, pending);
+        }
+    }
+
+    private ProposalReviewResponse createReview(UUID engagementId, ProposalDraftContent content,
+                                                List<ProposalSource> sources, DifficultyProfile profile) {
         List<ProposalValidationIssue> issues = ProposalValidationEngine.validate(content, sources, profile);
         List<ClientAlignmentItem> alignment = ProposalValidationEngine.alignment(content, sources);
         ProposalReviewNarrative narrative = aiOrchestrationService.execute(
@@ -251,6 +292,51 @@ public class ProposalService {
     }
 
     private int valueOr(Integer value, int fallback) { return value == null ? fallback : value; }
+
+    /**
+     * A review is reusable only when every input that can influence it is identical.
+     * The source snapshot includes newly revealed meeting facts, while the difficulty
+     * profile captures the rules frozen onto the engagement at its start.
+     */
+    private String reviewCacheKey(UUID engagementId, ProposalDraftContent content,
+                                  List<ProposalSource> sources, DifficultyProfile profile) {
+        String snapshot = "prompt=" + PROMPT_VERSION + "|draft=" + content
+                + "|sources=" + sources + "|difficulty=" + profile;
+        return engagementId + ":" + sha256(snapshot);
+    }
+
+    private ProposalReviewResponse readCachedReview(String key) {
+        Cache cache = cacheManager.getCache(CacheConfig.PROPOSAL_REVIEW_CACHE);
+        return cache == null ? null : cache.get(key, ProposalReviewResponse.class);
+    }
+
+    private void writeCachedReview(String key, ProposalReviewResponse review) {
+        Cache cache = cacheManager.getCache(CacheConfig.PROPOSAL_REVIEW_CACHE);
+        if (cache != null) {
+            cache.put(key, review);
+        }
+    }
+
+    private ProposalReviewResponse awaitInFlightReview(CompletableFuture<ProposalReviewResponse> review) {
+        try {
+            return review.join();
+        } catch (CompletionException failure) {
+            throw new IllegalStateException("Concurrent proposal review failed", failure.getCause());
+        }
+    }
+
+    private String sha256(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte current : digest) {
+                hex.append(String.format("%02x", current));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException unavailable) {
+            throw new IllegalStateException("SHA-256 is unavailable", unavailable);
+        }
+    }
 
     private List<ProposalSource> sources(Engagement engagement) {
         List<ProposalSource> sources = new ArrayList<>();

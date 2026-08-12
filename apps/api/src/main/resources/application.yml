@@ -123,6 +123,9 @@ app:
       # watsonx/Granite is first-choice here: its real job on this platform, not a
       # branding requirement (see docs/architecture/AI_ORCHESTRATION.md).
       assessment: ${AI_ROUTE_ASSESSMENT:watsonx-granite,gemini-free,openrouter-free}
+      # Proposal scoring is deterministic. This task only produces coaching
+      # narrative, so return the first schema-valid low-latency model response.
+      proposal-review: ${AI_ROUTE_PROPOSAL_REVIEW:gemini-free,watsonx-granite,openrouter-free}
       evidence_extraction: ${AI_ROUTE_EVIDENCE_EXTRACTION:gemini-free,watsonx-granite,openrouter-free}
     # Circuit breaker (Resilience4j) — after failure-rate-threshold% of the last
     # sliding-window-size calls to a provider fail, its circuit opens for

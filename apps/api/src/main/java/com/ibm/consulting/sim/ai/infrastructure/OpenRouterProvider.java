@@ -35,7 +35,7 @@ public class OpenRouterProvider implements AiProvider {
     private static final Logger log = LoggerFactory.getLogger(OpenRouterProvider.class);
     private static final String PROVIDER_ID = "openrouter-free";
     private static final ProviderCapabilities CAPABILITIES = new ProviderCapabilities(
-            Set.of(AiTaskType.CONVERSATION, AiTaskType.CLASSIFICATION, AiTaskType.CLIENT_INTELLIGENCE,
+            Set.of(AiTaskType.CONVERSATION, AiTaskType.CLASSIFICATION, AiTaskType.CLIENT_INTELLIGENCE, AiTaskType.PROPOSAL_REVIEW,
                     AiTaskType.EVIDENCE_EXTRACTION, AiTaskType.ASSESSMENT),
             LatencyTier.VARIABLE,
             ReasoningTier.MEDIUM,

@@ -80,7 +80,7 @@ public class AiOrchestrationService {
 
     private long budgetFor(AiTaskType taskType) {
         return switch (taskType) {
-            case CONVERSATION -> conversationTimeoutMs;
+            case CONVERSATION, PROPOSAL_REVIEW -> conversationTimeoutMs;
             case CLIENT_INTELLIGENCE -> clientIntelligenceTimeoutMs;
             case CLASSIFICATION, EVIDENCE_EXTRACTION -> classificationTimeoutMs;
             case ASSESSMENT -> timeoutMs;

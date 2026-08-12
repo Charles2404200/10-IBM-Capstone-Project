@@ -44,8 +44,8 @@ export default function ProposalStudioPage() {
           <p className={styles.subtitle}>Build a concise recommendation from client evidence. The coach reviews your reasoning; it never writes the proposal for you.</p>
         </div>
         <div className={styles.headerActions}>
-          <SaveStatus state={studio.saveState} />
-          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending || studio.saveDraft.isPending}>Review proposal</Button>
+          {studio.reviewProposal.isPending ? <InlineLoading description="Reviewing proposal" /> : <SaveStatus state={studio.saveState} />}
+          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending || studio.saveDraft.isPending}>{studio.reviewProposal.isPending ? 'Reviewing proposal' : 'Review proposal'}</Button>
           <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={studio.submitProposal.isPending || studio.reviewProposal.isPending || studio.saveDraft.isPending}>Submit to client</Button>
         </div>
       </header>
@@ -96,7 +96,8 @@ export default function ProposalStudioPage() {
         <aside className={styles.reviewPanel} aria-label="Proposal validation and coaching">
           <div className={styles.panelTitle}><div><p className={styles.eyebrow}>FactGuard</p><h2>Proposal health</h2></div></div>
           <section className={styles.attachments}><span>Evidence linked</span><strong>{studio.draft.evidenceLinks.length}</strong><span>Sections grounded</span><strong>{new Set(studio.draft.evidenceLinks.map((link) => link.section)).size}/5</strong></section>
-          <Button kind="tertiary" size="sm" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending}>Run AI proposal review</Button>
+          <Button kind="tertiary" size="sm" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending || studio.saveDraft.isPending}>{studio.reviewProposal.isPending ? 'Reviewing proposal' : 'Run AI proposal review'}</Button>
+          {studio.reviewProposal.isPending && <section className={styles.reviewLoading} role="status" aria-live="polite"><div><strong>Checking your proposal</strong><span>Validating evidence, client alignment and delivery risk.</span></div><div className={styles.reviewLoadingTrack}><i /></div></section>}
           <Button kind="ghost" size="sm" onClick={() => void studio.challengeCurrentDraft()} disabled={studio.challengeProposal.isPending}>Challenge my proposal</Button>
           {studio.challengeProposal.isPending && <InlineLoading description="Preparing client concerns" />}
           {studio.challengeProposal.data && <section className={styles.coaching}><h3>Client concern</h3><p>{studio.challengeProposal.data.concerns[0]}</p></section>}
