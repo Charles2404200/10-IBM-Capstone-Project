@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button,
   Heading,
   Modal,
   ProgressBar,
+  Pagination,
   RadioButton,
   RadioButtonGroup,
   Select,
@@ -13,8 +14,9 @@ import {
   Tag,
   TextInput,
 } from '@carbon/react'
-import { Add, ArrowRight, Renew, Search } from '@carbon/icons-react'
-import { useMyEngagements, useStartEngagement } from '@/api/hooks/useEngagements'
+import { Add, ArrowRight, Renew, Search, Building, Filter } from '@carbon/icons-react'
+import { useMyEngagements, useStartEngagement, useStartEngagementFromLead } from '@/api/hooks/useEngagements'
+import { useLeadCatalog, useLeadCatalogIndustries } from '@/api/hooks/useLeads'
 import { useScenarios } from '@/api/hooks/useScenarios'
 import { usePortfolioSummary } from '@/api/hooks/usePortfolio'
 import { useAuthStore } from '@/store/authStore'
@@ -22,7 +24,7 @@ import { resolveEngagementRoute } from '@/api/engagementRouting'
 import { isActiveEngagement, requiresMeetingRetry } from '@/features/engagement/services/engagementLifecycleService'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { CompletedEngagementView, Engagement, ScenarioSummary } from '@/api/types'
+import type { CompletedEngagementView, Engagement, LeadSummary, ScenarioSummary } from '@/api/types'
 import styles from './CommandCentrePage.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
 
@@ -260,6 +262,26 @@ function ScenarioCard({
   )
 }
 
+const LEAD_DIFFICULTY_TAG = { EASY: 'green', MEDIUM: 'purple', HARD: 'red' } as const
+
+function CatalogueLeadCard({ lead, onStart, isPending }: { lead: LeadSummary; onStart: () => void; isPending: boolean }) {
+  return (
+    <article className={styles.catalogueLeadCard}>
+      <div className={styles.catalogueLeadTopline}>
+        <span className={styles.catalogueLeadIcon}><Building size={20} /></span>
+        <Tag type={LEAD_DIFFICULTY_TAG[lead.difficulty]} size="sm">{lead.difficulty}</Tag>
+      </div>
+      <Tag type="cyan" size="sm">{lead.industry}</Tag>
+      <h4>{lead.companyName}</h4>
+      <p>{lead.publicDescription}</p>
+      <div className={styles.catalogueSignals}>
+        {lead.signals.slice(0, 2).map((signal) => <span key={signal.id}>{signal.label}</span>)}
+      </div>
+      <Button size="sm" renderIcon={ArrowRight} disabled={isPending} onClick={onStart}>Investigate lead</Button>
+    </article>
+  )
+}
+
 function ScenarioBriefingModal({
   scenario,
   onCancel,
@@ -332,14 +354,30 @@ export default function CommandCentrePage() {
   const navigate = useNavigate()
   const { data: engagements, isLoading: engLoading, isError: engError } = useMyEngagements()
   const { data: scenarios, isLoading: scenLoading } = useScenarios()
+  const { data: catalogIndustries = [] } = useLeadCatalogIndustries()
   const { data: portfolio } = usePortfolioSummary()
   const startEngagement = useStartEngagement()
+  const startFromLead = useStartEngagementFromLead()
   const [personaPickerScenario, setPersonaPickerScenario] = useState<ScenarioSummary | null>(null)
   const [selectedPersonaId, setSelectedPersonaId] = useState('')
   const [briefingScenario, setBriefingScenario] = useState<ScenarioSummary | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [sortMode, setSortMode] = useState<SortMode>('RECENT')
   const [searchTerm, setSearchTerm] = useState('')
+  const [catalogueSearch, setCatalogueSearch] = useState('')
+  const [catalogueIndustry, setCatalogueIndustry] = useState('')
+  const [catalogueDifficulty, setCatalogueDifficulty] = useState<LeadSummary['difficulty'] | ''>('')
+  const [cataloguePage, setCataloguePage] = useState(1)
+  const catalogueFilters = useMemo(() => ({
+    search: catalogueSearch.trim() || undefined,
+    industry: catalogueIndustry || undefined,
+    difficulty: catalogueDifficulty || undefined,
+    page: cataloguePage - 1,
+    size: 12,
+  }), [catalogueDifficulty, catalogueIndustry, cataloguePage, catalogueSearch])
+  const { data: leadCatalogue, isFetching: catalogueLoading } = useLeadCatalog(catalogueFilters)
+
+  useEffect(() => { setCataloguePage(1) }, [catalogueSearch, catalogueIndustry, catalogueDifficulty])
 
   const allEngagements = useMemo(() => engagements ?? [], [engagements])
   const labelsByEngagement = useMemo(() => attemptLabels(allEngagements), [allEngagements])
@@ -391,6 +429,12 @@ export default function CommandCentrePage() {
     )
   }
 
+  const beginFromLead = (lead: LeadSummary) => {
+    startFromLead.mutate({ leadId: lead.id }, {
+      onSuccess: (engagement) => navigate(`/dashboard/engagements/${engagement.id}/intelligence`),
+    })
+  }
+
   const handleStart = (scenario: ScenarioSummary) => {
     setBriefingScenario(scenario)
   }
@@ -426,11 +470,8 @@ export default function CommandCentrePage() {
               Welcome back, {displayName}. Continue your current engagement or start a new scenario.
             </p>
           </div>
-          <Button
-            renderIcon={Add}
-            onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
-          >
-            Start New Scenario
+          <Button renderIcon={Add} onClick={() => document.getElementById('lead-catalogue')?.scrollIntoView({ behavior: 'smooth' })}>
+            Find a lead
           </Button>
         </header>
 
@@ -561,11 +602,14 @@ export default function CommandCentrePage() {
           <div className={styles.sectionHeader}>
             <div>
               <h3>Available Scenarios</h3>
-              <p>Start a fresh run when you are ready to practise another situation.</p>
+              <p>Featured learning journeys. Browse the catalogue below to choose a specific client.</p>
             </div>
+            <Button kind="ghost" size="sm" onClick={() => document.getElementById('lead-catalogue')?.scrollIntoView({ behavior: 'smooth' })}>
+              Browse client catalogue
+            </Button>
           </div>
           <div className={styles.scenarioGrid}>
-            {(scenarios ?? []).map((scenario) => (
+            {(scenarios ?? []).slice(0, 3).map((scenario) => (
               <ScenarioCard
                 key={scenario.id}
                 scenario={scenario}
@@ -574,6 +618,57 @@ export default function CommandCentrePage() {
               />
             ))}
           </div>
+        </section>
+
+        <section id="lead-catalogue" className={styles.catalogueSection} aria-labelledby="lead-catalogue-heading">
+          <div className={styles.sectionHeader}>
+            <div>
+              <div className={styles.sectionEyebrow}>Enterprise lead catalogue</div>
+              <h3 id="lead-catalogue-heading">Find your next client</h3>
+              <p>Explore {leadCatalogue?.totalElements.toLocaleString() ?? '...'} unique, scenario-ready leads. Start directly from the client you choose.</p>
+            </div>
+            <span className={styles.catalogueCount}>{leadCatalogue?.totalElements.toLocaleString() ?? 0} leads</span>
+          </div>
+          <div className={styles.catalogueControls}>
+            <TextInput
+              id="lead-catalogue-search"
+              labelText="Search leads"
+              hideLabel
+              placeholder="Search company or opportunity"
+              value={catalogueSearch}
+              onChange={(event) => setCatalogueSearch(event.target.value)}
+            />
+            <Select id="lead-catalogue-industry" labelText="Industry" hideLabel value={catalogueIndustry} onChange={(event) => setCatalogueIndustry(event.target.value)}>
+              <SelectItem value="" text="All industries" />
+              {catalogIndustries.map((industry) => <SelectItem key={industry} value={industry} text={industry} />)}
+            </Select>
+            <Select id="lead-catalogue-difficulty" labelText="Difficulty" hideLabel value={catalogueDifficulty} onChange={(event) => setCatalogueDifficulty(event.target.value as LeadSummary['difficulty'] | '')}>
+              <SelectItem value="" text="All difficulty" />
+              <SelectItem value="EASY" text="Easy" />
+              <SelectItem value="MEDIUM" text="Medium" />
+              <SelectItem value="HARD" text="Hard" />
+            </Select>
+            <span className={styles.catalogueLoading}>{catalogueLoading ? 'Updating results...' : <><Filter size={16} /> Filtered catalogue</>}</span>
+          </div>
+          {leadCatalogue?.items.length ? (
+            <>
+              <div className={styles.catalogueGrid}>
+                {leadCatalogue.items.map((lead) => (
+                  <CatalogueLeadCard key={lead.id} lead={lead} onStart={() => beginFromLead(lead)} isPending={startFromLead.isPending} />
+                ))}
+              </div>
+              <Pagination
+                className={styles.cataloguePagination}
+                page={cataloguePage}
+                pageSize={leadCatalogue.size}
+                pageSizes={[12]}
+                totalItems={leadCatalogue.totalElements}
+                onChange={({ page }) => setCataloguePage(page)}
+              />
+            </>
+          ) : (
+            <div className={styles.emptyState}><Search size={20} /><span>No leads match these filters.</span></div>
+          )}
         </section>
 
         {completedHistory.length > 0 && scenarios?.[0] && (

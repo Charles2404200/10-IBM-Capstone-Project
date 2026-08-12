@@ -48,6 +48,8 @@ public class CacheConfig {
     public static final String SCENARIOS_CACHE = "scenarios";
     public static final String SCENARIO_CACHE = "scenario";
     public static final String LEADS_BY_SCENARIO_CACHE = "leadsByScenario";
+    public static final String LEAD_CATALOG_CACHE = "leadCatalog";
+    public static final String LEAD_CATALOG_FACETS_CACHE = "leadCatalogFacets";
     public static final String PERSONA_CACHE = "persona";
     public static final String CLIENT_INTELLIGENCE_CACHE = "clientIntelligence";
 
@@ -55,7 +57,7 @@ public class CacheConfig {
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
     public CacheManager caffeineCacheManager() {
         CaffeineCacheManager manager = new CaffeineCacheManager(
-                SCENARIOS_CACHE, SCENARIO_CACHE, LEADS_BY_SCENARIO_CACHE, PERSONA_CACHE,
+                SCENARIOS_CACHE, SCENARIO_CACHE, LEADS_BY_SCENARIO_CACHE, LEAD_CATALOG_CACHE, LEAD_CATALOG_FACETS_CACHE, PERSONA_CACHE,
                 CLIENT_INTELLIGENCE_CACHE);
         manager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(1_000)

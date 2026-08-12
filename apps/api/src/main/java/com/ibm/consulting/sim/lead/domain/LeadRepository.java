@@ -6,6 +6,8 @@ import java.util.UUID;
 
 public interface LeadRepository {
     List<Lead> findByScenarioId(UUID scenarioId);
+    LeadCatalogPage findCatalog(LeadCatalogQuery query);
+    List<String> findCatalogIndustries();
     Optional<Lead> findById(UUID id);
     Lead save(Lead lead);
     void delete(Lead lead);

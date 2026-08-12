@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.engagement.application;
 
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
+import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
@@ -19,13 +20,16 @@ public class StartEngagementUseCase {
     private final EngagementRepository engagementRepository;
     private final ScenarioRepository scenarioRepository;
     private final DifficultyProfileService difficultyProfileService;
+    private final LeadRepository leadRepository;
 
     public StartEngagementUseCase(EngagementRepository engagementRepository,
                                   ScenarioRepository scenarioRepository,
-                                  DifficultyProfileService difficultyProfileService) {
+                                  DifficultyProfileService difficultyProfileService,
+                                  LeadRepository leadRepository) {
         this.engagementRepository = engagementRepository;
         this.scenarioRepository = scenarioRepository;
         this.difficultyProfileService = difficultyProfileService;
+        this.leadRepository = leadRepository;
     }
 
     /** Starts an engagement using the first persona defined for the scenario. */
@@ -57,6 +61,35 @@ public class StartEngagementUseCase {
 
         Engagement engagement = Engagement.start(userId, scenarioId, persona.getId(),
                 difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)));
+        engagementRepository.save(engagement);
+        return EngagementResponse.from(engagement);
+    }
+
+    /**
+     * Starts from a catalogue lead in one atomic operation. The selected lead
+     * remains scenario-bound, so catalogue browsing cannot bypass canonical
+     * scenario truth or the engagement state machine.
+     */
+    @Transactional
+    public EngagementResponse executeForLead(UUID userId, UUID leadId, UUID personaId) {
+        var lead = leadRepository.findById(leadId).orElseThrow(() -> new NotFoundException("Lead", leadId));
+        var scenario = scenarioRepository.findById(lead.getScenarioId())
+                .orElseThrow(() -> new NotFoundException("Scenario", lead.getScenarioId()));
+        if (scenario.getStatus() != ScenarioStatus.ACTIVE) {
+            throw new ScenarioUnavailableException(scenario.getId());
+        }
+
+        Persona persona = personaId == null
+                ? scenario.getPersonas().stream().findFirst()
+                        .orElseThrow(() -> new NotFoundException("Persona for scenario", scenario.getId()))
+                : scenario.getPersonas().stream()
+                        .filter(candidate -> candidate.getId().equals(personaId))
+                        .findFirst()
+                        .orElseThrow(() -> new PersonaNotInScenarioException(personaId, scenario.getId()));
+
+        Engagement engagement = Engagement.start(userId, scenario.getId(), persona.getId(),
+                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)));
+        engagement.selectLead(lead.getId());
         engagementRepository.save(engagement);
         return EngagementResponse.from(engagement);
     }

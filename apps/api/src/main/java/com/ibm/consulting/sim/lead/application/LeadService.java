@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.lead.domain.*;
+import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
@@ -44,6 +45,19 @@ public class LeadService {
         return leadRepository.findByScenarioId(scenarioId).stream()
                 .map(LeadSummary::from)
                 .toList();
+    }
+
+    /** Indexed and cached catalogue query used by Command Centre. It never loads the full catalogue into memory. */
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.LEAD_CATALOG_CACHE, key = "#query.cacheKey()")
+    public LeadCatalogResponse listCatalog(LeadCatalogQuery query) {
+        return LeadCatalogResponse.from(leadRepository.findCatalog(query));
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.LEAD_CATALOG_FACETS_CACHE, key = "'industries'")
+    public List<String> catalogIndustries() {
+        return leadRepository.findCatalogIndustries();
     }
 
     @Transactional

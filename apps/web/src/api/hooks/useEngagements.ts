@@ -39,6 +39,18 @@ export function useStartEngagement() {
   })
 }
 
+/** Starts directly from a server-catalogued lead; selection is performed atomically by the backend. */
+export function useStartEngagementFromLead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { leadId: string; personaId?: string }) => {
+      const res = await apiClient.post<Engagement>('/api/v1/engagements/from-lead', params)
+      return res.data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: engagementKeys.all }),
+  })
+}
+
 export function useRetryEngagement(engagementId: string) {
   const qc = useQueryClient()
   return useMutation({

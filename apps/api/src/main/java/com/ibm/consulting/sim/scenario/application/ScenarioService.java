@@ -25,6 +25,8 @@ import java.util.LinkedHashMap;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIOS_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEADS_BY_SCENARIO_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_FACETS_CACHE;
 
 @Service
 public class ScenarioService {
@@ -93,7 +95,9 @@ public class ScenarioService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = SCENARIO_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
     })
     public ScenarioSummary publish(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
@@ -129,7 +133,9 @@ public class ScenarioService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
     })
     public ScenarioSummary updateDifficultyProfile(UUID scenarioId, UpdateDifficultyProfileRequest request) {
         Scenario scenario = findScenario(scenarioId);
@@ -190,6 +196,8 @@ public class ScenarioService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
     })
     public LeadSummary createLead(UUID scenarioId, LeadAuthoringRequest request) {
@@ -207,7 +215,11 @@ public class ScenarioService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
+    })
     public LeadSummary updateLead(UUID scenarioId, UUID leadId, LeadAuthoringRequest request) {
         Scenario scenario = findScenario(scenarioId);
         assertDraft(scenario);
@@ -218,7 +230,11 @@ public class ScenarioService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = LEADS_BY_SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
+    })
     public void deleteLead(UUID scenarioId, UUID leadId) {
         Scenario scenario = findScenario(scenarioId);
         assertDraft(scenario);

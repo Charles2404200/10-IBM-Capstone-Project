@@ -2,8 +2,11 @@ package com.ibm.consulting.sim.lead.api;
 
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.lead.application.LeadIntelligenceSummary;
+import com.ibm.consulting.sim.lead.application.LeadCatalogResponse;
 import com.ibm.consulting.sim.lead.application.LeadService;
 import com.ibm.consulting.sim.lead.application.LeadSummary;
+import com.ibm.consulting.sim.lead.domain.LeadCatalogQuery;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
 import com.ibm.consulting.sim.lead.application.ResearchArtifactResponse;
 import com.ibm.consulting.sim.lead.application.ResearchEvidenceSummary;
 import com.ibm.consulting.sim.lead.application.ResearchGateStatus;
@@ -62,6 +65,22 @@ public class LeadController {
     @GetMapping("/scenarios/{scenarioId}/leads")
     List<LeadSummary> listLeads(@PathVariable UUID scenarioId) {
         return leadService.listForScenario(scenarioId);
+    }
+
+    /** Additive catalogue endpoint. The legacy per-scenario list remains for the existing lead pipeline. */
+    @GetMapping("/lead-catalog")
+    LeadCatalogResponse listCatalog(@RequestParam(name = "scenarioId", required = false) UUID scenarioId,
+                                    @RequestParam(name = "search", required = false) String search,
+                                    @RequestParam(name = "industry", required = false) String industry,
+                                    @RequestParam(name = "difficulty", required = false) LeadDifficulty difficulty,
+                                    @RequestParam(name = "page", defaultValue = "0") int page,
+                                    @RequestParam(name = "size", defaultValue = "12") int size) {
+        return leadService.listCatalog(new LeadCatalogQuery(scenarioId, search, industry, difficulty, page, size));
+    }
+
+    @GetMapping("/lead-catalog/industries")
+    List<String> listCatalogIndustries() {
+        return leadService.catalogIndustries();
     }
 
     @PostMapping("/engagements/{engagementId}/lead-selection")

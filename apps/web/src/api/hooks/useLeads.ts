@@ -1,6 +1,53 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { EvidenceType, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, SaveResearchPayload } from '@/api/types'
+import type { EvidenceType, LeadCatalogPage, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, SaveResearchPayload } from '@/api/types'
+
+export interface LeadCatalogFilters {
+  scenarioId?: string
+  search?: string
+  industry?: string
+  difficulty?: LeadSummary['difficulty']
+  page: number
+  size: number
+}
+
+const LEAD_CATALOG_STALE_TIME = 60_000
+
+async function fetchLeadCatalog(filters: LeadCatalogFilters) {
+  const res = await apiClient.get<LeadCatalogPage>('/api/v1/lead-catalog', { params: filters })
+  return res.data
+}
+
+export function useLeadCatalog(filters: LeadCatalogFilters) {
+  const queryClient = useQueryClient()
+  const result = useQuery({
+    queryKey: ['lead-catalog', filters],
+    queryFn: () => fetchLeadCatalog(filters),
+    placeholderData: keepPreviousData,
+    staleTime: LEAD_CATALOG_STALE_TIME,
+  })
+
+  useEffect(() => {
+    if (!result.data || filters.page + 1 >= result.data.totalPages) return
+    const nextFilters = { ...filters, page: filters.page + 1 }
+    void queryClient.prefetchQuery({
+      queryKey: ['lead-catalog', nextFilters],
+      queryFn: () => fetchLeadCatalog(nextFilters),
+      staleTime: LEAD_CATALOG_STALE_TIME,
+    })
+  }, [filters, queryClient, result.data])
+
+  return result
+}
+
+export function useLeadCatalogIndustries() {
+  return useQuery({
+    queryKey: ['lead-catalog', 'industries'],
+    queryFn: async () => (await apiClient.get<string[]>('/api/v1/lead-catalog/industries')).data,
+    staleTime: 10 * 60_000,
+  })
+}
 
 export function useLeads(scenarioId: string) {
   return useQuery({

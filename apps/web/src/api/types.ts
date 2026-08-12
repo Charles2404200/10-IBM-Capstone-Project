@@ -204,6 +204,15 @@ export interface SaveResearchPayload {
   supportingEvidenceIds?: string[]
 }
 
+/** Server-paged public lead catalogue. Existing scenario lead lists remain supported. */
+export interface LeadCatalogPage {
+  items: LeadSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
+}
+
 export interface ResearchArtifact {
   id: string
   title: string
