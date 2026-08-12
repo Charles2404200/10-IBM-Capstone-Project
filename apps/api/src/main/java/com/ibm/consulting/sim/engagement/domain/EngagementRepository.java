@@ -9,5 +9,7 @@ public interface EngagementRepository {
     List<Engagement> findAll();
     Optional<Engagement> findById(UUID id);
     List<Engagement> findByUserId(UUID userId);
+    /** Dashboard projection with the small lifecycle event collection loaded in one query. */
+    List<Engagement> findDashboardByUserId(UUID userId);
     Optional<Engagement> findByIdAndUserId(UUID id, UUID userId);
 }

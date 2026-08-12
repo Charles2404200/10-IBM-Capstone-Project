@@ -114,6 +114,14 @@ export interface ScenarioSummary {
   briefing: ScenarioBriefing
 }
 
+export interface ScenarioCatalogPage {
+  items: ScenarioSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
+}
+
 // ─── Lead ─────────────────────────────────────────────────────────────────────
 
 export interface LeadSignal {
@@ -202,6 +210,15 @@ export interface SaveResearchPayload {
   confidence?: ConfidenceLevel
   relevanceScore?: number
   supportingEvidenceIds?: string[]
+}
+
+/** Server-paged public lead catalogue. Existing scenario lead lists remain supported. */
+export interface LeadCatalogPage {
+  items: LeadSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
 }
 
 export interface ResearchArtifact {

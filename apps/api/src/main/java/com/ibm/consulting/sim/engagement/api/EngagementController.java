@@ -31,6 +31,7 @@ public class EngagementController {
     }
 
     record StartRequest(@NotNull UUID scenarioId, UUID personaId) {}
+    record StartFromLeadRequest(@NotNull UUID leadId, UUID personaId) {}
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -47,6 +48,14 @@ public class EngagementController {
     @GetMapping("/{id}")
     EngagementResponse getWorkspace(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         return queryService.getWorkspace(id, user.getId());
+    }
+
+    /** Catalogue shortcut; legacy scenario-first start stays available above. */
+    @PostMapping("/from-lead")
+    @ResponseStatus(HttpStatus.CREATED)
+    EngagementResponse startFromLead(@Valid @RequestBody StartFromLeadRequest req,
+                                     @AuthenticationPrincipal User user) {
+        return startUseCase.executeForLead(user.getId(), req.leadId(), req.personaId());
     }
 
     @PostMapping("/{id}/retry")

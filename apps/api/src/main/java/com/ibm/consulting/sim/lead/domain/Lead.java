@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.lead.domain;
 
 import com.ibm.consulting.sim.shared.domain.BaseEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,6 +31,7 @@ public class Lead extends BaseEntity {
 
     /** Visible signals exposed on the lead card */
     @OneToMany(mappedBy = "lead", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 48)
     private List<LeadSignal> signals = new ArrayList<>();
 
     // ─── Hidden intelligence — never returned by LeadSummary; only exposed

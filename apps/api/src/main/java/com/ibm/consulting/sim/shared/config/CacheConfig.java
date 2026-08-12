@@ -7,13 +7,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Caching for read-heavy, low-churn reference data — scenario catalogues,
@@ -47,21 +48,43 @@ public class CacheConfig {
 
     public static final String SCENARIOS_CACHE = "scenarios";
     public static final String SCENARIO_CACHE = "scenario";
+    public static final String SCENARIO_CATALOG_CACHE = "scenarioCatalog";
+    public static final String SCENARIO_CATALOG_FACETS_CACHE = "scenarioCatalogFacets";
     public static final String LEADS_BY_SCENARIO_CACHE = "leadsByScenario";
+    public static final String LEAD_CATALOG_CACHE = "leadCatalog";
+    public static final String LEAD_CATALOG_FACETS_CACHE = "leadCatalogFacets";
     public static final String PERSONA_CACHE = "persona";
     public static final String CLIENT_INTELLIGENCE_CACHE = "clientIntelligence";
+    /** Short-lived per-learner read models used on the Command Centre. */
+    public static final String ENGAGEMENT_DASHBOARD_CACHE = "engagementDashboard";
+    public static final String PORTFOLIO_SUMMARY_CACHE = "portfolioSummary";
 
     @Bean
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
     public CacheManager caffeineCacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager(
-                SCENARIOS_CACHE, SCENARIO_CACHE, LEADS_BY_SCENARIO_CACHE, PERSONA_CACHE,
-                CLIENT_INTELLIGENCE_CACHE);
-        manager.setCaffeine(Caffeine.newBuilder()
-                .maximumSize(1_000)
-                .expireAfterWrite(10, TimeUnit.MINUTES)
-                .recordStats());
+        SimpleCacheManager manager = new SimpleCacheManager();
+        manager.setCaches(List.of(
+                localCache(SCENARIOS_CACHE, Duration.ofMinutes(10)),
+                localCache(SCENARIO_CACHE, Duration.ofMinutes(10)),
+                localCache(SCENARIO_CATALOG_CACHE, Duration.ofMinutes(10)),
+                localCache(SCENARIO_CATALOG_FACETS_CACHE, Duration.ofMinutes(10)),
+                localCache(LEADS_BY_SCENARIO_CACHE, Duration.ofMinutes(10)),
+                localCache(LEAD_CATALOG_CACHE, Duration.ofMinutes(10)),
+                localCache(LEAD_CATALOG_FACETS_CACHE, Duration.ofMinutes(10)),
+                localCache(PERSONA_CACHE, Duration.ofMinutes(30)),
+                localCache(CLIENT_INTELLIGENCE_CACHE, Duration.ofMinutes(10)),
+                localCache(ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30)),
+                localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60))));
+        manager.initializeCaches();
         return manager;
+    }
+
+    private CaffeineCache localCache(String name, Duration ttl) {
+        return new CaffeineCache(name, Caffeine.newBuilder()
+                .maximumSize(1_000)
+                .expireAfterWrite(ttl)
+                .recordStats()
+                .build());
     }
 
     @Bean
@@ -73,7 +96,10 @@ public class CacheConfig {
         // Persona reference data changes only via the admin authoring API, so it
         // can safely be cached longer than the general default (used by e.g.
         // scenario summaries, which authors also edit but check more often).
-        Map<String, Duration> ttlOverrides = Map.of(PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds));
+        Map<String, Duration> ttlOverrides = Map.of(
+                PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds),
+                ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30),
+                PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60));
         return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
     }
 }
