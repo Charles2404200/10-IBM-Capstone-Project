@@ -126,11 +126,15 @@ export function useProposalStudio(engagementId: string) {
 
   const submit = useCallback(async () => {
     if (!await persist()) return
-    const reviewDraft = draftRef.current
-    const result = await reviewProposal.mutateAsync(reviewDraft)
-    setReview(result)
-    if (result.readyToSubmit) submitProposal.mutate(reviewDraft)
-  }, [persist, reviewProposal, submitProposal])
+    // Submitting is deliberately separate from coaching. The backend applies the
+    // deterministic workspace gate to this exact snapshot; it must not trigger
+    // another AI review or replace the learner's explicit submit action.
+    try {
+      await submitProposal.mutateAsync(draftRef.current)
+    } catch {
+      // React Query retains the actionable API error for the workspace notice.
+    }
+  }, [persist, submitProposal])
 
   const attachedSourceIds = useMemo(() => new Set(
     draft.evidenceLinks.filter((link) => link.section === activeSection).map((link) => link.sourceId),
