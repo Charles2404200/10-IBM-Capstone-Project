@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.Cache;
@@ -44,7 +45,7 @@ public class UpstashRedisCache implements Cache {
         this.name = name;
         this.client = client;
         this.ttl = ttl;
-        this.valueMapper = new ObjectMapper();
+        this.valueMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         this.valueMapper.activateDefaultTyping(
                 BasicPolymorphicTypeValidator.builder()
                         .allowIfSubType(Object.class)
@@ -72,7 +73,8 @@ public class UpstashRedisCache implements Cache {
     public ValueWrapper get(Object key) {
         JsonNode result = safeExecute(List.of("GET", redisKey(key)));
         if (result == null) return null;
-        return new SimpleValueWrapper(deserialize(result.asText()));
+        Object value = deserialize(result.asText());
+        return value == null ? null : new SimpleValueWrapper(value);
     }
 
     @Override
@@ -81,6 +83,7 @@ public class UpstashRedisCache implements Cache {
         JsonNode result = safeExecute(List.of("GET", redisKey(key)));
         if (result == null) return null;
         Object value = deserialize(result.asText());
+        if (value == null) return null;
         return type == null || type.isInstance(value) ? (T) value : null;
     }
 
@@ -107,8 +110,14 @@ public class UpstashRedisCache implements Cache {
             evict(key);
             return;
         }
-        String json = serialize(value);
-        safeExecute(List.of("SET", redisKey(key), json, "EX", String.valueOf(ttl.toSeconds())));
+        try {
+            String json = serialize(value);
+            safeExecute(List.of("SET", redisKey(key), json, "EX", String.valueOf(ttl.toSeconds())));
+        } catch (RuntimeException e) {
+            // Caching is an optimization only. A value that cannot be encoded
+            // must never turn a successful domain read into an HTTP 500.
+            log.warn("Unable to cache value in region {}, continuing without cache: {}", name, e.getMessage());
+        }
     }
 
     @Override
