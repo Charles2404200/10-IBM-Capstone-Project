@@ -128,12 +128,30 @@
 .successPanel h2, .reviewHeading h2 { margin: 0; @include type-style('heading-04'); }
 .successPanel p, .editorHeading p { margin-top: $spacing-03; color: $text-secondary; }
 .editor, .briefReview { padding: $spacing-06; }
+.editor { min-height: 0; height: 100%; overflow: hidden; }
+.editor form, .editorForm { min-height: 0; height: 100%; }
+.editorForm { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: $spacing-04; }
 .editorHeading, .reviewHeading, .historyHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
-.editorGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-05; }
-.requirementList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-03 $spacing-05; padding: $spacing-05; background: $layer-accent-01; }
+.requirementList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $spacing-02 $spacing-05; padding: $spacing-04; background: $layer-accent-01; }
 .requirementList > p { grid-column: 1 / -1; margin: 0; @include type-style('label-01'); }
 .requirementList span { display: flex; gap: $spacing-03; @include type-style('body-compact-01'); }
 .requirementList svg { color: $support-success; flex: 0 0 auto; }
+.briefEditorBody { display: grid; min-height: 0; grid-template-columns: 11rem minmax(0, 1fr); border: 1px solid $border-subtle; border-radius: 6px; overflow: hidden; }
+.briefSectionTabs { display: grid; align-content: start; gap: $spacing-02; padding: $spacing-03; border-right: 1px solid $border-subtle; background: $layer-accent-01; }
+.briefSectionTabs button { display: flex; align-items: center; gap: $spacing-03; width: 100%; padding: $spacing-03; border: 0; border-left: 3px solid transparent; border-radius: 4px; background: transparent; color: $text-secondary; text-align: left; cursor: pointer; @include type-style('body-compact-01'); }
+.briefSectionTabs button:hover { background: #edf3ff; color: $text-primary; }
+.briefSectionTabs .activeBriefSection { border-left-color: $interactive; background: $layer-01; color: $text-primary; font-weight: 600; }
+.briefSectionTabs svg { color: $support-success; flex: 0 0 auto; }
+.sectionNumber { display: grid; place-items: center; width: 1rem; height: 1rem; border: 1px solid $border-strong-01; border-radius: 50%; color: $text-secondary; @include type-style('label-01'); }
+.briefSectionPanel { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; gap: $spacing-03; padding: $spacing-04; }
+.briefSectionPanel h3 { margin: 0; @include type-style('heading-compact-02'); }
+.briefSectionPanel p { margin: $spacing-02 0 0; color: $text-secondary; @include type-style('body-compact-01'); }
+.briefSectionPanel :global(.cds--text-area__wrapper) { display: flex; min-height: 0; height: 100%; flex-direction: column; }
+.briefSectionPanel :global(.cds--text-area) { min-height: 0; height: 100%; resize: none; }
+.briefSectionPanel small { color: $text-secondary; @include type-style('label-01'); }
+.editorFooter { display: flex; align-items: center; justify-content: space-between; gap: $spacing-04; }
+.editorFooter :global(.cds--inline-notification) { flex: 1 1 auto; }
+.briefProgress { color: $text-secondary; @include type-style('label-01'); }
 .reviewGrid, .scoreList { display: grid; gap: $spacing-03; }
 .scoreRow { display: grid; grid-template-columns: 9rem minmax(0, 1fr) 2rem; gap: $spacing-03; align-items: center; color: $text-secondary; @include type-style('label-01'); }
 .scoreRow strong { color: $text-primary; font-weight: 400; text-align: right; }
@@ -178,6 +196,11 @@
   .assistActions button { padding: $spacing-02 $spacing-03; }
   .bestEvidence { margin-top: $spacing-03; }
   .coachingCallout { display: none; }
+  .editor { padding: $spacing-04; }
+  .editorForm { gap: $spacing-03; }
+  .editorHeading p { margin-top: $spacing-02; }
+  .requirementList { padding: $spacing-03; }
+  .briefSectionPanel { padding: $spacing-03; }
 }
 
 @media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.page { height: auto; overflow: visible; }.primaryColumn { grid-template-rows: auto; } }
