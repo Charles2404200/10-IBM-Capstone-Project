@@ -38,10 +38,10 @@
 .phaseCards :global(.cds--tile:nth-child(3)) svg { color: #8a3ffc; }
 
 .workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 25rem; gap: $spacing-06; align-items: stretch; }
-.primaryColumn { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: $spacing-04; }
+.primaryColumn { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: $spacing-04; }
 .decisionRail { min-height: 0; display: grid; align-content: start; gap: $spacing-04; }
 
-.composeWorkspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 17rem; overflow: hidden; border: 1px solid $border-subtle; border-radius: 10px; background: $layer-01; box-shadow: 0 1px 3px rgb(15 38 71 / 8%); }
+.composeWorkspace { min-height: 0; flex: 1 1 0; display: grid; grid-template-columns: minmax(0, 1fr) 17rem; overflow: hidden; border: 1px solid $border-subtle; border-radius: 10px; background: $layer-01; box-shadow: 0 1px 3px rgb(15 38 71 / 8%); }
 .emailComposer, .assistPanel { border: 0; background: transparent; }
 .emailComposer { min-height: 0; padding: $spacing-05 $spacing-06; }
 .emailComposer form { display: flex; flex-direction: column; min-height: 0; height: 100%; }
@@ -148,7 +148,6 @@
    still available through the evidence-assistant actions; the compact strip
    returns automatically on taller displays. */
 @media (min-width: 1151px) and (max-height: 68rem) {
-  .primaryColumn { grid-template-rows: minmax(0, 1fr); }
   .composeWorkspace { height: 100%; }
   .evidenceStrip { display: none; }
   .nextActionPanel { display: none; }
@@ -160,6 +159,6 @@
   .bestEvidence { margin-top: $spacing-03; }
 }
 
-@media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.page { height: auto; overflow: visible; }.primaryColumn { grid-template-rows: auto; } }
+@media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.page { height: auto; overflow: visible; }.composeWorkspace { flex-basis: auto; } }
 @media (max-width: 900px) { .page { height: auto; padding: $spacing-05 $spacing-04 $spacing-08; overflow: visible; }.workspace { grid-template-columns: 1fr; }.decisionRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }.nextActionPanel, .hintPanel { grid-column: span 2; }.phaseCards { grid-template-columns: 1fr; }.phaseCards :global(.cds--tile) { min-height: auto; } }
 @media (max-width: 600px) { .makeContactHero { gap: $spacing-04; }.heroIcon { width: 2.75rem; height: 2.75rem; }.emailComposer, .assistPanel, .evidenceStrip { padding: $spacing-04; }.mailMeta { grid-template-columns: 3rem minmax(0, 1fr); }.mailMeta small { grid-column: 2; text-align: left; }.composerFooter, .successPanel, .clientResponseHeading { align-items: flex-start; flex-direction: column; }.responseActions { align-self: stretch; justify-content: space-between; }.assistActions, .decisionRail, .evidenceCards, .editorGrid, .requirementList { grid-template-columns: 1fr; }.nextActionPanel, .hintPanel { grid-column: auto; }.scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }.historyItem summary { grid-template-columns: auto 1fr; }.historySubject { grid-column: 1 / -1; } }
