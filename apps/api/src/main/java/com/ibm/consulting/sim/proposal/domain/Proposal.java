@@ -145,6 +145,12 @@ public class Proposal extends BaseEntity {
         this.evidenceImpacts = new ArrayList<>(snapshot.evidenceImpacts());
     }
 
+    public void updateClientResponse(String clientResponse) {
+        if (clientResponse != null && !clientResponse.isBlank()) {
+            this.clientResponse = clientResponse;
+        }
+    }
+
     private void apply(ProposalDraftContent content) {
         this.problemStatement = content.problemStatement();
         this.solutionStrategy = content.solutionStrategy();

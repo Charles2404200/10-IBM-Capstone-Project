@@ -24,6 +24,7 @@ import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +59,7 @@ public class ProposalService {
     private final PersonaCatalogService personaCatalogService;
     private final DifficultyProfileService difficultyProfileService;
     private final CacheManager cacheManager;
+    private final ApplicationEventPublisher eventPublisher;
     /** Avoids duplicate provider calls when two browser requests review the same draft concurrently. */
     private final ConcurrentMap<String, CompletableFuture<ProposalReviewResponse>> reviewRequests = new ConcurrentHashMap<>();
 
@@ -71,7 +73,8 @@ public class ProposalService {
                            ObjectMapper objectMapper,
                            PersonaCatalogService personaCatalogService,
                            DifficultyProfileService difficultyProfileService,
-                           CacheManager cacheManager) {
+                           CacheManager cacheManager,
+                           ApplicationEventPublisher eventPublisher) {
         this.proposalRepository = proposalRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -83,6 +86,7 @@ public class ProposalService {
         this.personaCatalogService = personaCatalogService;
         this.difficultyProfileService = difficultyProfileService;
         this.cacheManager = cacheManager;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -186,13 +190,8 @@ public class ProposalService {
                 sources.stream().map(source -> new ProposalDecisionSource(source.id(), source.content(), source.type())).toList(),
                 state.getTrust(), state.getInterest(), state.getPatience(), profile);
         PersonaProfile persona = personaCatalogService.getPersona(engagement.getPersonaId());
-        ProposalClientDecision clientDecision = aiOrchestrationService.execute(
-                "proposal_client_decision", engagementId,
-                clientDecisionPrompt(decisionSnapshot, content, sources, persona), PROMPT_VERSION,
-                new ProposalClientDecisionParser(objectMapper), () -> ProposalClientDecision.fallback(decisionSnapshot.accepted()));
-
         proposal.submit();
-        proposal.resolve(decisionSnapshot, clientDecision.message());
+        proposal.resolve(decisionSnapshot, ProposalClientDecision.fromDecision(decisionSnapshot).message());
         proposalRepository.save(proposal);
 
         if (engagement.getState() == EngagementState.DISCOVERY_COMPLETE) {
@@ -202,6 +201,8 @@ public class ProposalService {
         engagement.transitionTo(EngagementState.CLIENT_DECISION,
                 "Client decision: " + decisionSnapshot.outcome());
         engagementRepository.save(engagement);
+        eventPublisher.publishEvent(new ProposalDecisionSubmittedEvent(engagementId, content, sources, persona,
+                decisionSnapshot));
         return ProposalResponse.from(proposal);
     }
 
@@ -391,23 +392,6 @@ public class ProposalService {
                 Proposal: %s
                 Client evidence: %s
                 """.formatted(content.problemStatement() + "\n" + content.solutionStrategy(), clientContext);
-    }
-
-    private String clientDecisionPrompt(ProposalDecisionSnapshot decision, ProposalDraftContent content,
-                                        List<ProposalSource> sources, PersonaProfile persona) {
-        String context = sources.stream().limit(5).map(source -> source.label() + ": " + source.content())
-                .reduce("", (left, right) -> left + "\n" + right);
-        return """
-                You are %s, %s at %s. Your communication style is: %s.
-                You are responding to a consulting proposal. The backend already decided the outcome.
-                Do not change, soften or challenge that outcome. Write a concise response grounded only in the supplied proposal and client evidence.
-                Return ONLY JSON: {"message": string}.
-                Decision: %s
-                Deterministic rationale: %s
-                Proposal: %s
-                Client evidence: %s
-                """.formatted(persona.getName(), persona.getJobTitle(), persona.getOrganisation(), persona.getCommunicationStyle(),
-                decision.outcome(), decision.rationale(), content.problemStatement() + "\n" + content.solutionStrategy(), context);
     }
 
     private Engagement loadEditableEngagement(UUID engagementId, UUID userId) {
