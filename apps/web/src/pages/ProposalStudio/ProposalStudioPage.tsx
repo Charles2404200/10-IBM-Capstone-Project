@@ -21,6 +21,8 @@ export default function ProposalStudioPage() {
   const sources = studio.workspace.data?.sources ?? []
   const sourcePageCount = Math.max(1, Math.ceil(sources.length / SOURCES_PER_PAGE))
   const visibleSources = sources.slice(sourcePage * SOURCES_PER_PAGE, (sourcePage + 1) * SOURCES_PER_PAGE)
+  const sourceStart = sources.length === 0 ? 0 : sourcePage * SOURCES_PER_PAGE + 1
+  const sourceEnd = Math.min(sources.length, (sourcePage + 1) * SOURCES_PER_PAGE)
 
   useEffect(() => {
     setSourcePage((current) => Math.min(current, sourcePageCount - 1))
@@ -63,8 +65,11 @@ export default function ProposalStudioPage() {
 
       <div className={styles.workspace}>
         <aside className={styles.sourcesPanel} aria-label="Grounded client sources">
-          <div className={styles.panelTitle}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence library</h2></div><Tag type="blue">{sources.length}</Tag></div>
-          <p className={styles.panelHint}>Choose a verified source for <strong>{proposalSections.find((section) => section.id === studio.activeSection)?.label}</strong>.</p>
+          <div className={styles.panelTitle}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence library</h2></div><Tag type="blue">{sources.length} sources</Tag></div>
+          <div className={styles.sourceToolbar}>
+            <p className={styles.panelHint}>Showing {sourceStart}-{sourceEnd} of {sources.length} for <strong>{proposalSections.find((section) => section.id === studio.activeSection)?.label}</strong>.</p>
+            {sourcePageCount > 1 && <div className={styles.sourcePagination} aria-label="Evidence source pages"><Button kind="ghost" size="sm" hasIconOnly renderIcon={ChevronLeft} iconDescription="Previous sources" disabled={sourcePage === 0} onClick={() => setSourcePage((current) => current - 1)} /><span aria-live="polite">{sourcePage + 1}/{sourcePageCount}</span><Button kind="ghost" size="sm" hasIconOnly renderIcon={ChevronRight} iconDescription="Next sources" disabled={sourcePage === sourcePageCount - 1} onClick={() => setSourcePage((current) => current + 1)} /></div>}
+          </div>
           <div className={styles.sourceList}>
             {visibleSources.map((source) => {
               const attached = studio.attachedSourceIds.has(source.id)
@@ -76,7 +81,6 @@ export default function ProposalStudioPage() {
             })}
             {sources.length === 0 && <p className={styles.empty}>No evidence or discovery facts are available yet.</p>}
           </div>
-          {sourcePageCount > 1 && <div className={styles.sourcePagination}><span>{sourcePage + 1} of {sourcePageCount}</span><Button kind="ghost" size="sm" hasIconOnly renderIcon={ChevronLeft} iconDescription="Previous sources" disabled={sourcePage === 0} onClick={() => setSourcePage((current) => current - 1)} /><Button kind="ghost" size="sm" hasIconOnly renderIcon={ChevronRight} iconDescription="Next sources" disabled={sourcePage === sourcePageCount - 1} onClick={() => setSourcePage((current) => current + 1)} /></div>}
         </aside>
 
         <section className={styles.builder}>
