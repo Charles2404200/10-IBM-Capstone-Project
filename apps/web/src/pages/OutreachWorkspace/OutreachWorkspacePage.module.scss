@@ -80,6 +80,13 @@
 .coachingCallout strong { color: $text-primary; }
 
 .clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel, .briefReview, .successPanel, .evidenceStrip { border: 1px solid $border-subtle; border-radius: 8px; background: $layer-01; }
+.clientResponse { padding: $spacing-04 $spacing-05; border: 1px solid #b9d7ff; border-left: 4px solid $interactive; border-radius: 8px; background: #f7faff; box-shadow: 0 1px 2px rgb(15 38 71 / 6%); }
+.clientResponseHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
+.clientResponseHeading h2 { margin: 0; @include type-style('heading-compact-02'); }
+.responseActions { display: flex; align-items: center; gap: $spacing-02; flex: 0 0 auto; }
+.clientResponse blockquote { margin: $spacing-04 0 0; padding: 0 0 0 $spacing-04; border-left: 2px solid #a6c8ff; color: $text-primary; line-height: 1.5; white-space: pre-wrap; @include type-style('body-compact-01'); }
+.responseGuidance { display: grid; gap: $spacing-02; margin-top: $spacing-04; padding: $spacing-03 $spacing-04; border-radius: 5px; background: $layer-01; color: $text-secondary; @include type-style('body-compact-01'); }
+.responseGuidance strong { color: $text-primary; @include type-style('label-01'); }
 .clientOverview { min-height: 10.25rem; }
 .clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel { padding: $spacing-04 $spacing-05; }
 .overviewHeading, .replyHeading, .stripHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
@@ -145,6 +152,7 @@
   .composeWorkspace { height: 100%; }
   .evidenceStrip { display: none; }
   .nextActionPanel { display: none; }
+  .clientResponse { padding: $spacing-03 $spacing-04; }
   .emailComposer :global(.cds--text-area__wrapper) { min-height: 10rem; }
   .decisionRail { grid-auto-rows: max-content; }
   .assistActions { gap: $spacing-02; margin-top: $spacing-03; }
@@ -154,4 +162,4 @@
 
 @media (max-width: 1150px) { .workspace { grid-template-columns: 1fr 21rem; }.composeWorkspace { grid-template-columns: 1fr; }.assistPanel { border-top: 1px solid $border-subtle; border-left: 0; }.assistActions { grid-template-columns: repeat(3, minmax(0, 1fr)); }.evidenceCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }.page { height: auto; overflow: visible; }.primaryColumn { grid-template-rows: auto; } }
 @media (max-width: 900px) { .page { height: auto; padding: $spacing-05 $spacing-04 $spacing-08; overflow: visible; }.workspace { grid-template-columns: 1fr; }.decisionRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }.nextActionPanel, .hintPanel { grid-column: span 2; }.phaseCards { grid-template-columns: 1fr; }.phaseCards :global(.cds--tile) { min-height: auto; } }
-@media (max-width: 600px) { .makeContactHero { gap: $spacing-04; }.heroIcon { width: 2.75rem; height: 2.75rem; }.emailComposer, .assistPanel, .evidenceStrip { padding: $spacing-04; }.mailMeta { grid-template-columns: 3rem minmax(0, 1fr); }.mailMeta small { grid-column: 2; text-align: left; }.composerFooter, .successPanel { align-items: flex-start; flex-direction: column; }.assistActions, .decisionRail, .evidenceCards, .editorGrid, .requirementList { grid-template-columns: 1fr; }.nextActionPanel, .hintPanel { grid-column: auto; }.scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }.historyItem summary { grid-template-columns: auto 1fr; }.historySubject { grid-column: 1 / -1; } }
+@media (max-width: 600px) { .makeContactHero { gap: $spacing-04; }.heroIcon { width: 2.75rem; height: 2.75rem; }.emailComposer, .assistPanel, .evidenceStrip { padding: $spacing-04; }.mailMeta { grid-template-columns: 3rem minmax(0, 1fr); }.mailMeta small { grid-column: 2; text-align: left; }.composerFooter, .successPanel, .clientResponseHeading { align-items: flex-start; flex-direction: column; }.responseActions { align-self: stretch; justify-content: space-between; }.assistActions, .decisionRail, .evidenceCards, .editorGrid, .requirementList { grid-template-columns: 1fr; }.nextActionPanel, .hintPanel { grid-column: auto; }.scoreRow { grid-template-columns: 7rem minmax(0, 1fr) 1.75rem; }.historyItem summary { grid-template-columns: auto 1fr; }.historySubject { grid-column: 1 / -1; } }

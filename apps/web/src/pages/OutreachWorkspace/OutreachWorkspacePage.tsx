@@ -312,6 +312,28 @@ export default function OutreachWorkspacePage() {
               </Tile>
             )}
 
+            {latestAttempt?.clientReply && !meetingSecured && (
+              <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
+                <div className={styles.clientResponseHeading}>
+                  <div>
+                    <p className={styles.eyebrow}>Latest client response</p>
+                    <h2>What the client said</h2>
+                  </div>
+                  <div className={styles.responseActions}>
+                    <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>
+                    {thread.length > 1 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>View conversation</Button>}
+                  </div>
+                </div>
+                <blockquote>{latestAttempt.clientReply}</blockquote>
+                {(latestAttempt.requestTitle || latestAttempt.coachingHint) && (
+                  <div className={styles.responseGuidance}>
+                    <strong>{latestAttempt.requestTitle ?? 'Recommended next step'}</strong>
+                    <span>{latestAttempt.requestSummary ?? latestAttempt.coachingHint}</span>
+                  </div>
+                )}
+              </section>
+            )}
+
             {documentRequired && brief?.outcome !== 'FOLLOW_UP_REQUIRED' && (
               <CapabilityBriefEditor
                 engagementId={engagementId!}
@@ -419,14 +441,14 @@ export default function OutreachWorkspacePage() {
                 <div><dt>Priority signal</dt><dd>{intelligence?.painSeverity?.value ?? 'Use evidence to uncover the priority'}</dd></div>
               </dl>
             </Tile>
-            <Tile className={styles.latestReply}>
-              <div className={styles.replyHeading}>
-                <div><p className={styles.eyebrow}>Latest client signal</p><h2>{latestAttempt?.clientReply ? 'Client response' : 'What to use'}</h2></div>
-                {latestAttempt && <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>}
-              </div>
-              {latestAttempt?.clientReply ? <p className={styles.clientReply}>{latestAttempt.clientReply}</p> : leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
-              {thread.length > 0 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>View full thread</Button>}
-            </Tile>
+            {!latestAttempt?.clientReply && (
+              <Tile className={styles.latestReply}>
+                <div className={styles.replyHeading}>
+                  <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
+                </div>
+                {leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
+              </Tile>
+            )}
 
             <Tile className={styles.checklistPanel}>
               <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
