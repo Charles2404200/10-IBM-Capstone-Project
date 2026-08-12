@@ -5,9 +5,11 @@ import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
 import com.ibm.consulting.sim.identity.infrastructure.SecurityConfig;
 import com.ibm.consulting.sim.scenario.application.CreateScenarioRequest;
+import com.ibm.consulting.sim.scenario.application.LeadAuthoringRequest;
 import com.ibm.consulting.sim.scenario.application.ScenarioCatalogResponse;
 import com.ibm.consulting.sim.scenario.application.ScenarioService;
 import com.ibm.consulting.sim.scenario.application.ScenarioSummary;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -89,5 +91,25 @@ class AdminScenarioControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2023))
                 .andExpect(jsonPath("$.size").value(12));
+    }
+
+    @Test
+    @WithMockUser(roles = "SCENARIO_AUTHOR")
+    void invalidLeadAuthoringInputReturnsAnActionableClientError() throws Exception {
+        UUID scenarioId = UUID.randomUUID();
+        LeadAuthoringRequest leadRequest = new LeadAuthoringRequest(
+                "HarborGrid Utilities", "Utilities", "A realistic long-form lead description.",
+                LeadDifficulty.HARD, "$300K-$600K", "Elena Torres, VP Network Operations",
+                "Legacy SCADA platform", "Pilot funding under review", "High",
+                List.of(new LeadAuthoringRequest.Signal("Manual coordination remains significant", "Operating indicator")));
+
+        when(scenarioService.createLead(org.mockito.ArgumentMatchers.eq(scenarioId), org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new IllegalArgumentException("Signal category is required"));
+
+        mockMvc.perform(post("/api/v1/admin/scenarios/{scenarioId}/leads", scenarioId)
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(leadRequest)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.detail").value("Signal category is required"));
     }
 }
