@@ -138,7 +138,7 @@ WITH catalogue AS (
         (16, 'trial acceleration portfolio', 'protocol timelines are at risk'), (17, 'claims transformation programme', 'cycle time and leakage are under review'), (18, 'production stability initiative', 'availability loss is reducing output'), (19, 'service recovery plan', 'repair completion times are escalating'), (20, 'margin protection programme', 'forecast error is eroding margin')
     ) AS vertical(number, trigger, pain_signal)
 ), numbered AS (
-    SELECT vertical.*, series.n, row_number() OVER (ORDER BY vertical.number, series.n) AS catalogue_number
+    SELECT catalogue.*, series.n, row_number() OVER (ORDER BY catalogue.number, series.n) AS catalogue_number
     FROM catalogue CROSS JOIN generate_series(1, 100) AS series(n)
 )
 INSERT INTO lead_signals (id, lead_id, label, category)
