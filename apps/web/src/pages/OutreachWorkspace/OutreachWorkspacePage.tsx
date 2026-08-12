@@ -12,7 +12,7 @@ import {
   Tile,
 } from '@carbon/react'
 import { ArrowRight, CheckmarkFilled, Document, Send, Email, Light, Link as LinkIcon } from '@carbon/icons-react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
@@ -149,7 +149,7 @@ function CapabilityBriefEditor({
 }) {
   const submitBrief = useSubmitCapabilityBrief(engagementId)
   const [activeSection, setActiveSection] = useState<keyof BriefFormValues>('relevantExperience')
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<BriefFormValues>({
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<BriefFormValues>({
     resolver: zodResolver(briefSchema),
     defaultValues: brief ?? undefined,
   })
@@ -220,6 +220,11 @@ function CapabilityBriefEditor({
                 <h3>{active.label}</h3>
                 <p>{active.guidance}</p>
               </div>
+          <Controller
+            key={active.key}
+            name={active.key}
+            control={control}
+            render={({ field }) => (
               <TextArea
                 id={active.key}
                 labelText={active.label}
@@ -228,8 +233,13 @@ function CapabilityBriefEditor({
                 placeholder="Write a concise, client-specific section..."
                 invalid={Boolean(errors[active.key])}
                 invalidText={errors[active.key]?.message}
-                {...register(active.key)}
+                name={field.name}
+                value={field.value ?? ''}
+                onBlur={field.onBlur}
+                onChange={(event) => field.onChange(event.target.value)}
               />
+            )}
+          />
               <small>{activeValue.trim().length} / 80 characters minimum</small>
             </div>
           </div>
