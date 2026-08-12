@@ -67,10 +67,11 @@ export interface PlatformOverview {
   totalEngagements: number
   activeEngagements: number
   completedEngagements: number
-  completionRatePercent: number
-  averageAssessmentScore: number | null
-  engagementsByState: Record<string, number>
-  scenarios: ScenarioActivity[]
+    completionRatePercent: number
+    averageAssessmentScore: number | null
+    engagementsByState: Record<string, number>
+    scenariosByStatus: Record<string, number>
+    scenarios: ScenarioActivity[]
 }
 
 export interface GameplayDifficultyProfile {

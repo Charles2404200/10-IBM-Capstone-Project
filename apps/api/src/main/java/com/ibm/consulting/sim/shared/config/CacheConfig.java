@@ -58,6 +58,8 @@ public class CacheConfig {
     /** Short-lived per-learner read models used on the Command Centre. */
     public static final String ENGAGEMENT_DASHBOARD_CACHE = "engagementDashboard";
     public static final String PORTFOLIO_SUMMARY_CACHE = "portfolioSummary";
+    /** Short-lived, cross-user read model backing the administrative cockpit. */
+    public static final String ADMIN_PLATFORM_OVERVIEW_CACHE = "adminPlatformOverview";
 
     @Bean
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
@@ -74,7 +76,8 @@ public class CacheConfig {
                 localCache(PERSONA_CACHE, Duration.ofMinutes(30)),
                 localCache(CLIENT_INTELLIGENCE_CACHE, Duration.ofMinutes(10)),
                 localCache(ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30)),
-                localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60))));
+                localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60)),
+                localCache(ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20))));
         manager.initializeCaches();
         return manager;
     }
@@ -99,7 +102,8 @@ public class CacheConfig {
         Map<String, Duration> ttlOverrides = Map.of(
                 PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds),
                 ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30),
-                PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60));
+                PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60),
+                ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20));
         return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
     }
 }

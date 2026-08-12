@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
+import { adminPlatformKeys } from '@/api/hooks/useAdminPlatformOverview'
 import type {
   CreatePersonaRequest,
   CreateScenarioRequest,
@@ -95,6 +96,7 @@ export function useUpdateGameplayDifficulty(scenarioId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
       queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+      queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
     },
   })
 }
@@ -114,13 +116,16 @@ export function useUploadKnowledgeDocument(scenarioId: string) {
 }
 
 /** All scenarios regardless of status (DRAFT/ACTIVE/ARCHIVED) for the admin builder. */
-export function useAllScenariosForAdmin() {
+export function useAllScenariosForAdmin(enabled = true) {
   return useQuery({
     queryKey: adminScenarioKeys.all,
     queryFn: async () => {
       const res = await apiClient.get<ScenarioSummary[]>('/api/v1/admin/scenarios')
       return res.data
     },
+    enabled,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -131,6 +136,8 @@ export function useScenarioAuthoring(scenarioId: string) {
       const res = await apiClient.get<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/authoring`)
       return res.data
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     enabled: Boolean(scenarioId),
   })
 }
@@ -141,6 +148,7 @@ function invalidateScenarioAuthoring(queryClient: ReturnType<typeof useQueryClie
   queryClient.invalidateQueries({ queryKey: ['scenarios'] })
   queryClient.invalidateQueries({ queryKey: ['leads', scenarioId] })
   queryClient.invalidateQueries({ queryKey: [...adminScenarioKeys.all, scenarioId, 'leads'] })
+  queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
 }
 
 export function useUpdateScenarioBlueprint(scenarioId: string) {
@@ -172,7 +180,10 @@ export function useCreateScenarioRevision(scenarioId: string) {
       const res = await apiClient.post<ScenarioAuthoringView>(`/api/v1/admin/scenarios/${scenarioId}/revisions`)
       return res.data
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminScenarioKeys.all })
+      queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
+    },
   })
 }
 

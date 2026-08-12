@@ -14,6 +14,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_PLATFORM_OVERVIEW_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ENGAGEMENT_DASHBOARD_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.PORTFOLIO_SUMMARY_CACHE;
+
 @Repository
 interface SpringDataEngagementRepository extends JpaRepository<Engagement, UUID> {
     List<Engagement> findByUserId(UUID userId);
@@ -57,8 +61,9 @@ class JpaEngagementRepository implements EngagementRepository {
 
     private void evictLearnerReadModelsAfterCommit(UUID userId) {
         Runnable eviction = () -> {
-            cacheManager.getCache("engagementDashboard").evict(userId);
-            cacheManager.getCache("portfolioSummary").evict(userId);
+            cacheManager.getCache(ENGAGEMENT_DASHBOARD_CACHE).evict(userId);
+            cacheManager.getCache(PORTFOLIO_SUMMARY_CACHE).evict(userId);
+            cacheManager.getCache(ADMIN_PLATFORM_OVERVIEW_CACHE).evict("global");
         };
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             eviction.run();
