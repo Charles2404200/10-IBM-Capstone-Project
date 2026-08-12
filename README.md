@@ -32,7 +32,7 @@ cp .env.example .env
 docker compose up -d
 # API:     http://localhost:8080
 # Swagger: http://localhost:8080/swagger-ui.html
-# Health:  http://localhost:8080/actuator/health
+# Health:  http://localhost:8080/actuator/health/liveness
 ```
 This builds a multi-stage, layered Docker image for the Spring Boot API
 (see `apps/api/Dockerfile`) and starts it with all required environment

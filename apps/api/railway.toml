@@ -4,9 +4,10 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 # Railway injects $PORT; Spring binds to it via server.port=${PORT:8080} in application.yml.
-# healthcheckPath must return 2xx — Spring Actuator /actuator/health does so once the app
-# is fully started, providing a meaningful readiness signal rather than just TCP-reachability.
-healthcheckPath = "/actuator/health"
+# Railway needs to know whether this container is alive. Dependency readiness
+# remains visible at /actuator/health/readiness, but must not create a restart
+# loop when a database or optional cache has a transient outage.
+healthcheckPath = "/actuator/health/liveness"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
