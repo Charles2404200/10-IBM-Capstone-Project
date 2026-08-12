@@ -114,6 +114,14 @@ export interface ScenarioSummary {
   briefing: ScenarioBriefing
 }
 
+export interface ScenarioCatalogPage {
+  items: ScenarioSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
+}
+
 // ─── Lead ─────────────────────────────────────────────────────────────────────
 
 export interface LeadSignal {

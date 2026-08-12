@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.scenario.application;
 
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogQuery;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
@@ -24,6 +25,8 @@ import java.util.LinkedHashMap;
 
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIOS_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CATALOG_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CATALOG_FACETS_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEADS_BY_SCENARIO_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_FACETS_CACHE;
@@ -53,6 +56,19 @@ public class ScenarioService {
         return scenarioRepository.findAllActive().stream()
                 .map(this::summary)
                 .toList();
+    }
+
+    /** Bounded learner catalogue query that never loads every scenario into a dashboard request. */
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = SCENARIO_CATALOG_CACHE, key = "#query.cacheKey()")
+    public ScenarioCatalogResponse listCatalog(ScenarioCatalogQuery query) {
+        return ScenarioCatalogResponse.from(scenarioRepository.findCatalog(query), this::summary);
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, key = "'industries'")
+    public List<String> listCatalogIndustries() {
+        return scenarioRepository.findCatalogIndustries();
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +112,8 @@ public class ScenarioService {
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
     })
@@ -113,7 +131,9 @@ public class ScenarioService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
     })
     public ScenarioSummary archive(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
@@ -134,6 +154,8 @@ public class ScenarioService {
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = LEAD_CATALOG_FACETS_CACHE, allEntries = true)
     })
@@ -151,7 +173,11 @@ public class ScenarioService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
+    })
     public ScenarioAuthoringView updateBlueprint(UUID scenarioId, UpdateScenarioBlueprintRequest request) {
         Scenario scenario = findScenario(scenarioId);
         scenario.updateMetadata(request.title(), request.industry(), request.description(), request.difficulty());
@@ -162,7 +188,11 @@ public class ScenarioService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = SCENARIO_CACHE, key = "#scenarioId"),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
+    })
     public ScenarioAuthoringView updateAuthoringConfig(UUID scenarioId, ScenarioAuthoringConfig config) {
         Scenario scenario = findScenario(scenarioId);
         authoringConfigService.update(scenario, config);
@@ -174,7 +204,9 @@ public class ScenarioService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(cacheNames = SCENARIOS_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = SCENARIO_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = SCENARIO_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView createRevision(UUID scenarioId) {
         Scenario source = findScenario(scenarioId);

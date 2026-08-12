@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.scenario.domain;
 import com.ibm.consulting.sim.shared.domain.BaseEntity;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -77,6 +78,7 @@ public class Scenario extends BaseEntity {
     private String rubricWeightsEncoded;
 
     @OneToMany(mappedBy = "scenario", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 24)
     private List<Persona> personas = new ArrayList<>();
 
     protected Scenario() {}
