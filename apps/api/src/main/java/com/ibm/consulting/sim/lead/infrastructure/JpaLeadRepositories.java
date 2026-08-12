@@ -16,8 +16,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 interface SpringDataLeadRepository extends JpaRepository<Lead, UUID> {
@@ -61,6 +63,7 @@ class JpaLeadRepository implements LeadRepository {
     }
     @Override public List<String> findCatalogIndustries() { return repo.findDistinctIndustries(ScenarioStatus.ACTIVE); }
     @Override public Optional<Lead> findById(UUID id) { return repo.findById(id); }
+    @Override public List<Lead> findByIdIn(List<UUID> ids) { return ids.isEmpty() ? List.of() : repo.findAllById(ids); }
     @Override public Lead save(Lead lead) { return repo.save(lead); }
     @Override public void delete(Lead lead) { repo.delete(lead); }
 }
@@ -70,6 +73,10 @@ interface SpringDataResearchRepo extends JpaRepository<ResearchEvidence, UUID> {
     List<ResearchEvidence> findByEngagementId(UUID engagementId);
     long countByEngagementId(UUID engagementId);
     List<ResearchEvidence> findByIdInAndEngagementId(List<UUID> ids, UUID engagementId);
+
+    @Query("select evidence.engagementId, count(evidence) from ResearchEvidence evidence " +
+            "where evidence.engagementId in :engagementIds group by evidence.engagementId")
+    List<Object[]> countGroupedByEngagementId(@Param("engagementIds") List<UUID> engagementIds);
 }
 
 @Repository
@@ -86,5 +93,10 @@ class JpaResearchEvidenceRepository implements ResearchEvidenceRepository {
     }
     @Override public List<ResearchEvidence> findByIdInAndEngagementId(List<UUID> ids, UUID engagementId) {
         return repo.findByIdInAndEngagementId(ids, engagementId);
+    }
+    @Override public Map<UUID, Long> countByEngagementIds(List<UUID> engagementIds) {
+        if (engagementIds.isEmpty()) return Map.of();
+        return repo.countGroupedByEngagementId(engagementIds).stream()
+                .collect(Collectors.toMap(row -> (UUID) row[0], row -> (Long) row[1]));
     }
 }

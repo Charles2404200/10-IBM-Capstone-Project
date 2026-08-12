@@ -13,6 +13,7 @@ export interface LeadCatalogFilters {
 }
 
 const LEAD_CATALOG_STALE_TIME = 60_000
+const LEADS_BY_SCENARIO_STALE_TIME = 10 * 60_000
 
 async function fetchLeadCatalog(filters: LeadCatalogFilters) {
   const res = await apiClient.get<LeadCatalogPage>('/api/v1/lead-catalog', { params: filters })
@@ -57,6 +58,8 @@ export function useLeads(scenarioId: string) {
       return res.data
     },
     enabled: Boolean(scenarioId),
+    staleTime: LEADS_BY_SCENARIO_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }
 

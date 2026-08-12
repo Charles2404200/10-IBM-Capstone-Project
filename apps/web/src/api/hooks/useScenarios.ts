@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import apiClient from '@/api/client'
 import type { ScenarioCatalogPage, ScenarioSummary } from '@/api/types'
 
+const SCENARIO_STALE_TIME = 10 * 60_000
+
 export interface ScenarioCatalogFilters {
   search?: string
   industry?: string
@@ -65,5 +67,7 @@ export function useScenario(id: string) {
       return res.data
     },
     enabled: Boolean(id),
+    staleTime: SCENARIO_STALE_TIME,
+    refetchOnWindowFocus: false,
   })
 }

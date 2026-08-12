@@ -394,10 +394,10 @@ export default function CommandCentrePage() {
   const activeCount = activeEngagements.length
   const successfulOutcomes = portfolio?.contractsWon ?? 0
 
-  const beginEngagement = (scenarioId: string, personaId?: string) => {
+  const beginEngagement = (scenario: ScenarioSummary, personaId?: string) => {
     startEngagement.mutate(
-      { scenarioId, personaId },
-      { onSuccess: (engagement) => navigate(`/dashboard/engagements/${engagement.id}/leads`) },
+      { scenarioId: scenario.id, personaId, scenario },
+      { onSuccess: ({ engagement }) => navigate(`/dashboard/engagements/${engagement.id}/leads`) },
     )
   }
 
@@ -414,12 +414,12 @@ export default function CommandCentrePage() {
       setPersonaPickerScenario(scenario)
       return
     }
-    beginEngagement(scenario.id)
+    beginEngagement(scenario)
   }
 
   const confirmPersonaSelection = () => {
     if (!personaPickerScenario) return
-    beginEngagement(personaPickerScenario.id, selectedPersonaId)
+    beginEngagement(personaPickerScenario, selectedPersonaId)
     setPersonaPickerScenario(null)
   }
 

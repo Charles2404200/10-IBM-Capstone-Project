@@ -54,6 +54,7 @@ class JpaScenarioRepository implements ScenarioRepository {
         return repo.findByScenarioLineageIdAndStatus(lineageId, status);
     }
     @Override public Optional<Scenario> findById(UUID id) { return repo.findById(id); }
+    @Override public List<Scenario> findByIdIn(List<UUID> ids) { return ids.isEmpty() ? List.of() : repo.findAllById(ids); }
     @Override public Scenario save(Scenario scenario) { return repo.save(scenario); }
 
     private Specification<Scenario> catalogueSpecification(ScenarioCatalogQuery query) {

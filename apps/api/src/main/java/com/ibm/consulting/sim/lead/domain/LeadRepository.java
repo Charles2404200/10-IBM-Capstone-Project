@@ -9,6 +9,7 @@ public interface LeadRepository {
     LeadCatalogPage findCatalog(LeadCatalogQuery query);
     List<String> findCatalogIndustries();
     Optional<Lead> findById(UUID id);
+    List<Lead> findByIdIn(List<UUID> ids);
     Lead save(Lead lead);
     void delete(Lead lead);
 }
