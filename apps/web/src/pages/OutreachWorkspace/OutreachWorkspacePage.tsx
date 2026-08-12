@@ -11,7 +11,7 @@ import {
   TextInput,
   Tile,
 } from '@carbon/react'
-import { ArrowRight, CheckmarkFilled, Document, Send, Email, UserAvatar, Light, Link as LinkIcon } from '@carbon/icons-react'
+import { ArrowRight, CheckmarkFilled, Document, Send, Email, Light, Link as LinkIcon } from '@carbon/icons-react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -408,19 +408,15 @@ export default function OutreachWorkspacePage() {
         </section>
 
         <aside className={styles.decisionRail}>
-            <Tile className={styles.clientOverview}>
-              <div className={styles.overviewHeading}><h3>Client overview</h3><UserAvatar size={20} /></div>
-              <div className={styles.clientIdentity}>
-                <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
-                <div><strong>{intelligence?.companyName ?? 'Client organisation'}</strong><div><Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></div></div>
-              </div>
-              <dl className={styles.clientDetails}>
-                <div><dt>Key stakeholder</dt><dd>{rubricContext.personaName ?? 'Continue research to identify'}</dd></div>
-                <div><dt>Priority signal</dt><dd>{intelligence?.painSeverity?.value ?? 'Use evidence to uncover the priority'}</dd></div>
-              </dl>
-            </Tile>
             {latestAttempt?.clientReply ? (
               <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
+                <div className={styles.responseClientIdentity}>
+                  <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
+                  <div>
+                    <strong>{intelligence?.companyName ?? 'Client organisation'}</strong>
+                    <span>{rubricContext.personaName ?? 'Client stakeholder'} <Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></span>
+                  </div>
+                </div>
                 <div className={styles.clientResponseHeading}>
                   <div>
                     <p className={styles.eyebrow}>Latest client response</p>
@@ -440,7 +436,7 @@ export default function OutreachWorkspacePage() {
                 )}
               </section>
             ) : (
-              <Tile className={styles.latestReply}>
+              <Tile className={`${styles.clientOverview} ${styles.latestReply}`}>
                 <div className={styles.replyHeading}>
                   <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
                 </div>
