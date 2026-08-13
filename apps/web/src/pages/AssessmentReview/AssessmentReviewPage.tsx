@@ -95,7 +95,10 @@ export default function AssessmentReviewPage() {
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>
                   {result.strengths.map((s, i) => (
-                    <p key={i} style={{ color: '#24a148' }}>✓ {s}</p>
+                    <p key={i} style={{ color: '#161616' }}>
+                      <span style={{ color: '#24a148' }} aria-hidden="true">✓ </span>
+                      {s}
+                    </p>
                   ))}
                   {result.strengths.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
@@ -106,7 +109,10 @@ export default function AssessmentReviewPage() {
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
                   {result.improvementAreas.map((s, i) => (
-                    <p key={i} style={{ color: '#f1c21b' }}>△ {s}</p>
+                    <p key={i} style={{ color: '#161616' }}>
+                      <span style={{ color: '#b28600' }} aria-hidden="true">△ </span>
+                      {s}
+                    </p>
                   ))}
                   {result.improvementAreas.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>

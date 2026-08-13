@@ -438,3 +438,11 @@
   font-weight: 600;
   box-shadow: inset 3px 0 0 #0f62fe;
 }
+
+/* Where the engagement has actually reached, when the learner has walked back
+   to an earlier page. Blue fills the step you are looking at; this outlines the
+   step you are up to, so both questions are answerable at a glance. */
+.stepDotUpTo {
+  border-color: #0f62fe;
+  box-shadow: inset 0 0 0 2px #ffffff;
+}

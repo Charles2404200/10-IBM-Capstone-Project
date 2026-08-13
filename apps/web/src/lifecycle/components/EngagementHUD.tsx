@@ -17,7 +17,14 @@ import { useEngagement, useMyEngagements } from '@/api/hooks/useEngagements'
 import { usePersonaState } from '@/api/hooks/useMeeting'
 import type { EngagementPhase, PersonaState } from '@/api/types'
 import { selectActiveEngagement } from '../activeEngagement'
-import { PHASE_COUNT, PHASE_LABEL, PHASE_ORDER, phaseIndex } from '../phases'
+import {
+  isEngagementRoute,
+  PHASE_COUNT,
+  PHASE_LABEL,
+  PHASE_ORDER,
+  phaseFromPath,
+  phaseIndex,
+} from '../phases'
 import styles from '../lifecycle.module.scss'
 
 /** Matches the threshold the live meeting already uses, so the bar and the
@@ -79,19 +86,25 @@ function Meter({ label, value, delta, hint }: MeterProps) {
 }
 
 interface StepperProps {
-  currentPhase: EngagementPhase | null
+  /** The phase whose page is on screen — this is what turns blue. */
+  viewingPhase: EngagementPhase | null
+  /** How far the engagement itself has got — this is what turns green. */
+  reachedPhase: EngagementPhase | null
   onJump: (phase: EngagementPhase) => void
   canJump: (phase: EngagementPhase) => boolean
 }
 
-function Stepper({ currentPhase, onJump, canJump }: StepperProps) {
-  const currentIndex = currentPhase ? phaseIndex(currentPhase) : -1
+function Stepper({ viewingPhase, reachedPhase, onJump, canJump }: StepperProps) {
+  const viewingIndex = viewingPhase ? phaseIndex(viewingPhase) : -1
+  const reachedIndex = reachedPhase ? phaseIndex(reachedPhase) : -1
 
   return (
     <ol className={styles.stepper} aria-label="Engagement progress">
       {PHASE_ORDER.map((phase, index) => {
-        const done = currentIndex > index
-        const current = currentIndex === index
+        const done = reachedIndex > index
+        const current = viewingIndex === index
+        // Where the engagement is up to, when that is not the page on screen.
+        const upTo = reachedIndex === index && viewingIndex !== index
         const actionable = canJump(phase)
         return (
           <li key={phase} className={styles.step}>
@@ -108,17 +121,19 @@ function Stepper({ currentPhase, onJump, canJump }: StepperProps) {
               disabled={!actionable}
               aria-current={current ? 'step' : undefined}
               title={
-                done
-                  ? `${PHASE_LABEL[phase]} — completed`
-                  : current
-                    ? `${PHASE_LABEL[phase]} — you are here`
-                    : `${PHASE_LABEL[phase]} — not unlocked yet`
+                current
+                  ? `${PHASE_LABEL[phase]} — the page you are on`
+                  : upTo
+                    ? `${PHASE_LABEL[phase]} — where this engagement is up to`
+                    : done
+                      ? `${PHASE_LABEL[phase]} — completed`
+                      : `${PHASE_LABEL[phase]} — not unlocked yet`
               }
             >
               <span
                 className={`${styles.stepDot} ${done ? styles.stepDotDone : ''} ${
                   current ? styles.stepDotCurrent : ''
-                }`}
+                } ${upTo ? styles.stepDotUpTo : ''}`}
                 aria-hidden="true"
               />
               <span
@@ -170,12 +185,18 @@ export default function EngagementHUD() {
     if (personaState) previousRef.current = personaState
   }, [personaState])
 
-  const currentPhase = engagement?.phase ?? null
-  const currentIndex = currentPhase ? phaseIndex(currentPhase) : -1
-  const stepNumber = currentIndex + 1
+  // The bar belongs to an engagement. On the Command Centre and the Portfolio
+  // there is no single engagement in view, and a progress bar there was noise.
+  const onEngagement = isEngagementRoute(location.pathname)
+
+  const reachedPhase = engagement?.phase ?? null
+  const viewingPhase = phaseFromPath(location.pathname) ?? reachedPhase
+  const reachedIndex = reachedPhase ? phaseIndex(reachedPhase) : -1
+  const viewingIndex = viewingPhase ? phaseIndex(viewingPhase) : -1
+  const stepNumber = viewingIndex + 1
 
   const canJump = (phase: EngagementPhase) =>
-    Boolean(engagement) && phaseIndex(phase) <= currentIndex
+    Boolean(engagement) && phaseIndex(phase) <= reachedIndex
 
   const jump = (phase: EngagementPhase) => {
     if (!engagement) return
@@ -199,6 +220,8 @@ export default function EngagementHUD() {
 
   const notMetYet = 'Not measured yet — the client has to meet you first.'
 
+  if (!onEngagement) return null
+
   return (
     <div className={styles.hud}>
       {/* Compact summary: the only thing shown on a phone until expanded. */}
@@ -210,10 +233,10 @@ export default function EngagementHUD() {
         aria-controls="engagement-hud-detail"
       >
         <span className={styles.hudStep}>
-          {currentPhase ? `${stepNumber}/${PHASE_COUNT}` : '—'}
+          {viewingPhase ? `${stepNumber}/${PHASE_COUNT}` : '—'}
         </span>
         <span className={styles.hudStepName}>
-          {currentPhase ? PHASE_LABEL[currentPhase] : 'No engagement running'}
+          {viewingPhase ? PHASE_LABEL[viewingPhase] : 'No engagement running'}
         </span>
         <span className={styles.hudDots} aria-hidden="true">
           {(['trust', 'interest', 'patience'] as const).map((key) => (
@@ -235,7 +258,12 @@ export default function EngagementHUD() {
         data-open={expanded ? 'true' : 'false'}
       >
         <div className={`${styles.hudGroup} ${styles.hudGrow}`}>
-          <Stepper currentPhase={currentPhase} onJump={jump} canJump={canJump} />
+          <Stepper
+            viewingPhase={viewingPhase}
+            reachedPhase={reachedPhase}
+            onJump={jump}
+            canJump={canJump}
+          />
         </div>
 
         <div className={styles.hudGroup}>

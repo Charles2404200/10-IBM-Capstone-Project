@@ -327,7 +327,12 @@ function ScenarioBriefingModal({
   )
 }
 
+/** How many scenario cards to render at once. Enough to browse, few enough to
+ *  keep the page a fixed height regardless of how big the catalogue gets. */
+const SCENARIO_PAGE_SIZE = 6
+
 export default function CommandCentrePage() {
+  const [scenarioQuery, setScenarioQuery] = useState('')
   const { displayName } = useAuthStore()
   const navigate = useNavigate()
   const { data: engagements, isLoading: engLoading, isError: engError } = useMyEngagements()
@@ -390,6 +395,23 @@ export default function CommandCentrePage() {
       { onSuccess: (engagement) => navigate(`/dashboard/engagements/${engagement.id}/leads`) },
     )
   }
+
+  // The catalogue is unbounded — the shared dev backend currently holds over
+  // two thousand scenarios, and rendering them all made this page 180,000px
+  // tall. A picker shows a handful and lets you search for the rest.
+  const matchingScenarios = useMemo(() => {
+    const query = scenarioQuery.trim().toLowerCase()
+    const all = scenarios ?? []
+    if (!query) return all
+    return all.filter(
+      (scenario) =>
+        scenario.title.toLowerCase().includes(query) ||
+        scenario.industry.toLowerCase().includes(query)
+    )
+  }, [scenarios, scenarioQuery])
+
+  const visibleScenarios = matchingScenarios.slice(0, SCENARIO_PAGE_SIZE)
+  const hiddenScenarioCount = matchingScenarios.length - visibleScenarios.length
 
   const handleStart = (scenario: ScenarioSummary) => {
     setBriefingScenario(scenario)
@@ -564,8 +586,18 @@ export default function CommandCentrePage() {
               <p>Start a fresh run when you are ready to practise another situation.</p>
             </div>
           </div>
+          <div className={styles.scenarioSearch}>
+            <TextInput
+              id="scenario-search"
+              labelText="Search scenarios"
+              hideLabel
+              placeholder={`Search ${(scenarios ?? []).length} scenarios by name or industry`}
+              value={scenarioQuery}
+              onChange={(event) => setScenarioQuery(event.target.value)}
+            />
+          </div>
           <div className={styles.scenarioGrid}>
-            {(scenarios ?? []).map((scenario) => (
+            {visibleScenarios.map((scenario) => (
               <ScenarioCard
                 key={scenario.id}
                 scenario={scenario}
@@ -574,6 +606,15 @@ export default function CommandCentrePage() {
               />
             ))}
           </div>
+          {hiddenScenarioCount > 0 && (
+            <p className={styles.scenarioMore}>
+              Showing {visibleScenarios.length} of {matchingScenarios.length} matching scenarios.
+              Search to narrow it down.
+            </p>
+          )}
+          {matchingScenarios.length === 0 && (scenarios ?? []).length > 0 && (
+            <p className={styles.scenarioMore}>No scenario matches “{scenarioQuery}”.</p>
+          )}
         </section>
 
         {completedHistory.length > 0 && scenarios?.[0] && (
