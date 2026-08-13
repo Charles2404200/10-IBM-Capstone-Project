@@ -2,7 +2,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
   Column,
-  Heading,
   Stack,
   Button,
   Tag,
@@ -17,6 +16,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { LeadSummary } from '@/api/types'
 import { PHASE_LABEL } from '@/lifecycle/phases'
+import PageHeader from '@/lifecycle/components/PageHeader'
 
 const DIFFICULTY_TYPE = { EASY: 'green', MEDIUM: 'magenta', HARD: 'red' } as const
 
@@ -94,14 +94,15 @@ export default function LeadPipelinePage() {
   }
 
   return (
-    <Grid fullWidth style={{ padding: '2rem' }}>
+    <>
+    <PageHeader
+      phase="LEAD"
+      description="Review available leads. Signals are visible — hidden details emerge through research."
+    />
+    <Grid fullWidth style={{ padding: '1rem 2rem 2rem' }}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
           <div>
-            <Heading>{PHASE_LABEL.LEAD}</Heading>
-            <p style={{ color: '#525252', marginTop: '0.5rem' }}>
-              Review available leads. Signals are visible — hidden details emerge through research.
-            </p>
           </div>
 
           {scenario && (
@@ -177,5 +178,6 @@ export default function LeadPipelinePage() {
         </Stack>
       </Column>
     </Grid>
+    </>
   )
 }

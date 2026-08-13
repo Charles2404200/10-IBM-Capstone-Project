@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
   Column,
-  Heading,
   Button,
   Tile,
   TextInput,
@@ -26,7 +25,7 @@ import {
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
-import { PHASE_LABEL } from '@/lifecycle/phases'
+import PageHeader from '@/lifecycle/components/PageHeader'
 
 interface DraftListItem {
   id: string
@@ -205,24 +204,18 @@ export default function MeetingPreparationPage() {
 
   return (
     <div className={styles.page}>
-      <Grid fullWidth className={styles.headerGrid}>
-        <Column lg={16} md={8} sm={4}>
-          <div className={styles.pageHeader}>
-            <div>
-              <Heading>{PHASE_LABEL.MEETING_PREPARATION}</Heading>
-              <p>Define the meeting plan before the live client conversation.</p>
-            </div>
-            <div className={styles.headerActions}>
+      <PageHeader
+        phase="MEETING_PREPARATION"
+        description="Define the meeting plan before the live client conversation."
+        actions={<>
               <Button kind="secondary" disabled={updatePreparation.isPending} onClick={handleSave}>
                 {updatePreparation.isPending ? 'Saving...' : 'Save Preparation'}
               </Button>
               <Button renderIcon={ArrowRight} disabled={!ready || startMeeting.isPending} onClick={handleStartMeeting}>
                 {startMeeting.isPending ? 'Starting...' : 'Start Meeting'}
               </Button>
-            </div>
-          </div>
-        </Column>
-      </Grid>
+            </>}
+      />
 
       <Grid fullWidth className={styles.workspaceGrid}>
         <Column lg={5} md={8} sm={4} className={styles.planColumn}>

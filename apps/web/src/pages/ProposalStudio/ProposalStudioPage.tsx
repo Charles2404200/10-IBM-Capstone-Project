@@ -1,4 +1,4 @@
-import { Button, Heading, InlineLoading, InlineNotification, NumberInput, Select, SelectItem, Stack, Tag, TextArea, TextInput } from '@carbon/react'
+import { Button, InlineLoading, InlineNotification, NumberInput, Select, SelectItem, Stack, Tag, TextArea, TextInput } from '@carbon/react'
 import { Add, Checkmark, Renew, Send, TrashCan, WarningAlt } from '@carbon/icons-react'
 import { useParams } from 'react-router-dom'
 import type { ProposalReview } from '@/api/types'
@@ -9,7 +9,7 @@ import { useProposalStudio } from '@/features/proposal/hooks/useProposalStudio'
 import { proposalSections } from '@/features/proposal/services/proposalDraftService'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
-import { PHASE_LABEL } from '@/lifecycle/phases'
+import PageHeader from '@/lifecycle/components/PageHeader'
 
 export default function ProposalStudioPage() {
   const { engagementId = '' } = useParams<{ engagementId: string }>()
@@ -23,18 +23,17 @@ export default function ProposalStudioPage() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>Evidence-grounded proposal</p>
-          <Heading>{PHASE_LABEL.PROPOSAL}</Heading>
-          <p className={styles.subtitle}>Turn research and discovery into a client-ready recommendation. AI reviews your thinking; it does not write the proposal for you.</p>
-        </div>
-        <div className={styles.headerActions}>
-          <SaveStatus state={studio.saveState} />
-          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending || studio.saveDraft.isPending}>Review proposal</Button>
-          <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={studio.submitProposal.isPending || studio.reviewProposal.isPending || studio.saveDraft.isPending}>Submit to client</Button>
-        </div>
-      </header>
+      <PageHeader
+        phase="PROPOSAL"
+        description="Turn research and discovery into a client-ready recommendation. AI reviews your thinking; it does not write the proposal for you."
+        actions={
+          <>
+            <SaveStatus state={studio.saveState} />
+            <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending || studio.saveDraft.isPending}>Review proposal</Button>
+            <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={studio.submitProposal.isPending || studio.reviewProposal.isPending || studio.saveDraft.isPending}>Submit to client</Button>
+          </>
+        }
+      />
 
       {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={getProblemDetail(studio.submitProposal.error ?? studio.saveDraft.error, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')} hideCloseButton />}
 

@@ -1,4 +1,4 @@
-.page { max-width: 1600px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 3rem) 2rem; }
+.page { max-width: 1600px; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 3rem) 2rem; }
 .header { display: flex; justify-content: space-between; gap: 2rem; align-items: flex-start; margin-bottom: 1.5rem; }
 .header h1 { margin: .2rem 0 .55rem; }
 .eyebrow { color: #525252; font-size: .75rem; font-weight: 600; letter-spacing: 0; margin: 0; text-transform: uppercase; }

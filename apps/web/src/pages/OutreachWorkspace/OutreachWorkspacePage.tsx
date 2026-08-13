@@ -4,7 +4,6 @@ import {
   Button,
   Column,
   Grid,
-  Heading,
   InlineNotification,
   Stack,
   Tag,
@@ -18,7 +17,6 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
 import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
-import PhaseBrief from '@/lifecycle/components/PhaseBrief'
 import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
 import { keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
 import LoadingState from '@/components/shared/LoadingState'
@@ -26,6 +24,7 @@ import type { CapabilityBrief, OutreachAttempt } from '@/api/types'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
+import PageHeader from '@/lifecycle/components/PageHeader'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -265,15 +264,9 @@ export default function OutreachWorkspacePage() {
 
   return (
     <div className={styles.page}>
-      <Grid fullWidth className={styles.headerGrid}>
-        <Column lg={16} md={8} sm={4}>
-          <Heading>{PHASE_LABEL.OUTREACH}</Heading>
-          {/* The brief explains how to do the step. Once it is done, it is just
-              91px of instructions for something already finished, in the exact
-              spot where the outcome should be. */}
-          {!meetingSecured && <PhaseBrief phase="OUTREACH" />}
-        </Column>
-      </Grid>
+      {/* The brief explains how to do the step; once it is done it is just
+          height where the outcome belongs. */}
+      <PageHeader phase="OUTREACH" brief={!meetingSecured} />
 
       <Grid fullWidth className={styles.workspaceGrid}>
         <Column lg={10} md={8} sm={4}>

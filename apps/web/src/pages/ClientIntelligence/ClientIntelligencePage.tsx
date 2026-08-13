@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
   Column,
-  Heading,
   Stack,
   Button,
   Tag,
@@ -31,7 +30,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { ConfidenceLevel, EvidenceType, IntelligenceField, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
-import { PHASE_LABEL } from '@/lifecycle/phases'
+import PageHeader from '@/lifecycle/components/PageHeader'
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -550,23 +549,13 @@ export default function ClientIntelligencePage() {
   const activePrompt = activeResearchAction?.prompt
 
   return (
+    <>
+    <PageHeader
+      phase="CLIENT_INTELLIGENCE"
+      description="Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach unlocks."
+      actions={<Tag type="blue" size="md">{nonHypothesisEvidence.length} evidence items</Tag>}
+    />
     <Grid fullWidth className={styles.page}>
-      <Column lg={16} md={8} sm={4}>
-        <div className={styles.progressBanner}>
-        </div>
-      </Column>
-
-      <Column lg={16} md={8} sm={4}>
-        <div className={styles.pageHeader}>
-          <div>
-            <Heading className={styles.heading}>{PHASE_LABEL.CLIENT_INTELLIGENCE}</Heading>
-            <p className={styles.subheading}>
-              Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach unlocks.
-            </p>
-          </div>
-          <Tag type="blue" size="md">{nonHypothesisEvidence.length} evidence items</Tag>
-        </div>
-      </Column>
 
       <Column lg={3} md={3} sm={4}>
         <aside className={styles.sideRail}>
@@ -831,5 +820,6 @@ export default function ClientIntelligencePage() {
         </aside>
       </Column>
     </Grid>
+    </>
   )
 }
