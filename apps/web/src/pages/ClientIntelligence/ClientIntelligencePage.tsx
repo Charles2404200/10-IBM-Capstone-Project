@@ -558,7 +558,7 @@ export default function ClientIntelligencePage() {
     />
     <Grid fullWidth className={`${styles.page} ${shell.fixedShellBody}`}>
 
-      <Column lg={3} md={3} sm={4} className={shell.scrollPanel}>
+      <Column lg={4} md={8} sm={4} className={shell.scrollPanel}>
         <aside className={styles.sideRail}>
           <div className={styles.researchActions}>
             <h4 className={styles.researchActionsTitle}>Research Actions</h4>
@@ -576,7 +576,15 @@ export default function ClientIntelligencePage() {
                   <span className={styles.actionButtonLabel}>{label}</span>
                   {findingCount > 0 && (
                     <span className={styles.actionButtonCount}>
-                      {findingCount} finding{findingCount > 1 ? 's' : ''}
+                      {findingCount}
+                      {/* The green check already says "done"; spelling out
+                          "findings" beside it repeated that and cost 40px the
+                          262px button did not have, which pushed the pill onto
+                          a second line on two of the four actions and left the
+                          rail ragged. The word stays for screen readers. */}
+                      <span className="cds--visually-hidden">
+                        {' '}finding{findingCount > 1 ? 's' : ''}
+                      </span>
                     </span>
                   )}
                 </button>
@@ -587,7 +595,7 @@ export default function ClientIntelligencePage() {
         </aside>
       </Column>
 
-      <Column lg={8} md={5} sm={4} className={shell.scrollPanel}>
+      <Column lg={7} md={8} sm={4} className={shell.scrollPanel}>
         <main className={styles.mainWorkspace}>
           <section className={styles.researchResultsPanel}>
             <div className={styles.panelHeader}>
@@ -600,7 +608,7 @@ export default function ClientIntelligencePage() {
             <p className={styles.panelDescription}>
               {activeResearchAction
                 ? activeResearchAction.prompt
-                : 'Choose an intelligence area from the left to start a controlled research workflow.'}
+                : 'Choose an intelligence area to start a controlled research workflow.'}
             </p>
 
             {activeResearchAction && (

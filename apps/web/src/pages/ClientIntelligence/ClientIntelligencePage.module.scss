@@ -229,6 +229,12 @@ $accent-blue-dark: #0043ce;
 .actionButton {
   display: flex;
   align-items: center;
+  /* Three lg columns left this button 180px wide, which is not enough for an
+     icon, "Stakeholder Research" and a findings pill on one line — every label
+     broke across two lines and the pill was squeezed against the edge. The
+     column is wider now, and wrapping means the pill drops to its own line
+     rather than the words being chopped if it is ever narrow again. */
+  flex-wrap: wrap;
   gap: $spacing-03;
   width: 100%;
   padding: $spacing-04;
@@ -264,7 +270,8 @@ $accent-blue-dark: #0043ce;
 }
 
 .actionButtonLabel {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .actionButtonCheck {
@@ -273,6 +280,7 @@ $accent-blue-dark: #0043ce;
 
 .actionButtonCount {
   flex-shrink: 0;
+  margin-inline-start: auto;
   font-size: 0.75rem;
   font-weight: 600;
   color: #0e6027;
@@ -280,6 +288,29 @@ $accent-blue-dark: #0043ce;
   padding: 2px $spacing-03;
   border-radius: 999px;
   white-space: nowrap;
+}
+
+/* Between Carbon's md and lg a three-column rail is only 186px wide — too
+   narrow for a 20px icon and "Stakeholder Research" on one line, so the icon
+   was pushed onto a row of its own and the four buttons came out 72/97/72/97.
+   A tablet has the width, just not in that column, so at this size the rail
+   spans the full row and the actions sit side by side instead. */
+@media (min-width: 42rem) and (max-width: 65.99rem) {
+  .researchActions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: $spacing-03;
+    align-items: start;
+  }
+
+  .researchActionsTitle {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+
+  .actionButton {
+    margin-bottom: 0;
+  }
 }
 
 .formTile {
