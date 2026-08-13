@@ -149,10 +149,10 @@
 }
 
 .hudLabel {
-  color: #a8a8a8;
+  color: #c6c6c6;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 
 .hudTitle {
@@ -192,8 +192,8 @@
   background: none;
   border: 0;
   padding: 0.25rem 0.375rem;
-  color: #6f6f6f;
-  font-size: 0.6875rem;
+  color: #a8a8a8;
+  font-size: 0.75rem;
   cursor: default;
   border-radius: 3px;
   white-space: nowrap;
@@ -289,7 +289,7 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: #c6c6c6;
 }
 
@@ -342,7 +342,7 @@
 }
 
 .briefLabel {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   color: #6f6f6f;

@@ -49,7 +49,7 @@ function LeadCard({
             </Tag>
           ))}
         </div>
-        <p style={{ color: '#a8a8a8', fontSize: '0.75rem', fontStyle: 'italic' }}>
+        <p style={{ color: '#525252', fontSize: '0.75rem', fontStyle: 'italic' }}>
           Decision maker, budget, and potential value are unknown until you research this client.
         </p>
         {isSelected && <Tag type="blue">Selected</Tag>}
