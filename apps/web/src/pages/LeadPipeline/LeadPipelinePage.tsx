@@ -17,6 +17,7 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { LeadSummary } from '@/api/types'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import PageHeader from '@/lifecycle/components/PageHeader'
+import shell from '@/lifecycle/lifecycle.module.scss'
 
 const DIFFICULTY_TYPE = { EASY: 'green', MEDIUM: 'magenta', HARD: 'red' } as const
 
@@ -99,11 +100,9 @@ export default function LeadPipelinePage() {
       phase="LEAD"
       description="Review available leads. Signals are visible — hidden details emerge through research."
     />
-    <Grid fullWidth style={{ padding: '1rem 2rem 2rem' }}>
-      <Column lg={16} md={8} sm={4}>
-        <Stack gap={7}>
-          <div>
-          </div>
+    <Grid fullWidth style={{ padding: '1rem 2rem 2rem' }} className={shell.fixedShellBody}>
+      <Column lg={16} md={8} sm={4} className={shell.fixedShellFrame}>
+        <Stack gap={7} className={shell.scrollPanel}>
 
           {scenario && (
             <Tile style={{ background: '#f4f4f4' }}>

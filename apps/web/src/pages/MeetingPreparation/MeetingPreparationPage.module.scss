@@ -110,3 +110,15 @@
   .itemsViewport { padding: $spacing-03; }
   .listHeading { padding: $spacing-04; }
 }
+
+/* Inside the fixed shell the panel heights come from the shell, not from a
+   `calc(100vh - 17rem)` guess. The guess has to assume how much chrome sits
+   above the panel; the shell already measured it. */
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .editorColumn { display: flex; flex-direction: column; min-height: 0; }
+  .collectionPanel { height: auto; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .collectionPanel > :global(.cds--tabs) { flex: 0 0 auto; }
+  .collectionPanel > div:last-child { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .tabPanel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .listWorkspace { height: auto; flex: 1 1 auto; min-height: 0; }
+}

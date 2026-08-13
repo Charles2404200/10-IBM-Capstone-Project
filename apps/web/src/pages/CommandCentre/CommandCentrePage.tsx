@@ -24,6 +24,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { CompletedEngagementView, Engagement, ScenarioSummary } from '@/api/types'
 import styles from './CommandCentrePage.module.scss'
+import shell from '@/lifecycle/lifecycle.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
 
 type EngagementStatus = 'ACTION_REQUIRED' | 'AWAITING_RESPONSE' | 'READY_FOR_REVIEW' | 'COMPLETED'
@@ -413,6 +414,13 @@ export default function CommandCentrePage() {
   const visibleScenarios = matchingScenarios.slice(0, SCENARIO_PAGE_SIZE)
   const hiddenScenarioCount = matchingScenarios.length - visibleScenarios.length
 
+  const emptyListMessage = (() => {
+    if (activeEngagements.length === 0) return 'No engagements running. Start a scenario below.'
+    if (searchTerm.trim() || statusFilter !== 'ALL') return 'No engagements match this search.'
+    if (featuredEngagement) return 'Your only active engagement is the one shown above.'
+    return 'No active engagements.'
+  })()
+
   const handleStart = (scenario: ScenarioSummary) => {
     setBriefingScenario(scenario)
   }
@@ -439,8 +447,8 @@ export default function CommandCentrePage() {
   if (engError) return <ErrorState />
 
   return (
-    <main className={styles.page}>
-      <Stack gap={7}>
+    <main className={`${styles.page} ${shell.fixedShellFrame}`}>
+      <Stack gap={7} className={shell.fixedShellFrame}>
         <header className={styles.header}>
           <div>
             <Heading>Command Centre</Heading>
@@ -484,6 +492,7 @@ export default function CommandCentrePage() {
           />
         )}
 
+        <div className={`${styles.browseBody} ${shell.fixedShellBody} ${shell.scrollPanel}`}>
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
@@ -537,7 +546,7 @@ export default function CommandCentrePage() {
             ) : (
               <div className={styles.emptyState}>
                 <Search size={20} />
-                <span>No active engagements match this view.</span>
+                <span>{emptyListMessage}</span>
               </div>
             )}
           </div>
@@ -632,6 +641,7 @@ export default function CommandCentrePage() {
             </Button>
           </section>
         )}
+        </div>
       </Stack>
 
       {briefingScenario && (

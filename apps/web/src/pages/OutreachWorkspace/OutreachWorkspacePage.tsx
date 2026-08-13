@@ -25,6 +25,7 @@ import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import PageHeader from '@/lifecycle/components/PageHeader'
+import shell from '@/lifecycle/lifecycle.module.scss'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -263,14 +264,14 @@ export default function OutreachWorkspacePage() {
   const sendEmail = (data: EmailFormValues) => sendOutreach.mutate(data, { onSuccess: () => reset() })
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${shell.fixedShellFrame}`}>
       {/* The brief explains how to do the step; once it is done it is just
           height where the outcome belongs. */}
       <PageHeader phase="OUTREACH" brief={!meetingSecured} />
 
-      <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={10} md={8} sm={4}>
-          <Stack gap={5}>
+      <Grid fullWidth className={`${styles.workspaceGrid} ${shell.fixedShellBody}`}>
+        <Column lg={10} md={8} sm={4} className={shell.fixedShellFrame}>
+          <Stack gap={5} className={shell.scrollPanel}>
             {meetingSecured && (
               <Tile className={styles.successPanel}>
                 <div>
@@ -339,8 +340,8 @@ export default function OutreachWorkspacePage() {
           </Stack>
         </Column>
 
-        <Column lg={6} md={8} sm={4}>
-          <aside className={styles.decisionRail}>
+        <Column lg={6} md={8} sm={4} className={shell.fixedShellFrame}>
+          <aside className={`${styles.decisionRail} ${shell.scrollPanel}`}>
             <Tile className={styles.latestReply}>
               <Stack gap={4}>
                 <div className={styles.replyHeading}>

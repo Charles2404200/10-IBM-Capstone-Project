@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Grid, Column, Heading, Stack, Button, Tile, Tag, ProgressBar } from '@carbon/react'
 import { useAssessment, useGenerateAssessment } from '@/api/hooks/useAssessment'
+import { useEngagement } from '@/api/hooks/useEngagements'
+import { resolveEngagementRoute } from '@/api/engagementRouting'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 
@@ -20,8 +23,22 @@ function CompetencyBar({ name, score, evidenceNote }: { name: string; score: num
   )
 }
 
+/**
+ * The backend refuses to assess an engagement that hasn't reached the end, and
+ * says so in its own vocabulary: "Assessment is not available in state:
+ * OUTREACHING". That is a correct refusal phrased as a leak — a learner is
+ * shown an internal enum, and offered a Retry button that cannot ever succeed.
+ * Detecting the refusal lets us say which step is actually outstanding and send
+ * them there instead.
+ */
+function isTooEarly(detail: string | undefined): boolean {
+  return !!detail && /not available in state/i.test(detail)
+}
+
 export default function AssessmentReviewPage() {
   const { engagementId } = useParams<{ engagementId: string }>()
+  const navigate = useNavigate()
+  const { data: engagement } = useEngagement(engagementId!)
   const { data: assessment, isLoading, isError, error } = useAssessment(engagementId!)
   const generateAssessment = useGenerateAssessment(engagementId!)
 
@@ -43,10 +60,26 @@ export default function AssessmentReviewPage() {
     return <ErrorState title="Assessment unavailable" message={problem.response?.data?.detail ?? 'The assessment could not be loaded. Retry to recover the assessment for this engagement.'} actionLabel="Retry assessment" onAction={() => generateAssessment.mutate()} />
   }
   if (generateAssessment.isError) {
+    const detail = generationError?.response?.data?.detail
+    if (isTooEarly(detail)) {
+      const step = engagement ? PHASE_LABEL[engagement.phase] : null
+      return (
+        <ErrorState
+          title="Your review isn't ready yet"
+          message={
+            step
+              ? `Your review is written once the client has decided on your proposal. You're still on "${step}".`
+              : 'Your review is written once the client has decided on your proposal.'
+          }
+          actionLabel={engagement ? `Back to ${PHASE_LABEL[engagement.phase]}` : undefined}
+          onAction={engagement ? () => navigate(resolveEngagementRoute(engagement)) : undefined}
+        />
+      )
+    }
     return (
       <ErrorState
         title="Assessment could not be generated"
-        message={generationError?.response?.data?.detail ?? 'Please retry after completing the proposal outcome.'}
+        message={detail ?? 'Please retry after completing the proposal outcome.'}
         actionLabel="Retry assessment"
         onAction={() => generateAssessment.mutate()}
       />

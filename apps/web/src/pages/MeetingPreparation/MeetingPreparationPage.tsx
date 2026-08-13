@@ -26,6 +26,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
 import PageHeader from '@/lifecycle/components/PageHeader'
+import shell from '@/lifecycle/lifecycle.module.scss'
 
 interface DraftListItem {
   id: string
@@ -203,7 +204,7 @@ export default function MeetingPreparationPage() {
   const questionCount = discoveryQuestions.filter((item) => item.value.trim()).length
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${shell.fixedShellFrame}`}>
       <PageHeader
         phase="MEETING_PREPARATION"
         description="Define the meeting plan before the live client conversation."
@@ -217,8 +218,8 @@ export default function MeetingPreparationPage() {
             </>}
       />
 
-      <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={5} md={8} sm={4} className={styles.planColumn}>
+      <Grid fullWidth className={`${styles.workspaceGrid} ${shell.fixedShellBody}`}>
+        <Column lg={5} md={8} sm={4} className={`${styles.planColumn} ${shell.scrollPanel}`}>
           <section className={styles.readinessPanel} aria-label="Meeting readiness">
             <div className={styles.readinessHeading}>
               <div>
@@ -246,7 +247,7 @@ export default function MeetingPreparationPage() {
           )}
         </Column>
 
-        <Column lg={11} md={8} sm={4} className={styles.editorColumn}>
+        <Column lg={11} md={8} sm={4} className={`${styles.editorColumn} ${shell.fixedShellFrame}`}>
           <Tile className={styles.collectionPanel}>
             <Tabs>
               <TabList aria-label="Meeting plan sections" className={styles.sectionTabs}>

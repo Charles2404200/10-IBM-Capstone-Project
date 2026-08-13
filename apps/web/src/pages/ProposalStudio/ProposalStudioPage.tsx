@@ -10,6 +10,7 @@ import { proposalSections } from '@/features/proposal/services/proposalDraftServ
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 import PageHeader from '@/lifecycle/components/PageHeader'
+import shell from '@/lifecycle/lifecycle.module.scss'
 
 export default function ProposalStudioPage() {
   const { engagementId = '' } = useParams<{ engagementId: string }>()
@@ -22,7 +23,7 @@ export default function ProposalStudioPage() {
   if (studio.submitted && studio.proposal) return <ProposalOutcomeView proposal={studio.proposal} engagementId={engagementId} />
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${shell.fixedShellFrame}`}>
       <PageHeader
         phase="PROPOSAL"
         description="Turn research and discovery into a client-ready recommendation. AI reviews your thinking; it does not write the proposal for you."
@@ -37,8 +38,8 @@ export default function ProposalStudioPage() {
 
       {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={getProblemDetail(studio.submitProposal.error ?? studio.saveDraft.error, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')} hideCloseButton />}
 
-      <div className={styles.workspace}>
-        <aside className={styles.sourcesPanel} aria-label="Grounded client sources">
+      <div className={`${styles.workspace} ${shell.fixedShellBody}`}>
+        <aside className={`${styles.sourcesPanel} ${shell.scrollPanel}`} aria-label="Grounded client sources">
           <div className={styles.panelTitle}><div><p className={styles.eyebrow}>Grounded context</p><h2>Client sources</h2></div><Tag type="blue">{studio.workspace.data?.sources.length ?? 0} available</Tag></div>
           <p className={styles.panelHint}>Attach evidence to the section you are editing. Sources remain traceable in the final proposal.</p>
           <div className={styles.sourceList}>
@@ -58,7 +59,7 @@ export default function ProposalStudioPage() {
           <nav className={styles.sectionNav} aria-label="Proposal sections">
             {proposalSections.map((section) => <button type="button" key={section.id} className={studio.activeSection === section.id ? styles.activeTab : styles.tab} onClick={() => studio.setActiveSection(section.id)}>{section.label}{studio.draft.evidenceLinks.some((link) => link.section === section.id) && <span className={styles.dot} />}</button>)}
           </nav>
-          <div className={styles.editor}>
+          <div className={`${styles.editor} ${shell.scrollPanel}`}>
             {studio.activeSection === 'PROBLEM' && <Foundation draft={studio.draft} update={studio.updateDraft} />}
             {studio.activeSection === 'OUTCOMES' && <Commercial draft={studio.draft} update={studio.updateDraft} />}
             {studio.activeSection === 'TIMELINE' && <Delivery draft={studio.draft} update={studio.updateDraft} />}
@@ -67,7 +68,7 @@ export default function ProposalStudioPage() {
           </div>
         </section>
 
-        <aside className={styles.reviewPanel} aria-label="Proposal validation and coaching">
+        <aside className={`${styles.reviewPanel} ${shell.scrollPanel}`} aria-label="Proposal validation and coaching">
           <div className={styles.panelTitle}><div><p className={styles.eyebrow}>FactGuard</p><h2>Proposal health</h2></div></div>
           <section className={styles.attachments}><span>Evidence linked</span><strong>{studio.draft.evidenceLinks.length}</strong><span>Client sources</span><strong>{studio.workspace.data?.sources.length ?? 0}</strong></section>
           <Button kind="tertiary" size="sm" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={studio.reviewProposal.isPending}>Run AI proposal review</Button>

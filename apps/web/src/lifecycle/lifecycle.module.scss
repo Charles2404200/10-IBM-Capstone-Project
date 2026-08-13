@@ -516,7 +516,13 @@
     height: 100vh;
   }
 
-  .fixedShellRoot :global(.cds--content) {
+  /* Only clip the content area on pages that have actually declared scroll
+     panels. Applying this everywhere hid 1,430px of the Command Centre behind
+     an overflow:hidden with nothing to scroll it — the same "cut off at the
+     bottom" failure this work set out to remove, recreated at a larger scale.
+     `:has()` keeps the opt-in on the page rather than in the shell, so a page
+     cannot get clipped without asking for it. */
+  .fixedShellRoot:has(.fixedShellBody) :global(.cds--content) {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -524,9 +530,36 @@
     overflow: hidden;
   }
 
+  /* The shell fits the viewport exactly, yet the document still offered ~90px
+     of scroll with nothing painted in it — a scrollbar that moves the page and
+     shows blank space. Clipping the root removes it. Scoped to the same
+     `:has()` opt-in, because on a page with no scroll panels this would hide
+     real content instead of empty space. */
+  .fixedShellRoot:has(.fixedShellBody) {
+    overflow: hidden;
+    /* `overflow: hidden` alone did not stop it. Carbon's visually-hidden labels
+       and tooltip popovers are `position: absolute`, and with no positioned
+       ancestor they resolve against the viewport instead — so they escaped the
+       clip and stretched the document by ~90px of blank scrollable space.
+       Making the shell the containing block brings them back inside it. */
+    position: relative;
+  }
+
   /* The page's own body takes the remaining height and hands scrolling to its
      panels. `min-height: 0` is what lets a flex child actually shrink — without
      it the panel grows to fit its content and pushes the page long again. */
+  /* Pages that wrap their body in an extra element — a max-width frame, a
+     <main> — need that wrapper to pass the height through. Without it the
+     wrapper sizes to its own content, so the body below it never learns how
+     tall the screen is and the panels grow instead of scrolling. */
+  .fixedShellFrame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
   .fixedShellBody {
     flex: 1 1 auto;
     min-height: 0;

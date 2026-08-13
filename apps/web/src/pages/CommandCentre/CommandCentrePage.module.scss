@@ -484,3 +484,8 @@
   max-width: 28rem;
   margin-bottom: 1rem;
 }
+
+/* The scrolling half of the Command Centre. Outside the fixed shell it is an
+   ordinary block and the whole page scrolls as before; inside it, it is the
+   only thing that scrolls. */
+.browseBody { display: grid; align-content: start; gap: 2rem; }
