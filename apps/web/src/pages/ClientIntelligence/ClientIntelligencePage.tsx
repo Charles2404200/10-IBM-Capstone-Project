@@ -31,6 +31,7 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { ConfidenceLevel, EvidenceType, IntelligenceField, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
 import PageHeader from '@/lifecycle/components/PageHeader'
+import shell from '@/lifecycle/lifecycle.module.scss'
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -555,9 +556,9 @@ export default function ClientIntelligencePage() {
       description="Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach unlocks."
       actions={<Tag type="blue" size="md">{nonHypothesisEvidence.length} evidence items</Tag>}
     />
-    <Grid fullWidth className={styles.page}>
+    <Grid fullWidth className={`${styles.page} ${shell.fixedShellBody}`}>
 
-      <Column lg={3} md={3} sm={4}>
+      <Column lg={3} md={3} sm={4} className={shell.scrollPanel}>
         <aside className={styles.sideRail}>
           <div className={styles.researchActions}>
             <h4 className={styles.researchActionsTitle}>Research Actions</h4>
@@ -586,7 +587,7 @@ export default function ClientIntelligencePage() {
         </aside>
       </Column>
 
-      <Column lg={8} md={5} sm={4}>
+      <Column lg={8} md={5} sm={4} className={shell.scrollPanel}>
         <main className={styles.mainWorkspace}>
           <section className={styles.researchResultsPanel}>
             <div className={styles.panelHeader}>
@@ -727,7 +728,7 @@ export default function ClientIntelligencePage() {
         </main>
       </Column>
 
-      <Column lg={5} md={8} sm={4}>
+      <Column lg={5} md={8} sm={4} className={shell.scrollPanel}>
         <aside className={styles.decisionRail}>
           <ClientProfilePanel engagementId={engagementId!} />
           <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />

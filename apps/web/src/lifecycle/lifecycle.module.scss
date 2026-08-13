@@ -453,6 +453,10 @@
    made the title land in a different place on each page. */
 
 .pageHeader {
+  /* `width: 100%` matters once the shell makes the content area a flex column:
+     without it `margin: 0 auto` shrink-wraps the header to its text and the
+     title drifts into the middle of the page, away from the content below. */
+  width: 100%;
   max-width: 96rem;
   margin: 0 auto;
   padding: 1.5rem 2rem 0;
@@ -490,5 +494,51 @@
 @media (max-width: 42rem) {
   .pageHeader {
     padding: 1rem 1rem 0;
+  }
+}
+
+/* ── Fixed shell ──────────────────────────────────────────────────────────
+   Charles's target: the page itself never scrolls, and content that outgrows
+   the screen scrolls inside its own panel. Both of his mockups work this way —
+   a list of collected evidence has to scroll somewhere once it holds twenty
+   items, and a meeting transcript has no upper bound at all.
+
+   Only switches on when there is genuinely room: Carbon's xlg breakpoint
+   (1312px) and enough height that panels are taller than they are cramped.
+   Below either threshold the page falls back to ordinary document flow and
+   scrolls, which is the right behaviour on a laptop or a phone and means
+   nothing is ever unreachable. */
+
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .fixedShellRoot {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .fixedShellRoot :global(.cds--content) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* The page's own body takes the remaining height and hands scrolling to its
+     panels. `min-height: 0` is what lets a flex child actually shrink — without
+     it the panel grows to fit its content and pushes the page long again. */
+  .fixedShellBody {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .fixedShellBody > * {
+    max-height: 100%;
+  }
+
+  /* Anything marked as a panel scrolls itself. */
+  .scrollPanel {
+    overflow-y: auto;
+    max-height: 100%;
   }
 }
