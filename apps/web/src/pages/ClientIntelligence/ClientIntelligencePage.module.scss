@@ -328,6 +328,17 @@ $accent-blue-dark: #0043ce;
   padding: $spacing-05;
 }
 
+.gateReady {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  color: #0e6027;
+
+  svg { fill: #24a148; flex-shrink: 0; }
+}
+
 .researchGateTitle {
   color: $text-primary;
   font-size: 0.9375rem;
@@ -722,3 +733,32 @@ $accent-blue-dark: #0043ce;
   }
 }
 
+
+/* The rail carried its own `sticky` + `max-height: calc(100vh - …)` + scroll,
+   which nested a second scroller inside the shell's. Two scrollports meant the
+   gate's sticky footer had nothing to stick to: it stuck within the rail, and
+   the rail was as tall as its content. Inside the shell the rail *is* the
+   scrollport and the height comes from the shell. */
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .decisionRail {
+    position: static;
+    max-height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  /* Carbon's own column class sets `display: block` and lands after the shared
+     shell rule, so the column stayed a block and the gate below the rail fell
+     straight off the bottom. Doubling the class outranks it. */
+  .gateColumn.gateColumn {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Keeps its own height while the rail above it absorbs the rest. */
+  .researchGate {
+    flex: 0 0 auto;
+    margin-block-start: 1rem;
+  }
+}

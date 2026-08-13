@@ -267,11 +267,11 @@ export default function OutreachWorkspacePage() {
     <div className={`${styles.page} ${shell.fixedShellFrame}`}>
       {/* The brief explains how to do the step; once it is done it is just
           height where the outcome belongs. */}
-      <PageHeader phase="OUTREACH" brief={!meetingSecured} />
+      <PageHeader phase="OUTREACH" brief={!meetingSecured && !latestAttempt} />
 
       <Grid fullWidth className={`${styles.workspaceGrid} ${shell.fixedShellBody}`}>
         <Column lg={10} md={8} sm={4} className={shell.fixedShellFrame}>
-          <Stack gap={5} className={shell.scrollPanel}>
+          <Stack gap={5} className={`${styles.composeColumn} ${shell.scrollPanel}`}>
             {meetingSecured && (
               <Tile className={styles.successPanel}>
                 <div>
@@ -308,14 +308,13 @@ export default function OutreachWorkspacePage() {
               <Tile className={styles.editor}>
                 <form onSubmit={handleSubmit(sendEmail)}>
                   <Stack gap={4}>
-                    <div>
-                      <p className={styles.eyebrow}>{latestAttempt ? 'Follow-up message' : 'First contact'}</p>
-                      <h2>{latestAttempt ? 'Respond to the client' : 'Compose outreach'}</h2>
-                      <p className={styles.formIntro}>Use the latest response as context. Give the client one clear reason and a low-friction next step.</p>
-                    </div>
+                    <h2 className={styles.formTitle}>
+                      {latestAttempt ? 'Respond to the client' : 'Compose outreach'}
+                    </h2>
                     <TextInput id="subject" labelText="Subject" invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
                     <TextArea
                       id="body"
+                      className={styles.messageField}
                       labelText="Message"
                       rows={10}
                       helperText={`Minimum 50 characters — ${draftBody.length} so far.`}
@@ -323,7 +322,6 @@ export default function OutreachWorkspacePage() {
                       invalidText={errors.body?.message}
                       {...register('body')}
                     />
-                    <OutreachSelfCheck body={draftBody} context={rubricContext} />
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
@@ -336,7 +334,6 @@ export default function OutreachWorkspacePage() {
             )}
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
-            <ThreadHistory attempts={thread} />
           </Stack>
         </Column>
 
@@ -390,7 +387,16 @@ export default function OutreachWorkspacePage() {
               </Tile>
             ) : null}
 
+            {!meetingSecured && !documentRequired && (
+              <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
+            )}
+
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
+
+            {/* The thread sits with the client's latest reply because that is
+                what it is: what has been said so far. Keeping it in the compose
+                column pushed the Send button 900px below the fold. */}
+            <ThreadHistory attempts={thread} />
           </aside>
         </Column>
       </Grid>

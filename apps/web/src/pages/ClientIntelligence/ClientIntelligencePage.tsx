@@ -204,6 +204,9 @@ function GateRequirement({ met, label }: { met: boolean; label: string }) {
 /** Enforces the "no spamming Next" business rule: Outreach only unlocks once
  *  the learner has satisfied real research conditions server-side
  *  (see backend `ResearchReadinessPolicy`), not merely "some evidence exists". */
+/** The four rows rendered below; kept beside them so the two cannot drift. */
+const GATE_REQUIREMENT_COUNT = 4
+
 function ResearchGateChecklist({
   engagementId,
   onProceed,
@@ -222,6 +225,28 @@ function ResearchGateChecklist({
       return
     }
     completeResearch.mutate(undefined, { onSuccess: () => onProceed() })
+  }
+
+  /* Once every requirement is met the checklist has done its job. Keeping four
+     satisfied rows on screen costs 120px of the client profile above it to
+     restate a fact the single line already carries. Unmet, the list is the
+     whole point and stays. */
+  if (gate.ready) {
+    return (
+      <div className={styles.researchGate}>
+        <p className={styles.gateReady}>
+          <CheckmarkFilled size={16} /> Ready — all {GATE_REQUIREMENT_COUNT} requirements met
+        </p>
+        <Button
+          renderIcon={ArrowRight}
+          kind="secondary"
+          disabled={completeResearch.isPending}
+          onClick={handleProceed}
+        >
+          {completeResearch.isPending ? 'Advancing…' : 'Proceed to Outreach'}
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -736,14 +761,10 @@ export default function ClientIntelligencePage() {
         </main>
       </Column>
 
-      <Column lg={5} md={8} sm={4} className={shell.scrollPanel}>
-        <aside className={styles.decisionRail}>
+      <Column lg={5} md={8} sm={4} className={`${styles.gateColumn} ${shell.fixedShellFrame}`}>
+        <aside className={`${styles.decisionRail} ${shell.scrollPanel}`}>
           <ClientProfilePanel engagementId={engagementId!} />
           <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
-          <ResearchGateChecklist
-            engagementId={engagementId!}
-            onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
-          />
           <form onSubmit={handleSubmit(onSubmit)}>
             <Tile className={styles.formTile}>
               <Stack gap={4}>
@@ -827,6 +848,15 @@ export default function ClientIntelligencePage() {
             </Tile>
           </form>
         </aside>
+
+        {/* Outside the scrolling rail, not merely sticky inside it. As a sticky
+            last-ish child it scrolled away as soon as the manual entry form
+            below it came into view — the one block that must never require
+            scrolling to find. */}
+        <ResearchGateChecklist
+          engagementId={engagementId!}
+          onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
+        />
       </Column>
     </Grid>
     </>

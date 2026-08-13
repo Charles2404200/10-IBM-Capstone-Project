@@ -573,5 +573,58 @@
   .scrollPanel {
     overflow-y: auto;
     max-height: 100%;
+
+    /* A panel that scrolls has to look like one. macOS hides overlay
+       scrollbars until you already scroll, so a panel with 900px below the
+       fold was indistinguishable from one that ended there — which is exactly
+       how the Send button became invisible with nothing on screen suggesting
+       it existed. A reserved gutter and a permanent thumb are the whole
+       affordance. */
+    scrollbar-gutter: stable;
+
+    /* Deliberately no `scrollbar-width` / `scrollbar-color`: Chrome ignores
+       these ::-webkit- rules whenever either standard property is set, and
+       falls back to the macOS overlay scrollbar that hides itself -- which is
+       the thing being fixed. Authoring the pseudo-elements alone opts the
+       scroller into a permanent classic scrollbar. */
+    &::-webkit-scrollbar {
+      width: 0.5rem;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #a8a8a8;
+      border-radius: 999px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
   }
+
+  /* The block that finishes the step stays pinned to the bottom of its panel
+     while the rest of it scrolls behind. A learner should never have to
+     discover how to complete a step by scrolling for it -- on Research the
+     "Ready for Outreach?" gate and its Proceed button sat 305px below the fold
+     with nothing on screen saying they were there. */
+  .stickyFooter {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 2;
+    box-shadow: 0 -0.5rem 0.75rem -0.5rem rgba(0, 0, 0, 0.18);
+  }
+}
+
+.selfCheckList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selfCheckItem {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
 }
