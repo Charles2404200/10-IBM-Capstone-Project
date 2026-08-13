@@ -267,10 +267,11 @@ export default function OutreachWorkspacePage() {
     <div className={styles.page}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
-          <p className={styles.eyebrow}>Engagement workflow</p>
           <Heading>{PHASE_LABEL.OUTREACH}</Heading>
-          <p className={styles.pageSubtitle}>Respond to the client’s latest request and earn the next step in the engagement.</p>
-          <PhaseBrief phase="OUTREACH" />
+          {/* The brief explains how to do the step. Once it is done, it is just
+              91px of instructions for something already finished, in the exact
+              spot where the outcome should be. */}
+          {!meetingSecured && <PhaseBrief phase="OUTREACH" />}
         </Column>
       </Grid>
 
@@ -354,9 +355,27 @@ export default function OutreachWorkspacePage() {
                     <p className={styles.eyebrow}>Latest client response</p>
                     <h2>{documentRequired ? 'Client requested a document' : meetingSecured ? 'Client accepted the meeting' : 'Client response'}</h2>
                   </div>
-                  {latestAttempt && <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>}
+                  {meetingSecured ? (
+                    <Tag type="green" size="sm">ACCEPTED</Tag>
+                  ) : (
+                    latestAttempt && (
+                      <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">
+                        {latestAttempt.outcome.replace(/_/g, ' ')}
+                      </Tag>
+                    )
+                  )}
                 </div>
-                {latestAttempt?.clientReply ? <p className={styles.clientReply}>{latestAttempt.clientReply}</p> : <p className={styles.emptyReply}>Send your first message to receive a client response.</p>}
+                {meetingSecured ? (
+                  <p className={styles.clientReply}>
+                    {brief?.clientReply ??
+                      latestAttempt?.clientReply ??
+                      'The client has agreed to meet.'}
+                  </p>
+                ) : latestAttempt?.clientReply ? (
+                  <p className={styles.clientReply}>{latestAttempt.clientReply}</p>
+                ) : (
+                  <p className={styles.emptyReply}>Send your first message to receive a client response.</p>
+                )}
               </Stack>
             </Tile>
 
