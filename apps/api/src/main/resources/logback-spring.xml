@@ -8,6 +8,11 @@
     </springProfile>
 
     <springProfile name="!test">
+        <springProperty scope="context" name="lokiEnabled" source="app.observability.loki.enabled" defaultValue="false"/>
+        <springProperty scope="context" name="lokiPushUrl" source="app.observability.loki.push-url" defaultValue=""/>
+        <springProperty scope="context" name="lokiServiceName" source="app.observability.loki.service-name" defaultValue="consulting-simulation-api"/>
+        <springProperty scope="context" name="lokiBatchSize" source="app.observability.loki.batch-size" defaultValue="100"/>
+        <springProperty scope="context" name="lokiFlushIntervalMs" source="app.observability.loki.flush-interval-ms" defaultValue="1000"/>
         <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
                 <customFields>{"service":"consulting-simulation-api"}</customFields>
@@ -18,8 +23,16 @@
                 <includeMdcKeyName>authRejectionReason</includeMdcKeyName>
             </encoder>
         </appender>
+        <appender name="LOKI" class="com.ibm.consulting.sim.shared.infrastructure.observability.LokiHttpAppender">
+            <enabled>${lokiEnabled}</enabled>
+            <pushUrl>${lokiPushUrl}</pushUrl>
+            <serviceName>${lokiServiceName}</serviceName>
+            <batchSize>${lokiBatchSize}</batchSize>
+            <flushIntervalMs>${lokiFlushIntervalMs}</flushIntervalMs>
+        </appender>
         <root level="INFO">
             <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="LOKI"/>
         </root>
     </springProfile>
 </configuration>

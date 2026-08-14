@@ -88,7 +88,7 @@ export default function LiveMeetingPage() {
   const [terminationDismissed, setTerminationDismissed] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const turns = transcript ?? []
+  const turns = useMemo(() => transcript ?? [], [transcript])
   const currentState = personaState ?? persistedPersonaState
   const hint = useMemo(
     () => currentState ? deriveHint(turns, latestSignals, currentState) : [],

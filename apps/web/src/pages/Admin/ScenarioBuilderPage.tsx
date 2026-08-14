@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Grid,
   Column,
@@ -16,19 +17,23 @@ import {
   InlineNotification,
   Accordion,
   AccordionItem,
+  Modal,
+  Pagination,
 } from '@carbon/react'
-import { Add } from '@carbon/icons-react'
+import { Add, ArrowLeft, ArrowRight } from '@carbon/icons-react'
 import styles from './ScenarioBuilderPage.module.css'
 import {
   useAddPersona,
-  useAllScenariosForAdmin,
+  useAdminScenarioCatalog,
   useArchiveScenario,
   useCreateScenario,
   usePublishScenario,
   useUpdateRubricWeights,
   useUpdateGameplayDifficulty,
   useUploadKnowledgeDocument,
+  useScenarioAuthoring,
 } from '@/api/hooks/useAdminScenarios'
+import ScenarioBlueprintWorkspace from '@/components/admin/ScenarioBlueprintWorkspace'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type {
@@ -45,44 +50,53 @@ function defaultGameplayProfile(difficulty: number): GameplayDifficultyProfile {
   return { level: 'MEDIUM', researchArtifactsPerAction: 5, distractorArtifactsPerAction: 2, contradictionCount: 1, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 14, budgetVisible: false, timelinePressureDays: 18, requiredEvidenceCount: 3, requiredConfidencePercent: 60, outreachAcceptanceThreshold: 75, proposalEvidenceCoverageThreshold: 65, personaResistance: 50, scoringTolerance: 100 }
 }
 
-function CreateScenarioForm({ onCreated }: { onCreated: (scenarioId: string) => void }) {
+function CreateScenarioModal({ open, onClose, onCreated }: {
+  open: boolean
+  onClose: () => void
+  onCreated: (scenarioId: string) => void
+}) {
   const createScenario = useCreateScenario()
   const [form, setForm] = useState<CreateScenarioRequest>({ title: '', industry: '', description: '', difficulty: 3 })
+  const canCreate = Boolean(form.title.trim() && form.industry.trim() && form.description.trim())
+
+  const submit = () => {
+    if (!canCreate || createScenario.isPending) return
+    createScenario.mutate(form, {
+      onSuccess: (created) => {
+        setForm({ title: '', industry: '', description: '', difficulty: 3 })
+        onCreated(created.id)
+      },
+    })
+  }
 
   return (
-    <Tile className={styles.scenarioCard}>
-      <Stack gap={5}>
-        <h4>Create a new scenario</h4>
+    <Modal
+      open={open}
+      modalHeading="Create a new scenario"
+      primaryButtonText={createScenario.isPending ? 'Creating...' : 'Create draft'}
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={!canCreate || createScenario.isPending}
+      onRequestClose={onClose}
+      onRequestSubmit={submit}
+      className={styles.createModal}
+    >
+      <Stack gap={5} className={styles.createForm}>
+        <p className={styles.modalIntro}>Start with the client situation. You can safely complete the blueprint, personas and rules before publishing.</p>
         <TextInput id="new-scenario-title" labelText="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         <TextInput id="new-scenario-industry" labelText="Industry" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
-        <TextArea id="new-scenario-description" labelText="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <NumberInput
-          id="new-scenario-difficulty"
-          label="Difficulty (1-5)"
-          value={form.difficulty}
-          min={1}
-          max={5}
-          onChange={(_e, state) => setForm({ ...form, difficulty: Number(state?.value ?? 1) })}
-        />
+        <TextArea id="new-scenario-description" labelText="Client situation" rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <Select id="new-scenario-difficulty" labelText="Difficulty" value={String(form.difficulty)} onChange={(event) => setForm({ ...form, difficulty: Number(event.target.value) })}>
+          <SelectItem value="1" text="1 - Guided" />
+          <SelectItem value="2" text="2 - Foundational" />
+          <SelectItem value="3" text="3 - Standard" />
+          <SelectItem value="4" text="4 - Advanced" />
+          <SelectItem value="5" text="5 - Expert" />
+        </Select>
         {createScenario.isError && (
           <InlineNotification kind="error" title="Could not create scenario" subtitle="Please check the fields and try again." />
         )}
-        <Button
-          renderIcon={Add}
-          disabled={!form.title.trim() || !form.industry.trim() || !form.description.trim() || createScenario.isPending}
-          onClick={() =>
-            createScenario.mutate(form, {
-              onSuccess: (created) => {
-                setForm({ title: '', industry: '', description: '', difficulty: 3 })
-                onCreated(created.id)
-              },
-            })
-          }
-        >
-          Create scenario (draft)
-        </Button>
       </Stack>
-    </Tile>
+    </Modal>
   )
 }
 
@@ -343,6 +357,8 @@ function KnowledgeDocumentForm({ scenario }: { scenario: ScenarioSummary }) {
 function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
   const publish = usePublishScenario()
   const archive = useArchiveScenario()
+  const authoring = useScenarioAuthoring(scenario.id)
+  const readyToPublish = authoring.data?.readiness.readyToPublish ?? false
 
   return (
     <Tile>
@@ -362,7 +378,7 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
 
         <div className={styles.lifecycleActions}>
           {scenario.status === 'DRAFT' && (
-            <Button size="sm" onClick={() => publish.mutate(scenario.id)} disabled={publish.isPending}>
+            <Button size="sm" onClick={() => publish.mutate(scenario.id)} disabled={publish.isPending || !readyToPublish} title={readyToPublish ? 'Publish this scenario revision' : 'Complete the publishing checklist first'}>
               Publish
             </Button>
           )}
@@ -374,6 +390,9 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
         </div>
 
         <Accordion>
+          <AccordionItem title="Authoring blueprint">
+            <ScenarioBlueprintWorkspace scenario={scenario} />
+          </AccordionItem>
           <AccordionItem title={`Personas (${scenario.personas.length})`}>
             <Stack gap={4}>
               {scenario.personas.map((p) => (
@@ -381,17 +400,33 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
                   <strong>{p.name}</strong> — {p.jobTitle} @ {p.organisation}
                 </div>
               ))}
-              <AddPersonaForm scenarioId={scenario.id} />
+              {scenario.status === 'DRAFT' ? (
+                <AddPersonaForm scenarioId={scenario.id} />
+              ) : (
+                <p>Personas are locked in this published revision. Create a revision to make changes.</p>
+              )}
             </Stack>
           </AccordionItem>
           <AccordionItem title="Rubric weights">
-            <RubricWeightsForm scenario={scenario} />
+            {scenario.status === 'DRAFT' ? (
+              <RubricWeightsForm scenario={scenario} />
+            ) : (
+              <p>Rubric weights are locked in this published revision. Create a revision to make changes.</p>
+            )}
           </AccordionItem>
           <AccordionItem title="Gameplay difficulty">
-            <GameplayDifficultyForm scenario={scenario} />
+            {scenario.status === 'DRAFT' ? (
+              <GameplayDifficultyForm scenario={scenario} />
+            ) : (
+              <p>Difficulty rules are locked in this published revision. Create a revision to make changes.</p>
+            )}
           </AccordionItem>
           <AccordionItem title="Knowledge documents (RAG)">
-            <KnowledgeDocumentForm scenario={scenario} />
+            {scenario.status === 'DRAFT' ? (
+              <KnowledgeDocumentForm scenario={scenario} />
+            ) : (
+              <p>Knowledge documents are locked in this published revision. Create a revision to make changes.</p>
+            )}
           </AccordionItem>
         </Accordion>
       </Stack>
@@ -399,21 +434,88 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
   )
 }
 
+function ScenarioLibraryRow({ scenario, onOpen }: { scenario: ScenarioSummary; onOpen: (id: string) => void }) {
+  const difficultyLabel = ['Guided', 'Foundational', 'Standard', 'Advanced', 'Expert'][Math.max(0, scenario.difficulty - 1)]
+
+  return (
+    <Tile className={styles.libraryRow}>
+      <div className={styles.libraryIdentity}>
+        <div className={styles.scenarioMark}>{scenario.title.slice(0, 1).toUpperCase()}</div>
+        <div>
+          <div className={styles.libraryTitleLine}>
+            <h3>{scenario.title}</h3>
+            <Tag type="cyan">{scenario.industry}</Tag>
+            <Tag type={scenario.status === 'ACTIVE' ? 'green' : scenario.status === 'DRAFT' ? 'gray' : 'red'}>{scenario.status}</Tag>
+          </div>
+          <p>{scenario.description}</p>
+        </div>
+      </div>
+      <div className={styles.libraryMetadata}>
+        <span><strong>v{scenario.version}</strong> version</span>
+        <span><strong>{scenario.personas.length}</strong> personas</span>
+        <span><strong>{difficultyLabel}</strong> difficulty</span>
+      </div>
+      <Button kind="ghost" size="sm" renderIcon={ArrowRight} iconDescription="Open scenario editor" onClick={() => onOpen(scenario.id)}>
+        Open editor
+      </Button>
+    </Tile>
+  )
+}
+
+function ScenarioEditor({ scenarioId, onBack }: { scenarioId: string; onBack: () => void }) {
+  const authoring = useScenarioAuthoring(scenarioId)
+
+  if (authoring.isLoading) return <LoadingState />
+  if (authoring.isError || !authoring.data) return <ErrorState />
+
+  return (
+    <Grid fullWidth className={styles.page}>
+      <Column lg={16} md={8} sm={4}>
+        <Stack gap={5}>
+          <div className={styles.editorBackRow}>
+            <Button kind="ghost" size="sm" renderIcon={ArrowLeft} onClick={onBack}>All scenarios</Button>
+            <span>Scenario editor</span>
+          </div>
+          <ScenarioCard scenario={authoring.data.scenario} />
+        </Stack>
+      </Column>
+    </Grid>
+  )
+}
+
 export default function ScenarioBuilderPage() {
-  const { data: scenarios, isLoading, isError } = useAllScenariosForAdmin()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedScenarioId = searchParams.get('scenario')
   const [showCreate, setShowCreate] = useState(false)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('ALL')
+  const [page, setPage] = useState(1)
+  const deferredQuery = useDeferredValue(query)
+  const catalogueFilters = useMemo(() => ({
+    search: deferredQuery.trim() || undefined,
+    status: status === 'ALL' ? undefined : status as 'DRAFT' | 'ACTIVE' | 'ARCHIVED',
+    page: page - 1,
+    size: 12,
+  }), [deferredQuery, page, status])
+  const catalogue = useAdminScenarioCatalog(catalogueFilters, !selectedScenarioId)
 
-  if (isLoading) return <LoadingState />
-  if (isError) return <ErrorState />
+  const openScenario = (scenarioId: string) => setSearchParams({ scenario: scenarioId })
+  const returnToLibrary = () => setSearchParams({})
+  const updateSearch = (value: string) => {
+    setQuery(value)
+    setPage(1)
+  }
+  const updateStatus = (value: string) => {
+    setStatus(value)
+    setPage(1)
+  }
 
-  const allScenarios = scenarios ?? []
-  const visibleScenarios = allScenarios.filter((scenario) => {
-    const matchesQuery = `${scenario.title} ${scenario.industry} ${scenario.description}`
-      .toLowerCase().includes(query.toLowerCase().trim())
-    return matchesQuery && (status === 'ALL' || scenario.status === status)
-  })
+  if (selectedScenarioId) return <ScenarioEditor scenarioId={selectedScenarioId} onBack={returnToLibrary} />
+  if (catalogue.isLoading) return <LoadingState />
+  if (catalogue.isError) return <ErrorState />
+
+  const scenarioPage = catalogue.data
+  const scenarios = scenarioPage?.items ?? []
 
   return (
     <Grid fullWidth className={styles.page}>
@@ -428,40 +530,56 @@ export default function ScenarioBuilderPage() {
                 knowledge documents, no code changes required.
               </p>
             </div>
-            {!showCreate && (
-              <Button renderIcon={Add} onClick={() => setShowCreate(true)}>
-                New scenario
-              </Button>
-            )}
+            <Button renderIcon={Add} onClick={() => setShowCreate(true)}>New scenario</Button>
           </div>
 
-          {showCreate && <CreateScenarioForm onCreated={() => setShowCreate(false)} />}
+          <section className={styles.libraryGuide}>
+            <div><span>1</span><strong>Create draft</strong><p>Set the client situation and difficulty.</p></div>
+            <div><span>2</span><strong>Design experience</strong><p>Add truth, personas, leads and learning rules.</p></div>
+            <div><span>3</span><strong>Publish safely</strong><p>Only completed drafts become learner-visible.</p></div>
+          </section>
 
           <section className={styles.catalogToolbar}>
-            <TextInput id="scenario-search" labelText="Search scenarios" placeholder="Search by title, industry or description" value={query} onChange={(event) => setQuery(event.target.value)} />
-            <Select id="scenario-status-filter" labelText="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
+            <TextInput id="scenario-search" labelText="Search scenario library" placeholder="Title, industry or client situation" value={query} onChange={(event) => updateSearch(event.target.value)} />
+            <Select id="scenario-status-filter" labelText="Lifecycle status" value={status} onChange={(event) => updateStatus(event.target.value)}>
               <SelectItem value="ALL" text="All statuses" />
               <SelectItem value="DRAFT" text="Draft" />
               <SelectItem value="ACTIVE" text="Active" />
               <SelectItem value="ARCHIVED" text="Archived" />
             </Select>
-            <div className={styles.catalogCount}><strong>{visibleScenarios.length}</strong><span>shown of {allScenarios.length}</span></div>
+            <div className={styles.catalogCount}><strong>{scenarioPage?.totalElements ?? 0}</strong><span>scenarios</span></div>
           </section>
 
-          {allScenarios.length === 0 ? (
-            <Tile>
-              <p style={{ color: '#525252' }}>No scenarios yet. Create the first one above.</p>
+          {scenarios.length === 0 ? (
+            <Tile className={styles.emptyState}>
+              <h3>No scenarios found</h3>
+              <p>Adjust the library filters or create a scenario draft.</p>
             </Tile>
           ) : (
-            <Stack gap={3}>
-              {visibleScenarios.map((s) => (
-                <ScenarioCard key={s.id} scenario={s} />
-              ))}
-              {visibleScenarios.length === 0 && <Tile><p>No scenarios match this filter.</p></Tile>}
-            </Stack>
+            <section className={styles.libraryList} aria-busy={catalogue.isFetching}>
+              {scenarios.map((scenario) => <ScenarioLibraryRow key={scenario.id} scenario={scenario} onOpen={openScenario} />)}
+            </section>
+          )}
+
+          {(scenarioPage?.totalElements ?? 0) > 0 && (
+            <Pagination
+              page={page}
+              pageSize={scenarioPage?.size ?? 12}
+              pageSizes={[12]}
+              totalItems={scenarioPage?.totalElements ?? 0}
+              onChange={({ page: nextPage }) => setPage(nextPage)}
+            />
           )}
         </Stack>
       </Column>
+      <CreateScenarioModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(scenarioId) => {
+          setShowCreate(false)
+          openScenario(scenarioId)
+        }}
+      />
     </Grid>
   )
 }

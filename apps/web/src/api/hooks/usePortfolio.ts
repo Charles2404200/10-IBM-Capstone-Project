@@ -14,6 +14,8 @@ export function usePortfolioSummary() {
       const res = await apiClient.get<PortfolioSummary>('/api/v1/portfolio/summary')
       return res.data
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   })
 }
 

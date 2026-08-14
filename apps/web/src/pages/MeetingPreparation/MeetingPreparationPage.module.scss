@@ -4,57 +4,135 @@
 
 .page {
   min-height: 100%;
-  padding: $spacing-07 0;
+  padding: $spacing-05 $spacing-06;
   background: $background;
 }
 
-.headerGrid,
-.workspaceGrid {
-  max-width: 96rem;
+.canvas {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: $spacing-05;
+  width: min(100%, 96rem);
+  min-height: min(50rem, calc(100vh - 8.75rem));
   margin: 0 auto;
 }
 
 .pageHeader {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
+  justify-content: space-between;
   gap: $spacing-06;
 
-  p { color: $text-secondary; margin: $spacing-03 0 0; }
+  h1 { margin: $spacing-02 0 0; }
 }
 
-.headerActions { display: flex; flex: 0 0 auto; gap: $spacing-03; }
-.workspaceGrid { margin-top: $spacing-07; }
-.planColumn, .editorColumn { display: grid; align-content: start; gap: $spacing-05; }
+.eyebrow {
+  @include type-style('label-01');
+  margin: 0;
+  color: $text-secondary;
+  text-transform: uppercase;
+}
 
-.readinessPanel {
+.pageDescription {
+  max-width: 42rem;
+  margin: $spacing-03 0 0;
+  color: $text-secondary;
+}
+
+.headerActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: $spacing-03;
+}
+
+.readinessStrip {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(10rem, 1.25fr) minmax(22rem, 1.7fr);
+  align-items: center;
+  gap: $spacing-05;
   padding: $spacing-05;
+  border: 1px solid $border-subtle;
   border-top: 3px solid $interactive;
   background: $layer-01;
-  > p { @include type-style('label-01'); color: $text-secondary; margin: $spacing-03 0 0; }
 }
 
-.readinessHeading {
+.readinessScore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-04;
+
+  strong {
+    @include type-style('heading-05');
+    display: block;
+    margin-top: $spacing-02;
+    color: $text-primary;
+
+    span {
+      @include type-style('body-compact-01');
+      margin-left: $spacing-02;
+      color: $text-secondary;
+    }
+  }
+}
+
+.readinessChecks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-04;
+}
+
+.readinessCheck {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  min-width: 0;
+
+  strong, span { display: block; }
+  strong { @include type-style('label-01'); color: $text-primary; }
+  span { @include type-style('caption-01'); margin-top: $spacing-01; color: $text-secondary; }
+}
+
+.checkComplete, .checkPending { flex: 0 0 auto; width: 1rem; height: 1rem; }
+.checkComplete { fill: $support-success; }
+.checkPending { fill: $icon-secondary; opacity: .45; }
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  min-height: 0;
+  gap: $spacing-05;
+}
+
+.primaryWorkspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  gap: $spacing-05;
+}
+
+.objectivePanel, .collectionPanel, .coachingPanel, .scoreGuide {
+  border: 1px solid $border-subtle;
+  background: $layer-01;
+}
+
+.objectivePanel { padding: $spacing-05; }
+
+.panelHeading, .listHeading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: $spacing-04;
-  margin-bottom: $spacing-04;
-  strong {
-    @include type-style('heading-05');
-    color: $text-primary;
-    display: block;
-    span { @include type-style('body-compact-01'); color: $text-secondary; margin-left: $spacing-02; }
-  }
+
+  h2 { @include type-style('heading-compact-02'); margin: $spacing-02 0 0; }
+  > span { @include type-style('label-01'); color: $text-secondary; }
 }
 
-.eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; margin: 0 0 $spacing-02; }
-.objectivePanel, .collectionPanel { background: $layer-01; border: 1px solid $border-subtle; }
-.objectivePanel { padding: $spacing-05; }
+.objectivePanel :global(.cds--text-area__wrapper) { margin-top: $spacing-04; }
+.objectivePanel :global(.cds--text-area) { min-height: 5rem; resize: none; }
 
 .collectionPanel {
-  --collection-height: clamp(28rem, calc(100vh - 17rem), 40rem);
-  height: var(--collection-height);
+  min-height: 0;
   padding: 0;
   overflow: hidden;
 }
@@ -66,47 +144,109 @@
 .listWorkspace {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  height: calc(var(--collection-height) - 3rem);
+  height: clamp(19rem, calc(100vh - 25rem), 27rem);
 }
 
 .listHeading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: $spacing-05;
   border-bottom: 1px solid $border-subtle;
-  h2 { @include type-style('heading-compact-02'); margin: 0; }
 }
 
-.itemsViewport { min-height: 0; overflow-y: auto; padding: $spacing-03 $spacing-05; }
+.listEyebrow { @include type-style('label-01'); margin: 0; color: $text-secondary; text-transform: uppercase; }
+
+.itemsViewport {
+  display: grid;
+  align-content: start;
+  min-height: 0;
+  padding: $spacing-02 $spacing-05;
+}
 
 .listRow {
   display: grid;
   grid-template-columns: 1.75rem minmax(0, 1fr) 2rem;
   align-items: center;
   gap: $spacing-03;
-  min-height: 3.25rem;
+  min-height: 4rem;
   border-bottom: 1px solid $border-subtle;
+
   :global(.cds--text-input-wrapper) { width: 100%; }
   :global(.cds--text-input) { border-bottom: 0; background: transparent; }
 }
 
-.rowNumber { color: $text-secondary; @include type-style('label-01'); text-align: right; }
-.addItemButton { width: 100%; justify-content: flex-start; border-top: 1px solid $border-subtle; }
+.rowNumber { @include type-style('label-01'); color: $text-secondary; text-align: right; }
+
+.listFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.5rem;
+  padding: $spacing-03 $spacing-05;
+  border-top: 1px solid $border-subtle;
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: $spacing-02;
+
+  span { @include type-style('label-01'); color: $text-secondary; }
+}
+
+.coachingRail { display: grid; align-content: start; gap: $spacing-04; }
+
+.coachingPanel, .scoreGuide { padding: $spacing-05; }
+
+.coachingPanel {
+  border-top: 3px solid $interactive;
+
+  h2 { @include type-style('heading-compact-02'); margin: $spacing-02 0; }
+  > p:not(.eyebrow) { @include type-style('body-compact-01'); margin: 0; color: $text-secondary; }
+}
+
+.coachingTip {
+  display: grid;
+  gap: $spacing-02;
+  margin-top: $spacing-05;
+  padding: $spacing-04;
+  border-left: 3px solid $interactive;
+  background: $layer-accent-01;
+
+  strong { @include type-style('label-01'); }
+  span { @include type-style('body-compact-01'); color: $text-secondary; }
+}
+
+.scoreGuide {
+  display: grid;
+  gap: $spacing-03;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid $border-subtle;
+    padding-bottom: $spacing-03;
+    @include type-style('body-compact-01');
+  }
+
+  > p:last-child { @include type-style('caption-01'); margin: $spacing-01 0 0; color: $text-secondary; }
+}
+
+.errorNotification { margin: 0; }
 
 @media (max-width: 1055px) {
-  .headerActions { margin-top: $spacing-05; }
-  .collectionPanel { --collection-height: 30rem; }
+  .page { padding: $spacing-05 $spacing-04; }
+  .canvas { min-height: auto; }
+  .readinessStrip { grid-template-columns: 1fr 1fr; }
+  .readinessChecks { grid-column: 1 / -1; }
+  .workspaceGrid { grid-template-columns: 1fr; }
+  .coachingRail { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 671px) {
-  .page { padding-top: $spacing-05; }
-  .pageHeader { display: block; }
+  .pageHeader, .readinessStrip, .readinessChecks, .coachingRail { display: grid; grid-template-columns: 1fr; }
   .headerActions { width: 100%; }
   .headerActions > button { flex: 1 1 0; }
-  .workspaceGrid { margin-top: $spacing-05; }
-  .collectionPanel { --collection-height: 28rem; }
+  .listWorkspace { height: 24rem; }
   .sectionTabs { padding: 0 $spacing-03; }
-  .itemsViewport { padding: $spacing-03; }
-  .listHeading { padding: $spacing-04; }
+  .itemsViewport, .listHeading, .listFooter { padding-left: $spacing-04; padding-right: $spacing-04; }
 }
+

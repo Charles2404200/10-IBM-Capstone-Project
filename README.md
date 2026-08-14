@@ -32,7 +32,7 @@ cp .env.example .env
 docker compose up -d
 # API:     http://localhost:8080
 # Swagger: http://localhost:8080/swagger-ui.html
-# Health:  http://localhost:8080/actuator/health
+# Health:  http://localhost:8080/actuator/health/liveness
 ```
 This builds a multi-stage, layered Docker image for the Spring Boot API
 (see `apps/api/Dockerfile`) and starts it with all required environment
@@ -75,6 +75,60 @@ Set a strong `OBSERVABILITY_TOKEN` secret on the API before configuring a
 separate Prometheus service to scrape `/actuator/prometheus`. Keep Grafana,
 Prometheus, and Loki as separate services; the application container has no
 vendor-specific log or metric transport.
+
+### Railway Team Observability
+
+The repository includes production deployment roots under
+`observability/railway/`. Deploy the four services in the **same Railway
+project and environment**:
+
+| Railway service | Repository root | Public? | Persistent volume |
+|---|---|---:|---|
+| API | `apps/api` | Yes | N/A |
+| Loki | `observability/railway/loki` | No | `/loki` |
+| Prometheus | `observability/railway/prometheus` | No | `/prometheus` |
+| Grafana | `observability/railway/grafana` | Yes | `/var/lib/grafana` |
+
+Give each service the fixed `PORT` shown below. This makes Railway private
+network references stable and avoids hard-coded public endpoints:
+
+```dotenv
+# API
+PORT=8080
+OBSERVABILITY_TOKEN=<generate-a-long-random-secret>
+LOKI_ENABLED=true
+LOKI_PUSH_URL=http://${{Loki.RAILWAY_PRIVATE_DOMAIN}}:${{Loki.PORT}}/loki/api/v1/push
+
+# Loki
+PORT=3100
+LOKI_RETENTION_PERIOD=336h
+
+# Prometheus
+PORT=9090
+API_METRICS_TARGET=${{API.RAILWAY_PRIVATE_DOMAIN}}:${{API.PORT}}
+OBSERVABILITY_TOKEN=${{API.OBSERVABILITY_TOKEN}}
+PROMETHEUS_RETENTION_TIME=15d
+
+# Grafana
+PORT=3000
+PROMETHEUS_URL=http://${{Prometheus.RAILWAY_PRIVATE_DOMAIN}}:${{Prometheus.PORT}}
+LOKI_URL=http://${{Loki.RAILWAY_PRIVATE_DOMAIN}}:${{Loki.PORT}}
+GF_SECURITY_ADMIN_USER=team-admin
+GF_SECURITY_ADMIN_PASSWORD=<generate-a-strong-unique-password>
+GF_USERS_ALLOW_SIGN_UP=false
+GF_AUTH_ANONYMOUS_ENABLED=false
+```
+
+`OBSERVABILITY_TOKEN` and `GF_SECURITY_ADMIN_PASSWORD` must be Railway secrets.
+Do not create public domains for Loki or Prometheus. Generate a domain only for
+Grafana, then share its authenticated URL with teammates. Their useful Explore
+query is `{service="consulting-simulation-api"}`; add
+`| json | requestId="<X-Request-ID>"` to trace one failed browser request.
+
+Swagger is already protected by the normal API authentication scheme and is
+available online at `https://<api-public-domain>/swagger-ui.html`. Generate a
+public API domain in Railway if one does not already exist, then share that URL
+with the team. The OpenAPI JSON is at `/api-docs`.
 
 ### 3. Run the frontend (native, hot reload)
 ```bash

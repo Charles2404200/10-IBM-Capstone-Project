@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
@@ -13,27 +13,21 @@ import {
   Select,
   SelectItem,
   Checkbox,
-  DatePicker,
-  DatePickerInput,
-  ProgressIndicator,
-  ProgressStep,
-  Accordion,
-  AccordionItem,
-  Tooltip,
+  Modal,
   InlineNotification,
 } from '@carbon/react'
 import {
   Add, ArrowRight, Locked, Link as LinkIcon, Search,
-  ChartLine, Devices, UserMultiple, Document, Information,
-  CheckmarkFilled, CircleDash,
+  ChartLine, Devices, UserMultiple, Document,
+  CheckmarkFilled, CircleDash, ChevronLeft, ChevronRight,
 } from '@carbon/icons-react'
 import { useForm, Controller } from 'react-hook-form'
-import { useEngagement } from '@/api/hooks/useEngagements'
-import { useAnalyzeUserContext, useGenerateResearchIntelligence, useLeadIntelligence, useResearch, useResearchGateStatus, useCompleteResearch, useSaveResearch } from '@/api/hooks/useLeads'
+import { useAnalyzeUserContext, useGenerateResearchIntelligence, useResearch, useResearchGateStatus, useCompleteResearch, useSaveResearch } from '@/api/hooks/useLeads'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConfidenceLevel, EngagementPhase, EvidenceType, IntelligenceField, ResearchArtifact, ResearchEvidence } from '@/api/types'
+import type { ConfidenceLevel, EvidenceType, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -85,51 +79,23 @@ const RESEARCH_ACTIONS: { type: Exclude<EvidenceType, 'HYPOTHESIS'>; label: stri
 function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Map<string, string> }) {
   return (
     <Tile className={styles.evidenceCard}>
-      <Stack gap={3}>
-        <div className={styles.evidenceCardHeader}>
-          <span className={styles.evidenceCode}>{evidenceCode(item.sequenceNo)}</span>
-          <Tag type="blue" size="sm">{item.evidenceType.replace(/_/g, ' ')}</Tag>
-          <Tag type={CONFIDENCE_TAG_TYPE[item.confidence]} size="sm">
-            {item.confidence} confidence
-          </Tag>
-        </div>
-
-        <p className={styles.evidenceNote}>{item.note}</p>
-
+      <div className={styles.evidenceCardHeader}>
+        <span className={styles.evidenceCode}>{evidenceCode(item.sequenceNo)}</span>
+        <Tag type={CONFIDENCE_TAG_TYPE[item.confidence]} size="sm">{item.confidence}</Tag>
+      </div>
+      <p className={styles.evidenceTitle}>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</p>
+      <p className={styles.evidenceNote}>{item.note}</p>
+      <div className={styles.evidenceCardFooter}>
+        <Tag type="blue" size="sm">{item.evidenceType.replace(/_/g, ' ')}</Tag>
+        <Tag type={item.relevanceScore >= 70 ? 'green' : item.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
+          {item.relevanceScore}% relevant
+        </Tag>
         {item.supportingEvidenceIds.length > 0 && (
-          <div className={styles.supportingEvidence}>
-            <LinkIcon size={14} />
-            <span>
-              Supported by{' '}
-              {item.supportingEvidenceIds
-                .map((id) => codeById.get(id) ?? '?')
-                .join(', ')}
-            </span>
-          </div>
+          <span className={styles.compactEvidenceSupport}>
+            <LinkIcon size={12} /> {item.supportingEvidenceIds.map((id) => codeById.get(id) ?? '?').join(', ')}
+          </span>
         )}
-
-        {(item.sourceTitle || item.sourceUrl || item.occurredOn) && (
-          <div className={styles.sourceMeta}>
-            {item.sourceTitle && (
-              <div className={styles.sourceMetaRow}>
-                <span className={styles.sourceMetaLabel}>Source</span>
-                <span className={styles.sourceTitle}>{item.sourceTitle}</span>
-              </div>
-            )}
-            {item.occurredOn && (
-              <div className={styles.sourceMetaRow}>
-                <span className={styles.sourceMetaLabel}>Observed</span>
-                <span className={styles.sourceDate}>{item.occurredOn}</span>
-              </div>
-            )}
-            {item.sourceUrl && (
-              <a href={item.sourceUrl} target="_blank" rel="noreferrer" className={styles.sourceLinkButton}>
-                View source
-              </a>
-            )}
-          </div>
-        )}
-      </Stack>
+      </div>
     </Tile>
   )
 }
@@ -145,89 +111,23 @@ function ResearchArtifactCard({
 }) {
   return (
     <Tile className={styles.evidenceCard}>
-      <Stack gap={3}>
-        <div className={styles.evidenceCardHeader}>
-          <Tag type="purple" size="sm">{artifact.sourceType}</Tag>
-          <Tag type={CONFIDENCE_TAG_TYPE[artifact.confidence]} size="sm">{artifact.confidence}</Tag>
-          <Tag type={artifact.origin === 'USER_SUPPLIED' ? 'warm-gray' : 'cyan'} size="sm">
-            {artifact.origin.replace(/_/g, ' ')}
-          </Tag>
-        </div>
-        <div>
-          <h5 style={{ color: '#161616', marginBottom: '0.375rem' }}>{artifact.title}</h5>
-          <p className={styles.evidenceNote}>{artifact.summary}</p>
-        </div>
-        <p style={{ color: '#525252', fontSize: '0.75rem' }}>{artifact.relevanceRationale}</p>
-        {artifact.correlatesWithEvidence.length > 0 && (
-          <div className={styles.supportingEvidence}>
-            <LinkIcon size={14} />
-            <span>Correlates with {artifact.correlatesWithEvidence.join(', ')}</span>
-          </div>
-        )}
-        <Button size="sm" kind="tertiary" disabled={isAdding} onClick={() => onAdd(artifact)}>
-          Add to Evidence Board
+      <div className={styles.evidenceCardHeader}>
+        <Tag type={artifact.origin === 'USER_SUPPLIED' ? 'warm-gray' : 'cyan'} size="sm">
+          {artifact.origin.replace(/_/g, ' ')}
+        </Tag>
+        <Tag type={CONFIDENCE_TAG_TYPE[artifact.confidence]} size="sm">{artifact.confidence}</Tag>
+      </div>
+      <p className={styles.evidenceTitle}>{artifact.title}</p>
+      <p className={styles.evidenceNote}>{artifact.summary}</p>
+      <div className={styles.artifactCardFooter}>
+        <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
+          {artifact.relevanceScore}% relevant
+        </Tag>
+        <Button size="sm" kind="ghost" renderIcon={Add} iconDescription="Add finding" disabled={isAdding} onClick={() => onAdd(artifact)}>
+          Add
         </Button>
-      </Stack>
+      </div>
     </Tile>
-  )
-}
-
-// ─── Consulting lifecycle stepper, driven by the real backend phase (not a
-// hardcoded local guess), so completed / current / upcoming always reflect
-// actual engagement state. ───
-const PHASE_ORDER: EngagementPhase[] = [
-  'LEAD', 'CLIENT_INTELLIGENCE', 'OUTREACH', 'MEETING_PREPARATION',
-  'LIVE_MEETING', 'MEETING_REVIEW', 'PROPOSAL', 'OUTCOME', 'REVIEW', 'COMPLETED',
-]
-
-const PHASE_LABELS: Record<EngagementPhase, string> = {
-  LEAD: 'Lead',
-  CLIENT_INTELLIGENCE: 'Client Intelligence',
-  OUTREACH: 'Outreach',
-  MEETING_PREPARATION: 'Meeting Prep',
-  LIVE_MEETING: 'Live Meeting',
-  MEETING_REVIEW: 'Meeting Review',
-  PROPOSAL: 'Proposal',
-  OUTCOME: 'Outcome',
-  REVIEW: 'AI Review',
-  COMPLETED: 'Completed',
-}
-
-function PhaseStepper({ currentPhase }: { currentPhase: EngagementPhase }) {
-  const currentIndex = PHASE_ORDER.indexOf(currentPhase)
-  return (
-    <ProgressIndicator spaceEqually>
-      {PHASE_ORDER.map((phase, idx) => (
-        <ProgressStep
-          key={phase}
-          label={PHASE_LABELS[phase]}
-          current={idx === currentIndex}
-          complete={idx < currentIndex}
-          disabled={idx > currentIndex}
-        />
-      ))}
-    </ProgressIndicator>
-  )
-}
-
-function IntelField({ label, field }: { label: string; field: IntelligenceField }) {
-  const supportingEvidence = field?.supportingEvidence ?? []
-  return (
-    <div className={styles.intelField}>
-      <span className={styles.intelFieldLabel}>{label}</span>
-      {field?.value ? (
-        <>
-          <span className={styles.intelFieldValue}>{field.value}</span>
-          {supportingEvidence.length > 0 && (
-            <span className={styles.intelFieldSource}>
-              Based on {supportingEvidence.map(evidenceCode).join(', ')}
-            </span>
-          )}
-        </>
-      ) : (
-        <span className={styles.intelFieldUnknown}>Unknown — keep researching</span>
-      )}
-    </div>
   )
 }
 
@@ -244,6 +144,9 @@ function GateRequirement({ met, label }: { met: boolean; label: string }) {
 /** Enforces the "no spamming Next" business rule: Outreach only unlocks once
  *  the learner has satisfied real research conditions server-side
  *  (see backend `ResearchReadinessPolicy`), not merely "some evidence exists". */
+/** The four rows rendered below; kept beside them so the two cannot drift. */
+const GATE_REQUIREMENT_COUNT = 4
+
 function ResearchGateChecklist({
   engagementId,
   onProceed,
@@ -264,6 +167,28 @@ function ResearchGateChecklist({
     completeResearch.mutate(undefined, { onSuccess: () => onProceed() })
   }
 
+  /* Once every requirement is met the checklist has done its job. Keeping four
+     satisfied rows on screen costs 120px of the client profile above it to
+     restate a fact the single line already carries. Unmet, the list is the
+     whole point and stays. */
+  if (gate.ready) {
+    return (
+      <div className={styles.researchGate}>
+        <p className={styles.gateReady}>
+          <CheckmarkFilled size={16} /> Ready — all {GATE_REQUIREMENT_COUNT} requirements met
+        </p>
+        <Button
+          renderIcon={ArrowRight}
+          kind="secondary"
+          disabled={completeResearch.isPending}
+          onClick={handleProceed}
+        >
+          {completeResearch.isPending ? 'Advancing…' : 'Proceed to Outreach'}
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className={styles.researchGate}>
       <h4 className={styles.researchGateTitle}>Ready for Outreach?</h4>
@@ -273,12 +198,23 @@ function ResearchGateChecklist({
           label={`At least ${gate.requiredEvidenceCount} evidence items (${gate.evidenceCount}/${gate.requiredEvidenceCount})`}
         />
         <GateRequirement met={gate.hasStakeholderEvidence} label="Stakeholder evidence identified" />
-        <GateRequirement met={gate.hasHypothesis} label="Hypothesis submitted" />
+        <GateRequirement
+          met={gate.coverageCount >= gate.requiredCoverageCount}
+          label={`${gate.requiredCoverageCount} research areas covered (${gate.coverageCount}/${gate.requiredCoverageCount})`}
+        />
+        <GateRequirement met={gate.groundedHypothesis} label="Grounded hypothesis submitted" />
         <GateRequirement
           met={gate.confidencePercent >= gate.requiredConfidencePercent}
           label={`Research confidence at least ${gate.requiredConfidencePercent}% (${gate.confidencePercent}%)`}
         />
       </Stack>
+
+      {gate.coaching?.length > 0 && (
+        <div className={styles.gateCoaching}>
+          <p className={styles.sectionEyebrow}>Next best action</p>
+          <p>{gate.coaching[0]}</p>
+        </div>
+      )}
 
       {completeResearch.isError && (
         <p className={styles.gateError}>Complete the requirements above before proceeding.</p>
@@ -297,65 +233,6 @@ function ResearchGateChecklist({
   )
 }
 
-/** The "Client Profile" workspace panel — hidden lead intelligence revealed
- *  progressively as research evidence accumulates. */
-function ClientProfilePanel({ engagementId }: { engagementId: string }) {
-  const { data: intel, isLoading } = useLeadIntelligence(engagementId)
-
-  if (isLoading || !intel) {
-    return (
-      <div className={styles.clientProfile}>
-        <div className={styles.clientProfileHeader}>
-          <h3>Client Profile</h3>
-        </div>
-        <p className={styles.intelFieldUnknown}>Select a lead to view client intelligence.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className={styles.clientProfile}>
-      <div className={styles.clientProfileHeader}>
-        <h3>{intel.companyName}</h3>
-        <Tag type="gray" size="sm">{intel.industry}</Tag>
-      </div>
-
-      <div className={styles.confidenceMeter}>
-        <div className={styles.confidenceLabelRow}>
-          <span className={styles.confidenceLabelWithHelp}>
-            Research confidence
-            <Tooltip
-              align="top"
-              label={
-                intel.confidenceFactors?.length
-                  ? `Why ${intel.confidenceLabel}? ${intel.confidenceFactors.join(' · ')}`
-                  : 'Confidence combines how many research areas you have covered with the average reliability of your findings — not just how many notes you have written.'
-              }
-            >
-              <button type="button" aria-label="How is confidence calculated?" style={{ background: 'none', border: 'none', padding: 0, display: 'flex' }}>
-                <Information size={14} />
-              </button>
-            </Tooltip>
-          </span>
-          <span>{intel.confidenceLabel} · {intel.evidenceCount} evidence</span>
-        </div>
-        <div className={styles.confidenceTrack}>
-          <div
-            className={styles.confidenceFill}
-            style={{ width: `${intel.confidenceScore}%` }}
-          />
-        </div>
-      </div>
-
-      <IntelField label="Decision maker" field={intel.decisionMaker} />
-      <IntelField label="Pain severity" field={intel.painSeverity} />
-      <IntelField label="Technology stack" field={intel.technologyStack} />
-      <IntelField label="Budget signal" field={intel.budgetSignal} />
-      <IntelField label="Potential value" field={intel.potentialValueRange} />
-    </div>
-  )
-}
-
 /** Consulting process: Research → Evidence → Pattern → Hypothesis → Validation.
  *  Kept deliberately separate from the evidence form — a hypothesis is a
  *  synthesis step, not another evidence item. */
@@ -370,11 +247,15 @@ function HypothesisWorkspace({
 }) {
   const saveResearch = useSaveResearch(engagementId)
   const [composing, setComposing] = useState(false)
+  const [citationPage, setCitationPage] = useState(0)
   const hypotheses = useMemo(
     () => (evidence ?? []).filter((e) => e.evidenceType === 'HYPOTHESIS').sort((a, b) => b.sequenceNo - a.sequenceNo),
     [evidence]
   )
   const citableEvidence = useMemo(() => (evidence ?? []).filter((e) => e.evidenceType !== 'HYPOTHESIS'), [evidence])
+  const citationPageSize = 4
+  const visibleCitations = citableEvidence.slice(citationPage * citationPageSize, (citationPage + 1) * citationPageSize)
+  const citationPageCount = Math.max(1, Math.ceil(citableEvidence.length / citationPageSize))
 
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<HypothesisFormValues>({
     defaultValues: { confidence: 'MEDIUM', supportingEvidenceIds: [] },
@@ -393,6 +274,7 @@ function HypothesisWorkspace({
         onSuccess: () => {
           reset({ confidence: 'MEDIUM', supportingEvidenceIds: [] })
           setComposing(false)
+          setCitationPage(0)
         },
       }
     )
@@ -402,7 +284,7 @@ function HypothesisWorkspace({
     <div className={styles.hypothesisWorkspace}>
       <div className={styles.hypothesisWorkspaceHeader}>
         <h3>Hypothesis</h3>
-        <Button kind="ghost" size="sm" onClick={() => setComposing((c) => !c)}>
+        <Button kind="ghost" size="sm" onClick={() => setComposing(true)}>
           {hypotheses.length > 0 ? 'Refine hypothesis' : 'Add hypothesis'}
         </Button>
       </div>
@@ -414,7 +296,7 @@ function HypothesisWorkspace({
         </p>
       )}
 
-      {hypotheses.map((h) => (
+      {hypotheses.slice(0, 1).map((h) => (
         <div key={h.id} className={styles.hypothesisCard}>
           <p className={styles.hypothesisStatement}>&ldquo;{h.hypothesis ?? h.note}&rdquo;</p>
           <div className={styles.hypothesisMetaRow}>
@@ -431,58 +313,18 @@ function HypothesisWorkspace({
         </div>
       ))}
 
-      {composing && (
-        <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-          <Stack gap={4}>
-            <TextArea
-              id="hypothesis-statement"
-              labelText="Hypothesis statement"
-              placeholder="e.g. NorthPeak's inventory issues stem from fragmented warehouse systems"
-              rows={2}
-              invalid={Boolean(errors.hypothesis)}
-              invalidText="Required"
-              {...register('hypothesis', { required: true })}
-            />
-
-            {citableEvidence.length > 0 && (
-              <div>
-                <p className={styles.linkLabel}>Supporting evidence</p>
-                <Stack gap={2}>
-                  {citableEvidence.map((e) => (
-                    <Controller
-                      key={e.id}
-                      control={control}
-                      name="supportingEvidenceIds"
-                      render={({ field }) => (
-                        <Checkbox
-                          id={`support-${e.id}`}
-                          labelText={`${evidenceCode(e.sequenceNo)} — ${e.note.slice(0, 60)}`}
-                          checked={field.value?.includes(e.id) ?? false}
-                          onChange={(_, { checked }) => {
-                            const current = field.value ?? []
-                            field.onChange(checked ? [...current, e.id] : current.filter((id) => id !== e.id))
-                          }}
-                        />
-                      )}
-                    />
-                  ))}
-                </Stack>
-              </div>
-            )}
-
-            <Select id="hypothesis-confidence" labelText="How confident are you?" {...register('confidence')}>
-              {CONFIDENCE_LEVELS.map((c) => (
-                <SelectItem key={c} value={c} text={c} />
-              ))}
-            </Select>
-
-            <Stack gap={3} orientation="horizontal">
-              <Button type="submit" size="sm" disabled={saveResearch.isPending}>Save hypothesis</Button>
-              <Button kind="ghost" size="sm" onClick={() => setComposing(false)}>Cancel</Button>
-            </Stack>
-          </Stack>
+      <Modal open={composing} modalHeading="Build a grounded hypothesis" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Save hypothesis'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending} onRequestClose={() => setComposing(false)} onRequestSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.hypothesisForm}>
+          <TextArea id="hypothesis-statement" labelText="Hypothesis statement" placeholder="State the observed problem, likely cause and business impact." rows={3} invalid={Boolean(errors.hypothesis)} invalidText="Required" {...register('hypothesis', { required: true })} />
+          {citableEvidence.length > 0 && (
+            <div>
+              <div className={styles.modalSectionHeader}><p className={styles.linkLabel}>Supporting evidence</p>{citableEvidence.length > citationPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous citations" disabled={citationPage === 0} onClick={() => setCitationPage((page) => page - 1)} /><span>{citationPage + 1} / {citationPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next citations" disabled={citationPage >= citationPageCount - 1} onClick={() => setCitationPage((page) => page + 1)} /></div>}</div>
+              <div className={styles.citationGrid}>{visibleCitations.map((e) => <Controller key={e.id} control={control} name="supportingEvidenceIds" render={({ field }) => <Checkbox id={`support-${e.id}`} labelText={`${evidenceCode(e.sequenceNo)} — ${e.note.slice(0, 74)}`} checked={field.value?.includes(e.id) ?? false} onChange={(_, { checked }) => { const current = field.value ?? []; field.onChange(checked ? [...current, e.id] : current.filter((id) => id !== e.id)) }} />} />)}</div>
+            </div>
+          )}
+          <Select id="hypothesis-confidence" labelText="How confident are you?" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select>
         </form>
-      )}
+      </Modal>
     </div>
   )
 }
@@ -490,16 +332,18 @@ function HypothesisWorkspace({
 export default function ClientIntelligencePage() {
   const { engagementId } = useParams<{ engagementId: string }>()
   const navigate = useNavigate()
-  const { data: engagement } = useEngagement(engagementId!)
   const { data: evidence, isLoading, isError } = useResearch(engagementId!)
   const saveResearch = useSaveResearch(engagementId!)
   const generateResearch = useGenerateResearchIntelligence(engagementId!)
   const analyzeUserContext = useAnalyzeUserContext(engagementId!)
-  const noteRef = useRef<HTMLTextAreaElement | null>(null)
+  const { data: gate } = useResearchGateStatus(engagementId!)
   const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
   const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
+  const [evidencePage, setEvidencePage] = useState(0)
+  const [findingsPage, setFindingsPage] = useState(0)
+  const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
 
-  const { register, handleSubmit, reset, setValue, control, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       evidenceType: 'COMPANY_NEWS',
       confidence: 'MEDIUM',
@@ -511,7 +355,6 @@ export default function ClientIntelligencePage() {
     reset: resetExternalContext,
     formState: { errors: externalContextErrors },
   } = useForm<ExternalContextFormValues>()
-  const { ref: noteFieldRef, ...noteFieldProps } = register('note', { required: true })
 
   const citableEvidence = useMemo(() => evidence ?? [], [evidence])
   const codeById = useMemo(
@@ -522,18 +365,32 @@ export default function ClientIntelligencePage() {
     () => citableEvidence.filter((e) => e.evidenceType !== 'HYPOTHESIS'),
     [citableEvidence]
   )
+  const evidencePageSize = 4
+  const findingsPageSize = 3
+  const visibleEvidence = nonHypothesisEvidence.slice(evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize)
+  const visibleFindings = researchResults.slice(findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize)
+  const evidencePageCount = Math.max(1, Math.ceil(nonHypothesisEvidence.length / evidencePageSize))
+  const findingsPageCount = Math.max(1, Math.ceil(researchResults.length / findingsPageSize))
+  const readinessCompleteCount = [
+    gate ? gate.evidenceCount >= gate.requiredEvidenceCount : false,
+    gate?.hasStakeholderEvidence ?? false,
+    gate ? gate.coverageCount >= gate.requiredCoverageCount : false,
+    gate?.groundedHypothesis ?? false,
+    gate ? gate.confidencePercent >= gate.requiredConfidencePercent : false,
+  ].filter(Boolean).length
 
   const selectResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
     setActiveAction(type)
     setValue('evidenceType', type)
     setResearchResults([])
+    setFindingsPage(0)
     generateResearch.reset()
     analyzeUserContext.reset()
   }
 
   const generateSelectedResearch = () => {
     if (!activeAction) return
-    generateResearch.mutate(activeAction, { onSuccess: setResearchResults })
+    generateResearch.mutate(activeAction, { onSuccess: (results) => { setResearchResults(results); setFindingsPage(0) } })
   }
 
   const addArtifactToEvidence = (artifact: ResearchArtifact) => {
@@ -545,10 +402,12 @@ export default function ClientIntelligencePage() {
         occurredOn: artifact.publishedOn,
         confidence: artifact.confidence,
         origin: artifact.origin,
+        relevanceScore: artifact.relevanceScore,
       },
       {
         onSuccess: () => {
           setResearchResults((items) => items.filter((item) => item.id !== artifact.id))
+          setEvidencePage(0)
         },
       }
     )
@@ -560,6 +419,7 @@ export default function ClientIntelligencePage() {
         const inferredType = artifact.evidenceType === 'HYPOTHESIS' ? 'OTHER' : artifact.evidenceType
         setActiveAction(inferredType as Exclude<EvidenceType, 'HYPOTHESIS'>)
         setResearchResults([artifact])
+        setFindingsPage(0)
         resetExternalContext()
       },
     })
@@ -579,6 +439,8 @@ export default function ClientIntelligencePage() {
         onSuccess: () => {
           reset({ evidenceType: 'COMPANY_NEWS', confidence: 'MEDIUM' })
           setActiveAction(null)
+          setManualEvidenceOpen(false)
+          setEvidencePage(0)
         },
       }
     )
@@ -588,290 +450,100 @@ export default function ClientIntelligencePage() {
   if (isError) return <ErrorState />
 
   const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
-  const activePrompt = activeResearchAction?.prompt
-
   return (
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
-        <div className={styles.progressBanner}>
-          <PhaseStepper currentPhase={engagement?.phase ?? 'CLIENT_INTELLIGENCE'} />
-        </div>
+        <nav className={styles.breadcrumbs} aria-label="Workflow path">
+          <span>Research workflow</span><ChevronRight size={16} />
+          <span>Build evidence and test a hypothesis</span><ChevronRight size={16} />
+          <strong>Research the client</strong>
+        </nav>
+        <header className={styles.pageHeader}>
+          <div className={styles.titleBlock}>
+            <div className={styles.titleIcon}><Search size={26} /></div>
+            <div>
+              <Heading className={styles.heading}>{PHASE_LABEL.CLIENT_INTELLIGENCE}</Heading>
+              <p className={styles.subheading}>Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach.</p>
+            </div>
+          </div>
+          <div className={styles.metricRow}>
+            <div className={styles.metricTile}><span>Evidence items</span><strong>{nonHypothesisEvidence.length}<small> / {gate?.requiredEvidenceCount ?? 2}</small></strong></div>
+            <div className={styles.metricTile}><span>Research quality</span><strong>{gate?.confidencePercent ?? 0}% <small>{gate && gate.confidencePercent >= gate.requiredConfidencePercent ? 'On track' : 'Building'}</small></strong></div>
+            <div className={styles.metricTile}><span>Readiness</span><strong>{Math.round((readinessCompleteCount / 5) * 100)}% <small>{gate?.ready ? 'Ready' : 'In progress'}</small></strong></div>
+          </div>
+        </header>
+
+        <section className={styles.readinessBand} aria-label="Outreach readiness">
+          <div className={styles.readinessTitle}><span>Outreach readiness</span><strong>{readinessCompleteCount} of 5 complete</strong></div>
+          <GateRequirement met={(gate?.evidenceCount ?? 0) >= (gate?.requiredEvidenceCount ?? 2)} label={`${gate?.requiredEvidenceCount ?? 2} evidence items`} />
+          <GateRequirement met={gate?.hasStakeholderEvidence ?? false} label="Stakeholder identified" />
+          <GateRequirement met={(gate?.coverageCount ?? 0) >= (gate?.requiredCoverageCount ?? 2)} label={`${gate?.requiredCoverageCount ?? 2} areas covered`} />
+          <GateRequirement met={gate?.groundedHypothesis ?? false} label="Grounded hypothesis" />
+          <GateRequirement met={(gate?.confidencePercent ?? 0) >= (gate?.requiredConfidencePercent ?? 40)} label={`${gate?.requiredConfidencePercent ?? 40}% confidence`} />
+        </section>
       </Column>
 
-      <Column lg={16} md={8} sm={4}>
-        <div className={styles.pageHeader}>
-          <div>
-            <Heading className={styles.heading}>Client Intelligence</Heading>
-            <p className={styles.subheading}>
-              Build evidence, reveal client intelligence and submit a grounded hypothesis before outreach unlocks.
-            </p>
-          </div>
-          <Tag type="blue" size="md">{nonHypothesisEvidence.length} evidence items</Tag>
-        </div>
-      </Column>
-
-      <Column lg={3} md={3} sm={4}>
-        <aside className={styles.sideRail}>
-          <div className={styles.researchActions}>
-            <h4 className={styles.researchActionsTitle}>Research Actions</h4>
-            {RESEARCH_ACTIONS.map(({ type, label, icon: Icon }) => {
-              const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  className={`${styles.actionButton} ${activeAction === type ? styles.actionButtonActive : ''} ${findingCount > 0 ? styles.actionButtonComplete : ''}`}
-                  disabled={generateResearch.isPending || analyzeUserContext.isPending}
-                  onClick={() => selectResearchAction(type)}
-                >
-                  {findingCount > 0 ? <CheckmarkFilled size={20} className={styles.actionButtonCheck} /> : <Icon size={20} />}
-                  <span className={styles.actionButtonLabel}>{label}</span>
-                  {findingCount > 0 && (
-                    <span className={styles.actionButtonCount}>
-                      {findingCount} finding{findingCount > 1 ? 's' : ''}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
+      <Column lg={3} md={3} sm={4} className={styles.workColumn}>
+        <aside className={styles.researchActions}>
+          <h2>Research areas</h2>
+          {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
+            const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
+            return (
+              <button key={type} type="button" className={`${styles.actionButton} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={generateResearch.isPending || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
+                <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '')}</small></span>
+                {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
+              </button>
+            )
+          })}
         </aside>
       </Column>
 
-      <Column lg={8} md={5} sm={4}>
-        <main className={styles.mainWorkspace}>
-          <section className={styles.researchResultsPanel}>
-            <div className={styles.panelHeader}>
-              <div>
-                <p className={styles.sectionEyebrow}>Research Results</p>
-                <h3>{activeResearchAction?.label ?? 'Select a research action'}</h3>
+      <Column lg={9} md={5} sm={4} className={styles.workColumn}>
+        <main className={styles.workspace}>
+          <section className={styles.researchWorkspace}>
+            <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
+            {activeResearchAction ? (
+              <div className={styles.researchMethods}>
+                <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
+                <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Add external context</h3><p>AI correlates your input without changing canonical scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button></Tile></form>
               </div>
-              {activeAction && <Tag type="cyan" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}
-            </div>
-            <p className={styles.panelDescription}>
-              {activeResearchAction
-                ? activeResearchAction.prompt
-                : 'Choose an intelligence area from the left to start a controlled research workflow.'}
-            </p>
-
-            {activeResearchAction && (
-              <div className={styles.researchOptions}>
-                <Tile className={styles.researchOptionCard}>
-                  <Stack gap={3}>
-                    <div>
-                      <h4>AI-generated scenario intelligence</h4>
-                      <p>
-                        Generate controlled artefacts from scenario-approved facts. These results stay consistent with the canonical case truth.
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={generateSelectedResearch}
-                      disabled={generateResearch.isPending || analyzeUserContext.isPending}
-                    >
-                      {generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}
-                    </Button>
-                  </Stack>
-                </Tile>
-
-                <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
-                  <Tile className={styles.researchOptionCard}>
-                    <Stack gap={3}>
-                      <div>
-                        <h4>Add external context</h4>
-                        <p>
-                          Paste a note, article excerpt or observation. AI will correlate it as unverified intelligence without overwriting scenario truth.
-                        </p>
-                      </div>
-                      <TextArea
-                        id="external-context"
-                        labelText="External context"
-                        rows={3}
-                        invalid={Boolean(externalContextErrors.context)}
-                        invalidText="Required"
-                        {...registerExternalContext('context', { required: true })}
-                      />
-                      <Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>
-                        {analyzeUserContext.isPending ? 'Analysing...' : 'Analyse Context'}
-                      </Button>
-                    </Stack>
-                  </Tile>
-                </form>
-              </div>
-            )}
-
-            {generateResearch.isPending && (
-              <div className={styles.researchLoading}>
-                <div className={styles.researchLoadingPulse} />
-                <div>
-                  <strong>Preparing scenario-safe intelligence...</strong>
-                  <span>Fast fallback will return canonical artefacts if the AI gateway is slow.</span>
-                </div>
-              </div>
-            )}
-
-            {generateResearch.isError && (
-              <InlineNotification
-                kind="error"
-                lowContrast
-                title="Research could not be generated"
-                subtitle="The intelligence service returned an error. Retry this action after the API reloads."
-                hideCloseButton
-                className={styles.researchError}
-              />
-            )}
-
-            {!activeResearchAction && (
-              <div className={styles.resultsEmpty}>
-                <Search size={24} />
-                <span>Select a research action to choose how you want to gather intelligence.</span>
-              </div>
-            )}
-
-            {activeResearchAction && !generateResearch.isPending && !generateResearch.isError && !analyzeUserContext.isPending && researchResults.length === 0 && (
-              <div className={styles.resultsEmpty}>
-                <Search size={24} />
-                <span>Use AI generation or external context analysis to create reviewable intelligence.</span>
-              </div>
-            )}
-
-            <div className={styles.artifactGrid}>
-              {researchResults.map((artifact) => (
-                <ResearchArtifactCard
-                  key={artifact.id}
-                  artifact={artifact}
-                  onAdd={addArtifactToEvidence}
-                  isAdding={saveResearch.isPending}
-                />
-              ))}
-            </div>
+            ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
+            {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}
+            {generateResearch.isError && <InlineNotification kind="error" lowContrast title="Research could not be generated" subtitle="Retry this research action." hideCloseButton className={styles.researchError} />}
+            {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
           </section>
 
-          <div className={styles.evidenceBoard}>
-            <div className={styles.evidenceBoardHeader}>
-              <div>
-                <p className={styles.sectionEyebrow}>Evidence Board</p>
-                <h3>Collected Evidence</h3>
-              </div>
-              <Tag type="blue" size="md">{nonHypothesisEvidence.length} items</Tag>
-            </div>
-
-            {nonHypothesisEvidence.length === 0 && (
-              <Tile className={styles.emptyState}>
-                <Search size={32} />
-                <p>No evidence collected yet.</p>
-                <Button
-                  kind="tertiary"
-                  size="sm"
-                  onClick={() => noteRef.current?.focus()}
-                >
-                  Add your first evidence
-                </Button>
-              </Tile>
-            )}
-
-            <div className={styles.evidenceGrid}>
-              {nonHypothesisEvidence.map((item) => (
-                <EvidenceCard key={item.id} item={item} codeById={codeById} />
-              ))}
-            </div>
-          </div>
+          <section className={styles.evidenceBoard}>
+            <div className={styles.compactSectionHeader}><div><p className={styles.sectionEyebrow}>Evidence board</p><h2>Collected evidence ({nonHypothesisEvidence.length})</h2></div><div className={styles.evidenceTools}><Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => setManualEvidenceOpen(true)}>Add source</Button>{nonHypothesisEvidence.length > evidencePageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous evidence" disabled={evidencePage === 0} onClick={() => setEvidencePage((page) => page - 1)} /><span>{evidencePage + 1} / {evidencePageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next evidence" disabled={evidencePage >= evidencePageCount - 1} onClick={() => setEvidencePage((page) => page + 1)} /></div>}</div></div>
+            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
+          </section>
         </main>
       </Column>
 
-      <Column lg={5} md={8} sm={4}>
+      <Column lg={4} md={8} sm={4} className={styles.workColumn}>
         <aside className={styles.decisionRail}>
-          <ClientProfilePanel engagementId={engagementId!} />
           <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
-          <ResearchGateChecklist
-            engagementId={engagementId!}
-            onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
-          />
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Tile className={styles.formTile}>
-              <Stack gap={4}>
-                <h4 className={styles.formTitle}>
-                  Manual Evidence Entry
-                </h4>
-
-                {activePrompt && (
-                  <p style={{ color: '#525252', fontSize: '0.8125rem', marginTop: '-0.5rem' }}>{activePrompt}</p>
-                )}
-
-                <Select
-                  id="evidenceType"
-                  labelText="Type"
-                  {...register('evidenceType')}
-                  onChange={(e) => {
-                    register('evidenceType').onChange(e)
-                    setActiveAction(null)
-                  }}
-                >
-                  {EVIDENCE_TYPES.map((t) => (
-                    <SelectItem key={t} value={t} text={t.replace(/_/g, ' ')} />
-                  ))}
-                </Select>
-
-                <TextArea
-                  id="note"
-                  labelText="Evidence / Note"
-                  rows={3}
-                  invalid={Boolean(errors.note)}
-                  invalidText="Required"
-                  {...noteFieldProps}
-                  ref={(el) => {
-                    noteFieldRef(el)
-                    noteRef.current = el
-                  }}
-                />
-
-                <Accordion align="start">
-                  <AccordionItem title="Source details (optional)">
-                    <Stack gap={4}>
-                      <Stack gap={4} orientation="horizontal" className={styles.sourceRow}>
-                        <TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} />
-                        <TextInput id="sourceUrl" labelText="Source URL" placeholder="https://…" {...register('sourceUrl')} />
-                      </Stack>
-                      <Stack gap={4} orientation="horizontal" className={styles.sourceRow}>
-                        <Controller
-                          control={control}
-                          name="occurredOn"
-                          render={({ field }) => (
-                            <DatePicker
-                              datePickerType="single"
-                              dateFormat="Y-m-d"
-                              onChange={(dates: Date[]) => {
-                                const [d] = dates
-                                field.onChange(d ? d.toISOString().slice(0, 10) : '')
-                              }}
-                            >
-                              <DatePickerInput
-                                id="occurredOn"
-                                labelText="Date observed"
-                                placeholder="yyyy-mm-dd"
-                              />
-                            </DatePicker>
-                          )}
-                        />
-                        <Select id="confidence" labelText="Reliability / confidence" {...register('confidence')}>
-                          {CONFIDENCE_LEVELS.map((c) => (
-                            <SelectItem key={c} value={c} text={c} />
-                          ))}
-                        </Select>
-                      </Stack>
-                    </Stack>
-                  </AccordionItem>
-                </Accordion>
-
-                <Button type="submit" renderIcon={Add} disabled={saveResearch.isPending}>
-                  Add Evidence
-                </Button>
-              </Stack>
-            </Tile>
-          </form>
+          <ResearchGateChecklist engagementId={engagementId!} onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)} />
         </aside>
+
+        {/* Outside the scrolling rail, not merely sticky inside it. As a sticky
+            last-ish child it scrolled away as soon as the manual entry form
+            below it came into view — the one block that must never require
+            scrolling to find. */}
+        <ResearchGateChecklist
+          engagementId={engagementId!}
+          onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
+        />
       </Column>
+
+      <Modal open={manualEvidenceOpen} modalHeading="Add a source to the evidence board" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" onRequestClose={() => setManualEvidenceOpen(false)} onRequestSubmit={handleSubmit(onSubmit)} primaryButtonDisabled={saveResearch.isPending}>
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.manualEvidenceForm}>
+          <Select id="evidenceType" labelText="Research area" {...register('evidenceType')} onChange={(event) => { register('evidenceType').onChange(event); setActiveAction(null) }}>{EVIDENCE_TYPES.map((type) => <SelectItem key={type} value={type} text={type.replace(/_/g, ' ')} />)}</Select>
+          <TextArea id="note" labelText="Finding" rows={3} invalid={Boolean(errors.note)} invalidText="A finding is required" {...register('note', { required: true })} />
+          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Select id="confidence" labelText="Reliability" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select></div>
+          <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
+        </form>
+      </Modal>
     </Grid>
   )
 }

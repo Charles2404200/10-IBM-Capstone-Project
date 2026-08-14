@@ -60,6 +60,10 @@ public class ResearchEvidence extends BaseEntity {
     @Column(nullable = false, length = 20)
     private ConfidenceLevel confidence;
 
+    /** Server-normalised relevance to the active client problem, 0-100. */
+    @Column(nullable = false)
+    private Integer relevanceScore = 60;
+
     /** Stable per-engagement ordinal, rendered by the frontend as "E-01", "E-02", ... */
     @Column(nullable = false)
     private Integer sequenceNo;
@@ -87,6 +91,7 @@ public class ResearchEvidence extends BaseEntity {
     public EvidenceVerificationStatus getVerificationStatus() { return verificationStatus; }
     public LocalDate getOccurredOn() { return occurredOn; }
     public ConfidenceLevel getConfidence() { return confidence; }
+    public Integer getRelevanceScore() { return relevanceScore; }
     public Integer getSequenceNo() { return sequenceNo; }
     public Set<UUID> getSupportingEvidenceIds() { return Set.copyOf(supportingEvidenceIds); }
 
@@ -105,6 +110,7 @@ public class ResearchEvidence extends BaseEntity {
         public Builder verificationStatus(EvidenceVerificationStatus status) { instance.verificationStatus = status; return this; }
         public Builder occurredOn(LocalDate occurredOn) { instance.occurredOn = occurredOn; return this; }
         public Builder confidence(ConfidenceLevel confidence) { instance.confidence = confidence; return this; }
+        public Builder relevanceScore(Integer relevanceScore) { instance.relevanceScore = relevanceScore; return this; }
         public Builder sequenceNo(int sequenceNo) { instance.sequenceNo = sequenceNo; return this; }
         public Builder supportingEvidenceIds(Set<UUID> ids) {
             instance.supportingEvidenceIds = ids == null ? new LinkedHashSet<>() : new LinkedHashSet<>(ids);
@@ -124,6 +130,8 @@ public class ResearchEvidence extends BaseEntity {
                         ? EvidenceVerificationStatus.UNVERIFIED
                         : EvidenceVerificationStatus.CORROBORATED;
             }
+            if (instance.relevanceScore == null) instance.relevanceScore = 60;
+            instance.relevanceScore = Math.max(0, Math.min(100, instance.relevanceScore));
             return instance;
         }
     }

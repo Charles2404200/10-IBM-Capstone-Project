@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Grid,
-  Column,
   Heading,
   Button,
   Tile,
@@ -17,7 +15,7 @@ import {
   TabPanels,
   TabPanel,
 } from '@carbon/react'
-import { Add, TrashCan, ArrowRight } from '@carbon/icons-react'
+import { Add, TrashCan, ArrowRight, CheckmarkFilled, ChevronLeft, ChevronRight } from '@carbon/icons-react'
 import {
   useMeetingPreparation,
   useUpdateMeetingPreparation,
@@ -26,6 +24,7 @@ import {
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 
 interface DraftListItem {
   id: string
@@ -37,6 +36,9 @@ interface PreparationDraft {
   agenda: string[]
   discoveryQuestions: string[]
 }
+
+const ITEMS_PER_PAGE = 3
+const READY_THRESHOLD = 70
 
 let generatedItemId = 0
 
@@ -84,6 +86,15 @@ function EditableList({
   onChange: (items: DraftListItem[]) => void
   placeholder: string
 }) {
+  const [page, setPage] = useState(0)
+  const completedCount = items.filter((item) => item.value.trim()).length
+  const totalPages = Math.max(1, Math.ceil(items.length / ITEMS_PER_PAGE))
+  const visibleItems = items.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE)
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, totalPages - 1))
+  }, [totalPages])
+
   const update = (index: number, value: string) => {
     onChange(items.map((item, itemIndex) => itemIndex === index ? { ...item, value } : item))
   }
@@ -91,16 +102,25 @@ function EditableList({
     const next = items.filter((_, itemIndex) => itemIndex !== index)
     onChange(next.length > 0 ? next : [createDraftItem()])
   }
-  const add = () => onChange([...items, createDraftItem()])
+  const add = () => {
+    const next = [...items, createDraftItem()]
+    onChange(next)
+    setPage(Math.floor((next.length - 1) / ITEMS_PER_PAGE))
+  }
 
   return (
     <section className={styles.listWorkspace} aria-label={label}>
       <div className={styles.listHeading}>
-        <h2>{label}</h2>
-        <Tag type="gray" size="sm">{items.filter((item) => item.value.trim()).length}</Tag>
+        <div>
+          <p className={styles.listEyebrow}>Meeting plan</p>
+          <h2>{label}</h2>
+        </div>
+        <Tag type={completedCount > 0 ? 'blue' : 'gray'} size="sm">{completedCount} drafted</Tag>
       </div>
       <div className={styles.itemsViewport}>
-        {items.map((item, index) => (
+        {visibleItems.map((item, visibleIndex) => {
+          const index = page * ITEMS_PER_PAGE + visibleIndex
+          return (
           <div key={item.id} className={styles.listRow}>
             <span className={styles.rowNumber}>{index + 1}</span>
             <TextInput
@@ -120,11 +140,37 @@ function EditableList({
               onClick={() => remove(index)}
             />
           </div>
-        ))}
+          )
+        })}
       </div>
-      <Button className={styles.addItemButton} kind="tertiary" size="sm" renderIcon={Add} onClick={add}>
-        Add {itemLabel.toLowerCase()}
-      </Button>
+      <div className={styles.listFooter}>
+        <Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>
+          Add {itemLabel.toLowerCase()}
+        </Button>
+        {totalPages > 1 && (
+          <div className={styles.paginationControls} aria-label={`${label} pages`}>
+            <span>{page + 1} of {totalPages}</span>
+            <Button
+              kind="ghost"
+              size="sm"
+              hasIconOnly
+              renderIcon={ChevronLeft}
+              iconDescription="Previous items"
+              disabled={page === 0}
+              onClick={() => setPage((currentPage) => currentPage - 1)}
+            />
+            <Button
+              kind="ghost"
+              size="sm"
+              hasIconOnly
+              renderIcon={ChevronRight}
+              iconDescription="Next items"
+              disabled={page === totalPages - 1}
+              onClick={() => setPage((currentPage) => currentPage + 1)}
+            />
+          </div>
+        )}
+      </div>
     </section>
   )
 }
@@ -139,6 +185,7 @@ export default function MeetingPreparationPage() {
   const [objective, setObjective] = useState('')
   const [agenda, setAgenda] = useState<DraftListItem[]>([])
   const [discoveryQuestions, setDiscoveryQuestions] = useState<DraftListItem[]>([])
+  const [launchingMeeting, setLaunchingMeeting] = useState(false)
   const hydratedEngagementRef = useRef<string | null>(null)
   const hasHydratedRef = useRef(false)
 
@@ -175,7 +222,7 @@ export default function MeetingPreparationPage() {
   if (isLoading) return <LoadingState />
   if (isError) return <ErrorState />
 
-  const handleSave = () => {
+  const savePreparation = (onSuccess?: () => void) => {
     updatePreparation.mutate({
       objective,
       agenda: agenda.map((item) => item.value).filter((value) => value.trim()),
@@ -187,73 +234,93 @@ export default function MeetingPreparationPage() {
           agenda: saved.agenda,
           discoveryQuestions: saved.discoveryQuestions,
         } satisfies PreparationDraft))
+        onSuccess?.()
       },
+      onError: () => setLaunchingMeeting(false),
     })
   }
+
+  const handleSave = () => savePreparation()
 
   const handleStartMeeting = () => {
-    startMeeting.mutate(undefined, {
-      onSuccess: (meeting) => navigate(`/dashboard/engagements/${engagementId}/meetings/${meeting.id}`),
+    setLaunchingMeeting(true)
+    savePreparation(() => {
+      startMeeting.mutate(undefined, {
+        onSuccess: (meeting) => navigate(`/dashboard/engagements/${engagementId}/meetings/${meeting.id}`),
+        onError: () => setLaunchingMeeting(false),
+      })
     })
   }
 
-  const readinessScore = preparation?.readinessScore ?? 0
-  const ready = preparation?.ready ?? false
   const agendaCount = agenda.filter((item) => item.value.trim()).length
   const questionCount = discoveryQuestions.filter((item) => item.value.trim()).length
+  const objectiveReady = objective.trim().length > 0
+  const readinessScore = Math.min(100,
+    (objectiveReady ? 20 : 0)
+    + Math.min(40, agendaCount * 10)
+    + Math.min(40, questionCount * 8),
+  )
+  const ready = readinessScore >= READY_THRESHOLD
+  const isSaving = updatePreparation.isPending || launchingMeeting
 
   return (
     <div className={styles.page}>
-      <Grid fullWidth className={styles.headerGrid}>
-        <Column lg={16} md={8} sm={4}>
-          <div className={styles.pageHeader}>
-            <div>
-              <Heading>Meeting Preparation</Heading>
-              <p>Define the meeting plan before the live client conversation.</p>
-            </div>
-            <div className={styles.headerActions}>
-              <Button kind="secondary" disabled={updatePreparation.isPending} onClick={handleSave}>
-                {updatePreparation.isPending ? 'Saving...' : 'Save Preparation'}
-              </Button>
-              <Button renderIcon={ArrowRight} disabled={!ready || startMeeting.isPending} onClick={handleStartMeeting}>
-                {startMeeting.isPending ? 'Starting...' : 'Start Meeting'}
-              </Button>
-            </div>
+      <div className={styles.canvas}>
+        <header className={styles.pageHeader}>
+          <div>
+            <p className={styles.eyebrow}>Engagement workflow / step 4</p>
+            <Heading>{PHASE_LABEL.MEETING_PREPARATION}</Heading>
+            <p className={styles.pageDescription}>Turn your research into a focused client conversation with a clear purpose, flow and questions.</p>
           </div>
-        </Column>
-      </Grid>
+          <div className={styles.headerActions}>
+            <Button kind="tertiary" disabled={isSaving} onClick={handleSave}>
+              {updatePreparation.isPending && !launchingMeeting ? 'Saving...' : 'Save plan'}
+            </Button>
+            <Button renderIcon={ArrowRight} disabled={!ready || isSaving || startMeeting.isPending} onClick={handleStartMeeting}>
+              {launchingMeeting ? 'Opening meeting...' : startMeeting.isPending ? 'Starting...' : 'Start meeting'}
+            </Button>
+          </div>
+        </header>
 
-      <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={5} md={8} sm={4} className={styles.planColumn}>
-          <section className={styles.readinessPanel} aria-label="Meeting readiness">
-            <div className={styles.readinessHeading}>
-              <div>
-                <p className={styles.eyebrow}>Meeting readiness</p>
-                <strong>{readinessScore}<span>/100</span></strong>
-              </div>
-              <Tag type={ready ? 'green' : 'gray'}>{ready ? 'Ready' : 'Not ready'}</Tag>
+        <section className={styles.readinessStrip} aria-label="Meeting readiness">
+          <div className={styles.readinessScore}>
+            <div>
+              <p className={styles.eyebrow}>Readiness preview</p>
+              <strong>{readinessScore}<span>/100</span></strong>
             </div>
-            <ProgressBar label="" hideLabel value={readinessScore} max={100} size="small" />
-            <p>70 required to start</p>
-          </section>
+            <Tag type={ready ? 'green' : 'gray'}>{ready ? 'Ready to meet' : `${READY_THRESHOLD - readinessScore} points to go`}</Tag>
+          </div>
+          <ProgressBar label="Meeting readiness" hideLabel value={readinessScore} max={100} size="small" />
+          <div className={styles.readinessChecks}>
+            <ReadinessCheck complete={objectiveReady} label="Meeting objective" detail="20 points" />
+            <ReadinessCheck complete={agendaCount >= 3} label="Agenda flow" detail={`${agendaCount}/4 items`} />
+            <ReadinessCheck complete={questionCount >= 3} label="Discovery questions" detail={`${questionCount}/5 questions`} />
+          </div>
+        </section>
 
-          <Tile className={styles.objectivePanel}>
-            <TextArea
-              id="objective"
-              labelText="Meeting objective"
-              rows={7}
-              value={objective}
-              onChange={(event) => setObjective(event.target.value)}
-            />
-          </Tile>
+        <main className={styles.workspaceGrid}>
+          <section className={styles.primaryWorkspace} aria-label="Meeting plan workspace">
+            <Tile className={styles.objectivePanel}>
+              <div className={styles.panelHeading}>
+                <div>
+                  <p className={styles.eyebrow}>Conversation outcome</p>
+                  <h2>Meeting objective</h2>
+                </div>
+                <span>{objective.trim().length}/300</span>
+              </div>
+              <TextArea
+                id="objective"
+                labelText="Meeting objective"
+                hideLabel
+                rows={3}
+                maxLength={300}
+                placeholder="e.g. Validate the operational problem, quantify its impact and agree a low-risk next step."
+                value={objective}
+                onChange={(event) => setObjective(event.target.value)}
+              />
+            </Tile>
 
-          {updatePreparation.isError && (
-            <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Failed to save preparation" hideCloseButton />
-          )}
-        </Column>
-
-        <Column lg={11} md={8} sm={4} className={styles.editorColumn}>
-          <Tile className={styles.collectionPanel}>
+            <Tile className={styles.collectionPanel}>
             <Tabs>
               <TabList aria-label="Meeting plan sections" className={styles.sectionTabs}>
                 <Tab>Agenda <span className={styles.tabCount}>{agendaCount}</span></Tab>
@@ -280,9 +347,46 @@ export default function MeetingPreparationPage() {
                 </TabPanel>
               </TabPanels>
             </Tabs>
-          </Tile>
-        </Column>
-      </Grid>
+            </Tile>
+          </section>
+
+          <aside className={styles.coachingRail} aria-label="Preparation guidance">
+            <Tile className={styles.coachingPanel}>
+              <p className={styles.eyebrow}>What good looks like</p>
+              <h2>A purposeful conversation</h2>
+              <p>Start with the outcome the client cares about, then use questions to learn what you do not yet know.</p>
+              <div className={styles.coachingTip}>
+                <strong>Next best action</strong>
+                <span>{objectiveReady ? agendaCount < 3 ? 'Add an agenda flow that gives the client a clear meeting structure.' : questionCount < 3 ? 'Add open discovery questions that uncover impact, constraints and decision criteria.' : 'Your plan is ready. Start the meeting when you are prepared.' : 'Write the business outcome you need to validate in this conversation.'}</span>
+              </div>
+            </Tile>
+
+            <Tile className={styles.scoreGuide}>
+              <p className={styles.eyebrow}>Score guide</p>
+              <div><span>Objective</span><strong>20 pts</strong></div>
+              <div><span>Agenda</span><strong>Up to 40 pts</strong></div>
+              <div><span>Questions</span><strong>Up to 40 pts</strong></div>
+              <p>Reach 70 to open the live meeting. Your plan is saved automatically in this browser while you work.</p>
+            </Tile>
+
+            {updatePreparation.isError && (
+              <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Failed to save preparation" subtitle="Your local draft is still available. Try saving again." hideCloseButton />
+            )}
+          </aside>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+function ReadinessCheck({ complete, label, detail }: { complete: boolean; label: string; detail: string }) {
+  return (
+    <div className={styles.readinessCheck}>
+      <CheckmarkFilled className={complete ? styles.checkComplete : styles.checkPending} />
+      <div>
+        <strong>{label}</strong>
+        <span>{detail}</span>
+      </div>
     </div>
   )
 }

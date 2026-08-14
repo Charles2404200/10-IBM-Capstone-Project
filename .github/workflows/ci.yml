@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Make Gradle wrapper executable
+        working-directory: apps/api
+        run: chmod +x gradlew
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -34,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.19.0'
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
       - name: Install
@@ -43,6 +46,9 @@ jobs:
       - name: Type-check
         working-directory: apps/web
         run: npm run type-check
+      - name: Type-check tests
+        working-directory: apps/web
+        run: npm run type-check:tests
       - name: Lint
         working-directory: apps/web
         run: npm run lint
@@ -59,4 +65,8 @@ jobs:
       - name: Build API image
         run: docker build -t consulting-sim-api:${{ github.sha }} apps/api
       - name: Build Web image
-        run: docker build -t consulting-sim-web:${{ github.sha }} apps/web
+        run: >-
+          docker build
+          --build-arg VITE_API_BASE_URL=https://api.example.test
+          -t consulting-sim-web:${{ github.sha }}
+          apps/web

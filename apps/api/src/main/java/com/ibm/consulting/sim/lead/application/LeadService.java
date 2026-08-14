@@ -4,8 +4,11 @@ import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.lead.domain.*;
+import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +25,18 @@ public class LeadService {
     private final ResearchEvidenceRepository evidenceRepository;
     private final EngagementRepository engagementRepository;
     private final DifficultyProfileService difficultyProfileService;
+    private final ScenarioRepository scenarioRepository;
+    private final ScenarioAuthoringConfigService authoringConfigService;
 
     public LeadService(LeadRepository leadRepository, ResearchEvidenceRepository evidenceRepository,
-                       EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService) {
+                       EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService,
+                       ScenarioRepository scenarioRepository, ScenarioAuthoringConfigService authoringConfigService) {
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.engagementRepository = engagementRepository;
         this.difficultyProfileService = difficultyProfileService;
+        this.scenarioRepository = scenarioRepository;
+        this.authoringConfigService = authoringConfigService;
     }
 
     @Transactional(readOnly = true)
@@ -37,6 +45,19 @@ public class LeadService {
         return leadRepository.findByScenarioId(scenarioId).stream()
                 .map(LeadSummary::from)
                 .toList();
+    }
+
+    /** Indexed and cached catalogue query used by Command Centre. It never loads the full catalogue into memory. */
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.LEAD_CATALOG_CACHE, key = "#query.cacheKey()")
+    public LeadCatalogResponse listCatalog(LeadCatalogQuery query) {
+        return LeadCatalogResponse.from(leadRepository.findCatalog(query));
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CacheConfig.LEAD_CATALOG_FACETS_CACHE, key = "'industries'")
+    public List<String> catalogIndustries() {
+        return leadRepository.findCatalogIndustries();
     }
 
     @Transactional
@@ -73,6 +94,7 @@ public class LeadService {
                                                 String sourceUrl, String sourceTitle,
                                                 EvidenceOrigin origin, EvidenceVerificationStatus verificationStatus,
                                                 LocalDate occurredOn, ConfidenceLevel confidence,
+                                                Integer relevanceScore,
                                                 Set<UUID> supportingEvidenceIds) {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
@@ -96,11 +118,25 @@ public class LeadService {
                 .verificationStatus(verificationStatus)
                 .occurredOn(occurredOn)
                 .confidence(confidence)
+                .relevanceScore(normalizeRelevance(origin, relevanceScore))
                 .sequenceNo(nextSequence)
                 .supportingEvidenceIds(validatedSupportingIds)
                 .build();
         evidenceRepository.save(evidence);
         return ResearchEvidenceSummary.from(evidence);
+    }
+
+    /** The browser can suggest relevance from a reviewed artifact, but unverified
+     * learner input can never claim the same weight as scenario-controlled evidence. */
+    private int normalizeRelevance(EvidenceOrigin origin, Integer requestedScore) {
+        int defaultScore = switch (origin == null ? EvidenceOrigin.USER_SUPPLIED : origin) {
+            case SCENARIO_CURATED -> 85;
+            case AI_SYNTHESIZED -> 80;
+            case MEETING_DISCOVERY -> 90;
+            case USER_SUPPLIED -> 35;
+        };
+        int score = requestedScore == null ? defaultScore : Math.max(0, Math.min(100, requestedScore));
+        return origin == EvidenceOrigin.USER_SUPPLIED ? Math.min(score, 45) : score;
     }
 
     /** Guards against a hypothesis citing evidence IDs from another engagement or that don't exist. */
@@ -159,11 +195,7 @@ public class LeadService {
 
         var profile = difficultyProfileService.forEngagement(engagement);
         if (!ResearchReadinessPolicy.isResearchComplete(evidence, profile)) {
-            throw new ResearchNotReadyException(
-                    ResearchReadinessPolicy.evidenceCount(evidence),
-                    ResearchReadinessPolicy.hasStakeholderEvidence(evidence),
-                    ResearchReadinessPolicy.hasHypothesis(evidence),
-                    ResearchReadinessPolicy.confidencePercent(evidence));
+            throw new ResearchNotReadyException(evidence, profile);
         }
 
         engagement.transitionTo(EngagementState.HYPOTHESIS_READY,
@@ -188,6 +220,9 @@ public class LeadService {
         Lead lead = leadRepository.findById(leadId)
                 .orElseThrow(() -> new NotFoundException("Lead", leadId));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
-        return LeadIntelligenceSummary.from(lead, evidence);
+        var authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
+                .map(authoringConfigService::forScenario)
+                .orElseGet(com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig::defaults);
+        return LeadIntelligenceSummary.from(lead, evidence, authoringConfig);
     }
 }

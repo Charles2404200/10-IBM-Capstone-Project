@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.shared.domain.RateLimitExceededException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -42,6 +43,23 @@ public class GlobalExceptionHandler {
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "validation-error", "Request validation failed");
         pd.setProperty("violations", violations);
         return pd;
+    }
+
+    /** Domain guards use IllegalArgumentException for invalid authoring input. */
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "invalid-request", ex.getMessage());
+    }
+
+    /**
+     * A persistence constraint is a correctable authoring error, not an opaque
+     * server failure. Keep database implementation details out of the response.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Request violated a persistence constraint", ex);
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "data-constraint",
+                "The data could not be saved because it conflicts with an existing record or constraint.");
     }
 
     @ExceptionHandler(AuthenticationException.class)

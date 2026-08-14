@@ -14,7 +14,11 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
 import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
+import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
+import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.slf4j.Logger;
@@ -41,13 +45,17 @@ public class ResearchIntelligenceService {
     private final ObjectMapper objectMapper;
     private final CacheManager cacheManager;
     private final DifficultyProfileService difficultyProfileService;
+    private final ScenarioRepository scenarioRepository;
+    private final ScenarioAuthoringConfigService authoringConfigService;
 
     public ResearchIntelligenceService(EngagementRepository engagementRepository,
                                        LeadRepository leadRepository,
                                        ResearchEvidenceRepository evidenceRepository,
                                        AiOrchestrationService aiOrchestrationService,
                                        ObjectMapper objectMapper,
-                                       CacheManager cacheManager, DifficultyProfileService difficultyProfileService) {
+                                       CacheManager cacheManager, DifficultyProfileService difficultyProfileService,
+                                       ScenarioRepository scenarioRepository,
+                                       ScenarioAuthoringConfigService authoringConfigService) {
         this.engagementRepository = engagementRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
@@ -55,6 +63,8 @@ public class ResearchIntelligenceService {
         this.objectMapper = objectMapper;
         this.cacheManager = cacheManager;
         this.difficultyProfileService = difficultyProfileService;
+        this.scenarioRepository = scenarioRepository;
+        this.authoringConfigService = authoringConfigService;
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +72,10 @@ public class ResearchIntelligenceService {
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
         Lead lead = loadLead(engagement);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
-        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible());
+        ScenarioAuthoringConfig authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
+                .map(authoringConfigService::forScenario)
+                .orElseGet(ScenarioAuthoringConfig::defaults);
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, type);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
         String cacheKey = cacheKey(lead, type, discovered, profile);
         try {
@@ -77,14 +90,14 @@ public class ResearchIntelligenceService {
                     buildPrompt(lead, engagement, type, facts, discovered, null, profile),
                     1,
                     parser,
-                    () -> templateGenerate(lead, type, profile));
+                    () -> templateGenerate(lead, type, profile, authoringConfig));
             List<ResearchArtifactResponse> filtered = removeDuplicates(shapeForDifficulty(lead, type, artifacts, profile), discovered);
             cacheArtifacts(cacheKey, filtered);
             return filtered;
         } catch (RuntimeException e) {
             log.warn("Client intelligence AI path failed for engagement {} and type {}; using scenario-safe fallback",
                     engagementId, type, e);
-            return removeDuplicates(templateGenerate(lead, type, profile), discovered);
+            return removeDuplicates(templateGenerate(lead, type, profile, authoringConfig), discovered);
         }
     }
 
@@ -115,7 +128,8 @@ public class ResearchIntelligenceService {
                 Integer.toHexString(discoveredFingerprint.hashCode()));
     }
 
-    private List<ResearchArtifactResponse> templateGenerate(Lead lead, EvidenceType type, DifficultyProfile profile) {
+    private List<ResearchArtifactResponse> templateGenerate(Lead lead, EvidenceType type, DifficultyProfile profile,
+                                                            ScenarioAuthoringConfig authoringConfig) {
         List<ResearchArtifactResponse> base = switch (type) {
             case COMPANY_NEWS -> companyNews(lead);
             case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead);
@@ -124,7 +138,13 @@ public class ResearchIntelligenceService {
             case MARKET_TREND -> marketTrends(lead);
             case OTHER, HYPOTHESIS -> List.of();
         };
-        return shapeForDifficulty(lead, type, base, profile);
+        List<ResearchArtifactResponse> withAuthoredFacts = new ArrayList<>(base);
+        authoringConfig.canonicalFacts().stream()
+                .filter(CanonicalFact::availableInResearch)
+                .filter(fact -> fact.evidenceType() == type)
+                .forEach(fact -> withAuthoredFacts.add(artifact("author-" + fact.id(), fact.label(), "Scenario-approved source",
+                        fact.value(), type, ConfidenceLevel.HIGH, fact.id())));
+        return shapeForDifficulty(lead, type, withAuthoredFacts, profile);
     }
 
     private List<ResearchArtifactResponse> removeDuplicates(List<ResearchArtifactResponse> artifacts,
@@ -153,10 +173,24 @@ public class ResearchIntelligenceService {
         Lead lead = loadLead(engagement);
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
         EvidenceType inferredType = inferType(context);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        ScenarioAuthoringConfig authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
+                .map(authoringConfigService::forScenario)
+                .orElseGet(ScenarioAuthoringConfig::defaults);
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, inferredType);
         List<String> relatedEvidence = evidence.stream()
                 .filter(e -> e.getEvidenceType() == inferredType)
                 .map(e -> "E-%02d".formatted(e.getSequenceNo()))
                 .toList();
+
+        ResearchArtifactResponse aiCorrelation = aiOrchestrationService.execute(
+                "client_intelligence",
+                engagementId,
+                buildPrompt(lead, engagement, inferredType, facts, evidence, context, profile),
+                2,
+                new ClientIntelligenceResponseParser(objectMapper, facts, inferredType),
+                () -> List.of(externalContextFallback(context, inferredType))).stream().findFirst()
+                .orElseGet(() -> externalContextFallback(context, inferredType));
 
         String summary = "User-supplied intelligence: %s".formatted(context.trim());
         String rationale = relatedEvidence.isEmpty()
@@ -173,10 +207,17 @@ public class ResearchIntelligenceService {
                 ConfidenceLevel.LOW.name(),
                 EvidenceOrigin.USER_SUPPLIED.name(),
                 LocalDate.now(),
+                35,
                 List.of("user_supplied_unverified"),
                 relatedEvidence,
-                "%s Canonical truth for %s is not overwritten by this input."
-                        .formatted(rationale, lead.getCompanyName()));
+                "%s AI correlation reviewed approved scenario facts (%s). Canonical truth for %s is not overwritten by this input."
+                        .formatted(rationale, String.join(", ", aiCorrelation.allowedFactKeys()), lead.getCompanyName()));
+    }
+
+    private ResearchArtifactResponse externalContextFallback(String context, EvidenceType type) {
+        return new ResearchArtifactResponse("external-context", "External Intelligence Review", "User-supplied context",
+                context.trim(), type.name(), ConfidenceLevel.LOW.name(), EvidenceOrigin.USER_SUPPLIED.name(),
+                LocalDate.now(), 35, List.of(), List.of(), "Unverified learner context.");
     }
 
     private Engagement loadOwnedEngagement(UUID engagementId, UUID userId) {
@@ -193,7 +234,8 @@ public class ResearchIntelligenceService {
                 .orElseThrow(() -> new NotFoundException("Lead", engagement.getSelectedLeadId()));
     }
 
-    private Map<String, String> canonicalFacts(Lead lead, boolean budgetVisible) {
+    private Map<String, String> canonicalFacts(Lead lead, boolean budgetVisible, ScenarioAuthoringConfig authoringConfig,
+                                               EvidenceType researchType) {
         Map<String, String> facts = new java.util.LinkedHashMap<>();
         putFact(facts, "company_name", lead.getCompanyName());
         putFact(facts, "industry", lead.getIndustry());
@@ -205,6 +247,10 @@ public class ResearchIntelligenceService {
         putFact(facts, "potential_value_range", lead.getPotentialValueRange());
         lead.getSignals().forEach(signal -> putFact(facts, "signal_" + signal.getCategory().toLowerCase(Locale.ROOT),
                 signal.getLabel()));
+        authoringConfig.canonicalFacts().stream()
+                .filter(CanonicalFact::availableInResearch)
+                .filter(fact -> fact.evidenceType() == researchType)
+                .forEach(fact -> putFact(facts, fact.id(), fact.value()));
         return Map.copyOf(facts);
     }
 
@@ -296,6 +342,7 @@ public class ResearchIntelligenceService {
             shaped.add(new ResearchArtifactResponse("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
                     title, "Controlled market context", summary, type.name(), ConfidenceLevel.LOW.name(),
                     EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(7 + index),
+                    ambiguity ? 25 : 15,
                     List.of("public_description"), List.of(),
                     "Context only: test relevance against client evidence before adding it to the evidence board."));
         }
@@ -374,8 +421,16 @@ public class ResearchIntelligenceService {
     private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
                                               EvidenceType type, ConfidenceLevel confidence, String factKey) {
         return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
-                EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(14), List.of(factKey), List.of(),
+                EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
                 "Generated from scenario-approved facts only; learner must decide whether it is relevant.");
+    }
+
+    private int relevanceFor(ConfidenceLevel confidence) {
+        return switch (confidence) {
+            case HIGH -> 90;
+            case MEDIUM -> 72;
+            case LOW -> 30;
+        };
     }
 
     private EvidenceType inferType(String context) {

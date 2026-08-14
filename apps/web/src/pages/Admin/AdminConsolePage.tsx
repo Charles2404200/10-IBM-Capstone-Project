@@ -1,82 +1,177 @@
-import { Button, Column, Grid, InlineLoading, Tag, Tile } from '@carbon/react'
-import { ChartLine, DocumentAdd, Group, Idea, Launch, Settings } from '@carbon/icons-react'
+import { Button, InlineLoading, Tag } from '@carbon/react'
+import {
+  ArrowRight,
+  ChartLine,
+  CheckmarkFilled,
+  DocumentAdd,
+  Group,
+  Idea,
+  Launch,
+  Renew,
+  Settings,
+  WarningAlt,
+} from '@carbon/icons-react'
 import { Link } from 'react-router-dom'
-import { useAllScenariosForAdmin } from '@/api/hooks/useAdminScenarios'
 import { useAdminAiOperations } from '@/api/hooks/useAdminAiOperations'
 import { useAdminPlatformOverview } from '@/api/hooks/useAdminPlatformOverview'
+import { useAllScenariosForAdmin } from '@/api/hooks/useAdminScenarios'
 import { useAuthStore } from '@/store/authStore'
 import styles from './AdminConsolePage.module.css'
 
-function Metric({ label, value, detail }: { label: string; value: string | number; detail: string }) {
-  return <Tile className={styles.metric}><span>{label}</span><strong>{value}</strong><small>{detail}</small></Tile>
-}
+type ConsoleIcon = typeof Settings
 
-function ConsoleLink({ to, icon: Icon, title, detail, action }: {
-  to: string; icon: typeof Settings; title: string; detail: string; action: string
+function Metric({ icon: Icon, label, value, detail, tone = 'blue' }: {
+  icon: ConsoleIcon
+  label: string
+  value: string | number
+  detail: string
+  tone?: 'blue' | 'green' | 'purple' | 'orange'
 }) {
   return (
-    <Link to={to} className={styles.consoleLink}>
-      <Icon size={24} />
+    <article className={`${styles.metric} ${styles[`metric${tone[0].toUpperCase()}${tone.slice(1)}`]}`}>
+      <span className={styles.metricIcon}><Icon size={20} /></span>
+      <div><span className={styles.metricLabel}>{label}</span><strong>{value}</strong><small>{detail}</small></div>
+    </article>
+  )
+}
+
+function ActionCard({ to, icon: Icon, title, detail, action, tone = 'blue' }: {
+  to: string
+  icon: ConsoleIcon
+  title: string
+  detail: string
+  action: string
+  tone?: 'blue' | 'green' | 'purple' | 'orange'
+}) {
+  return (
+    <Link to={to} className={`${styles.actionCard} ${styles[`action${tone[0].toUpperCase()}${tone.slice(1)}`]}`}>
+      <span className={styles.actionIcon}><Icon size={20} /></span>
       <div><h3>{title}</h3><p>{detail}</p></div>
-      <span>{action}<Launch size={16} /></span>
+      <span className={styles.actionLink}>{action} <ArrowRight size={16} /></span>
     </Link>
   )
 }
 
+function AttentionItem({ title, detail, to, kind = 'warning' }: {
+  title: string
+  detail: string
+  to: string
+  kind?: 'warning' | 'success'
+}) {
+  const Icon = kind === 'success' ? CheckmarkFilled : WarningAlt
+  return <Link to={to} className={styles.attentionItem}>
+    <Icon size={18} className={kind === 'success' ? styles.successIcon : styles.warningIcon} />
+    <span><strong>{title}</strong><small>{detail}</small></span>
+    <ArrowRight size={16} />
+  </Link>
+}
+
 export default function AdminConsolePage() {
   const role = useAuthStore((state) => state.role)
-  const scenarios = useAllScenariosForAdmin()
   const canAdminister = role === 'ADMINISTRATOR'
+  const canAuthorScenarios = role === 'SCENARIO_AUTHOR' || canAdminister
   const canViewAiOperations = role === 'REVIEWER' || canAdminister
+  const scenarios = useAllScenariosForAdmin(canAuthorScenarios)
   const aiOperations = useAdminAiOperations(canViewAiOperations)
   const platform = useAdminPlatformOverview(canAdminister)
 
   const scenarioList = scenarios.data ?? []
-  const activeScenarioCount = scenarioList.filter((scenario) => scenario.status === 'ACTIVE').length
+  const activeScenarioCount = canAuthorScenarios
+    ? scenarioList.filter((scenario) => scenario.status === 'ACTIVE').length
+    : platform.data?.scenariosByStatus?.ACTIVE ?? 0
+  const draftScenarioCount = scenarioList.filter((scenario) => scenario.status === 'DRAFT').length
   const healthyProviders = (aiOperations.data?.providers ?? []).filter((provider) => provider.available).length
+  const unavailableProviders = (aiOperations.data?.providers ?? []).filter((provider) => !provider.available).length
+  const scenarioStates = platform.data?.scenariosByStatus ?? {}
+  const platformScenarioCount = Object.values(scenarioStates).reduce((sum, count) => sum + count, 0)
+  const isRefreshing = scenarios.isFetching || aiOperations.isFetching || platform.isFetching
+
+  const scenarioTotal = canAuthorScenarios && scenarios.isLoading ? '...' : platformScenarioCount || scenarioList.length
+  const activeScenarios = canAuthorScenarios && scenarios.isLoading ? '...' : activeScenarioCount
+  const activeRuns = platform.isLoading ? '...' : platform.data?.activeEngagements ?? 0
+  const completionRate = platform.isLoading ? '...' : `${platform.data?.completionRatePercent ?? 0}%`
 
   return (
     <main className={styles.console}>
       <header className={styles.header}>
-        <div><p className={styles.eyebrow}>Platform administration</p><h1>Admin Console</h1><p>Manage the controlled simulation, people and AI operations from one place.</p></div>
-        <Button as={Link} to="/dashboard/admin/scenarios" renderIcon={DocumentAdd}>Create scenario</Button>
+        <div>
+          <p className={styles.eyebrow}>Platform administration</p>
+          <h1>Admin Console</h1>
+          <p>Keep learning journeys ready, give people the right access, and monitor AI delivery from one calm workspace.</p>
+        </div>
+        <div className={styles.headerActions}>
+          <Button kind="ghost" size="sm" renderIcon={Renew} disabled={isRefreshing} onClick={() => {
+            void scenarios.refetch()
+            void aiOperations.refetch()
+            void platform.refetch()
+          }}>Refresh</Button>
+          {canAuthorScenarios && <Button as={Link} to="/dashboard/admin/scenarios" size="sm" renderIcon={DocumentAdd}>Create scenario</Button>}
+        </div>
       </header>
 
       <section className={styles.metrics} aria-label="Platform summary">
-        <Metric label="Active scenarios" value={scenarios.isLoading ? '...' : activeScenarioCount} detail={`${scenarioList.length} total scenarios`} />
-        {canAdminister && <Metric label="Active engagements" value={platform.isLoading ? '...' : platform.data?.activeEngagements ?? 0} detail={`${platform.data?.totalEngagements ?? 0} total learner runs`} />}
-        {canViewAiOperations && <Metric label="Live AI providers" value={aiOperations.isLoading ? '...' : healthyProviders} detail={aiOperations.data?.mockMode ? 'Simulation fallback enabled' : 'Production routing enabled'} />}
-        {canAdminister && <Metric label="Completion rate" value={platform.isLoading ? '...' : `${platform.data?.completionRatePercent ?? 0}%`} detail={platform.data?.averageAssessmentScore == null ? 'No completed assessments' : `Average score ${platform.data.averageAssessmentScore}/100`} />}
+        <Metric icon={Settings} label="Learning journeys" value={activeScenarios} detail={`${scenarioTotal} total scenarios`} tone="blue" />
+        {canAdminister && <Metric icon={Group} label="Learners in progress" value={activeRuns} detail={`${platform.data?.totalEngagements ?? 0} learner runs`} tone="purple" />}
+        {canViewAiOperations && <Metric icon={ChartLine} label="AI services ready" value={aiOperations.isLoading ? '...' : healthyProviders} detail={aiOperations.data?.mockMode ? 'Fallback mode is enabled' : 'Live provider routing'} tone="green" />}
+        {canAdminister && <Metric icon={Idea} label="Learning completed" value={completionRate} detail={platform.data?.averageAssessmentScore == null ? 'No assessment score yet' : `Average assessment ${platform.data.averageAssessmentScore}/100`} tone="orange" />}
       </section>
 
-      <Grid condensed className={styles.workspace}>
-        <Column lg={10} md={8} sm={4}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeading}><div><h2>Simulation workspace</h2><p>Author and govern reusable learning scenarios.</p></div></div>
-            <div className={styles.linkList}>
-              <ConsoleLink to="/dashboard/admin/scenarios" icon={Settings} title="Scenario management" detail="Scenarios, personas, rubrics, knowledge and gameplay rules." action="Manage scenarios" />
-              {canAdminister && <ConsoleLink to="/dashboard/admin/achievements" icon={Idea} title="Progression design" detail="Achievement rules that recognise evidence-based learner behaviours." action="Manage achievements" />}
+      <section className={styles.canvas} aria-label="Administrative workspace">
+        <section className={styles.primaryPanel}>
+          <div className={styles.panelHeading}>
+            <div><p className={styles.panelEyebrow}>Start here</p><h2>What would you like to manage?</h2></div>
+            <span className={styles.liveStatus}><i /> Live updates</span>
+          </div>
+
+          <div className={styles.actionGrid}>
+            {canAuthorScenarios && <ActionCard to="/dashboard/admin/scenarios" icon={Settings} title="Learning journeys" detail="Create scenarios, define people, facts and learning rules." action="Open scenarios" tone="blue" />}
+            {canAdminister && <ActionCard to="/dashboard/admin/users" icon={Group} title="People and access" detail="Give learners, reviewers and authors the right level of access." action="Manage people" tone="green" />}
+            {canAdminister && <ActionCard to="/dashboard/admin/achievements" icon={Idea} title="Progression and badges" detail="Recognise strong consulting behaviours across scenarios." action="Manage progression" tone="purple" />}
+            {canViewAiOperations && <ActionCard to="/dashboard/admin/ai-operations" icon={ChartLine} title="AI delivery" detail="Review provider availability, capacity and approved routing." action="View AI health" tone="orange" />}
+          </div>
+
+          {canAdminister && <section className={styles.activity}>
+            <div className={styles.subsectionHeading}>
+              <div><h2>Learning activity</h2><p>Most-used scenarios based on persisted learner runs.</p></div>
+              <Link to="/dashboard/admin/scenarios">View all scenarios <Launch size={14} /></Link>
+            </div>
+            {platform.data?.scenarios.length ? (
+              <div className={styles.activityList}>
+                {platform.data.scenarios.slice(0, 3).map((scenario) => (
+                  <div className={styles.activityRow} key={scenario.scenarioId}>
+                    <div><strong>{scenario.title}</strong><small>{scenario.engagementCount} learner runs</small></div>
+                    <span><b>{scenario.completedCount}</b> completed</span>
+                    <span><b>{scenario.averageAssessmentScore == null ? '—' : `${scenario.averageAssessmentScore}`}</b> avg. score</span>
+                  </div>
+                ))}
+              </div>
+            ) : <p className={styles.emptyActivity}>Learning activity will appear when learners begin a scenario.</p>}
+          </section>}
+        </section>
+
+        <aside className={styles.sidePanel}>
+          <section className={styles.attentionPanel}>
+            <div className={styles.panelHeading}><div><p className={styles.panelEyebrow}>Readiness</p><h2>Needs your attention</h2></div><Tag type={draftScenarioCount || unavailableProviders || aiOperations.data?.mockMode ? 'warm-gray' : 'green'}>{draftScenarioCount || unavailableProviders || aiOperations.data?.mockMode ? 'Review' : 'All clear'}</Tag></div>
+            <div className={styles.attentionList}>
+              {canAuthorScenarios && draftScenarioCount > 0 && <AttentionItem to="/dashboard/admin/scenarios" title={`${draftScenarioCount} draft ${draftScenarioCount === 1 ? 'scenario' : 'scenarios'}`} detail="Finish and publish when each journey is ready for learners." />}
+              {canViewAiOperations && aiOperations.data?.mockMode && <AttentionItem to="/dashboard/admin/ai-operations" title="AI fallback mode is on" detail="Review live provider configuration before production sessions." />}
+              {canViewAiOperations && unavailableProviders > 0 && <AttentionItem to="/dashboard/admin/ai-operations" title={`${unavailableProviders} AI ${unavailableProviders === 1 ? 'service needs' : 'services need'} review`} detail="A healthy provider can still handle the affected task through approved fallback routing." />}
+              {!draftScenarioCount && !unavailableProviders && !aiOperations.data?.mockMode && <AttentionItem kind="success" to="/dashboard/admin/scenarios" title="Your platform is ready" detail="Scenarios and AI delivery are ready for the next learner session." />}
             </div>
           </section>
-        </Column>
-        <Column lg={6} md={8} sm={4}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeading}><div><h2>Operations</h2><p>Enterprise controls and service health.</p></div></div>
-            <div className={styles.linkList}>
-              {canAdminister && <ConsoleLink to="/dashboard/admin/users" icon={Group} title="People and access" detail="Roles and account access." action="Manage users" />}
-              {canViewAiOperations && <ConsoleLink to="/dashboard/admin/ai-operations" icon={ChartLine} title="AI operations" detail="Provider health, quota and task routing." action="View operations" />}
-            </div>
+
+          <section className={styles.servicePanel}>
+            <div className={styles.subsectionHeading}><div><h2>Service pulse</h2><p>Current delivery signals.</p></div><Link to="/dashboard/admin/ai-operations">Details <ArrowRight size={14} /></Link></div>
+            <dl>
+              <div><dt>AI routing</dt><dd>{aiOperations.data?.parallelEnabled ? `Parallel, up to ${aiOperations.data.parallelMaxCandidates}` : 'Validated provider routing'}</dd></div>
+              <div><dt>Service availability</dt><dd>{aiOperations.isLoading ? 'Checking' : `${healthyProviders} provider${healthyProviders === 1 ? '' : 's'} ready`}</dd></div>
+              <div><dt>Scenario catalogue</dt><dd>{activeScenarioCount} available to learners</dd></div>
+            </dl>
           </section>
-        </Column>
-      </Grid>
+        </aside>
+      </section>
 
-      {canAdminister && platform.data && <section className={styles.activity}>
-        <div className={styles.sectionHeading}><div><h2>Learning activity</h2><p>Completion and assessment data calculated from persisted engagements.</p></div></div>
-        <div className={styles.activityTable}><div className={styles.activityHeader}><span>Scenario</span><span>Runs</span><span>Completed</span><span>Average score</span></div>{platform.data.scenarios.slice(0, 5).map((scenario) => <div className={styles.activityRow} key={scenario.scenarioId}><strong>{scenario.title}</strong><span>{scenario.engagementCount}</span><span>{scenario.completedCount}</span><span>{scenario.averageAssessmentScore == null ? 'Not available' : `${scenario.averageAssessmentScore}/100`}</span></div>)}</div>
-      </section>}
-
-      {(scenarios.isFetching || aiOperations.isFetching || platform.isFetching) && <div className={styles.refreshing}><InlineLoading description="Refreshing platform status" /></div>}
-      {canAdminister && aiOperations.data?.mockMode && <div className={styles.warning}><Tag type="red">Attention</Tag><span>AI operations report simulation fallback mode. Review deployment configuration before running learner sessions.</span></div>}
+      {isRefreshing && <div className={styles.refreshing}><InlineLoading description="Refreshing administration data" /></div>}
     </main>
   )
 }

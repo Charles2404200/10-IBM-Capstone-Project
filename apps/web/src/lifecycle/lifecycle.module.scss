@@ -1,0 +1,653 @@
+/* Styles for the engagement chrome: the persistent phase/relationship bar, the
+ * per-phase brief, and the outreach self-check.
+ *
+ * Colours are the Carbon palette hexes used elsewhere in this app so the bar
+ * sits with the workspaces rather than against them. */
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Persistent HUD ───────────────────────────────────────────────────────── */
+
+/* The HUD is one strip with two faces: a compact summary that always fits, and
+   a detail row that expands. On a wide screen the detail row is simply always
+   open; on a phone it is a disclosure. Before this the strip was 1045px wide
+   inside a 606px viewport and scrolled sideways, which is unusable. */
+.hud {
+  background: #ffffff;
+  border-bottom: 1px solid #d0d7e5;
+  color: #1f2a44;
+  font-size: 0.75rem;
+  /* Follows the learner down long workspaces — the whole point is that phase
+     and client state are never more than a glance away. Sits below Carbon's
+     fixed header (z-index 8000) and above page content. */
+  position: sticky;
+  inset-block-start: 3rem;
+  z-index: 6000;
+}
+
+.hudSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: -2px;
+  }
+}
+
+.hudStep {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #0f62fe;
+  flex-shrink: 0;
+}
+
+.hudStepName {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hudDots {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.hudDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.hudChevron {
+  color: #6b7280;
+  font-size: 0.625rem;
+  flex-shrink: 0;
+}
+
+.hudDetail {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 1rem 0.75rem;
+
+  &[data-open='true'] {
+    display: flex;
+  }
+}
+
+.hudNext {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+
+  /* Hover and focus follow the light HUD this bar became on main; the button
+     behaviour is ours, the palette is theirs. */
+  &:hover {
+    background: #eef2f8;
+    color: #1f2a44;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 1px;
+  }
+
+  color: #345;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* From tablet up there is room for everything at once, so the disclosure
+   collapses into a single always-visible row and the summary disappears. */
+@media (min-width: 64rem) {
+  .hud {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .hudSummary {
+    display: none;
+  }
+
+  .hudDetail {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .hudNext {
+    max-width: 18rem;
+  }
+}
+
+.hudGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.hudGrow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hudLabel {
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 0.6875rem;
+}
+
+.hudTitle {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16rem;
+}
+
+/* ── Stepper ──────────────────────────────────────────────────────────────── */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  /* Wraps rather than scrolling sideways: a horizontally scrolling progress
+     indicator hides exactly the steps the learner has not reached yet. */
+  flex-wrap: wrap;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 0 0 auto;
+}
+
+.stepButton {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.375rem;
+  color: #64748b;
+  font-size: 0.6875rem;
+  cursor: default;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.stepButtonActionable {
+  cursor: pointer;
+
+  &:hover {
+    background: #edf3ff;
+    color: #0f62fe;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 1px;
+  }
+}
+
+.stepDot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  border: 2px solid #9ca8bb;
+  flex-shrink: 0;
+}
+
+.stepDotDone {
+  background: #24a148;
+  border-color: #24a148;
+}
+
+.stepDotCurrent {
+  background: #0f62fe;
+  border-color: #0f62fe;
+  box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.28);
+}
+
+.stepCurrentLabel {
+  color: #0f62fe;
+  font-weight: 600;
+}
+
+/* Below this the ten labels wrap to a second line, which pushes the map down
+   and gets it cut off. Under that width the stepper keeps its dots but names
+   only the step you are on; the rest stay reachable by tooltip and to screen
+   readers. */
+@media (max-width: 90rem) {
+  .stepLabel {
+    display: none;
+  }
+
+  .stepLabel.stepCurrentLabel {
+    display: inline;
+  }
+
+  .stepConnector {
+    width: 0.5rem;
+  }
+}
+
+.stepDoneLabel {
+  color: #52657d;
+}
+
+.stepConnector {
+  width: 0.75rem;
+  height: 2px;
+  background: #d0d7e5;
+  flex-shrink: 0;
+}
+
+.stepConnectorDone {
+  background: #24a148;
+}
+
+/* ── Relationship meters ──────────────────────────────────────────────────── */
+
+.meters {
+  display: flex;
+  gap: 0.875rem;
+  flex-shrink: 0;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-width: 4.5rem;
+}
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  color: #52657d;
+}
+
+.meterTrack {
+  height: 6px;
+  background: #e7edf6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 420ms ease, background-color 420ms ease;
+}
+
+.meterUnknown {
+  color: #6b7280;
+  font-style: italic;
+}
+
+.meterDelta {
+  font-weight: 600;
+}
+
+.meterDeltaUp {
+  color: #42be65;
+}
+
+.meterDeltaDown {
+  color: #fa4d56;
+}
+
+/* ── Phase frame (Brief / Consequence / Debrief) ──────────────────────────── */
+
+.brief {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1px;
+  background: #e0e0e0;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.briefCell {
+  background: #ffffff;
+  padding: 0.875rem 1rem;
+}
+
+.briefLabel {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #6f6f6f;
+  margin-bottom: 0.25rem;
+}
+
+.briefText {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #161616;
+}
+
+.consequence {
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #0f62fe;
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  background: #f4f4f4;
+  margin: 1.5rem 0;
+}
+
+.consequenceTitle {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.deltaList {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+
+/* ── Small screens ────────────────────────────────────────────────────────── */
+
+@media (max-width: 42rem) {
+  .brief {
+    grid-template-columns: 1fr;
+  }
+
+  .meters {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .meter {
+    min-width: 5.5rem;
+    flex: 1 1 5.5rem;
+  }
+}
+
+/* ── Narrow-screen navigation ─────────────────────────────────────────────
+   Carbon hides HeaderNavigation below 1056px and expects its SideNav to take
+   over, but that component computed to zero width here regardless of what was
+   set on it, so the menu never appeared and the hamburger did nothing. This is
+   a plain panel under the header, rendered from the same link list as the wide
+   header bar. */
+
+.mobileNav {
+  position: fixed;
+  inset-block-start: 3rem;
+  inset-inline: 0;
+  z-index: 7000;
+  display: flex;
+  flex-direction: column;
+  background: #161616;
+  border-bottom: 1px solid #393939;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
+.mobileNavLink {
+  padding: 0.9rem 1rem;
+  color: #c6c6c6;
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #262626;
+
+  &:hover {
+    background: #262626;
+    color: #f4f4f4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: -2px;
+  }
+}
+
+.mobileNavLinkActive {
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #0f62fe;
+}
+
+/* Where the engagement has actually reached, when the learner has walked back
+   to an earlier page. Blue fills the step you are looking at; this outlines the
+   step you are up to, so both questions are answerable at a glance. */
+.stepDotUpTo {
+  border-color: #0f62fe;
+  box-shadow: inset 0 0 0 2px #ffffff;
+}
+
+/* ── Shared page header ───────────────────────────────────────────────────
+   One block, one offset, on every workspace. Owns its own horizontal padding
+   and max width so it does not inherit a grid row's position — that was what
+   made the title land in a different place on each page. */
+
+.pageHeader {
+  /* `width: 100%` matters once the shell makes the content area a flex column:
+     without it `margin: 0 auto` shrink-wraps the header to its text and the
+     title drifts into the middle of the page, away from the content below. */
+  width: 100%;
+  max-width: 96rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 0;
+}
+
+.pageHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pageHeaderText {
+  min-width: 0;
+}
+
+.pageTitle {
+  margin: 0;
+}
+
+.pageDescription {
+  color: #525252;
+  margin: 0.5rem 0 0;
+  max-width: 60ch;
+}
+
+.pageHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 42rem) {
+  .pageHeader {
+    padding: 1rem 1rem 0;
+  }
+}
+
+/* ── Fixed shell ──────────────────────────────────────────────────────────
+   Charles's target: the page itself never scrolls, and content that outgrows
+   the screen scrolls inside its own panel. Both of his mockups work this way —
+   a list of collected evidence has to scroll somewhere once it holds twenty
+   items, and a meeting transcript has no upper bound at all.
+
+   Only switches on when there is genuinely room: Carbon's xlg breakpoint
+   (1312px) and enough height that panels are taller than they are cramped.
+   Below either threshold the page falls back to ordinary document flow and
+   scrolls, which is the right behaviour on a laptop or a phone and means
+   nothing is ever unreachable. */
+
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .fixedShellRoot {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* Only clip the content area on pages that have actually declared scroll
+     panels. Applying this everywhere hid 1,430px of the Command Centre behind
+     an overflow:hidden with nothing to scroll it — the same "cut off at the
+     bottom" failure this work set out to remove, recreated at a larger scale.
+     `:has()` keeps the opt-in on the page rather than in the shell, so a page
+     cannot get clipped without asking for it. */
+  .fixedShellRoot:has(.fixedShellBody) :global(.cds--content) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* The shell fits the viewport exactly, yet the document still offered ~90px
+     of scroll with nothing painted in it — a scrollbar that moves the page and
+     shows blank space. Clipping the root removes it. Scoped to the same
+     `:has()` opt-in, because on a page with no scroll panels this would hide
+     real content instead of empty space. */
+  .fixedShellRoot:has(.fixedShellBody) {
+    overflow: hidden;
+    /* `overflow: hidden` alone did not stop it. Carbon's visually-hidden labels
+       and tooltip popovers are `position: absolute`, and with no positioned
+       ancestor they resolve against the viewport instead — so they escaped the
+       clip and stretched the document by ~90px of blank scrollable space.
+       Making the shell the containing block brings them back inside it. */
+    position: relative;
+  }
+
+  /* The page's own body takes the remaining height and hands scrolling to its
+     panels. `min-height: 0` is what lets a flex child actually shrink — without
+     it the panel grows to fit its content and pushes the page long again. */
+  /* Pages that wrap their body in an extra element — a max-width frame, a
+     <main> — need that wrapper to pass the height through. Without it the
+     wrapper sizes to its own content, so the body below it never learns how
+     tall the screen is and the panels grow instead of scrolling. */
+  .fixedShellFrame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .fixedShellBody {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .fixedShellBody > * {
+    max-height: 100%;
+  }
+
+  /* Anything marked as a panel scrolls itself. */
+  .scrollPanel {
+    overflow-y: auto;
+    max-height: 100%;
+
+    /* A panel that scrolls has to look like one. macOS hides overlay
+       scrollbars until you already scroll, so a panel with 900px below the
+       fold was indistinguishable from one that ended there — which is exactly
+       how the Send button became invisible with nothing on screen suggesting
+       it existed. A reserved gutter and a permanent thumb are the whole
+       affordance. */
+    scrollbar-gutter: stable;
+
+    /* Deliberately no `scrollbar-width` / `scrollbar-color`: Chrome ignores
+       these ::-webkit- rules whenever either standard property is set, and
+       falls back to the macOS overlay scrollbar that hides itself -- which is
+       the thing being fixed. Authoring the pseudo-elements alone opts the
+       scroller into a permanent classic scrollbar. */
+    &::-webkit-scrollbar {
+      width: 0.5rem;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #a8a8a8;
+      border-radius: 999px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  /* The block that finishes the step stays pinned to the bottom of its panel
+     while the rest of it scrolls behind. A learner should never have to
+     discover how to complete a step by scrolling for it -- on Research the
+     "Ready for Outreach?" gate and its Proceed button sat 305px below the fold
+     with nothing on screen saying they were there. */
+  .stickyFooter {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 2;
+    box-shadow: 0 -0.5rem 0.75rem -0.5rem rgba(0, 0, 0, 0.18);
+  }
+}
+
+.selfCheckList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selfCheckItem {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}

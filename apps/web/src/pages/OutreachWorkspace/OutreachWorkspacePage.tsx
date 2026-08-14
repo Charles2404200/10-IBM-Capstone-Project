@@ -1,26 +1,30 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
-  Column,
-  Grid,
   Heading,
   InlineNotification,
+  Modal,
   Stack,
   Tag,
   TextArea,
   TextInput,
   Tile,
 } from '@carbon/react'
-import { ArrowRight, CheckmarkFilled, Document, Send } from '@carbon/icons-react'
-import { useForm } from 'react-hook-form'
+import { ArrowRight, CheckmarkFilled, Document, Send, Email, Light, Link as LinkIcon } from '@carbon/icons-react'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
+import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
+import { assessDraftSafety, evaluateOutreach, keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
+import { rankOutreachEvidence } from '@/lifecycle/coaching/outreachEvidence'
 import LoadingState from '@/components/shared/LoadingState'
-import type { CapabilityBrief, OutreachAttempt } from '@/api/types'
+import type { CapabilityBrief, OutreachAttempt, ResearchEvidence } from '@/api/types'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
+import { PHASE_LABEL } from '@/lifecycle/phases'
+import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -36,6 +40,13 @@ const briefSchema = z.object({
 
 type EmailFormValues = z.infer<typeof emailSchema>
 type BriefFormValues = z.infer<typeof briefSchema>
+
+const BRIEF_SECTIONS: Array<{ key: keyof BriefFormValues; label: string; guidance: string }> = [
+  { key: 'relevantExperience', label: 'Experience', guidance: 'Describe relevant industry or operational experience.' },
+  { key: 'approach', label: 'Approach', guidance: 'Explain the phased implementation approach and control points.' },
+  { key: 'caseExample', label: 'Case example', guidance: 'Provide a comparable example with a measurable outcome.' },
+  { key: 'clientFit', label: 'Client fit', guidance: 'Connect this brief directly to the client’s requested outcome.' },
+]
 
 const OUTCOME_TAG: Record<OutreachAttempt['outcome'], 'green' | 'magenta' | 'red' | 'gray'> = {
   ACCEPTED: 'green',
@@ -65,8 +76,8 @@ function ThreadHistory({ attempts }: { attempts: OutreachAttempt[] }) {
         <span>{attempts.length} {attempts.length === 1 ? 'message' : 'messages'}</span>
       </div>
       <Stack gap={3}>
-        {[...attempts].reverse().map((attempt, index) => (
-          <details key={attempt.id} className={styles.historyItem} open={index === 0}>
+        {[...attempts].reverse().map((attempt) => (
+          <details key={attempt.id} className={styles.historyItem}>
             <summary>
               <span>Attempt #{attempt.attemptNumber}</span>
               <Tag type={OUTCOME_TAG[attempt.outcome]} size="sm">{attempt.outcome.replace(/_/g, ' ')}</Tag>
@@ -81,6 +92,12 @@ function ThreadHistory({ attempts }: { attempts: OutreachAttempt[] }) {
                 <div className={styles.clientReplyCompact}>
                   <p className={styles.eyebrow}>Client response</p>
                   <p>{attempt.clientReply}</p>
+                </div>
+              )}
+              {attempt.coachingHint && (
+                <div className={styles.attemptHint}>
+                  <p className={styles.eyebrow}>Coaching note</p>
+                  <p>{attempt.coachingHint}</p>
                 </div>
               )}
               <div className={styles.scoreList}>
@@ -132,7 +149,8 @@ function CapabilityBriefEditor({
   requirements: string[]
 }) {
   const submitBrief = useSubmitCapabilityBrief(engagementId)
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<BriefFormValues>({
+  const [activeSection, setActiveSection] = useState<keyof BriefFormValues>('relevantExperience')
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<BriefFormValues>({
     resolver: zodResolver(briefSchema),
     defaultValues: brief ?? undefined,
   })
@@ -148,10 +166,21 @@ function CapabilityBriefEditor({
     }
   }, [brief, reset])
 
+  const active = BRIEF_SECTIONS.find((section) => section.key === activeSection) ?? BRIEF_SECTIONS[0]
+  const activeValue = watch(active.key) ?? ''
+  const completedSections = BRIEF_SECTIONS.filter((section) => (watch(section.key) ?? '').trim().length >= 80).length
+  const submit = handleSubmit(
+    (data) => submitBrief.mutate(data),
+    (invalidFields) => {
+      const firstInvalid = BRIEF_SECTIONS.find((section) => invalidFields[section.key])
+      if (firstInvalid) setActiveSection(firstInvalid.key)
+    },
+  )
+
   return (
     <Tile className={styles.editor}>
-      <form onSubmit={handleSubmit((data) => submitBrief.mutate(data))}>
-        <Stack gap={5}>
+      <form onSubmit={submit}>
+        <div className={styles.editorForm}>
           <div className={styles.editorHeading}>
             <div>
               <p className={styles.eyebrow}>Requested deliverable</p>
@@ -168,53 +197,69 @@ function CapabilityBriefEditor({
               ))}
             </div>
           )}
-          <div className={styles.editorGrid}>
-            <TextArea
-              id="relevantExperience"
-              labelText="Relevant experience"
-              rows={4}
-              invalid={Boolean(errors.relevantExperience)}
-              invalidText={errors.relevantExperience?.message}
-              {...register('relevantExperience')}
-            />
-            <TextArea
-              id="approach"
-              labelText="Implementation approach"
-              rows={4}
-              invalid={Boolean(errors.approach)}
-              invalidText={errors.approach?.message}
-              {...register('approach')}
-            />
-            <TextArea
-              id="caseExample"
-              labelText="Relevant case example"
-              rows={4}
-              invalid={Boolean(errors.caseExample)}
-              invalidText={errors.caseExample?.message}
-              {...register('caseExample')}
-            />
-            <TextArea
-              id="clientFit"
-              labelText="Why this fits the client"
-              rows={4}
-              invalid={Boolean(errors.clientFit)}
-              invalidText={errors.clientFit?.message}
-              {...register('clientFit')}
-            />
+          <div className={styles.briefEditorBody}>
+            <div className={styles.briefSectionTabs} role="tablist" aria-label="Capability brief sections">
+              {BRIEF_SECTIONS.map((section) => {
+                const complete = (watch(section.key) ?? '').trim().length >= 80
+                return (
+                  <button
+                    key={section.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active.key === section.key}
+                    className={active.key === section.key ? styles.activeBriefSection : undefined}
+                    onClick={() => setActiveSection(section.key)}
+                  >
+                    {complete ? <CheckmarkFilled size={14} /> : <span className={styles.sectionNumber}>{BRIEF_SECTIONS.indexOf(section) + 1}</span>}
+                    {section.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div className={styles.briefSectionPanel} role="tabpanel">
+              <div>
+                <h3>{active.label}</h3>
+                <p>{active.guidance}</p>
+              </div>
+          <Controller
+            key={active.key}
+            name={active.key}
+            control={control}
+            render={({ field }) => (
+              <TextArea
+                id={active.key}
+                labelText={active.label}
+                hideLabel
+                rows={6}
+                placeholder="Write a concise, client-specific section..."
+                invalid={Boolean(errors[active.key])}
+                invalidText={errors[active.key]?.message}
+                name={field.name}
+                value={field.value ?? ''}
+                onBlur={field.onBlur}
+                onChange={(event) => field.onChange(event.target.value)}
+              />
+            )}
+          />
+              <small>{activeValue.trim().length} / 80 characters minimum</small>
+            </div>
           </div>
-          {submitBrief.isError && (
-            <InlineNotification
-              kind="error"
-              lowContrast
-              title="Brief could not be submitted"
-              subtitle={getProblemDetail(submitBrief.error, 'The client request may have changed. Refresh the workspace and try again.')}
-              hideCloseButton
-            />
-          )}
-          <Button type="submit" renderIcon={Send} disabled={submitBrief.isPending}>
-            {submitBrief.isPending ? 'Submitting to client...' : 'Submit to Client'}
-          </Button>
-        </Stack>
+          <div className={styles.editorFooter}>
+            <span className={styles.briefProgress}>{completedSections}/4 sections ready</span>
+            {submitBrief.isError && (
+              <InlineNotification
+                kind="error"
+                lowContrast
+                title="Brief could not be submitted"
+                subtitle={getProblemDetail(submitBrief.error, 'The client request may have changed. Refresh the workspace and try again.')}
+                hideCloseButton
+              />
+            )}
+            <Button type="submit" renderIcon={Send} disabled={submitBrief.isPending}>
+              {submitBrief.isPending ? 'Submitting to client...' : 'Submit to Client'}
+            </Button>
+          </div>
+        </div>
       </form>
     </Tile>
   )
@@ -226,9 +271,33 @@ export default function OutreachWorkspacePage() {
   const { data: attempts, isLoading } = useOutreach(engagementId!)
   const { data: brief } = useCapabilityBrief(engagementId!)
   const sendOutreach = useSendOutreach(engagementId!)
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<EmailFormValues>({
+  const { data: intelligence } = useLeadIntelligence(engagementId!)
+  const { data: evidence } = useResearch(engagementId!)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
   })
+
+  // Watched so the self-check updates as the learner types.
+  const draftBody = watch('body') ?? ''
+  const draftSubject = watch('subject') ?? ''
+  const draftSafety = assessDraftSafety(draftBody)
+
+  // Context for the self-check, derived from data this page already has, so it
+  // costs no extra round trip.
+  const rubricContext = useMemo(
+    () => ({
+      personaName: stakeholderNameFrom(intelligence?.decisionMaker?.value),
+      companyName: intelligence?.companyName ?? null,
+      keywords: keywordsFrom([
+        ...(evidence ?? []).map((item) => item.note),
+        intelligence?.painSeverity?.value,
+        intelligence?.technologyStack?.value,
+      ]),
+    }),
+    [evidence, intelligence]
+  )
+  const draftReview = evaluateOutreach(draftBody, rubricContext)
 
   if (isLoading) return <LoadingState />
 
@@ -237,20 +306,35 @@ export default function OutreachWorkspacePage() {
   const documentRequired = latestAttempt?.nextAction === 'SUBMIT_CAPABILITY_BRIEF' && brief?.outcome !== 'ACCEPTED'
   const meetingSecured = latestAttempt?.outcome === 'ACCEPTED' || brief?.outcome === 'ACCEPTED'
   const sendEmail = (data: EmailFormValues) => sendOutreach.mutate(data, { onSuccess: () => reset() })
+  const evidenceForReference = rankOutreachEvidence(evidence ?? [])
+  const leadSignal = evidenceForReference[0] as ResearchEvidence | undefined
+  const appendEvidenceReference = (source?: ResearchEvidence) => {
+    if (!source) return
+    const prefix = draftBody.trim() ? `${draftBody.trim()}\n\n` : ''
+    setValue('body', `${prefix}I noticed ${source.note} `, { shouldDirty: true, shouldValidate: true })
+  }
 
   return (
     <div className={styles.page}>
-      <Grid fullWidth className={styles.headerGrid}>
-        <Column lg={16} md={8} sm={4}>
-          <p className={styles.eyebrow}>Engagement workflow</p>
-          <Heading>Outreach Workspace</Heading>
-          <p className={styles.pageSubtitle}>Respond to the client’s latest request and earn the next step in the engagement.</p>
-        </Column>
-      </Grid>
+      <header className={styles.pageHeader}>
+        <div className={styles.makeContactHero}>
+          <div className={styles.heroIcon}><Email size={28} /></div>
+          <div>
+            <p className={styles.eyebrow}>Engagement workflow / step 3</p>
+            <Heading>{PHASE_LABEL.OUTREACH}</Heading>
+            <p className={styles.pageSubtitle}>Send a concise, compelling email to earn a discovery meeting. One clear reason, one low-friction ask.</p>
+          </div>
+        </div>
+      </header>
 
-      <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={10} md={8} sm={4}>
-          <Stack gap={5}>
+      <section className={styles.phaseCards} aria-label="Outreach goals">
+        <Tile><Light size={22} /><div><strong>What this step is for</strong><span>Earn a meeting by email. One clear reason, one low-friction ask.</span></div></Tile>
+        <Tile><CheckmarkFilled size={22} /><div><strong>You are done when</strong><span>The client agrees to meet or requests a specific artifact.</span></div></Tile>
+        <Tile><ArrowRight size={22} /><div><strong>What happens next</strong><span>Use the response to prepare a valuable discovery conversation.</span></div></Tile>
+      </section>
+
+      <main className={styles.workspace}>
+        <section className={styles.primaryColumn}>
             {meetingSecured && (
               <Tile className={styles.successPanel}>
                 <div>
@@ -259,7 +343,7 @@ export default function OutreachWorkspacePage() {
                   <p>The client has accepted a discovery conversation. Carry this context into your preparation.</p>
                 </div>
                 <Button renderIcon={ArrowRight} onClick={() => navigate(`/dashboard/engagements/${engagementId}/preparation`)}>
-                  Continue to Meeting Preparation
+                  Continue to {PHASE_LABEL.MEETING_PREPARATION}
                 </Button>
               </Tile>
             )}
@@ -284,48 +368,129 @@ export default function OutreachWorkspacePage() {
             )}
 
             {!meetingSecured && !documentRequired && (
-              <Tile className={styles.editor}>
+              <div className={styles.composeWorkspace}>
+              <Tile className={styles.emailComposer}>
                 <form onSubmit={handleSubmit(sendEmail)}>
-                  <Stack gap={4}>
-                    <div>
-                      <p className={styles.eyebrow}>{latestAttempt ? 'Follow-up message' : 'First contact'}</p>
-                      <h2>{latestAttempt ? 'Respond to the client' : 'Compose outreach'}</h2>
-                      <p className={styles.formIntro}>Use the latest response as context. Give the client one clear reason and a low-friction next step.</p>
+                    <div className={styles.composerHeader}>
+                      <div><h2>{latestAttempt ? 'Respond to the client' : 'Compose your first outreach email'}</h2><p>Use one evidence-backed reason and make one easy next-step request.</p></div>
+                      <Tag type="blue" size="sm">{latestAttempt ? `Attempt ${latestAttempt.attemptNumber + 1}` : 'First contact'}</Tag>
                     </div>
-                    <TextInput id="subject" labelText="Subject" invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
-                    <TextArea id="body" labelText="Message" rows={10} helperText="Minimum 50 characters." invalid={Boolean(errors.body)} invalidText={errors.body?.message} {...register('body')} />
+                    <div className={styles.mailMeta}><span>From</span><strong>Consulting Simulation learner</strong></div>
+                    <div className={styles.mailMeta}><span>To</span><strong>{rubricContext.personaName ?? 'Client stakeholder'}</strong><small>{rubricContext.companyName ?? 'Client organisation'}</small></div>
+                    <TextInput id="subject" labelText="Subject" helperText={`${draftSubject.length} characters`} invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
+                    <div className={styles.checkPills} aria-label="Email requirements">
+                      {draftReview.checks.map((check) => (
+                        <span key={check.dimension} className={check.met ? styles.met : undefined}>
+                          {check.met ? <CheckmarkFilled size={14} /> : <Light size={14} />}{check.label}
+                        </span>
+                      ))}
+                    </div>
+                    <TextArea
+                      id="body"
+                      className={styles.messageField}
+                      labelText="Message"
+                      rows={6}
+                      helperText={`${draftBody.trim() ? draftBody.trim().split(/\s+/).length : 0} words / ${draftBody.length} characters`}
+                      invalid={Boolean(errors.body)}
+                      invalidText={errors.body?.message}
+                      {...register('body')}
+                    />
+                    {draftSafety.message && <p className={styles.draftNotice} data-risk={draftSafety.risk}>{draftSafety.message}</p>}
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
-                    <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending}>
-                      {sendOutreach.isPending ? 'Sending...' : 'Send message'}
-                    </Button>
-                  </Stack>
+                    <div className={styles.composerFooter}>
+                      <small>Evidence and tone are checked when you send. Your message is never sent automatically.</small>
+                      <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending || draftSafety.risk === 'blocking'}>{sendOutreach.isPending ? 'Sending...' : 'Send outreach'}</Button>
+                    </div>
                 </form>
               </Tile>
+              <Tile className={styles.assistPanel}>
+                <p className={styles.eyebrow}>Evidence assistant</p>
+                <h3>Need help getting started?</h3>
+                <p>Build your own message with a verified signal. The assistant never sends or submits work for you.</p>
+                {leadSignal && (
+                  <section className={styles.bestEvidence} aria-label="Best evidence to use">
+                    <p className={styles.eyebrow}>Best evidence to use</p>
+                    <strong>{leadSignal.sourceTitle || leadSignal.evidenceType.replace(/_/g, ' ')}</strong>
+                    <span>{leadSignal.note}</span>
+                    <button type="button" onClick={() => appendEvidenceReference(leadSignal)}>
+                      Use this evidence <ArrowRight size={16} />
+                    </button>
+                  </section>
+                )}
+                <div className={styles.assistActions}>
+                  <button type="button" onClick={() => appendEvidenceReference(leadSignal)} disabled={!leadSignal}>Reference the latest client signal <ArrowRight size={16} /></button>
+                  <button type="button" onClick={() => setValue('body', `${draftBody.trim()}${draftBody.trim() ? '\n\n' : ''}Would a 20-minute conversation next week be useful?`, { shouldDirty: true, shouldValidate: true })}>Invite a short conversation <ArrowRight size={16} /></button>
+                  <button type="button" onClick={() => setValue('subject', `Idea for ${rubricContext.companyName ?? 'your team'}`, { shouldDirty: true, shouldValidate: true })}>Start a clear subject line <ArrowRight size={16} /></button>
+                </div>
+                {latestAttempt?.coachingHint && <div className={styles.coachingCallout}><strong>Latest coaching</strong><span>{latestAttempt.coachingHint}</span></div>}
+              </Tile>
+              </div>
             )}
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
-            <ThreadHistory attempts={thread} />
-          </Stack>
-        </Column>
+            <section className={styles.evidenceStrip} aria-label="Evidence you can reference">
+              <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
+              {evidenceForReference.length > 0 ? (
+                <div className={styles.evidenceCards}>
+                  {evidenceForReference.slice(0, 4).map((item) => (
+                    <button type="button" key={item.id} onClick={() => appendEvidenceReference(item)}>
+                      <LinkIcon size={18} /><strong>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</strong><p>{item.note}</p><small>Add to email <ArrowRight size={14} /></small>
+                    </button>
+                  ))}
+                </div>
+              ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
+            </section>
+        </section>
 
-        <Column lg={6} md={8} sm={4}>
-          <aside className={styles.decisionRail}>
-            <Tile className={styles.latestReply}>
-              <Stack gap={4}>
-                <div className={styles.replyHeading}>
+        <aside className={styles.decisionRail}>
+            {latestAttempt?.clientReply ? (
+              <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
+                <div className={styles.responseClientIdentity}>
+                  <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
+                  <div>
+                    <strong>{intelligence?.companyName ?? 'Client organisation'}</strong>
+                    <span>{rubricContext.personaName ?? 'Client stakeholder'} <Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></span>
+                  </div>
+                </div>
+                <div className={styles.clientResponseHeading}>
                   <div>
                     <p className={styles.eyebrow}>Latest client response</p>
-                    <h2>{documentRequired ? 'Client requested a document' : meetingSecured ? 'Client accepted the meeting' : 'Client response'}</h2>
+                    <h2>What the client said</h2>
                   </div>
-                  {latestAttempt && <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>}
+                  <div className={styles.responseActions}>
+                    <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>
+                    {thread.length > 1 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>History</Button>}
+                  </div>
                 </div>
-                {latestAttempt?.clientReply ? <p className={styles.clientReply}>{latestAttempt.clientReply}</p> : <p className={styles.emptyReply}>Send your first message to receive a client response.</p>}
-              </Stack>
+                <blockquote>{latestAttempt.clientReply}</blockquote>
+                {(latestAttempt.requestTitle || latestAttempt.coachingHint) && (
+                  <div className={styles.responseGuidance}>
+                    <strong>{latestAttempt.requestTitle ?? 'Recommended next step'}</strong>
+                    <span>{latestAttempt.requestSummary ?? latestAttempt.coachingHint}</span>
+                  </div>
+                )}
+              </section>
+            ) : (
+              <Tile className={`${styles.clientOverview} ${styles.latestReply}`}>
+                <div className={styles.replyHeading}>
+                  <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
+                </div>
+                {leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
+              </Tile>
+            )}
+
+            <Tile className={styles.checklistPanel}>
+              <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
+              {draftReview.checks.map((check) => <div key={check.dimension} className={styles.checklistRow}>{check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}<span>{check.label}</span></div>)}
             </Tile>
 
-            {latestAttempt?.requestRequirements?.length ? (
+            {!latestAttempt?.clientReply && <Tile className={styles.nextActionPanel}>
+              <Light size={22} /><div><p className={styles.eyebrow}>Next best action</p><h3>{latestAttempt?.coachingHint ? 'Refine before you send' : 'Use one client signal'}</h3><p>{latestAttempt?.coachingHint ?? 'Reference a verified source, then ask for a short, time-bound conversation.'}</p></div>
+            </Tile>}
+
+            {!latestAttempt?.clientReply && latestAttempt?.requestRequirements?.length && (
               <Tile className={styles.hintPanel}>
                 <p className={styles.eyebrow}>What the client is asking for</p>
                 <h3>{latestAttempt.requestTitle}</h3>
@@ -334,18 +499,18 @@ export default function OutreachWorkspacePage() {
                   {latestAttempt.requestRequirements.map((requirement) => <li key={requirement}>{requirement}</li>)}
                 </ul>
               </Tile>
-            ) : latestAttempt?.clientReply && !meetingSecured ? (
-              <Tile className={styles.hintPanel}>
-                <p className={styles.eyebrow}>Response-based hint</p>
-                <h3>Address the latest response</h3>
-                <p>Use the client’s wording above to acknowledge their constraint, then make one specific next-step request.</p>
-              </Tile>
-            ) : null}
+            )}
+
+            {!meetingSecured && !documentRequired && (
+              <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
+            )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
-          </aside>
-        </Column>
-      </Grid>
+        </aside>
+      </main>
+      <Modal open={historyOpen} modalHeading="Outreach conversation" passiveModal onRequestClose={() => setHistoryOpen(false)}>
+        <ThreadHistory attempts={thread} />
+      </Modal>
     </div>
   )
 }

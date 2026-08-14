@@ -71,6 +71,27 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor.getThreadPoolExecutor();
     }
 
+    /**
+     * Non-critical client wording must never delay a persisted proposal outcome.
+     * The decision engine completes synchronously; this pool enriches its natural
+     * language response after commit.
+     */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService proposalNarrativeExecutor(
+            @Value("${app.async.proposal-narrative-core-pool-size:2}") int corePoolSize,
+            @Value("${app.async.proposal-narrative-max-pool-size:8}") int maxPoolSize,
+            @Value("${app.async.proposal-narrative-queue-capacity:100}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("proposal-narrative-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
     /** General-purpose pool for {@code @Async}-annotated application methods. */
     @Override
     public Executor getAsyncExecutor() {

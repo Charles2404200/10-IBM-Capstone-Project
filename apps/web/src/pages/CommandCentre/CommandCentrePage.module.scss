@@ -1,7 +1,7 @@
 .page {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem 2rem;
 }
 
 .header,
@@ -61,7 +61,9 @@
 .featuredPanel,
 .section,
 .recommendationPanel,
-.failedMeetingsSection {
+.failedMeetingsSection,
+.catalogueSection,
+.sidePanel {
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
@@ -161,6 +163,233 @@
 
 .section {
   padding: 1.25rem;
+}
+
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(20rem, 0.95fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.dashboardAside {
+  display: grid;
+  gap: 1rem;
+}
+
+.sidePanel {
+  padding: 1rem;
+}
+
+.sidePanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+
+  h3 {
+    color: #161616;
+    font-size: 1rem;
+    margin: 0;
+  }
+
+  p,
+  .sideEmpty {
+    color: #6f6f6f;
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0;
+  }
+}
+
+.textAction {
+  border: 0;
+  background: transparent;
+  color: #0f62fe;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem;
+  white-space: nowrap;
+}
+
+.recentlyCompletedList {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.recentlyCompletedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+  padding: 0.75rem;
+  text-align: left;
+
+  &:hover {
+    border-color: #78a9ff;
+    background: #f4f7ff;
+  }
+
+  h4 {
+    color: #161616;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+    margin: 0;
+  }
+}
+
+.recentlyCompletedResult {
+  display: grid;
+  justify-items: end;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+
+  strong {
+    color: #161616;
+    font-size: 0.8125rem;
+  }
+}
+
+.sideEmpty {
+  color: #6f6f6f;
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+.catalogueSection {
+  padding: 1.5rem;
+  border-top: 3px solid #0f62fe;
+  background: linear-gradient(135deg, #ffffff 0%, #f7faff 100%);
+}
+
+.catalogueCount {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  background: #e8f0ff;
+  color: #0f62fe;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.catalogueControls {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) minmax(12rem, 0.7fr) minmax(10rem, 0.45fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.catalogueLoading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  color: #525252;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.catalogueGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+
+.catalogueLeadCard {
+  display: flex;
+  min-width: 0;
+  min-height: 15rem;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem;
+  border: 1px solid #d9e2f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(15 38 71 / 5%);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: #78a9ff;
+    box-shadow: 0 6px 18px rgb(15 98 254 / 12%);
+    transform: translateY(-1px);
+  }
+
+  h4 {
+    overflow: hidden;
+    margin: 0;
+    color: #161616;
+    font-size: 1rem;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  p {
+    display: -webkit-box;
+    overflow: hidden;
+    flex: 1;
+    margin: 0;
+    color: #525252;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  :global(.cds--btn) {
+    align-self: flex-start;
+  }
+}
+
+.catalogueLeadTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.catalogueLeadIcon {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 7px;
+  background: #edf3ff;
+  color: #0f62fe;
+}
+
+.catalogueSignals {
+  display: grid;
+  gap: 0.25rem;
+  min-height: 2.5rem;
+
+  span {
+    overflow: hidden;
+    color: #6f6f6f;
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &::before {
+      content: '•';
+      margin-right: 0.375rem;
+      color: #0f62fe;
+    }
+  }
+}
+
+.cataloguePagination {
+  margin-top: 1.25rem;
+  border-top: 1px solid #d9e2f2;
 }
 
 .failedMeetingsSection {
@@ -314,13 +543,22 @@
 }
 
 .scenarioCard {
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border: 1px solid #d9e2f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(15 38 71 / 5%);
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   min-height: 15rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: #78a9ff;
+    box-shadow: 0 6px 18px rgb(15 98 254 / 12%);
+    transform: translateY(-1px);
+  }
 
   h4 {
     color: #161616;
@@ -337,17 +575,17 @@
 }
 
 .difficultyStars {
-  color: #8d6e00;
+  color: #6b5300;
   font-family: monospace;
   letter-spacing: 0;
 }
 
 .recommendationPanel {
-  padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.875rem;
+  border-color: #b8d3ff;
+  background: linear-gradient(135deg, #edf5ff 0%, #ffffff 80%);
 
   h3 {
     color: #161616;
@@ -356,7 +594,7 @@
 
   p {
     color: #525252;
-    max-width: 52rem;
+    max-width: 30rem;
     margin: 0;
   }
 }
@@ -427,6 +665,10 @@
     flex-direction: column;
   }
 
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+
   .featuredCta {
     min-width: 0;
     justify-content: flex-start;
@@ -435,6 +677,18 @@
   .controls {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .catalogueControls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .catalogueLoading {
+    justify-content: flex-start;
+  }
+
+  .catalogueGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .compactRow {
@@ -464,6 +718,15 @@
     grid-template-columns: 1fr;
   }
 
+  .catalogueSection {
+    padding: 1rem;
+  }
+
+  .catalogueControls,
+  .catalogueGrid {
+    grid-template-columns: 1fr;
+  }
+
   .completedRow {
     align-items: flex-start;
     flex-direction: column;
@@ -473,3 +736,82 @@
     justify-content: flex-start;
   }
 }
+
+.scenarioMore {
+  color: #525252;
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.scenarioSearch {
+  max-width: 28rem;
+  margin-bottom: 1rem;
+}
+
+/* Groups everything below the featured engagement. main designs this page as
+   an ordinary scrolling dashboard rather than a fixed canvas, so this is a
+   container, not a scrollport: splitting it left the catalogue 54px tall. */
+.browseBody { display: grid; align-content: start; gap: 2rem; }
+
+/* ── First visit ──────────────────────────────────────────────────────────── */
+
+.firstRun {
+  border: 1px solid #d0d0d0;
+  border-left: 4px solid #0f62fe;
+  background: #ffffff;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.firstRunHeading {
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.25;
+  margin: 0.25rem 0 1rem;
+}
+
+.firstRunArc {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  max-width: 46rem;
+
+  li { color: #525252; line-height: 1.5; }
+  strong { color: #161616; }
+}
+
+.firstRunNote {
+  color: #525252;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+  max-width: 46rem;
+}
+
+.firstRunStarter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border: 1px solid #d0d0d0;
+  background: #f4f4f4;
+  padding: 1rem 1.25rem;
+
+  h3 { font-size: 1.125rem; margin: 0.25rem 0 0.25rem; }
+  p { color: #525252; font-size: 0.875rem; margin: 0; }
+}
+
+.firstRunAlt {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 1rem;
+  color: #0f62fe;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }
+}
+
