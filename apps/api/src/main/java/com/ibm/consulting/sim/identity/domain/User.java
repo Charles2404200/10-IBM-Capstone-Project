@@ -44,4 +44,8 @@ public class User extends BaseEntity {
     public String getDisplayName() { return displayName; }
     public UserRole getRole() { return role; }
     public boolean isActive() { return active; }
+
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
 }
