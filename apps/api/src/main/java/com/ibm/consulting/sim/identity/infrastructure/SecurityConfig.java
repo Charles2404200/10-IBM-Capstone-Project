@@ -52,6 +52,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/password-reset/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/actuator/prometheus").hasRole("OBSERVABILITY")
                         .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
