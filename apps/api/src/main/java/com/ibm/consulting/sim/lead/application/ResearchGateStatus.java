@@ -21,7 +21,14 @@ public record ResearchGateStatus(
         boolean hasHypothesis,
         int confidencePercent,
         int requiredConfidencePercent,
-        boolean ready) {
+        boolean ready,
+        int coverageCount,
+        int requiredCoverageCount,
+        boolean groundedHypothesis,
+        int reliabilityScore,
+        int verificationScore,
+        int relevanceScore,
+        List<String> coaching) {
 
     public static ResearchGateStatus from(EngagementState state, List<ResearchEvidence> evidence) {
         return from(state, evidence, null);
@@ -31,7 +38,8 @@ public record ResearchGateStatus(
         long count = ResearchReadinessPolicy.evidenceCount(evidence);
         boolean hasStakeholder = ResearchReadinessPolicy.hasStakeholderEvidence(evidence);
         boolean hasHypothesis = ResearchReadinessPolicy.hasHypothesis(evidence);
-        int confidence = ResearchReadinessPolicy.confidencePercent(evidence);
+        ResearchReadinessPolicy.QualityAssessment quality = ResearchReadinessPolicy.assess(evidence);
+        int confidence = quality.confidencePercent();
         boolean alreadyCompleted = state != EngagementState.QUALIFYING && state != EngagementState.CLIENT_INTELLIGENCE;
         return new ResearchGateStatus(
                 alreadyCompleted,
@@ -41,6 +49,13 @@ public record ResearchGateStatus(
                 hasHypothesis,
                 confidence,
                 profile == null ? ResearchReadinessPolicy.MIN_CONFIDENCE_PERCENT : profile.requiredConfidencePercent(),
-                alreadyCompleted || ResearchReadinessPolicy.isResearchComplete(evidence, profile));
+                alreadyCompleted || ResearchReadinessPolicy.isResearchComplete(evidence, profile),
+                quality.coverageCount(),
+                ResearchReadinessPolicy.requiredCoverageCount(profile),
+                quality.groundedHypothesis(),
+                quality.reliabilityScore(),
+                quality.verificationScore(),
+                quality.relevanceScore(),
+                quality.coaching());
     }
 }

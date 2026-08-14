@@ -18,6 +18,7 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
@@ -27,6 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static com.ibm.consulting.sim.shared.config.CacheConfig.PORTFOLIO_SUMMARY_CACHE;
 
 /**
  * Read-only aggregation service for the learner Portfolio & Progression view
@@ -56,6 +59,7 @@ public class PortfolioService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = PORTFOLIO_SUMMARY_CACHE, key = "#userId")
     public PortfolioSummaryResponse getSummary(UUID userId) {
         List<Engagement> engagements = engagementRepository.findByUserId(userId);
 

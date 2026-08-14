@@ -2,8 +2,11 @@ package com.ibm.consulting.sim.lead.api;
 
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.lead.application.LeadIntelligenceSummary;
+import com.ibm.consulting.sim.lead.application.LeadCatalogResponse;
 import com.ibm.consulting.sim.lead.application.LeadService;
 import com.ibm.consulting.sim.lead.application.LeadSummary;
+import com.ibm.consulting.sim.lead.domain.LeadCatalogQuery;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
 import com.ibm.consulting.sim.lead.application.ResearchArtifactResponse;
 import com.ibm.consulting.sim.lead.application.ResearchEvidenceSummary;
 import com.ibm.consulting.sim.lead.application.ResearchGateStatus;
@@ -15,6 +18,8 @@ import com.ibm.consulting.sim.lead.domain.EvidenceType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -50,6 +55,7 @@ public class LeadController {
             EvidenceVerificationStatus verificationStatus,
             LocalDate occurredOn,
             ConfidenceLevel confidence,
+            @Min(0) @Max(100) Integer relevanceScore,
             Set<UUID> supportingEvidenceIds) {}
 
     record GenerateResearchRequest(@NotNull EvidenceType evidenceType) {}
@@ -59,6 +65,22 @@ public class LeadController {
     @GetMapping("/scenarios/{scenarioId}/leads")
     List<LeadSummary> listLeads(@PathVariable UUID scenarioId) {
         return leadService.listForScenario(scenarioId);
+    }
+
+    /** Additive catalogue endpoint. The legacy per-scenario list remains for the existing lead pipeline. */
+    @GetMapping("/lead-catalog")
+    LeadCatalogResponse listCatalog(@RequestParam(name = "scenarioId", required = false) UUID scenarioId,
+                                    @RequestParam(name = "search", required = false) String search,
+                                    @RequestParam(name = "industry", required = false) String industry,
+                                    @RequestParam(name = "difficulty", required = false) LeadDifficulty difficulty,
+                                    @RequestParam(name = "page", defaultValue = "0") int page,
+                                    @RequestParam(name = "size", defaultValue = "12") int size) {
+        return leadService.listCatalog(new LeadCatalogQuery(scenarioId, search, industry, difficulty, page, size));
+    }
+
+    @GetMapping("/lead-catalog/industries")
+    List<String> listCatalogIndustries() {
+        return leadService.catalogIndustries();
     }
 
     @PostMapping("/engagements/{engagementId}/lead-selection")
@@ -82,6 +104,7 @@ public class LeadController {
                         : defaultVerification(req.origin()),
                 req.occurredOn(),
                 req.confidence() != null ? req.confidence() : ConfidenceLevel.MEDIUM,
+                req.relevanceScore(),
                 req.supportingEvidenceIds());
     }
 

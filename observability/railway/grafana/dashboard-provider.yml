@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: consulting-simulation
+    orgId: 1
+    folder: IBM Consulting Simulation
+    type: file
+    disableDeletion: true
+    editable: true
+    options:
+      # Keep provisioned definitions outside Grafana's persistent data volume.
+      # Railway mounts the volume at /var/lib/grafana, which would otherwise hide
+      # these files after the first deployment.
+      path: /etc/grafana/dashboards

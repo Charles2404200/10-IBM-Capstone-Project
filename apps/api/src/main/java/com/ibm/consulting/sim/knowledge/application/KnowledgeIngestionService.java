@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -51,6 +52,15 @@ public class KnowledgeIngestionService {
         }
         chunkRepository.saveAll(entities);
         return document.getId();
+    }
+
+    /** Copies authored source documents into a scenario revision and reindexes them under its new scope. */
+    @Transactional
+    public void copyScenarioDocuments(UUID sourceScenarioId, UUID targetScenarioId, Map<UUID, UUID> personaIdMap) {
+        for (KnowledgeDocument document : documentRepository.findByScenarioId(sourceScenarioId)) {
+            UUID targetPersonaId = document.getPersonaId() == null ? null : personaIdMap.get(document.getPersonaId());
+            ingest(targetScenarioId, targetPersonaId, document.getCollection(), document.getTitle(), document.getSourceText());
+        }
     }
 
     private List<String> chunk(String text) {

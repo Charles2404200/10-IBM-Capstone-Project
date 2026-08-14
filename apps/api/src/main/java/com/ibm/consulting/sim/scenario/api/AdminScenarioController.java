@@ -6,6 +6,15 @@ import com.ibm.consulting.sim.scenario.application.ScenarioService;
 import com.ibm.consulting.sim.scenario.application.ScenarioSummary;
 import com.ibm.consulting.sim.scenario.application.UpdateRubricWeightsRequest;
 import com.ibm.consulting.sim.scenario.application.UpdateDifficultyProfileRequest;
+import com.ibm.consulting.sim.scenario.application.UpdateScenarioBlueprintRequest;
+import com.ibm.consulting.sim.scenario.application.UpdateScenarioAuthoringConfigRequest;
+import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringView;
+import com.ibm.consulting.sim.scenario.application.ScenarioCatalogResponse;
+import com.ibm.consulting.sim.scenario.application.LeadAuthoringRequest;
+import com.ibm.consulting.sim.scenario.application.LeadAuthoringView;
+import com.ibm.consulting.sim.scenario.domain.AdminScenarioCatalogQuery;
+import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
+import com.ibm.consulting.sim.lead.application.LeadSummary;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +45,15 @@ public class AdminScenarioController {
         return scenarioService.listAllForAdmin();
     }
 
+    /** Fast, bounded library query for the authoring console. The legacy list endpoint remains available. */
+    @GetMapping("/catalog")
+    ScenarioCatalogResponse listCatalog(@RequestParam(required = false) String search,
+                                        @RequestParam(required = false) ScenarioStatus status,
+                                        @RequestParam(defaultValue = "0") int page,
+                                        @RequestParam(defaultValue = "12") int size) {
+        return scenarioService.listCatalogForAdmin(new AdminScenarioCatalogQuery(search, status, page, size));
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ScenarioSummary create(@Valid @RequestBody CreateScenarioRequest request) {
@@ -62,6 +80,52 @@ public class AdminScenarioController {
     ScenarioSummary updateRubric(@PathVariable UUID scenarioId,
                                  @Valid @RequestBody UpdateRubricWeightsRequest request) {
         return scenarioService.updateRubricWeights(scenarioId, request.weights());
+    }
+
+    @GetMapping("/{scenarioId}/authoring")
+    ScenarioAuthoringView authoringView(@PathVariable UUID scenarioId) {
+        return scenarioService.authoringView(scenarioId);
+    }
+
+    @PutMapping("/{scenarioId}/blueprint")
+    ScenarioAuthoringView updateBlueprint(@PathVariable UUID scenarioId,
+                                          @Valid @RequestBody UpdateScenarioBlueprintRequest request) {
+        return scenarioService.updateBlueprint(scenarioId, request);
+    }
+
+    @PutMapping("/{scenarioId}/authoring-config")
+    ScenarioAuthoringView updateAuthoringConfig(@PathVariable UUID scenarioId,
+                                                @Valid @RequestBody UpdateScenarioAuthoringConfigRequest request) {
+        return scenarioService.updateAuthoringConfig(scenarioId, request.config());
+    }
+
+    @PostMapping("/{scenarioId}/revisions")
+    @ResponseStatus(HttpStatus.CREATED)
+    ScenarioAuthoringView createRevision(@PathVariable UUID scenarioId) {
+        return scenarioService.createRevision(scenarioId);
+    }
+
+    @PostMapping("/{scenarioId}/leads")
+    @ResponseStatus(HttpStatus.CREATED)
+    LeadSummary createLead(@PathVariable UUID scenarioId, @Valid @RequestBody LeadAuthoringRequest request) {
+        return scenarioService.createLead(scenarioId, request);
+    }
+
+    @GetMapping("/{scenarioId}/leads")
+    List<LeadAuthoringView> listAuthoringLeads(@PathVariable UUID scenarioId) {
+        return scenarioService.listAuthoringLeads(scenarioId);
+    }
+
+    @PutMapping("/{scenarioId}/leads/{leadId}")
+    LeadSummary updateLead(@PathVariable UUID scenarioId, @PathVariable UUID leadId,
+                           @Valid @RequestBody LeadAuthoringRequest request) {
+        return scenarioService.updateLead(scenarioId, leadId, request);
+    }
+
+    @DeleteMapping("/{scenarioId}/leads/{leadId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteLead(@PathVariable UUID scenarioId, @PathVariable UUID leadId) {
+        scenarioService.deleteLead(scenarioId, leadId);
     }
 
     @PutMapping("/{scenarioId}/difficulty-profile")

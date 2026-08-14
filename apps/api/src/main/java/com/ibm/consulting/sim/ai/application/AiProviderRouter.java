@@ -70,6 +70,7 @@ public class AiProviderRouter implements AiModelGateway {
             @Value("${app.ai.routing.classification:gemini-free,watsonx-granite,openrouter-free}") String classificationRoute,
             @Value("${app.ai.routing.client-intelligence:gemini-free,watsonx-granite,openrouter-free}") String clientIntelligenceRoute,
             @Value("${app.ai.routing.assessment:watsonx-granite,gemini-free,openrouter-free}") String assessmentRoute,
+            @Value("${app.ai.routing.proposal-review:gemini-free,watsonx-granite,openrouter-free}") String proposalReviewRoute,
             @Value("${app.ai.routing.evidence_extraction:gemini-free,watsonx-granite,openrouter-free}") String evidenceRoute,
             @Value("${app.ai.providers.watsonx.daily-quota:100000}") long watsonxDailyQuota,
             @Value("${app.ai.providers.gemini.daily-quota:1000}") long geminiDailyQuota,
@@ -86,6 +87,7 @@ public class AiProviderRouter implements AiModelGateway {
                 AiTaskType.CLASSIFICATION, parseCsv(classificationRoute),
                 AiTaskType.CLIENT_INTELLIGENCE, parseCsv(clientIntelligenceRoute),
                 AiTaskType.ASSESSMENT, parseCsv(assessmentRoute),
+                AiTaskType.PROPOSAL_REVIEW, parseCsv(proposalReviewRoute),
                 AiTaskType.EVIDENCE_EXTRACTION, parseCsv(evidenceRoute));
         this.dailyQuotaByProvider = Map.of(
                 "watsonx-granite", watsonxDailyQuota,

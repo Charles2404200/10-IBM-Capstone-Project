@@ -18,6 +18,9 @@ class LeadIntelligencePolicyTest {
                 .note(note)
                 .evidenceType(type)
                 .confidence(confidence)
+                .origin(EvidenceOrigin.AI_SYNTHESIZED)
+                .verificationStatus(EvidenceVerificationStatus.CORROBORATED)
+                .relevanceScore(confidence == ConfidenceLevel.HIGH ? 90 : 70)
                 .sequenceNo(++seq)
                 .build();
     }
@@ -119,7 +122,7 @@ class LeadIntelligencePolicyTest {
                 evidence(EvidenceType.STAKEHOLDER_PROFILE, "n2", ConfidenceLevel.MEDIUM));
         List<String> factors = LeadIntelligencePolicy.confidenceFactors(evidence);
         assertThat(factors).contains("2/4 research areas covered");
-        assertThat(factors).anyMatch(f -> f.contains("high-reliability finding"));
-        assertThat(factors).anyMatch(f -> f.contains("medium-reliability finding"));
+        assertThat(factors).anyMatch(f -> f.contains("average reliability"));
+        assertThat(factors).anyMatch(f -> f.contains("source verification"));
     }
 }

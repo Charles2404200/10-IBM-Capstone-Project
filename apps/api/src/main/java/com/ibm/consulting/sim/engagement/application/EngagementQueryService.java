@@ -10,11 +10,17 @@ import com.ibm.consulting.sim.meeting.domain.MeetingRepository;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ENGAGEMENT_DASHBOARD_CACHE;
 
 /**
  * Read-model aggregator for the Command Centre "cockpit" view: stitches an
@@ -51,11 +57,16 @@ public class EngagementQueryService {
         return enrich(engagement);
     }
 
+    /**
+     * Cached command-centre projection. This is intentionally user-scoped:
+     * it contains only the learner's own work and can be invalidated exactly
+     * when a lifecycle command changes that work.
+     */
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = ENGAGEMENT_DASHBOARD_CACHE, key = "#userId")
     public List<EngagementResponse> listForUser(UUID userId) {
-        return engagementRepository.findByUserId(userId).stream()
-                .map(this::enrich)
-                .toList();
+        List<Engagement> engagements = engagementRepository.findDashboardByUserId(userId);
+        return enrichAll(engagements);
     }
 
     private EngagementResponse enrich(Engagement engagement) {
@@ -74,5 +85,44 @@ public class EngagementQueryService {
                 scenario != null ? scenario.getTitle() : null,
                 scenario != null ? scenario.getIndustry() : null,
                 leadCompanyName, evidenceCount, meetingId);
+    }
+
+    /** Uses set-based repository queries rather than four lookups per engagement. */
+    private List<EngagementResponse> enrichAll(List<Engagement> engagements) {
+        if (engagements.isEmpty()) return List.of();
+
+        List<UUID> scenarioIds = engagements.stream().map(Engagement::getScenarioId).distinct().toList();
+        List<UUID> engagementIds = engagements.stream().map(Engagement::getId).toList();
+        List<UUID> leadIds = engagements.stream()
+                .map(Engagement::getSelectedLeadId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<UUID, Scenario> scenarios = byId(scenarioRepository.findByIdIn(scenarioIds), Scenario::getId);
+        Map<UUID, Lead> leads = byId(leadRepository.findByIdIn(leadIds), Lead::getId);
+        Map<UUID, Long> evidenceCounts = evidenceRepository.countByEngagementIds(engagementIds);
+        Map<UUID, Meeting> latestMeetings = new HashMap<>();
+        meetingRepository.findAllByEngagementIdIn(engagementIds).forEach(meeting ->
+                latestMeetings.merge(meeting.getEngagementId(), meeting,
+                        (current, candidate) -> current.getCreatedAt().isAfter(candidate.getCreatedAt()) ? current : candidate));
+
+        return engagements.stream().map(engagement -> {
+            Scenario scenario = scenarios.get(engagement.getScenarioId());
+            Lead lead = leads.get(engagement.getSelectedLeadId());
+            Meeting meeting = latestMeetings.get(engagement.getId());
+            return EngagementResponse.enrich(engagement,
+                    scenario != null ? scenario.getTitle() : null,
+                    scenario != null ? scenario.getIndustry() : null,
+                    lead != null ? lead.getCompanyName() : null,
+                    evidenceCounts.getOrDefault(engagement.getId(), 0L),
+                    meeting != null ? meeting.getId() : null);
+        }).toList();
+    }
+
+    private static <T> Map<UUID, T> byId(Collection<T> source, java.util.function.Function<T, UUID> id) {
+        Map<UUID, T> result = new HashMap<>();
+        source.forEach(item -> result.put(id.apply(item), item));
+        return result;
     }
 }

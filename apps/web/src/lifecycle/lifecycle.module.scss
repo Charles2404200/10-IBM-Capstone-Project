@@ -23,9 +23,9 @@
    open; on a phone it is a disclosure. Before this the strip was 1045px wide
    inside a 606px viewport and scrolled sideways, which is unusable. */
 .hud {
-  background: #161616;
-  border-bottom: 1px solid #393939;
-  color: #f4f4f4;
+  background: #ffffff;
+  border-bottom: 1px solid #d0d7e5;
+  color: #1f2a44;
   font-size: 0.75rem;
   /* Follows the learner down long workspaces — the whole point is that phase
      and client state are never more than a glance away. Sits below Carbon's
@@ -57,7 +57,7 @@
 .hudStep {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: #78a9ff;
+  color: #0f62fe;
   flex-shrink: 0;
 }
 
@@ -83,7 +83,7 @@
 }
 
 .hudChevron {
-  color: #8d8d8d;
+  color: #6b7280;
   font-size: 0.625rem;
   flex-shrink: 0;
 }
@@ -111,9 +111,11 @@
   cursor: pointer;
   text-align: left;
 
+  /* Hover and focus follow the light HUD this bar became on main; the button
+     behaviour is ours, the palette is theirs. */
   &:hover {
-    background: #262626;
-    color: #f4f4f4;
+    background: #eef2f8;
+    color: #1f2a44;
   }
 
   &:focus-visible {
@@ -121,7 +123,7 @@
     outline-offset: 1px;
   }
 
-  color: #c6c6c6;
+  color: #345;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -170,10 +172,10 @@
 }
 
 .hudLabel {
-  color: #c6c6c6;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
 }
 
 .hudTitle {
@@ -213,8 +215,8 @@
   background: none;
   border: 0;
   padding: 0.25rem 0.375rem;
-  color: #a8a8a8;
-  font-size: 0.75rem;
+  color: #64748b;
+  font-size: 0.6875rem;
   cursor: default;
   border-radius: 3px;
   white-space: nowrap;
@@ -224,8 +226,8 @@
   cursor: pointer;
 
   &:hover {
-    background: #262626;
-    color: #f4f4f4;
+    background: #edf3ff;
+    color: #0f62fe;
   }
 
   &:focus-visible {
@@ -238,7 +240,7 @@
   width: 0.625rem;
   height: 0.625rem;
   border-radius: 50%;
-  border: 2px solid #6f6f6f;
+  border: 2px solid #9ca8bb;
   flex-shrink: 0;
 }
 
@@ -249,12 +251,12 @@
 
 .stepDotCurrent {
   background: #0f62fe;
-  border-color: #78a9ff;
+  border-color: #0f62fe;
   box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.28);
 }
 
 .stepCurrentLabel {
-  color: #ffffff;
+  color: #0f62fe;
   font-weight: 600;
 }
 
@@ -277,13 +279,13 @@
 }
 
 .stepDoneLabel {
-  color: #a8a8a8;
+  color: #52657d;
 }
 
 .stepConnector {
   width: 0.75rem;
   height: 2px;
-  background: #393939;
+  background: #d0d7e5;
   flex-shrink: 0;
 }
 
@@ -310,13 +312,13 @@
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #c6c6c6;
+  font-size: 0.6875rem;
+  color: #52657d;
 }
 
 .meterTrack {
   height: 6px;
-  background: #393939;
+  background: #e7edf6;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -328,7 +330,7 @@
 }
 
 .meterUnknown {
-  color: #6f6f6f;
+  color: #6b7280;
   font-style: italic;
 }
 
@@ -363,7 +365,7 @@
 }
 
 .briefLabel {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   color: #6f6f6f;

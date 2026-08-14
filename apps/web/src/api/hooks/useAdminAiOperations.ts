@@ -7,6 +7,8 @@ export function useAdminAiOperations(enabled = true) {
     queryKey: ['admin', 'ai', 'operations'],
     enabled,
     queryFn: async () => (await apiClient.get<AiOperationsResponse>('/api/v1/admin/ai/operations')).data,
-    refetchInterval: 30_000,
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: false,
   })
 }

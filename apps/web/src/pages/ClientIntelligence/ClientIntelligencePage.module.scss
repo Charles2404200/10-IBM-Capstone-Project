@@ -11,7 +11,10 @@ $accent-blue: #0f62fe;
 $accent-blue-dark: #0043ce;
 
 .page {
-  padding: $spacing-06 $spacing-07 $spacing-07;
+  height: calc(100vh - 3rem);
+  min-height: 0;
+  overflow: hidden;
+  padding: $spacing-05 $spacing-07;
   max-width: 1520px;
   margin: 0 auto;
 }
@@ -19,9 +22,24 @@ $accent-blue-dark: #0043ce;
 // ─── Phase stepper ───────────────────────────────────────────────────────
 
 .progressBanner {
-  margin-bottom: $spacing-06;
-  padding-bottom: $spacing-05;
+  margin-bottom: $spacing-03;
+  padding-bottom: $spacing-03;
   border-bottom: 1px solid $border-subtle;
+}
+
+.workflowState {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  color: $text-secondary;
+  font-size: 0.875rem;
+}
+
+.workflowStateLabel {
+  color: $accent-blue-dark;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .stageMetaRow {
@@ -51,20 +69,46 @@ $accent-blue-dark: #0043ce;
   justify-content: space-between;
   align-items: flex-start;
   gap: $spacing-05;
+  margin-bottom: $spacing-04;
+}
+
+.nextActionPanel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $spacing-05;
   margin-bottom: $spacing-05;
+  padding: $spacing-04 $spacing-05;
+  background: #edf5ff;
+  border-left: 4px solid $accent-blue;
+
+  strong {
+    color: $text-primary;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+}
+
+.nextActionScore {
+  flex-shrink: 0;
+  color: $accent-blue-dark;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .sideRail,
 .decisionRail {
   display: flex;
   flex-direction: column;
-  gap: $spacing-05;
+  height: 100%;
+  min-height: 0;
+  gap: $spacing-04;
 }
 
 .decisionRail {
-  position: sticky;
-  top: $spacing-05;
-  max-height: calc(100vh - #{$spacing-07});
+  position: static;
+  max-height: none;
   overflow-y: auto;
   padding-right: $spacing-02;
 }
@@ -72,7 +116,14 @@ $accent-blue-dark: #0043ce;
 .mainWorkspace {
   display: flex;
   flex-direction: column;
-  gap: $spacing-05;
+  height: 100%;
+  min-height: 0;
+  gap: $spacing-04;
+}
+
+.workspaceColumn {
+  height: calc(100vh - 13.5rem);
+  min-height: 0;
 }
 
 .sectionEyebrow {
@@ -109,20 +160,23 @@ $accent-blue-dark: #0043ce;
   background: $layer-white;
   border: 1px solid $border-subtle;
   border-radius: 6px;
-  padding: $spacing-06;
+  flex: 0 1 48%;
+  min-height: 12.5rem;
+  overflow-y: auto;
+  padding: $spacing-05;
 }
 
 .researchOptions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: $spacing-04;
-  margin-top: $spacing-05;
+  margin-top: $spacing-04;
 }
 
 .researchOptionCard {
   background: $layer-bg;
   border: 1px solid $border-subtle;
-  min-height: 12rem;
+  min-height: 10.75rem;
 
   h4 {
     color: $text-primary;
@@ -229,12 +283,6 @@ $accent-blue-dark: #0043ce;
 .actionButton {
   display: flex;
   align-items: center;
-  /* Three lg columns left this button 180px wide, which is not enough for an
-     icon, "Stakeholder Research" and a findings pill on one line — every label
-     broke across two lines and the pill was squeezed against the edge. The
-     column is wider now, and wrapping means the pill drops to its own line
-     rather than the words being chopped if it is ever narrow again. */
-  flex-wrap: wrap;
   gap: $spacing-03;
   width: 100%;
   padding: $spacing-04;
@@ -280,7 +328,6 @@ $accent-blue-dark: #0043ce;
 
 .actionButtonCount {
   flex-shrink: 0;
-  margin-inline-start: auto;
   font-size: 0.75rem;
   font-weight: 600;
   color: #0e6027;
@@ -290,33 +337,21 @@ $accent-blue-dark: #0043ce;
   white-space: nowrap;
 }
 
-/* Between Carbon's md and lg a three-column rail is only 186px wide — too
-   narrow for a 20px icon and "Stakeholder Research" on one line, so the icon
-   was pushed onto a row of its own and the four buttons came out 72/97/72/97.
-   A tablet has the width, just not in that column, so at this size the rail
-   spans the full row and the actions sit side by side instead. */
-@media (min-width: 42rem) and (max-width: 65.99rem) {
-  .researchActions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: $spacing-03;
-    align-items: start;
-  }
-
-  .researchActionsTitle {
-    grid-column: 1 / -1;
-    margin-bottom: 0;
-  }
-
-  .actionButton {
-    margin-bottom: 0;
-  }
-}
 
 .formTile {
   background: $layer-white;
   border: 1px solid $border-subtle;
   border-radius: 6px;
+}
+
+.manualEvidence {
+  flex-shrink: 0;
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+
+  :global(.cds--accordion__content) {
+    padding: $spacing-04 $spacing-05 $spacing-05;
+  }
 }
 
 // ─── Research gate checklist ─────────────────────────────────────────────
@@ -403,8 +438,26 @@ $accent-blue-dark: #0043ce;
   background: $layer-bg;
   border: 1px solid $border-subtle;
   border-radius: 6px;
-  padding: $spacing-06;
-  min-height: 24rem;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: $spacing-05;
+}
+
+.gateCoaching {
+  margin-top: $spacing-05;
+  padding: $spacing-04;
+  background: #edf5ff;
+  border-left: 3px solid $accent-blue;
+
+  p:last-child {
+    color: $text-secondary;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    margin: $spacing-02 0 0;
+  }
 }
 
 .evidenceBoardHeader {
@@ -443,6 +496,9 @@ $accent-blue-dark: #0043ce;
 
 .evidenceGrid {
   display: grid;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: $spacing-05;
 }
@@ -702,8 +758,29 @@ $accent-blue-dark: #0043ce;
 }
 
 @media (max-width: 1055px) {
+  .page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .workspaceColumn,
+  .mainWorkspace {
+    height: auto;
+  }
+
+  .researchResultsPanel {
+    max-height: none;
+  }
+
+  .evidenceBoard {
+    min-height: 24rem;
+  }
+
+  .evidenceGrid {
+    overflow: visible;
+  }
+
   .decisionRail {
-    position: static;
     max-height: none;
     overflow: visible;
     margin-top: $spacing-05;
@@ -720,6 +797,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .pageHeader,
+  .nextActionPanel,
   .panelHeader,
   .evidenceBoardHeader,
   .hypothesisWorkspaceHeader,
@@ -728,37 +806,551 @@ $accent-blue-dark: #0043ce;
     align-items: flex-start;
   }
 
+  .nextActionScore {
+    align-self: flex-start;
+  }
+
   .researchOptions {
     grid-template-columns: 1fr;
   }
 }
 
+// Fixed desktop canvas. The primary workflow is intentionally paged, rather
+// than made independently scrollable, so users can keep their research context
+// and readiness gate visible together.
+.page {
+  box-sizing: border-box;
+  height: calc(100vh - 3rem);
+  overflow: hidden;
+  padding: $spacing-04 $spacing-06;
+  align-content: start;
+}
 
-/* The rail carried its own `sticky` + `max-height: calc(100vh - …)` + scroll,
-   which nested a second scroller inside the shell's. Two scrollports meant the
-   gate's sticky footer had nothing to stick to: it stuck within the rail, and
-   the rail was as tall as its content. Inside the shell the rail *is* the
-   scrollport and the height comes from the shell. */
-@media (min-width: 82rem) and (min-height: 43.75rem) {
-  .decisionRail {
-    position: static;
-    max-height: 100%;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: $spacing-03;
+  color: $text-secondary;
+  font-size: 0.75rem;
+  height: 1.5rem;
+  margin-bottom: $spacing-03;
 
-  /* Carbon's own column class sets `display: block` and lands after the shared
-     shell rule, so the column stayed a block and the gate below the rail fell
-     straight off the bottom. Doubling the class outranks it. */
-  .gateColumn.gateColumn {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  /* Keeps its own height while the rail above it absorbs the rest. */
-  .researchGate {
-    flex: 0 0 auto;
-    margin-block-start: 1rem;
+  strong {
+    color: $text-primary;
+    font-weight: 600;
   }
 }
+
+.pageHeader {
+  align-items: center;
+  margin-bottom: $spacing-04;
+}
+
+.titleBlock {
+  align-items: center;
+  display: flex;
+  gap: $spacing-04;
+}
+
+.titleIcon {
+  align-items: center;
+  background: #edf5ff;
+  border: 1px solid #c6e2ff;
+  border-radius: 6px;
+  color: $accent-blue;
+  display: flex;
+  height: 3rem;
+  justify-content: center;
+  width: 3rem;
+}
+
+.heading {
+  font-size: 2rem;
+  line-height: 1.125;
+}
+
+.subheading {
+  font-size: 0.8125rem;
+  margin-top: $spacing-02;
+  max-width: 40rem;
+}
+
+.metricRow {
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: repeat(3, minmax(8.75rem, 1fr));
+}
+
+.metricTile {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-02;
+  min-height: 4.5rem;
+  padding: $spacing-04;
+
+  span {
+    color: $text-secondary;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  strong {
+    color: $text-primary;
+    font-size: 1.125rem;
+    line-height: 1;
+  }
+
+  small {
+    color: $accent-blue-dark;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+}
+
+.readinessBand {
+  align-items: center;
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  display: grid;
+  gap: $spacing-04;
+  grid-template-columns: 1.35fr repeat(5, minmax(0, 1fr));
+  margin-bottom: $spacing-04;
+  min-height: 4.5rem;
+  padding: $spacing-04 $spacing-05;
+
+  .gateRequirement {
+    border-left: 1px solid $border-subtle;
+    min-height: 2.5rem;
+    padding-left: $spacing-04;
+  }
+
+  .gateRequirement span {
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+}
+
+.readinessTitle {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-02;
+  text-transform: uppercase;
+
+  span {
+    color: $text-secondary;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  strong {
+    color: $accent-blue-dark;
+    font-size: 0.8125rem;
+  }
+}
+
+.workColumn {
+  height: calc(100vh - 13.5rem);
+  min-height: 0;
+}
+
+.researchActions,
+.workspace,
+.decisionRail {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.researchActions {
+  padding: $spacing-04;
+
+  h2 {
+    color: $text-primary;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin: 0 0 $spacing-03;
+  }
+}
+
+.actionButton {
+  align-items: flex-start;
+  background: $layer-white;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  margin-bottom: $spacing-02;
+  min-height: 4.25rem;
+  padding: $spacing-03;
+
+  svg {
+    fill: $accent-blue;
+    margin-top: 0.125rem;
+  }
+}
+
+.actionButtonLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+
+  strong {
+    color: $text-primary;
+    font-size: 0.8125rem;
+  }
+
+  small {
+    color: $text-secondary;
+    display: -webkit-box;
+    font-size: 0.6875rem;
+    line-height: 1.25;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+.actionButtonCount {
+  align-items: center;
+  display: flex;
+  height: 1.25rem;
+  justify-content: center;
+  min-width: 1.25rem;
+  padding: 0 $spacing-02;
+}
+
+.workspace {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
+}
+
+.researchWorkspace,
+.evidenceBoard {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+  min-height: 0;
+  overflow: hidden;
+  padding: $spacing-04;
+}
+
+.workspaceHeading,
+.compactSectionHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 1.5rem;
+
+  h2,
+  h3 {
+    color: $text-primary;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0;
+  }
+}
+
+.researchMethods {
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: 1fr 1fr;
+  margin-top: $spacing-03;
+}
+
+.researchMethod {
+  background: #fcfcfc;
+  border: 1px solid $border-subtle;
+  display: grid;
+  gap: $spacing-02;
+  grid-template-rows: auto auto 1fr auto;
+  height: 10.25rem;
+  padding: $spacing-04;
+
+  h3 {
+    color: $text-primary;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  p {
+    color: $text-secondary;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  :global(.cds--text-area) {
+    min-height: 2.5rem;
+    resize: none;
+  }
+}
+
+.methodTags {
+  align-items: end;
+  display: flex;
+  gap: $spacing-02;
+}
+
+.workspaceEmpty {
+  align-items: center;
+  background: $layer-bg;
+  border: 1px dashed $border-subtle;
+  color: $text-secondary;
+  display: flex;
+  gap: $spacing-03;
+  height: 10.25rem;
+  justify-content: center;
+  margin-top: $spacing-03;
+  padding: $spacing-04;
+  text-align: center;
+}
+
+.researchLoading {
+  height: 10.25rem;
+  justify-content: center;
+  margin-top: $spacing-03;
+  padding: $spacing-04;
+}
+
+.researchLoading strong,
+.researchLoading span {
+  margin: 0;
+}
+
+.researchError {
+  margin-top: $spacing-03;
+}
+
+.findingsSection {
+  margin-top: $spacing-03;
+}
+
+.findingsGrid,
+.evidenceGrid {
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: $spacing-03;
+  overflow: hidden;
+}
+
+.evidenceBoard {
+  display: block;
+}
+
+.evidenceGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.evidenceCard {
+  border-left: 3px solid $accent-blue;
+  display: flex;
+  flex-direction: column;
+  height: 8.2rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: $spacing-03;
+}
+
+.evidenceCardHeader,
+.evidenceCardFooter,
+.artifactCardFooter,
+.evidenceTools,
+.pager {
+  align-items: center;
+  display: flex;
+  gap: $spacing-02;
+}
+
+.evidenceCardHeader {
+  justify-content: space-between;
+}
+
+.evidenceTitle {
+  color: $text-primary;
+  display: -webkit-box;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: $spacing-02 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.evidenceNote {
+  color: $text-secondary;
+  display: -webkit-box;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.evidenceCardFooter,
+.artifactCardFooter {
+  justify-content: flex-start;
+  margin-top: auto;
+  min-width: 0;
+}
+
+.compactEvidenceSupport {
+  align-items: center;
+  color: $accent-blue-dark;
+  display: flex;
+  font-size: 0.625rem;
+  margin-left: auto;
+}
+
+.artifactCardFooter {
+  justify-content: space-between;
+}
+
+.artifactCardFooter :global(.cds--btn) {
+  min-height: 1.5rem;
+  padding: 0 $spacing-02;
+}
+
+.pager {
+  color: $text-secondary;
+  font-size: 0.6875rem;
+}
+
+.pager :global(.cds--btn) {
+  min-height: 1.5rem;
+  min-width: 1.5rem;
+  padding: 0;
+}
+
+.evidenceEmpty {
+  align-items: center;
+  background: $layer-bg;
+  border: 1px dashed $border-subtle;
+  color: $text-secondary;
+  display: flex;
+  font-size: 0.8125rem;
+  gap: $spacing-03;
+  height: 8.2rem;
+  justify-content: center;
+  margin-top: $spacing-03;
+  padding: $spacing-04;
+  text-align: center;
+}
+
+.decisionRail {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  overflow: hidden;
+  padding: 0;
+}
+
+.hypothesisWorkspace,
+.researchGate {
+  min-height: 0;
+  overflow: hidden;
+  padding: $spacing-04;
+}
+
+.hypothesisWorkspaceHeader {
+  margin-bottom: $spacing-03;
+
+  h3 { font-size: 0.9375rem; }
+}
+
+.hypothesisEmpty {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: $spacing-03 0;
+}
+
+.hypothesisCard {
+  margin-bottom: 0;
+  padding: $spacing-03;
+}
+
+.hypothesisStatement {
+  display: -webkit-box;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  margin-bottom: $spacing-03;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.hypothesisMetaRow { font-size: 0.6875rem; }
+
+.researchGateTitle { font-size: 0.9375rem; margin-bottom: $spacing-03; }
+.researchGate .gateRequirement { margin-bottom: $spacing-02; }
+.researchGate .gateRequirement span { font-size: 0.6875rem; }
+.gateCoaching { margin-top: $spacing-03; padding: $spacing-03; }
+.gateCoaching p:last-child { font-size: 0.6875rem; line-height: 1.3; }
+.researchGate :global(.cds--btn) { margin-top: $spacing-03 !important; min-height: 2rem; width: 100%; }
+
+.manualEvidenceForm {
+  display: grid;
+  gap: $spacing-04;
+}
+
+.hypothesisForm {
+  display: grid;
+  gap: $spacing-05;
+}
+
+.modalSectionHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: $spacing-03;
+}
+
+.modalSectionHeader .linkLabel {
+  margin: 0;
+}
+
+.citationGrid {
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sourceInputs {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 1200px), (max-height: 840px) {
+  .page { height: auto; min-height: calc(100vh - 3rem); overflow: visible; }
+  .workColumn { height: auto; }
+  .workspace, .researchActions, .decisionRail { height: auto; overflow: visible; }
+  .workspace { grid-template-rows: auto auto; }
+  .researchWorkspace, .evidenceBoard, .hypothesisWorkspace, .researchGate { overflow: visible; }
+}
+
+@media (max-width: 1055px) {
+  .metricRow { grid-template-columns: repeat(3, 1fr); width: 100%; }
+  .pageHeader { align-items: flex-start; flex-direction: column; }
+  .readinessBand { grid-template-columns: repeat(2, 1fr); }
+  .readinessTitle { grid-column: span 2; }
+  .evidenceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 671px) {
+  .breadcrumbs { overflow: hidden; white-space: nowrap; }
+  .metricRow, .researchMethods, .sourceInputs { grid-template-columns: 1fr; }
+  .citationGrid { grid-template-columns: 1fr; }
+  .readinessBand { grid-template-columns: 1fr; }
+  .readinessTitle { grid-column: auto; }
+  .readinessBand .gateRequirement { border-left: 0; border-top: 1px solid $border-subtle; padding-left: 0; padding-top: $spacing-03; }
+  .findingsGrid, .evidenceGrid { grid-template-columns: 1fr; }
+}
+

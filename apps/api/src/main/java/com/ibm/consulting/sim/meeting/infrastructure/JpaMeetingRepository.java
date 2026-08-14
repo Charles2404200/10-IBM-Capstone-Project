@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 interface SpringDataMeetingRepository extends JpaRepository<Meeting, UUID> {
     List<Meeting> findAllByEngagementIdOrderByCreatedAtAsc(UUID engagementId);
+    List<Meeting> findByEngagementIdIn(List<UUID> engagementIds);
     Optional<Meeting> findFirstByEngagementIdOrderByCreatedAtDesc(UUID engagementId);
 }
 
@@ -28,6 +29,9 @@ class JpaMeetingRepository implements MeetingRepository {
     @Override public Optional<Meeting> findById(UUID id) { return repo.findById(id); }
     @Override public List<Meeting> findAllByEngagementIdOrderByCreatedAtAsc(UUID engagementId) {
         return repo.findAllByEngagementIdOrderByCreatedAtAsc(engagementId);
+    }
+    @Override public List<Meeting> findAllByEngagementIdIn(List<UUID> engagementIds) {
+        return engagementIds.isEmpty() ? List.of() : repo.findByEngagementIdIn(engagementIds);
     }
     @Override public Optional<Meeting> findByEngagementId(UUID engagementId) {
         return repo.findFirstByEngagementIdOrderByCreatedAtDesc(engagementId);

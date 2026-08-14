@@ -11,6 +11,7 @@ public record PlatformOverviewResponse(
         int completionRatePercent,
         Integer averageAssessmentScore,
         Map<String, Long> engagementsByState,
+        Map<String, Long> scenariosByStatus,
         List<ScenarioActivity> scenarios) {
 
     public record ScenarioActivity(String scenarioId, String title, long engagementCount, long completedCount,

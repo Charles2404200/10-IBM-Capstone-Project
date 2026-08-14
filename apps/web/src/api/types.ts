@@ -67,10 +67,11 @@ export interface PlatformOverview {
   totalEngagements: number
   activeEngagements: number
   completedEngagements: number
-  completionRatePercent: number
-  averageAssessmentScore: number | null
-  engagementsByState: Record<string, number>
-  scenarios: ScenarioActivity[]
+    completionRatePercent: number
+    averageAssessmentScore: number | null
+    engagementsByState: Record<string, number>
+    scenariosByStatus: Record<string, number>
+    scenarios: ScenarioActivity[]
 }
 
 export interface GameplayDifficultyProfile {
@@ -112,6 +113,14 @@ export interface ScenarioSummary {
   difficultyProfile: DifficultyProfile
   gameplayDifficulty?: GameplayDifficultyProfile
   briefing: ScenarioBriefing
+}
+
+export interface ScenarioCatalogPage {
+  items: ScenarioSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
 }
 
 // ─── Lead ─────────────────────────────────────────────────────────────────────
@@ -184,6 +193,7 @@ export interface ResearchEvidence {
   verificationStatus: EvidenceVerificationStatus
   occurredOn: string | null
   confidence: ConfidenceLevel
+  relevanceScore: number
   sequenceNo: number
   supportingEvidenceIds: string[]
   createdAt: string
@@ -199,7 +209,17 @@ export interface SaveResearchPayload {
   verificationStatus?: EvidenceVerificationStatus
   occurredOn?: string
   confidence?: ConfidenceLevel
+  relevanceScore?: number
   supportingEvidenceIds?: string[]
+}
+
+/** Server-paged public lead catalogue. Existing scenario lead lists remain supported. */
+export interface LeadCatalogPage {
+  items: LeadSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
 }
 
 export interface ResearchArtifact {
@@ -211,6 +231,7 @@ export interface ResearchArtifact {
   confidence: ConfidenceLevel
   origin: EvidenceOrigin
   publishedOn: string
+  relevanceScore: number
   allowedFactKeys: string[]
   correlatesWithEvidence: string[]
   relevanceRationale: string
@@ -226,6 +247,13 @@ export interface ResearchGateStatus {
   confidencePercent: number
   requiredConfidencePercent: number
   ready: boolean
+  coverageCount: number
+  requiredCoverageCount: number
+  groundedHypothesis: boolean
+  reliabilityScore: number
+  verificationScore: number
+  relevanceScore: number
+  coaching: string[]
 }
 
 // ─── Engagement ───────────────────────────────────────────────────────────────
@@ -306,6 +334,7 @@ export interface OutreachAttempt {
   requestTitle: string | null
   requestSummary: string | null
   requestRequirements: string[]
+  coachingHint?: string | null
   createdAt: string
 }
 
@@ -692,6 +721,74 @@ export interface KnowledgeDocumentUploadRequest {
   collection: 'SCENARIO_TRUTH' | 'CONSULTING_PRACTICE' | 'ASSESSMENT_RUBRIC'
   title: string
   content: string
+}
+
+export type RevealTarget = 'DECISION_MAKER' | 'PAIN_SEVERITY' | 'TECHNOLOGY_STACK' | 'BUDGET_SIGNAL' | 'POTENTIAL_VALUE'
+
+export interface CanonicalFact {
+  id: string
+  label: string
+  value: string
+  evidenceType: EvidenceType
+  availableInResearch: boolean
+}
+
+export interface RevealRule {
+  target: RevealTarget
+  requiredEvidenceTypes: EvidenceType[]
+  minimumEvidenceCount: number
+}
+
+export interface ScenarioAuthoringConfig {
+  canonicalFacts: CanonicalFact[]
+  revealRules: RevealRule[]
+}
+
+export interface ScenarioPublishReadiness {
+  readyToPublish: boolean
+  blockers: string[]
+  personaCount: number
+  leadCount: number
+  canonicalFactCount: number
+  revealRuleCount: number
+}
+
+export interface ScenarioAuthoringView {
+  scenario: ScenarioSummary
+  lineageId: string
+  config: ScenarioAuthoringConfig
+  readiness: ScenarioPublishReadiness
+}
+
+export interface UpdateScenarioBlueprintRequest {
+  title: string
+  industry: string
+  description: string
+  difficulty: number
+  consultantRole: string
+  objective: string
+  successCriteria: string[]
+  simulatedDays: number
+  informationAmbiguity: number
+  stakeholderComplexity: number
+  commercialPressure: number
+}
+
+export interface LeadAuthoringRequest {
+  companyName: string
+  industry: string
+  publicDescription: string
+  difficulty: LeadSummary['difficulty']
+  potentialValueRange: string
+  decisionMaker: string
+  technologyStack: string
+  budgetSignal: string
+  painSeverity: string
+  signals: Array<{ label: string; category: string }>
+}
+
+export interface LeadAuthoringView extends LeadAuthoringRequest {
+  id: string
 }
 
 // ─── Admin: User Management ───────────────────────────────────────────────────
