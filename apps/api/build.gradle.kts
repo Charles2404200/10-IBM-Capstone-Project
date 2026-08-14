@@ -31,6 +31,8 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("net.logstash.logback:logstash-logback-encoder:$logstashLogbackVersion")
 
+    // for sending emails
+    implementation("org.springframework.boot:spring-boot-starter-mail")
     // Persistence
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.flywaydb:flyway-core")
