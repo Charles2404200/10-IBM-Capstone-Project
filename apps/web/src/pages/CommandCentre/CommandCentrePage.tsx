@@ -26,6 +26,7 @@ import type { CompletedEngagementView, Engagement, ScenarioSummary } from '@/api
 import styles from './CommandCentrePage.module.scss'
 import shell from '@/lifecycle/lifecycle.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
+import { useExperience } from '@/lifecycle/experience'
 
 type EngagementStatus = 'ACTION_REQUIRED' | 'AWAITING_RESPONSE' | 'READY_FOR_REVIEW' | 'COMPLETED'
 type StatusFilter = 'ALL' | EngagementStatus
@@ -332,6 +333,72 @@ function ScenarioBriefingModal({
  *  keep the page a fixed height regardless of how big the catalogue gets. */
 const SCENARIO_PAGE_SIZE = 6
 
+/**
+ * What a brand-new account sees instead of a dashboard built for history.
+ *
+ * Three lines, then one button. The three lines are the shape of the whole
+ * engagement, in the same words the stepper and every page title use, so the
+ * first thing learned is the vocabulary everything else is written in. They
+ * say what the arc is, not what to click — pointing at the next decision is
+ * the one thing this must not do, because that decision is what gets scored.
+ */
+function FirstRunPanel({
+  scenario,
+  onStart,
+  isPending,
+}: {
+  scenario: ScenarioSummary | null
+  onStart: () => void
+  isPending: boolean
+}) {
+  return (
+    <section className={styles.firstRun} aria-labelledby="first-run-heading">
+      <div className={styles.sectionEyebrow}>Start here</div>
+      <h2 id="first-run-heading" className={styles.firstRunHeading}>
+        You are a consultant. Win the work.
+      </h2>
+      <ol className={styles.firstRunArc}>
+        <li>
+          <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence before you say anything.
+        </li>
+        <li>
+          <strong>{PHASE_LABEL.OUTREACH}</strong> — earn a meeting, then run it.
+        </li>
+        <li>
+          <strong>{PHASE_LABEL.PROPOSAL}</strong> — put a case to them and live with their answer.
+        </li>
+      </ol>
+      <p className={styles.firstRunNote}>
+        Nothing here is undoable practice with a safety net — the client reacts to what you actually
+        write, and your review at the end is built from those reactions.
+      </p>
+
+      {scenario ? (
+        <div className={styles.firstRunStarter}>
+          <div>
+            <div className={styles.sectionEyebrow}>Your first client</div>
+            <h3>{scenario.title}</h3>
+            <p>{scenario.industry}</p>
+          </div>
+          <Button renderIcon={ArrowRight} onClick={onStart} disabled={isPending}>
+            {isPending ? 'Starting…' : 'Start your first engagement'}
+          </Button>
+        </div>
+      ) : (
+        <p className={styles.firstRunNote}>No scenarios are available yet. Check back shortly.</p>
+      )}
+
+      <button
+        type="button"
+        className={styles.firstRunAlt}
+        onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
+      >
+        Or choose a different client
+      </button>
+    </section>
+  )
+}
+
 export default function CommandCentrePage() {
   const [scenarioQuery, setScenarioQuery] = useState('')
   const { displayName } = useAuthStore()
@@ -421,6 +488,16 @@ export default function CommandCentrePage() {
     return 'No active engagements.'
   })()
 
+  const { stage } = useExperience()
+
+  /**
+   * One scenario, not two thousand. A newcomer has no basis for choosing
+   * between them, so offering the choice is not generosity — it is the first
+   * decision the product asks them to make and the one they are least equipped
+   * for. The catalogue stays one click away for anyone who wants it.
+   */
+  const starterScenario = (scenarios ?? [])[0] ?? null
+
   const handleStart = (scenario: ScenarioSummary) => {
     setBriefingScenario(scenario)
   }
@@ -453,18 +530,24 @@ export default function CommandCentrePage() {
           <div>
             <Heading>Command Centre</Heading>
             <p className={styles.subheading}>
-              Welcome back, {displayName}. Continue your current engagement or start a new scenario.
+              {stage === 'FIRST_VISIT'
+                ? `Welcome, ${displayName}. This is where every client engagement starts and finishes.`
+                : `Welcome back, ${displayName}. Continue your current engagement or start a new scenario.`}
             </p>
           </div>
-          <Button
-            renderIcon={Add}
-            onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
-          >
-            Start New Scenario
-          </Button>
+          {stage !== 'FIRST_VISIT' && (
+            <Button
+              renderIcon={Add}
+              onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
+            >
+              Start New Scenario
+            </Button>
+          )}
         </header>
 
-        {portfolio && (
+        {/* Four zeros say nothing and read as a report card of failures the
+            person has not had the chance to earn yet. */}
+        {portfolio && portfolio.totalEngagements > 0 && (
           <div className={styles.performanceStrip}>
             <div className={styles.performanceStat}>
               <span className={styles.performanceStatLabel}>Active</span>
@@ -493,6 +576,18 @@ export default function CommandCentrePage() {
         )}
 
         <div className={`${styles.browseBody} ${shell.fixedShellBody} ${shell.scrollPanel}`}>
+        {stage === 'FIRST_VISIT' && (
+          <FirstRunPanel
+            scenario={starterScenario}
+            onStart={() => starterScenario && handleStart(starterScenario)}
+            isPending={startEngagement.isPending}
+          />
+        )}
+
+        {/* An empty "Active Engagements" list is a heading, a description, a
+            search box and a sentence saying there is nothing there -- four
+            lines of chrome between a newcomer and the one button they need. */}
+        {stage !== 'FIRST_VISIT' && (
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
@@ -551,6 +646,7 @@ export default function CommandCentrePage() {
             )}
           </div>
         </section>
+        )}
 
         {failedMeetingEngagements.length > 0 && (
           <section className={styles.failedMeetingsSection}>
@@ -591,8 +687,12 @@ export default function CommandCentrePage() {
         <section id="available-scenarios" className={styles.section}>
           <div className={styles.sectionHeader}>
             <div>
-              <h3>Available Scenarios</h3>
-              <p>Start a fresh run when you are ready to practise another situation.</p>
+              <h3>{stage === 'FIRST_VISIT' ? 'Other clients' : 'Available Scenarios'}</h3>
+              <p>
+                {stage === 'FIRST_VISIT'
+                  ? 'Any of these works as a first engagement. They differ in industry and difficulty, not in what you have to do.'
+                  : 'Start a fresh run when you are ready to practise another situation.'}
+              </p>
             </div>
           </div>
           <div className={styles.scenarioSearch}>

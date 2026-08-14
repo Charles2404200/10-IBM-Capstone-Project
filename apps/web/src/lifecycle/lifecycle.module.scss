@@ -100,6 +100,27 @@
 }
 
 .hudNext {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: #262626;
+    color: #f4f4f4;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 1px;
+  }
+
   color: #c6c6c6;
   white-space: nowrap;
   overflow: hidden;

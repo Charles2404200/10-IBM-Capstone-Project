@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEngagement, useMyEngagements } from '@/api/hooks/useEngagements'
+import { resolveEngagementRoute } from '@/api/engagementRouting'
 import { usePersonaState } from '@/api/hooks/useMeeting'
 import type { EngagementPhase, PersonaState } from '@/api/types'
 import { selectActiveEngagement } from '../activeEngagement'
@@ -267,10 +268,20 @@ export default function EngagementHUD() {
         </div>
 
         <div className={styles.hudGroup}>
+          {/* The one canonical answer to "where do I go now". It was already
+              computed and shown as inert text, so a learner could read the
+              answer and still have to work out which screen it meant. Adding a
+              second guidance system beside it would give two answers that can
+              disagree; making this one clickable gives one that cannot. */}
           {engagement?.nextAction && (
-            <span className={styles.hudNext} title="Your next action">
+            <button
+              type="button"
+              className={styles.hudNext}
+              onClick={() => navigate(resolveEngagementRoute(engagement))}
+            >
+              <span className={styles.hudLabel}>Next</span>
               {engagement.nextAction}
-            </span>
+            </button>
           )}
         </div>
 

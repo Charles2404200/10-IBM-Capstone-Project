@@ -26,6 +26,7 @@ import styles from './OutreachWorkspacePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import PageHeader from '@/lifecycle/components/PageHeader'
 import shell from '@/lifecycle/lifecycle.module.scss'
+import { useExperience } from '@/lifecycle/experience'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -261,13 +262,22 @@ export default function OutreachWorkspacePage() {
   const latestAttempt = thread.at(-1)
   const documentRequired = latestAttempt?.nextAction === 'SUBMIT_CAPABILITY_BRIEF' && brief?.outcome !== 'ACCEPTED'
   const meetingSecured = latestAttempt?.outcome === 'ACCEPTED' || brief?.outcome === 'ACCEPTED'
+  const { isFirstEngagement } = useExperience()
+
   const sendEmail = (data: EmailFormValues) => sendOutreach.mutate(data, { onSuccess: () => reset() })
 
   return (
     <div className={`${styles.page} ${shell.fixedShellFrame}`}>
       {/* The brief explains how to do the step; once it is done it is just
           height where the outcome belongs. */}
-      <PageHeader phase="OUTREACH" brief={!meetingSecured && !latestAttempt} />
+      {/* Suppressed once the meeting is won, because instructions for a finished
+          task are just height where the outcome belongs. Suppressed on a repeat
+          attempt too -- but not during someone's first engagement, where a
+          second attempt is exactly when they most need the step restated. */}
+      <PageHeader
+        phase="OUTREACH"
+        brief={!meetingSecured && (isFirstEngagement || !latestAttempt)}
+      />
 
       <Grid fullWidth className={`${styles.workspaceGrid} ${shell.fixedShellBody}`}>
         <Column lg={10} md={8} sm={4} className={shell.fixedShellFrame}>
