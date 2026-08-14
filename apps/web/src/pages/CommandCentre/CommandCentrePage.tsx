@@ -26,7 +26,7 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { Engagement, ScenarioSummary } from '@/api/types'
 import styles from './CommandCentrePage.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
-import { useExperience } from '@/lifecycle/experience'
+import { useExperience } from '@/lifecycle/useExperience'
 
 type EngagementStatus = 'ACTION_REQUIRED' | 'AWAITING_RESPONSE' | 'READY_FOR_REVIEW' | 'COMPLETED'
 type StatusFilter = 'ALL' | EngagementStatus

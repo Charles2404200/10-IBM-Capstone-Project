@@ -18,11 +18,6 @@
  * second is the thing being assessed, and an app that answers it is scoring
  * itself.
  */
-import { useMemo } from 'react'
-import { useMyEngagements } from '@/api/hooks/useEngagements'
-import { usePortfolioSummary } from '@/api/hooks/usePortfolio'
-import { isActiveEngagement } from '@/features/engagement/services/engagementLifecycleService'
-
 export type ExperienceStage =
   /** Has never started anything. Needs to be told what this is and given one move. */
   | 'FIRST_VISIT'
@@ -41,38 +36,4 @@ export interface ExperienceInput {
 export function experienceStage({ completedEngagements, activeCount }: ExperienceInput): ExperienceStage {
   if (completedEngagements > 0) return 'RETURNING'
   return activeCount > 0 ? 'FIRST_ENGAGEMENT' : 'FIRST_VISIT'
-}
-
-export interface UseExperienceResult {
-  stage: ExperienceStage
-  /** True until the data needed to tell them apart has arrived. */
-  isLoading: boolean
-  /** Convenience for the common "explain this step" test. */
-  isFirstEngagement: boolean
-}
-
-/**
- * While the portfolio is still loading, report RETURNING. Guessing the other
- * way would flash a first-run welcome at someone with fifty completed runs,
- * which is worse than a returning user briefly seeing no extra help.
- */
-export function useExperience(): UseExperienceResult {
-  const { data: portfolio, isLoading: portfolioLoading } = usePortfolioSummary()
-  const { data: engagements, isLoading: engagementsLoading } = useMyEngagements()
-
-  const isLoading = portfolioLoading || engagementsLoading
-
-  const stage = useMemo<ExperienceStage>(() => {
-    if (isLoading || !portfolio) return 'RETURNING'
-    return experienceStage({
-      completedEngagements: portfolio.completedEngagements,
-      activeCount: (engagements ?? []).filter(isActiveEngagement).length,
-    })
-  }, [isLoading, portfolio, engagements])
-
-  return {
-    stage,
-    isLoading,
-    isFirstEngagement: stage === 'FIRST_ENGAGEMENT' || stage === 'FIRST_VISIT',
-  }
 }
