@@ -24,6 +24,7 @@ import type { CapabilityBrief, OutreachAttempt, ResearchEvidence } from '@/api/t
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
+import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -386,6 +387,7 @@ export default function OutreachWorkspacePage() {
                     </div>
                     <TextArea
                       id="body"
+                      className={styles.messageField}
                       labelText="Message"
                       rows={6}
                       helperText={`${draftBody.trim() ? draftBody.trim().split(/\s+/).length : 0} words / ${draftBody.length} characters`}
@@ -497,6 +499,10 @@ export default function OutreachWorkspacePage() {
                   {latestAttempt.requestRequirements.map((requirement) => <li key={requirement}>{requirement}</li>)}
                 </ul>
               </Tile>
+            )}
+
+            {!meetingSecured && !documentRequired && (
+              <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
             )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}

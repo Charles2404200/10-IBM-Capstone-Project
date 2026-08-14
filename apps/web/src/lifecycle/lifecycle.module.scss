@@ -100,6 +100,29 @@
 }
 
 .hudNext {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+
+  /* Hover and focus follow the light HUD this bar became on main; the button
+     behaviour is ours, the palette is theirs. */
+  &:hover {
+    background: #eef2f8;
+    color: #1f2a44;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0f62fe;
+    outline-offset: 1px;
+  }
+
   color: #345;
   white-space: nowrap;
   overflow: hidden;
@@ -437,4 +460,194 @@
   color: #ffffff;
   font-weight: 600;
   box-shadow: inset 3px 0 0 #0f62fe;
+}
+
+/* Where the engagement has actually reached, when the learner has walked back
+   to an earlier page. Blue fills the step you are looking at; this outlines the
+   step you are up to, so both questions are answerable at a glance. */
+.stepDotUpTo {
+  border-color: #0f62fe;
+  box-shadow: inset 0 0 0 2px #ffffff;
+}
+
+/* ── Shared page header ───────────────────────────────────────────────────
+   One block, one offset, on every workspace. Owns its own horizontal padding
+   and max width so it does not inherit a grid row's position — that was what
+   made the title land in a different place on each page. */
+
+.pageHeader {
+  /* `width: 100%` matters once the shell makes the content area a flex column:
+     without it `margin: 0 auto` shrink-wraps the header to its text and the
+     title drifts into the middle of the page, away from the content below. */
+  width: 100%;
+  max-width: 96rem;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 0;
+}
+
+.pageHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pageHeaderText {
+  min-width: 0;
+}
+
+.pageTitle {
+  margin: 0;
+}
+
+.pageDescription {
+  color: #525252;
+  margin: 0.5rem 0 0;
+  max-width: 60ch;
+}
+
+.pageHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 42rem) {
+  .pageHeader {
+    padding: 1rem 1rem 0;
+  }
+}
+
+/* ── Fixed shell ──────────────────────────────────────────────────────────
+   Charles's target: the page itself never scrolls, and content that outgrows
+   the screen scrolls inside its own panel. Both of his mockups work this way —
+   a list of collected evidence has to scroll somewhere once it holds twenty
+   items, and a meeting transcript has no upper bound at all.
+
+   Only switches on when there is genuinely room: Carbon's xlg breakpoint
+   (1312px) and enough height that panels are taller than they are cramped.
+   Below either threshold the page falls back to ordinary document flow and
+   scrolls, which is the right behaviour on a laptop or a phone and means
+   nothing is ever unreachable. */
+
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .fixedShellRoot {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* Only clip the content area on pages that have actually declared scroll
+     panels. Applying this everywhere hid 1,430px of the Command Centre behind
+     an overflow:hidden with nothing to scroll it — the same "cut off at the
+     bottom" failure this work set out to remove, recreated at a larger scale.
+     `:has()` keeps the opt-in on the page rather than in the shell, so a page
+     cannot get clipped without asking for it. */
+  .fixedShellRoot:has(.fixedShellBody) :global(.cds--content) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* The shell fits the viewport exactly, yet the document still offered ~90px
+     of scroll with nothing painted in it — a scrollbar that moves the page and
+     shows blank space. Clipping the root removes it. Scoped to the same
+     `:has()` opt-in, because on a page with no scroll panels this would hide
+     real content instead of empty space. */
+  .fixedShellRoot:has(.fixedShellBody) {
+    overflow: hidden;
+    /* `overflow: hidden` alone did not stop it. Carbon's visually-hidden labels
+       and tooltip popovers are `position: absolute`, and with no positioned
+       ancestor they resolve against the viewport instead — so they escaped the
+       clip and stretched the document by ~90px of blank scrollable space.
+       Making the shell the containing block brings them back inside it. */
+    position: relative;
+  }
+
+  /* The page's own body takes the remaining height and hands scrolling to its
+     panels. `min-height: 0` is what lets a flex child actually shrink — without
+     it the panel grows to fit its content and pushes the page long again. */
+  /* Pages that wrap their body in an extra element — a max-width frame, a
+     <main> — need that wrapper to pass the height through. Without it the
+     wrapper sizes to its own content, so the body below it never learns how
+     tall the screen is and the panels grow instead of scrolling. */
+  .fixedShellFrame {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .fixedShellBody {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .fixedShellBody > * {
+    max-height: 100%;
+  }
+
+  /* Anything marked as a panel scrolls itself. */
+  .scrollPanel {
+    overflow-y: auto;
+    max-height: 100%;
+
+    /* A panel that scrolls has to look like one. macOS hides overlay
+       scrollbars until you already scroll, so a panel with 900px below the
+       fold was indistinguishable from one that ended there — which is exactly
+       how the Send button became invisible with nothing on screen suggesting
+       it existed. A reserved gutter and a permanent thumb are the whole
+       affordance. */
+    scrollbar-gutter: stable;
+
+    /* Deliberately no `scrollbar-width` / `scrollbar-color`: Chrome ignores
+       these ::-webkit- rules whenever either standard property is set, and
+       falls back to the macOS overlay scrollbar that hides itself -- which is
+       the thing being fixed. Authoring the pseudo-elements alone opts the
+       scroller into a permanent classic scrollbar. */
+    &::-webkit-scrollbar {
+      width: 0.5rem;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #a8a8a8;
+      border-radius: 999px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  /* The block that finishes the step stays pinned to the bottom of its panel
+     while the rest of it scrolls behind. A learner should never have to
+     discover how to complete a step by scrolling for it -- on Research the
+     "Ready for Outreach?" gate and its Proceed button sat 305px below the fold
+     with nothing on screen saying they were there. */
+  .stickyFooter {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 2;
+    box-shadow: 0 -0.5rem 0.75rem -0.5rem rgba(0, 0, 0, 0.18);
+  }
+}
+
+.selfCheckList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selfCheckItem {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
 }

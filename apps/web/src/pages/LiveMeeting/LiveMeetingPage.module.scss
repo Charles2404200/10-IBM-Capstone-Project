@@ -2,7 +2,7 @@
 @use '@carbon/styles/scss/spacing' as *;
 @use '@carbon/styles/scss/type' as *;
 
-.page { min-height: 100%; padding: $spacing-07 0; background: $background; }
+.page { min-height: 100%; padding: 0 0 $spacing-07; background: $background; }
 .headerGrid, .workspaceGrid { max-width: 96rem; margin: 0 auto; }
 .workspaceGrid { margin-top: $spacing-06; }
 .pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }

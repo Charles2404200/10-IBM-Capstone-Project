@@ -8,9 +8,9 @@ import LoadingState from '@/components/shared/LoadingState'
 import { ProposalOutcomeView } from '@/features/proposal/components/ProposalOutcomeView'
 import { useProposalStudio } from '@/features/proposal/hooks/useProposalStudio'
 import { proposalSections } from '@/features/proposal/services/proposalDraftService'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
-import { PHASE_LABEL } from '@/lifecycle/phases'
 
 const SOURCES_PER_PAGE = 3
 

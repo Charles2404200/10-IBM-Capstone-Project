@@ -26,6 +26,7 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { Engagement, ScenarioSummary } from '@/api/types'
 import styles from './CommandCentrePage.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
+import { useExperience } from '@/lifecycle/useExperience'
 
 type EngagementStatus = 'ACTION_REQUIRED' | 'AWAITING_RESPONSE' | 'READY_FOR_REVIEW' | 'COMPLETED'
 type StatusFilter = 'ALL' | EngagementStatus
@@ -323,6 +324,75 @@ function ScenarioBriefingModal({
   )
 }
 
+/** How many scenario cards to render at once. Enough to browse, few enough to
+ *  keep the page a fixed height regardless of how big the catalogue gets. */
+
+/**
+ * What a brand-new account sees instead of a dashboard built for history.
+ *
+ * Three lines, then one button. The three lines are the shape of the whole
+ * engagement, in the same words the stepper and every page title use, so the
+ * first thing learned is the vocabulary everything else is written in. They
+ * say what the arc is, not what to click — pointing at the next decision is
+ * the one thing this must not do, because that decision is what gets scored.
+ */
+function FirstRunPanel({
+  scenario,
+  onStart,
+  isPending,
+}: {
+  scenario: ScenarioSummary | null
+  onStart: () => void
+  isPending: boolean
+}) {
+  return (
+    <section className={styles.firstRun} aria-labelledby="first-run-heading">
+      <div className={styles.sectionEyebrow}>Start here</div>
+      <h2 id="first-run-heading" className={styles.firstRunHeading}>
+        You are a consultant. Win the work.
+      </h2>
+      <ol className={styles.firstRunArc}>
+        <li>
+          <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence before you say anything.
+        </li>
+        <li>
+          <strong>{PHASE_LABEL.OUTREACH}</strong> — earn a meeting, then run it.
+        </li>
+        <li>
+          <strong>{PHASE_LABEL.PROPOSAL}</strong> — put a case to them and live with their answer.
+        </li>
+      </ol>
+      <p className={styles.firstRunNote}>
+        Nothing here is undoable practice with a safety net — the client reacts to what you actually
+        write, and your review at the end is built from those reactions.
+      </p>
+
+      {scenario ? (
+        <div className={styles.firstRunStarter}>
+          <div>
+            <div className={styles.sectionEyebrow}>Your first client</div>
+            <h3>{scenario.title}</h3>
+            <p>{scenario.industry}</p>
+          </div>
+          <Button renderIcon={ArrowRight} onClick={onStart} disabled={isPending}>
+            {isPending ? 'Starting…' : 'Start your first engagement'}
+          </Button>
+        </div>
+      ) : (
+        <p className={styles.firstRunNote}>No scenarios are available yet. Check back shortly.</p>
+      )}
+
+      <button
+        type="button"
+        className={styles.firstRunAlt}
+        onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
+      >
+        Or choose a different client
+      </button>
+    </section>
+  )
+}
+
 export default function CommandCentrePage() {
   const { displayName } = useAuthStore()
   const navigate = useNavigate()
@@ -401,6 +471,25 @@ export default function CommandCentrePage() {
     )
   }
 
+  // The catalogue is unbounded — the shared dev backend currently holds over
+
+  const emptyListMessage = (() => {
+    if (activeEngagements.length === 0) return 'No engagements running. Start a scenario below.'
+    if (searchTerm.trim() || statusFilter !== 'ALL') return 'No engagements match this search.'
+    if (featuredEngagement) return 'Your only active engagement is the one shown above.'
+    return 'No active engagements.'
+  })()
+
+  const { stage } = useExperience()
+
+  /**
+   * One scenario, not two thousand. A newcomer has no basis for choosing
+   * between them, so offering the choice is not generosity — it is the first
+   * decision the product asks them to make and the one they are least equipped
+   * for. The catalogue stays one click away for anyone who wants it.
+   */
+  const starterScenario = scenarioCatalogue?.items[0] ?? null
+
   const handleStart = (scenario: ScenarioSummary) => {
     setBriefingScenario(scenario)
   }
@@ -433,15 +522,21 @@ export default function CommandCentrePage() {
           <div>
             <Heading>Command Centre</Heading>
             <p className={styles.subheading}>
-              Welcome back, {displayName}. Continue your current engagement or start a new scenario.
+              {stage === 'FIRST_VISIT'
+                ? `Welcome, ${displayName}. This is where every client engagement starts and finishes.`
+                : `Welcome back, ${displayName}. Continue your current engagement or start a new scenario.`}
             </p>
           </div>
-          <Button renderIcon={Add} onClick={() => document.getElementById('scenario-catalogue')?.scrollIntoView({ behavior: 'smooth' })}>
-            Start new scenario
-          </Button>
+          {stage !== 'FIRST_VISIT' && (
+            <Button renderIcon={Add} onClick={() => document.getElementById('scenario-catalogue')?.scrollIntoView({ behavior: 'smooth' })}>
+              Start new scenario
+            </Button>
+          )}
         </header>
 
-        {portfolio && (
+        {/* Four zeros say nothing and read as a report card of failures the
+            person has not had the chance to earn yet. */}
+        {portfolio && portfolio.totalEngagements > 0 && (
           <div className={styles.performanceStrip}>
             <div className={styles.performanceStat}>
               <span className={styles.performanceStatLabel}>Active</span>
@@ -469,6 +564,19 @@ export default function CommandCentrePage() {
           />
         )}
 
+        <div className={styles.browseBody}>
+        {stage === 'FIRST_VISIT' && (
+          <FirstRunPanel
+            scenario={starterScenario}
+            onStart={() => starterScenario && handleStart(starterScenario)}
+            isPending={startEngagement.isPending}
+          />
+        )}
+
+        {/* An empty dashboard is a heading, a description, a search box and a
+            sentence saying there is nothing there -- chrome between a newcomer
+            and the one button they need. */}
+        {stage !== 'FIRST_VISIT' && (
         <div className={styles.dashboardGrid}>
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
@@ -523,7 +631,7 @@ export default function CommandCentrePage() {
               ) : (
                 <div className={styles.emptyState}>
                   <Search size={20} />
-                  <span>No active engagements match this view.</span>
+                  <span>{emptyListMessage}</span>
                 </div>
               )}
             </div>
@@ -561,6 +669,7 @@ export default function CommandCentrePage() {
             )}
           </aside>
         </div>
+        )}
 
         {failedMeetingEngagements.length > 0 && (
           <section className={styles.failedMeetingsSection}>
@@ -586,8 +695,14 @@ export default function CommandCentrePage() {
           <div className={styles.sectionHeader}>
             <div>
               <div className={styles.sectionEyebrow}>Scenario catalogue</div>
-              <h3 id="scenario-catalogue-heading">Find your next client</h3>
-              <p>Explore {scenarioCatalogue?.totalElements.toLocaleString() ?? '...'} distinct, scenario-ready consulting engagements.</p>
+              <h3 id="scenario-catalogue-heading">
+                {stage === 'FIRST_VISIT' ? 'Other clients' : 'Find your next client'}
+              </h3>
+              <p>
+                {stage === 'FIRST_VISIT'
+                  ? 'Any of these works as a first engagement. They differ in industry and difficulty, not in what you have to do.'
+                  : `Explore ${scenarioCatalogue?.totalElements.toLocaleString() ?? '...'} distinct, scenario-ready consulting engagements.`}
+              </p>
             </div>
             <span className={styles.catalogueCount}>{scenarioCatalogue?.totalElements.toLocaleString() ?? 0} scenarios</span>
           </div>
@@ -632,6 +747,7 @@ export default function CommandCentrePage() {
             <div className={styles.emptyState}><Search size={20} /><span>No scenarios match these filters.</span></div>
           )}
         </section>
+        </div>
 
       </Stack>
 

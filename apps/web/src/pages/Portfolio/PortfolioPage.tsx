@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import {
   Grid,
   Column,
-  Heading,
   Stack,
   Tile,
   Tag,
@@ -16,7 +15,7 @@ import { useMyAchievements } from '@/api/hooks/useAchievements'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
-import { PHASE_LABEL } from '@/lifecycle/phases'
+import PageHeader from '@/lifecycle/components/PageHeader'
 
 function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
   return (
@@ -225,14 +224,15 @@ export default function PortfolioPage() {
   if (isError || !portfolio) return <ErrorState />
 
   return (
-    <Grid fullWidth style={{ padding: '2rem' }}>
+    <>
+    <PageHeader
+      phase="COMPLETED"
+      description="Your competency growth and completed engagement history across every scenario."
+    />
+    <Grid fullWidth style={{ padding: '1rem 2rem 2rem' }}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
           <div>
-            <Heading>{PHASE_LABEL.COMPLETED}</Heading>
-            <p style={{ color: '#525252', marginTop: '0.5rem' }}>
-              Your competency growth and completed engagement history across every scenario.
-            </p>
           </div>
 
           <Grid narrow>
@@ -288,5 +288,6 @@ export default function PortfolioPage() {
         </Stack>
       </Column>
     </Grid>
+    </>
   )
 }

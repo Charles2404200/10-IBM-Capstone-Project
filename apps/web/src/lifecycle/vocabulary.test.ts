@@ -13,7 +13,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { PHASE_LABEL } from './phases'
+import { isEngagementRoute, PHASE_LABEL, phaseFromPath } from './phases'
 
 const PAGES_DIR = join(process.cwd(), 'src', 'pages')
 
@@ -84,5 +84,29 @@ describe('one vocabulary, enforced across the pages', () => {
       expect(label.trim(), `${phase} has an empty label`).not.toBe('')
       expect(label, `${phase} looks like an identifier`).not.toMatch(/^[A-Z_]+$/)
     }
+  })
+})
+
+describe('the progress bar tracks the page, not just the engagement', () => {
+  it('maps every workspace route to its phase', () => {
+    const base = '/dashboard/engagements/abc'
+    expect(phaseFromPath(`${base}/leads`)).toBe('LEAD')
+    expect(phaseFromPath(`${base}/intelligence`)).toBe('CLIENT_INTELLIGENCE')
+    expect(phaseFromPath(`${base}/outreach`)).toBe('OUTREACH')
+    expect(phaseFromPath(`${base}/preparation`)).toBe('MEETING_PREPARATION')
+    expect(phaseFromPath(`${base}/meetings/m-1`)).toBe('LIVE_MEETING')
+    expect(phaseFromPath(`${base}/proposal`)).toBe('PROPOSAL')
+    expect(phaseFromPath(`${base}/assessment`)).toBe('REVIEW')
+  })
+
+  it('returns nothing away from an engagement', () => {
+    expect(phaseFromPath('/dashboard')).toBeNull()
+    expect(phaseFromPath('/dashboard/portfolio')).toBeNull()
+  })
+
+  it('knows which routes belong to an engagement at all', () => {
+    expect(isEngagementRoute('/dashboard/engagements/abc/outreach')).toBe(true)
+    expect(isEngagementRoute('/dashboard')).toBe(false)
+    expect(isEngagementRoute('/dashboard/portfolio')).toBe(false)
   })
 })

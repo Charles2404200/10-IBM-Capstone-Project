@@ -16,9 +16,15 @@ import styles from '../lifecycle.module.scss'
 export interface OutreachSelfCheckProps {
   body: string
   context: RubricContext
+  /**
+   * Show the sentence explaining what this panel is and is not. It earns its
+   * height the first time and only then — on a follow-up the learner has read
+   * it, and those two lines were part of what pushed Send off the screen.
+   */
+  explain?: boolean
 }
 
-export default function OutreachSelfCheck({ body, context }: OutreachSelfCheckProps) {
+export default function OutreachSelfCheck({ body, context, explain = true }: OutreachSelfCheckProps) {
   const result = useMemo(() => evaluateOutreach(body, context), [body, context])
   const safety = useMemo(() => assessDraftSafety(body), [body])
   const words = body.trim() === '' ? 0 : body.trim().split(/\s+/).length
@@ -28,10 +34,12 @@ export default function OutreachSelfCheck({ body, context }: OutreachSelfCheckPr
       <p className={styles.consequenceTitle}>
         Self-check — {result.metCount} of 4 · {words} {words === 1 ? 'word' : 'words'}
       </p>
-      <p style={{ fontSize: '0.8125rem', color: '#525252', marginBottom: '0.75rem' }}>
-        These are the four things the client's team assesses. This is your own check before you
-        send — the client still decides.
-      </p>
+      {explain && (
+        <p style={{ fontSize: '0.8125rem', color: '#525252', marginBottom: '0.75rem' }}>
+          These are the four things the client's team assesses. This is your own check before you
+          send — the client still decides.
+        </p>
+      )}
 
       {safety.message && (
         <div
@@ -47,9 +55,11 @@ export default function OutreachSelfCheck({ body, context }: OutreachSelfCheckPr
         </div>
       )}
 
-      <ul style={{ display: 'grid', gap: '0.5rem', listStyle: 'none', padding: 0, margin: 0 }}>
+      {/* Two columns, not four rows. The column is 840px wide; a single file of
+          four items spent 224px saying what fits in half that. */}
+      <ul className={styles.selfCheckList}>
         {result.checks.map((check) => (
-          <li key={check.dimension} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+          <li key={check.dimension} className={styles.selfCheckItem}>
             <span style={{ flexShrink: 0, marginTop: '0.125rem' }} aria-hidden="true">
               {check.met ? (
                 <CheckmarkFilled size={16} style={{ fill: '#24a148' }} />
