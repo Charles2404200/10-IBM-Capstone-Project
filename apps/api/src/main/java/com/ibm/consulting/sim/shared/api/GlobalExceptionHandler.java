@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.shared.api;
 
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.shared.domain.RateLimitExceededException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -59,6 +60,17 @@ public class GlobalExceptionHandler {
         // without this, a 500 is undiagnosable from the API response alone.
         log.error("Unhandled exception while processing request", ex);
         return problem(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "An unexpected error occurred");
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    ProblemDetail handleRateLimitExceeded(
+            RateLimitExceededException ex
+    ) {
+        return problem(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "rate-limit-exceeded",
+                ex.getMessage()
+        );
     }
 
     private ProblemDetail problem(HttpStatus status, String type, String detail) {
