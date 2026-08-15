@@ -525,15 +525,6 @@ export default function ClientIntelligencePage() {
           <HypothesisWorkspace evidence={citableEvidence} codeById={codeById} engagementId={engagementId!} />
           <ResearchGateChecklist engagementId={engagementId!} onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)} />
         </aside>
-
-        {/* Outside the scrolling rail, not merely sticky inside it. As a sticky
-            last-ish child it scrolled away as soon as the manual entry form
-            below it came into view — the one block that must never require
-            scrolling to find. */}
-        <ResearchGateChecklist
-          engagementId={engagementId!}
-          onProceed={() => navigate(`/dashboard/engagements/${engagementId}/outreach`)}
-        />
       </Column>
 
       <Modal open={manualEvidenceOpen} modalHeading="Add a source to the evidence board" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" onRequestClose={() => setManualEvidenceOpen(false)} onRequestSubmit={handleSubmit(onSubmit)} primaryButtonDisabled={saveResearch.isPending}>
