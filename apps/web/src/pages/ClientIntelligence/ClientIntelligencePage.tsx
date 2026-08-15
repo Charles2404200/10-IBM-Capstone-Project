@@ -28,6 +28,8 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { ConfidenceLevel, EvidenceType, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
+import { TourProvider, type StepType } from '@reactour/tour'
+import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -132,9 +134,9 @@ function ResearchArtifactCard({
 }
 
 /** Requirement row for {@link ResearchGateChecklist} — met (✓ blue) or unmet (○ gray). */
-function GateRequirement({ met, label }: { met: boolean; label: string }) {
+function GateRequirement({ met, label, className }: { met: boolean; label: string; className?: string }) {
   return (
-    <div className={styles.gateRequirement}>
+    <div className={`${styles.gateRequirement} ${className ?? ''}`}>
       {met ? <CheckmarkFilled size={16} className={styles.gateRequirementMetIcon} /> : <CircleDash size={16} className={styles.gateRequirementUnmetIcon} />}
       <span className={met ? styles.gateRequirementMetLabel : styles.gateRequirementUnmetLabel}>{label}</span>
     </div>
@@ -197,12 +199,19 @@ function ResearchGateChecklist({
           met={gate.evidenceCount >= gate.requiredEvidenceCount}
           label={`At least ${gate.requiredEvidenceCount} evidence items (${gate.evidenceCount}/${gate.requiredEvidenceCount})`}
         />
-        <GateRequirement met={gate.hasStakeholderEvidence} label="Stakeholder evidence identified" />
+        <GateRequirement
+          met={gate.hasStakeholderEvidence}
+          label="Stakeholder evidence identified"
+          className="objective-stakeholder"
+        />
         <GateRequirement
           met={gate.coverageCount >= gate.requiredCoverageCount}
           label={`${gate.requiredCoverageCount} research areas covered (${gate.coverageCount}/${gate.requiredCoverageCount})`}
         />
-        <GateRequirement met={gate.groundedHypothesis} label="Grounded hypothesis submitted" />
+        <GateRequirement
+          met={gate.groundedHypothesis}
+          label="Grounded hypothesis submitted"
+        />
         <GateRequirement
           met={gate.confidencePercent >= gate.requiredConfidencePercent}
           label={`Research confidence at least ${gate.requiredConfidencePercent}% (${gate.confidencePercent}%)`}
@@ -281,7 +290,7 @@ function HypothesisWorkspace({
   }
 
   return (
-    <div className={styles.hypothesisWorkspace}>
+    <div className={`${styles.hypothesisWorkspace} objective-hypothesis`}>
       <div className={styles.hypothesisWorkspaceHeader}>
         <h3>Hypothesis</h3>
         <Button kind="ghost" size="sm" onClick={() => setComposing(true)}>
@@ -450,7 +459,72 @@ export default function ClientIntelligencePage() {
   if (isError) return <ErrorState />
 
   const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
+
+  const CLIENT_INTELLIGENCE_OBJECTIVES = [
+  {
+    id: 'readiness',
+    objective: 'Understand outreach readiness',
+    description: 'These requirements show what you need to complete before you can move into outreach.',
+    targets: ['.objective-readiness'],
+  },
+  {
+    id: 'evidence',
+    objective: 'Build your evidence base',
+    description: 'Collect enough evidence and add your findings to the evidence board. The evidence requirement and evidence board are highlighted together.',
+    targets: ['.objective-evidence', '.objective-evidence-board'],
+  },
+  {
+    id: 'stakeholder',
+    objective: 'Identify your stakeholder',
+    description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
+    targets: ['.objective-stakeholder', '.objective-stakeholder-research'],
+  },
+  {
+    id: 'hypothesis',
+    objective: 'Form a grounded hypothesis',
+    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
+    targets: ['.objective-hypothesis'],
+  },
+]
+
+// Converts each objective into a Reactour step
+const CLIENT_INTELLIGENCE_TOUR_STEPS: StepType[] =
+  CLIENT_INTELLIGENCE_OBJECTIVES.map((objective) => ({
+    selector: objective.targets[0],
+    highlightedSelectors: objective.targets,
+    content: (
+      <div>
+        <strong>{objective.objective}</strong>
+        <p style={{ marginTop: '0.75rem' }}>
+          {objective.description}
+        </p>
+      </div>
+    ),
+  }))
+
   return (
+    <TourProvider
+      steps={CLIENT_INTELLIGENCE_TOUR_STEPS}
+      showNavigation
+      showPrevNextButtons
+      showDots
+      showCloseButton
+      scrollSmooth
+      disableWhenSelectorFalse
+      styles={{
+        popover: (base) => ({
+          ...base,
+          borderRadius: 0,
+          maxWidth: 360,
+        }),
+        maskArea: (base) => ({
+          ...base,
+          rx: 4,
+        }),
+      }}
+    >
+    <ObjectiveGuide />
+
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <nav className={styles.breadcrumbs} aria-label="Workflow path">
@@ -473,7 +547,7 @@ export default function ClientIntelligencePage() {
           </div>
         </header>
 
-        <section className={styles.readinessBand} aria-label="Outreach readiness">
+        <section className={`${styles.readinessBand} objective-readiness`} aria-label="Outreach readiness">
           <div className={styles.readinessTitle}><span>Outreach readiness</span><strong>{readinessCompleteCount} of 5 complete</strong></div>
           <GateRequirement met={(gate?.evidenceCount ?? 0) >= (gate?.requiredEvidenceCount ?? 2)} label={`${gate?.requiredEvidenceCount ?? 2} evidence items`} />
           <GateRequirement met={gate?.hasStakeholderEvidence ?? false} label="Stakeholder identified" />
@@ -484,12 +558,12 @@ export default function ClientIntelligencePage() {
       </Column>
 
       <Column lg={3} md={3} sm={4} className={styles.workColumn}>
-        <aside className={styles.researchActions}>
+        <aside className={`${styles.researchActions} objective-evidence`}>
           <h2>Research areas</h2>
           {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
             const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
             return (
-              <button key={type} type="button" className={`${styles.actionButton} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={generateResearch.isPending || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
+              <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={generateResearch.isPending || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
                 <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '')}</small></span>
                 {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
               </button>
@@ -513,7 +587,7 @@ export default function ClientIntelligencePage() {
             {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
           </section>
 
-          <section className={styles.evidenceBoard}>
+          <section className={`${styles.evidenceBoard} objective-evidence-board`}>
             <div className={styles.compactSectionHeader}><div><p className={styles.sectionEyebrow}>Evidence board</p><h2>Collected evidence ({nonHypothesisEvidence.length})</h2></div><div className={styles.evidenceTools}><Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => setManualEvidenceOpen(true)}>Add source</Button>{nonHypothesisEvidence.length > evidencePageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous evidence" disabled={evidencePage === 0} onClick={() => setEvidencePage((page) => page - 1)} /><span>{evidencePage + 1} / {evidencePageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next evidence" disabled={evidencePage >= evidencePageCount - 1} onClick={() => setEvidencePage((page) => page + 1)} /></div>}</div></div>
             {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
           </section>
@@ -536,5 +610,6 @@ export default function ClientIntelligencePage() {
         </form>
       </Modal>
     </Grid>
+  </TourProvider>
   )
 }
