@@ -58,6 +58,7 @@ class JpaPasswordResetOtpRepository implements PasswordResetOtpRepository {
 
         for (PasswordResetOtp otp : activeOtps) {
             otp.revoke();
+            repo.save(otp);
         }
     }
 }
