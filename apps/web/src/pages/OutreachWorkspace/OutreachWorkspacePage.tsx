@@ -25,6 +25,8 @@ import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
+import { TourProvider, type StepType } from '@reactour/tour'
+import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -314,7 +316,64 @@ export default function OutreachWorkspacePage() {
     setValue('body', `${prefix}I noticed ${source.note} `, { shouldDirty: true, shouldValidate: true })
   }
 
+  const OUTREACH_WORKSPACE_OBJECTIVES = [
+    {
+      id: 'checklist',
+      objective: 'Complete the outreach checklist',
+      description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
+      targets: ['.objective-checklist'],
+    },
+    {
+      id: 'evidence',
+      objective: 'Use your evidence base',
+      description: 'Utilise your collected evidence to write an outreach email.',
+      targets: ['.objective-evidence'],
+    },
+    {
+      id: 'assistance',
+      objective: 'Possible assistance',
+      description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
+      targets: ['.objective-assistance'],
+    },
+  ]
+  
+  // Converts each objective into a Reactour step
+  const OUTREACH_WORKSPACE_TOUR_STEPS: StepType[] =
+    OUTREACH_WORKSPACE_OBJECTIVES.map((objective) => ({
+      selector: objective.targets[0],
+      highlightedSelectors: objective.targets,
+      content: (
+        <div>
+          <strong>{objective.objective}</strong>
+          <p style={{ marginTop: '0.75rem' }}>
+            {objective.description}
+          </p>
+        </div>
+      ),
+    }))
+
   return (
+    <TourProvider
+      steps={OUTREACH_WORKSPACE_TOUR_STEPS}
+      showNavigation
+      showPrevNextButtons
+      showDots
+      showCloseButton
+      scrollSmooth
+      disableWhenSelectorFalse
+      styles={{
+        popover: (base) => ({
+          ...base,
+          borderRadius: 0,
+          maxWidth: 360,
+        }),
+        maskArea: (base) => ({
+          ...base,
+          rx: 4,
+        }),
+      }}
+    >
+    <ObjectiveGuide />
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.makeContactHero}>
@@ -405,7 +464,7 @@ export default function OutreachWorkspacePage() {
                     </div>
                 </form>
               </Tile>
-              <Tile className={styles.assistPanel}>
+              <Tile className={`${styles.assistPanel} objective-assistance`}>
                 <p className={styles.eyebrow}>Evidence assistant</p>
                 <h3>Need help getting started?</h3>
                 <p>Build your own message with a verified signal. The assistant never sends or submits work for you.</p>
@@ -430,7 +489,7 @@ export default function OutreachWorkspacePage() {
             )}
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
-            <section className={styles.evidenceStrip} aria-label="Evidence you can reference">
+            <section className={`${styles.evidenceStrip} objective-evidence`} aria-label="Evidence you can reference">
               <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
               {evidenceForReference.length > 0 ? (
                 <div className={styles.evidenceCards}>
@@ -481,7 +540,7 @@ export default function OutreachWorkspacePage() {
               </Tile>
             )}
 
-            <Tile className={styles.checklistPanel}>
+            <Tile className={`${styles.checklistPanel} objective-checklist`}>
               <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
               {draftReview.checks.map((check) => <div key={check.dimension} className={styles.checklistRow}>{check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}<span>{check.label}</span></div>)}
             </Tile>
@@ -512,5 +571,6 @@ export default function OutreachWorkspacePage() {
         <ThreadHistory attempts={thread} />
       </Modal>
     </div>
+    </TourProvider>
   )
 }
