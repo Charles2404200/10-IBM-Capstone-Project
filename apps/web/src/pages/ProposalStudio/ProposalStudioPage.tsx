@@ -11,6 +11,8 @@ import { proposalSections } from '@/features/proposal/services/proposalDraftServ
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
+import { TourProvider, type StepType } from '@reactour/tour'
+import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
 
 const SOURCES_PER_PAGE = 3
 
@@ -36,7 +38,64 @@ export default function ProposalStudioPage() {
   }
   if (studio.submitted && studio.proposal) return <ProposalOutcomeView proposal={studio.proposal} engagementId={engagementId} />
 
+  const PROPOSAL_OBJECTIVES = [
+    {
+      id: 'completion-steps',
+      objective: 'Understand proposal steps',
+      description: 'This highlights the five necessary steps to complete a proposal. Complete each with detailed responses to successfully submit to client and move to the review of your progress.',
+      targets: ['.objective-steps'],
+    },
+    {
+      id: 'evidence',
+      objective: 'Attach evidence',
+      description: 'Similar to previous pages, you are able to attach evidence to support your claims.',
+      targets: ['.objective-evidence'],
+    },
+    {
+      id: 'review',
+      objective: 'Review proposal',
+      description: 'After completing all the sections, you are able to have AI review your proposal. It will note which areas require improvement and is recommended before submitting the proposal to the client.',
+      targets: ['.objective-review'],
+    },
+  ]
+  
+  // Converts each objective into a Reactour step
+  const PROPOSAL_TOUR_STEPS: StepType[] =
+    PROPOSAL_OBJECTIVES.map((objective) => ({
+      selector: objective.targets[0],
+      highlightedSelectors: objective.targets,
+      content: (
+        <div>
+          <strong>{objective.objective}</strong>
+          <p style={{ marginTop: '0.75rem' }}>
+            {objective.description}
+          </p>
+        </div>
+      ),
+    }))
+
   return (
+    <TourProvider
+      steps={PROPOSAL_TOUR_STEPS}
+      showNavigation
+      showPrevNextButtons
+      showDots
+      showCloseButton
+      scrollSmooth
+      disableWhenSelectorFalse
+      styles={{
+        popover: (base) => ({
+          ...base,
+          borderRadius: 0,
+          maxWidth: 360,
+        }),
+        maskArea: (base) => ({
+          ...base,
+          rx: 4,
+        }),
+      }}
+    >
+    <ObjectiveGuide />
     <main className={styles.page}>
       <div className={styles.canvas}>
       <header className={styles.header}>
@@ -54,7 +113,7 @@ export default function ProposalStudioPage() {
 
       {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={getProblemDetail(studio.submitProposal.error ?? studio.saveDraft.error, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')} hideCloseButton />}
 
-      <section className={styles.progressStrip} aria-label="Proposal progress">
+      <section className={`${styles.progressStrip} objective-steps`} aria-label="Proposal progress">
         {proposalSections.map((section, index) => {
           const isActive = studio.activeSection === section.id
           const linked = studio.draft.evidenceLinks.some((link) => link.section === section.id)
@@ -66,7 +125,7 @@ export default function ProposalStudioPage() {
       </section>
 
       <div className={styles.workspace}>
-        <aside className={styles.sourcesPanel} aria-label="Grounded client sources">
+        <aside className={`${styles.sourcesPanel} objective-evidence`} aria-label="Grounded client sources">
           <div className={styles.panelTitle}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence library</h2></div><Tag type="blue">{sources.length} sources</Tag></div>
           <div className={styles.sourceToolbar}>
             <p className={styles.panelHint}>Showing {sourceStart}-{sourceEnd} of {sources.length} for <strong>{proposalSections.find((section) => section.id === studio.activeSection)?.label}</strong>.</p>
@@ -95,7 +154,7 @@ export default function ProposalStudioPage() {
           </div>
         </section>
 
-        <aside className={styles.reviewPanel} aria-label="Proposal validation and coaching">
+        <aside className={`${styles.reviewPanel} objective-review`} aria-label="Proposal validation and coaching">
           <div className={styles.panelTitle}><div><p className={styles.eyebrow}>FactGuard</p><h2>Proposal health</h2></div></div>
           <section className={styles.attachments}><span>Evidence linked</span><strong>{studio.draft.evidenceLinks.length}</strong><span>Sections grounded</span><strong>{new Set(studio.draft.evidenceLinks.map((link) => link.section)).size}/5</strong></section>
           <Button kind="tertiary" size="sm" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={isReviewing || isSubmitting || studio.saveDraft.isPending}>{isReviewing ? 'Reviewing proposal' : 'Run AI proposal review'}</Button>
@@ -110,6 +169,7 @@ export default function ProposalStudioPage() {
       </div>
       </div>
     </main>
+    </TourProvider>
   )
 }
 
