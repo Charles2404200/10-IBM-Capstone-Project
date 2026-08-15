@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/password-reset")
+@RequestMapping("/api/v1/forgot-password")
 public class ForgotPasswordController {
 
     private final ForgotPasswordService forgotPasswordService;

@@ -11,7 +11,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useForgotPassword } from '@/api/hooks/useAuth'
+import { useForgotPassword } from '@/api/hooks/useForgotPassword'
 import { useForgotPasswordContext } from '@/context/forgot-password/useForgotPasswordContext'
 import PublicHeader from '@/components/layout/PublicHeader'
 
