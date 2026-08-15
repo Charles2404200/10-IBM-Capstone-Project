@@ -40,6 +40,25 @@ public class ForgotPasswordService {
     @Value("${app.password-reset.reset-token-expiry-minutes:15}")
     private int resetTokenExpiryMinutes;
 
+    @Value("${app.password-reset.rate-limit.verify-email.max-attempts")
+    private int verifyEmailMaxAttempts;
+
+    @Value("${app.password-reset.rate-limit.verify-email.window-minutes")
+    private int verifyEmailWindow;
+
+    @Value("${app.password-reset.rate-limit.verify-otp.max-attempts")
+    private int verifyOtpMaxAttempts;
+
+    @Value("${app.password-reset.rate-limit.verify-otp.window-minutes")
+    private int verifyOtpWindow;
+
+    @Value("${app.password-reset.rate-limit.verify-email.max-attempts")
+    private int changePasswordMaxAttempts;
+
+    @Value("${app.password-reset.rate-limit.verify-email.window-minutes")
+    private int changePasswordWindow;
+
+
     public ForgotPasswordService(
             UserRepository userRepository,
             BaseEmailService emailService,
@@ -68,14 +87,11 @@ public class ForgotPasswordService {
                 "forgot-password:" +
                         hashIdentifier(normalizedEmail);
 
-        final int maxRequests= 5;
-        final int duration = 15;
-
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         key,
-                        maxRequests,
-                        Duration.ofMinutes(duration)
+                        verifyEmailMaxAttempts,
+                        Duration.ofMinutes(verifyEmailWindow)
                 );
 
         if (!allowed) {
@@ -165,14 +181,12 @@ public class ForgotPasswordService {
                         normalizedEmail
                 );
 
-        final int maxRequests = 5;
-        final int duration = 10;
 
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         rateLimitKey,
-                        maxRequests,
-                        Duration.ofMinutes(duration)
+                        verifyOtpMaxAttempts,
+                        Duration.ofMinutes(verifyOtpWindow)
                 );
 
         if (!allowed) {
@@ -304,14 +318,12 @@ public class ForgotPasswordService {
         String rateLimitKey =
                 "change-password:" + hashIdentifier(selector);
 
-        final int maxRequests = 10;
-        final int duration = 15;
 
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         rateLimitKey,
-                        maxRequests,
-                        Duration.ofMinutes(duration)
+                        changePasswordMaxAttempts,
+                        Duration.ofMinutes(changePasswordWindow)
                 );
 
         if (!allowed) {

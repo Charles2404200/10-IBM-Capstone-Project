@@ -2,10 +2,8 @@ spring:
   application:
     name: consulting-simulation-api
   datasource:
-    #    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require&prepareThreshold=0}
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://host.docker.internal:5432/mydatabase}
-    # username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    username: ${SPRING_DATASOURCE_USERNAME:myuser}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require&prepareThreshold=0}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:4}
@@ -78,6 +76,18 @@ app:
   password-reset:
     otp-expiry-minutes: ${PASSWORD_RESET_OTP_EXPIRY_MINUTES:10}
     reset-token-expiry-minutes: ${RESET_TOKEN_EXPIRY_MINUTES:15}
+    rate-limit:
+      verify-email:
+        max-attempts: ${PASSWORD_RESET_VERIFY_EMAIL_MAX_ATTEMPTS:5}
+        window-minutes: ${PASSWORD_RESET_VERIFY_EMAIL_WINDOW_MINUTES:1}
+
+      verify-otp:
+        max-attempts: ${PASSWORD_RESET_VERIFY_OTP_MAX_ATTEMPTS:5}
+        window-minutes: ${PASSWORD_RESET_VERIFY_OTP_WINDOW_MINUTES:5}
+
+      change-password:
+        max-attempts: ${PASSWORD_RESET_CHANGE_PASSWORD_MAX_ATTEMPTS:3}
+        window-minutes: ${PASSWORD_RESET_CHANGE_PASSWORD_WINDOW_MINUTES:5}
   jwt:
     secret: ${JWT_SECRET}
     expiry-ms: ${JWT_EXPIRY_MS:86400000}

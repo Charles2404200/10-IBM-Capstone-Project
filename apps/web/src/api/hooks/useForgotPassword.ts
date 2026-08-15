@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query"
-import { ChangePasswordRequest, ForgotPasswordRequest, ResetTokenResponse, VerifyOtpRequest } from "../forget-password.types"
+import { ChangePasswordRequest, ForgotPasswordRequest, ResetTokenResponse, VerifyOtpRequest } from "../types"
 import apiClient from "../client"
 
 export function useForgotPassword() {
