@@ -13,6 +13,7 @@
 .sectionTitle {
   color: #161616;
   margin: 0 0 1rem;
+  margin-inline: calc(var(--cds-grid-mode-start) * -1) calc(var(--cds-grid-mode-end) * -1);
 }
 
 .statTile {
@@ -120,10 +121,14 @@
 
 .replaySection {
   margin: 0;
+  :global(.cds--label) {
+    padding-left: 16px;
+  }
 }
 
 .replayTile {
   width: 100%;
+  margin-inline: calc(var(--cds-grid-mode-start) * -1) calc(var(--cds-grid-mode-end) * -1);
 }
 
 .replaySnapshot {

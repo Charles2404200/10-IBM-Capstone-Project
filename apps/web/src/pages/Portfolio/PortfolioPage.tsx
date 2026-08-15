@@ -241,6 +241,7 @@ export default function PortfolioPage() {
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
+          <div></div>
           <Grid narrow>
             <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
               <StatTile label="Total Engagements" value={portfolio.totalEngagements} />

@@ -476,12 +476,9 @@
    made the title land in a different place on each page. */
 
 .pageHeader {
-  /* `width: 100%` matters once the shell makes the content area a flex column:
-     without it `margin: 0 auto` shrink-wraps the header to its text and the
-     title drifts into the middle of the page, away from the content below. */
+  /* `width: 100%` matters once the shell makes the content area a flex column */
   width: 100%;
   max-width: 96rem;
-  margin: 0 auto;
   padding: 1.5rem 2rem 0;
 }
 
