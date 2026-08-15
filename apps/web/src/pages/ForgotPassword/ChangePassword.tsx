@@ -56,8 +56,9 @@ export default function ChangePasswordPage() {
   const onSubmit = (data: FormValues) => {
     changePassword.mutate(
       {
-        token: resetToken,
+        resetToken,
         password: data.password,
+        repeatPassword: data.confirmPassword,
       },
       {
         onSuccess: () => {

@@ -8,10 +8,12 @@ export type VerifyOtpRequest = {
 }
 
 export type ChangePasswordRequest = {
-  token: string
+  resetToken: string
   password: string
+  repeatPassword: string
 }
 
 export type ResetTokenResponse = {
-  token: string
+  message: string
+  resetToken: string
 }

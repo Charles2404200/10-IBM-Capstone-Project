@@ -50,7 +50,7 @@ export default function VerifyOtpPage() {
       },
       {
         onSuccess: (response) => {
-          setResetToken(response.token)
+          setResetToken(response.resetToken)
           navigate('/change-password')
         },
       }
