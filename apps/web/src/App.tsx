@@ -3,10 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import LoadingState from '@/components/shared/LoadingState'
+import { ForgotPasswordProvider } from './context/forgot-password/ForgotPasswordProvider'
 
 const LandingPage = lazy(() => import('@/pages/Landing/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/Auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/Auth/RegisterPage'))
+const ChangePassword = lazy(() => import('@/pages/Auth/ChangePassword'))
+const ForgotPassword = lazy(() => import('@/pages/Auth/ForgotPassword'))
+const VerifyOtp = lazy(() => import('@/pages/Auth/VerifyOtp'))
 const CommandCentrePage = lazy(() => import('@/pages/CommandCentre/CommandCentrePage'))
 const LeadPipelinePage = lazy(() => import('@/pages/LeadPipeline/LeadPipelinePage'))
 const ClientIntelligencePage = lazy(() => import('@/pages/ClientIntelligence/ClientIntelligencePage'))
@@ -45,77 +49,109 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<LoadingState />}>
         <Routes>
-        <Route
-          path="/"
-          element={
-            <PublicOnlyRoute>
-              <LandingPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <LoginPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <RegisterPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <AppShell />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<CommandCentrePage />} />
-          <Route path="engagements/:engagementId/leads" element={<LeadPipelinePage />} />
-          <Route path="engagements/:engagementId/intelligence" element={<ClientIntelligencePage />} />
-          <Route path="engagements/:engagementId/outreach" element={<OutreachWorkspacePage />} />
-          <Route path="engagements/:engagementId/preparation" element={<MeetingPreparationPage />} />
-          <Route path="engagements/:engagementId/meetings/:meetingId" element={<LiveMeetingPage />} />
-          <Route path="engagements/:engagementId/proposal" element={<ProposalStudioPage />} />
-          <Route path="engagements/:engagementId/assessment" element={<AssessmentReviewPage />} />
-          <Route path="portfolio" element={<PortfolioPage />} />
           <Route
-            path="admin"
-            element={<RequireRole roles={['SCENARIO_AUTHOR', 'REVIEWER', 'ADMINISTRATOR']}><AdminConsolePage /></RequireRole>}
-          />
-          <Route
-            path="admin/scenarios"
+            path="/"
             element={
-              <RequireRole roles={['SCENARIO_AUTHOR', 'ADMINISTRATOR']}>
-                <ScenarioBuilderPage />
-              </RequireRole>
+              <PublicOnlyRoute>
+                <LandingPage />
+              </PublicOnlyRoute>
             }
           />
           <Route
-            path="admin/achievements"
+            path="/login"
             element={
-              <RequireRole roles={['ADMINISTRATOR']}>
-                <AchievementBuilderPage />
-              </RequireRole>
+              <PublicOnlyRoute>
+                <LoginPage />
+              </PublicOnlyRoute>
             }
           />
           <Route
-            path="admin/users"
-            element={<RequireRole roles={['ADMINISTRATOR']}><UserManagementPage /></RequireRole>}
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <RegisterPage />
+              </PublicOnlyRoute>
+            }
           />
           <Route
-            path="admin/ai-operations"
-            element={<RequireRole roles={['REVIEWER', 'ADMINISTRATOR']}><AiOperationsPage /></RequireRole>}
+            path="/forgot-password"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPasswordProvider>
+                  <ForgotPassword />
+                </ForgotPasswordProvider>
+              </PublicOnlyRoute>
+            }
           />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+          <Route
+            path="/verify-otp"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPasswordProvider>
+                  <VerifyOtp />
+                </ForgotPasswordProvider>
+              </PublicOnlyRoute>
+            }
+          />
+
+          <Route
+            path="/change-password"
+            element={
+              <PublicOnlyRoute>
+                <ForgotPasswordProvider>
+                  <ChangePassword/>
+                </ForgotPasswordProvider>
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<CommandCentrePage />} />
+            <Route path="engagements/:engagementId/leads" element={<LeadPipelinePage />} />
+            <Route path="engagements/:engagementId/intelligence" element={<ClientIntelligencePage />} />
+            <Route path="engagements/:engagementId/outreach" element={<OutreachWorkspacePage />} />
+            <Route path="engagements/:engagementId/preparation" element={<MeetingPreparationPage />} />
+            <Route path="engagements/:engagementId/meetings/:meetingId" element={<LiveMeetingPage />} />
+            <Route path="engagements/:engagementId/proposal" element={<ProposalStudioPage />} />
+            <Route path="engagements/:engagementId/assessment" element={<AssessmentReviewPage />} />
+            <Route path="portfolio" element={<PortfolioPage />} />
+            <Route
+              path="admin"
+              element={<RequireRole roles={['SCENARIO_AUTHOR', 'REVIEWER', 'ADMINISTRATOR']}><AdminConsolePage /></RequireRole>}
+            />
+            <Route
+              path="admin/scenarios"
+              element={
+                <RequireRole roles={['SCENARIO_AUTHOR', 'ADMINISTRATOR']}>
+                  <ScenarioBuilderPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="admin/achievements"
+              element={
+                <RequireRole roles={['ADMINISTRATOR']}>
+                  <AchievementBuilderPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="admin/users"
+              element={<RequireRole roles={['ADMINISTRATOR']}><UserManagementPage /></RequireRole>}
+            />
+            <Route
+              path="admin/ai-operations"
+              element={<RequireRole roles={['REVIEWER', 'ADMINISTRATOR']}><AiOperationsPage /></RequireRole>}
+            />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

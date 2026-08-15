@@ -68,11 +68,14 @@ public class ForgotPasswordService {
                 "forgot-password:" +
                         hashIdentifier(normalizedEmail);
 
+        final int maxRequests= 5;
+        final int duration = 15;
+
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         key,
-                        5,
-                        Duration.ofMinutes(15)
+                        maxRequests,
+                        Duration.ofMinutes(duration)
                 );
 
         if (!allowed) {
@@ -162,11 +165,14 @@ public class ForgotPasswordService {
                         normalizedEmail
                 );
 
+        final int maxRequests = 5;
+        final int duration = 10;
+
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         rateLimitKey,
-                        5,
-                        Duration.ofMinutes(10)
+                        maxRequests,
+                        Duration.ofMinutes(duration)
                 );
 
         if (!allowed) {
@@ -298,11 +304,14 @@ public class ForgotPasswordService {
         String rateLimitKey =
                 "change-password:" + hashIdentifier(selector);
 
+        final int maxRequests = 10;
+        final int duration = 15;
+
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         rateLimitKey,
-                        10,
-                        Duration.ofMinutes(15)
+                        maxRequests,
+                        Duration.ofMinutes(duration)
                 );
 
         if (!allowed) {
