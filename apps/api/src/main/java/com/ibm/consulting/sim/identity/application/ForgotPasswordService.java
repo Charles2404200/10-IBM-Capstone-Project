@@ -34,28 +34,28 @@ public class ForgotPasswordService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    @Value("${app.password-reset.otp-expiry-minutes:10}")
+    @Value("${app.forgot-password.otp-expiry-minutes:10}")
     private int otpExpiryMinutes;
 
-    @Value("${app.password-reset.reset-token-expiry-minutes:15}")
+    @Value("${app.forgot-password.reset-token-expiry-minutes:15}")
     private int resetTokenExpiryMinutes;
 
-    @Value("${app.password-reset.rate-limit.verify-email.max-attempts}")
+    @Value("${app.forgot-password.rate-limit.verify-email.max-attempts}")
     private int verifyEmailMaxAttempts;
 
-    @Value("${app.password-reset.rate-limit.verify-email.window-minutes}")
+    @Value("${app.forgot-password.rate-limit.verify-email.window-minutes}")
     private int verifyEmailWindow;
 
-    @Value("${app.password-reset.rate-limit.verify-otp.max-attempts}")
+    @Value("${app.forgot-password.rate-limit.verify-otp.max-attempts}")
     private int verifyOtpMaxAttempts;
 
-    @Value("${app.password-reset.rate-limit.verify-otp.window-minutes}")
+    @Value("${app.forgot-password.rate-limit.verify-otp.window-minutes}")
     private int verifyOtpWindow;
 
-    @Value("${app.password-reset.rate-limit.verify-email.max-attempts}")
+    @Value("${app.forgot-password.rate-limit.verify-email.max-attempts}")
     private int changePasswordMaxAttempts;
 
-    @Value("${app.password-reset.rate-limit.verify-email.window-minutes}")
+    @Value("${app.forgot-password.rate-limit.verify-email.window-minutes}")
     private int changePasswordWindow;
 
 
