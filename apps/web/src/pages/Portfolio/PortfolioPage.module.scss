@@ -139,7 +139,7 @@
   }
 }
 
-.replayTile {
+.replayTile, .combinedTrendTile {
   width: 100%;
   margin-inline: calc(var(--cds-grid-mode-start) * -1) calc(var(--cds-grid-mode-end) * -1);
 }
@@ -232,6 +232,16 @@
 
 .achievementLocked {
   opacity: 0.6;
+}
+
+.combinedTrendLegendItem {
+  cursor: pointer;
+}
+
+.page {
+  :global(.cds--subgrid) {
+    margin-right: 0;
+  }
 }
 
 @media (max-width: 672px) {
