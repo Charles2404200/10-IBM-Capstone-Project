@@ -25,6 +25,8 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
+import { TourProvider, type StepType } from '@reactour/tour'
+import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
 
 interface DraftListItem {
   id: string
@@ -109,7 +111,7 @@ function EditableList({
   }
 
   return (
-    <section className={styles.listWorkspace} aria-label={label}>
+    <section className={`${styles.listWorkspace} objective-preparation`} aria-label={label}>
       <div className={styles.listHeading}>
         <div>
           <p className={styles.listEyebrow}>Meeting plan</p>
@@ -262,8 +264,65 @@ export default function MeetingPreparationPage() {
   )
   const ready = readinessScore >= READY_THRESHOLD
   const isSaving = updatePreparation.isPending || launchingMeeting
+  
+  const MEETING_PREP_OBJECTIVES = [
+    {
+      id: 'readiness',
+      objective: 'Understand readiness preview',
+      description: 'The preview shows what you need to complete before you can move to the live meeting.',
+      targets: ['.objective-readiness'],
+    },
+    {
+      id: 'meeting-objective',
+      objective: 'Determine the meeting objective',
+      description: 'Using your previous knowledge of the collected evidence and outreach email, write your meeting objective.',
+      targets: ['.objective-meeting-obj'],
+    },
+    {
+      id: 'preparation',
+      objective: 'Meeting preparations',
+      description: 'This is where you prepare for your meeting by adding agenda items and discovery questions.',
+      targets: ['.objective-preparation'],
+    },
+  ]
+  
+  // Converts each objective into a Reactour step
+  const MEETING_PREP_TOUR_STEPS: StepType[] =
+    MEETING_PREP_OBJECTIVES.map((objective) => ({
+      selector: objective.targets[0],
+      highlightedSelectors: objective.targets,
+      content: (
+        <div>
+          <strong>{objective.objective}</strong>
+          <p style={{ marginTop: '0.75rem' }}>
+            {objective.description}
+          </p>
+        </div>
+      ),
+    }))
 
   return (
+    <TourProvider
+      steps={MEETING_PREP_TOUR_STEPS}
+      showNavigation
+      showPrevNextButtons
+      showDots
+      showCloseButton
+      scrollSmooth
+      disableWhenSelectorFalse
+      styles={{
+        popover: (base) => ({
+          ...base,
+          borderRadius: 0,
+          maxWidth: 360,
+        }),
+        maskArea: (base) => ({
+          ...base,
+          rx: 4,
+        }),
+      }}
+    >
+    <ObjectiveGuide />
     <div className={styles.page}>
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
@@ -282,7 +341,7 @@ export default function MeetingPreparationPage() {
           </div>
         </header>
 
-        <section className={styles.readinessStrip} aria-label="Meeting readiness">
+        <section className={`${styles.readinessStrip} objective-readiness`} aria-label="Meeting readiness">
           <div className={styles.readinessScore}>
             <div>
               <p className={styles.eyebrow}>Readiness preview</p>
@@ -300,7 +359,7 @@ export default function MeetingPreparationPage() {
 
         <main className={styles.workspaceGrid}>
           <section className={styles.primaryWorkspace} aria-label="Meeting plan workspace">
-            <Tile className={styles.objectivePanel}>
+            <Tile className={`${styles.objectivePanel} objective-meeting-obj`}>
               <div className={styles.panelHeading}>
                 <div>
                   <p className={styles.eyebrow}>Conversation outcome</p>
@@ -376,6 +435,7 @@ export default function MeetingPreparationPage() {
         </main>
       </div>
     </div>
+    </TourProvider>
   )
 }
 
