@@ -17,6 +17,7 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
 import PageHeader from '@/lifecycle/components/PageHeader'
 import styles from './PortfolioPage.module.scss'
+import { useAuthStore } from '@/store/authStore'
 
 function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: 'success' | 'danger'}) {
   return (
@@ -81,9 +82,10 @@ function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementV
         <div className={styles.historyHeader}>
           <div>
             <h5 className={styles.historyTitle}>{engagement.scenarioTitle}</h5>
+            <Tag type={won ? 'green' : 'red'} size="sm">{engagement.outcome.replace(/_/g, ' ')}</Tag><div></div>
             <Tag type="cyan" size="sm">{engagement.industry}</Tag>
           </div>
-          <Tag type={won ? 'green' : 'red'}>{engagement.outcome.replace(/_/g, ' ')}</Tag>
+          <div></div>
         </div>
         <div className={styles.historyMeta}>
           <span className={styles.historyDate}>
@@ -223,7 +225,7 @@ function AchievementsSection() {
 
 export default function PortfolioPage() {
   const { data: portfolio, isLoading, isError } = usePortfolioSummary()
-
+  const { displayName } = useAuthStore()
   const sortedHistory = useMemo(
     () => (portfolio?.completedEngagementsHistory ?? []).slice().reverse(),
     [portfolio],
@@ -236,7 +238,10 @@ export default function PortfolioPage() {
     <>
     <PageHeader
       phase="COMPLETED"
-      description="Your competency growth and completed engagement history across every scenario."
+      description={displayName
+          ? `Welcome ${displayName}, see your competency growth and completed engagement history across every scenario.`
+          : 'Your competency growth and completed engagement history across every scenario.'
+      }
     />
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
@@ -282,11 +287,12 @@ export default function PortfolioPage() {
               </Grid>
             </section>
           ) : (
-            <Tile>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Completed Engagements</h3>
               <p className={styles.emptyState}>
                 Complete your first engagement to start building your portfolio.
               </p>
-            </Tile>
+            </section>
           )}
 
           <ReplayComparisonSection history={sortedHistory} />

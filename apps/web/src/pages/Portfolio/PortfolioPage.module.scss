@@ -90,7 +90,8 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .historyTitle {
@@ -117,12 +118,24 @@
 
 .emptyState {
   color: #525252;
+  margin-inline: calc(var(--cds-grid-mode-start) * -1) calc(var(--cds-grid-mode-end) * -1);
 }
 
 .replaySection {
   margin: 0;
   :global(.cds--label) {
     padding-left: 16px;
+  }
+  :global(.cds--select-input) {
+    border-block-end: none;
+    background-image: linear-gradient(
+      to right,
+      transparent 16px,
+      var(--cds-border-strong) 16px
+    );
+    background-size: 100% 1px;
+    background-position: bottom;
+    background-repeat: no-repeat;
   }
 }
 
