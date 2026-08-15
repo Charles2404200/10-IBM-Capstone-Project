@@ -37,32 +37,30 @@ public class UpstashRateLimiterService
     ) {
 
         try {
+            String redisKey = "rate-limit::" + key;
 
-            String redisKey =
-                    "rate-limit::" + key;
+            String script = """
+                local current = redis.call('INCR', KEYS[1])
+
+                if current == 1 then
+                    redis.call('EXPIRE', KEYS[1], ARGV[1])
+                end
+
+                return current
+                """;
 
             JsonNode result =
                     client.execute(
                             List.of(
-                                    "INCR",
-                                    redisKey
+                                    "EVAL",
+                                    script,
+                                    "1",
+                                    redisKey,
+                                    String.valueOf(window.toSeconds())
                             )
                     );
 
-            long requestCount =
-                    result.asLong();
-
-            if (requestCount == 1) {
-                client.execute(
-                        List.of(
-                                "EXPIRE",
-                                redisKey,
-                                String.valueOf(
-                                        window.toSeconds()
-                                )
-                        )
-                );
-            }
+            long requestCount = result.asLong();
 
             return requestCount <= maxRequests;
 
