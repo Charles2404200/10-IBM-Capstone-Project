@@ -1,5 +1,9 @@
 package com.ibm.consulting.sim.shared.api;
 
+import com.ibm.consulting.sim.identity.domain.InvalidCredentialsException;
+import com.ibm.consulting.sim.identity.domain.InvalidOtpException;
+import com.ibm.consulting.sim.identity.domain.InvalidPasswordResetTokenException;
+import com.ibm.consulting.sim.identity.domain.SamePasswordException;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.shared.domain.RateLimitExceededException;
@@ -87,6 +91,50 @@ public class GlobalExceptionHandler {
         return problem(
                 HttpStatus.TOO_MANY_REQUESTS,
                 "rate-limit-exceeded",
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(SamePasswordException.class)
+    ProblemDetail handleSamePassword(
+            SamePasswordException ex
+    ) {
+        return problem(
+                HttpStatus.BAD_REQUEST,
+                "same-password",
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ProblemDetail handleInvalidCredentials(
+            InvalidCredentialsException ex
+    ) {
+        return problem(
+                HttpStatus.UNAUTHORIZED,
+                "invalid-credentials",
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(InvalidOtpException.class)
+    ProblemDetail handleInvalidOtp(
+            InvalidOtpException ex
+    ) {
+        return problem(
+                HttpStatus.BAD_REQUEST,
+                "invalid-otp",
+                ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    ProblemDetail handleInvalidPasswordResetToken(
+            InvalidPasswordResetTokenException ex
+    ) {
+        return problem(
+                HttpStatus.BAD_REQUEST,
+                "invalid-password-reset-token",
                 ex.getMessage()
         );
     }
