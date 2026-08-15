@@ -16,13 +16,19 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
 import PageHeader from '@/lifecycle/components/PageHeader'
+import styles from './PortfolioPage.module.scss'
 
-function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: 'success' | 'danger'}) {
   return (
-    <Tile>
+    <Tile className={styles.statTile}>
       <Stack gap={2}>
-        <p style={{ color: '#525252', fontSize: '0.75rem', textTransform: 'uppercase' }}>{label}</p>
-        <span style={{ color: accent ?? '#161616', fontSize: '2rem', fontWeight: 600 }}>{value}</span>
+        <p className={styles.statLabel}>{label}</p>
+        <span className={`${styles.statValue} ${
+            accent === 'success' ? styles.statValueSuccess 
+            : accent === 'danger' ? styles.statValueDanger 
+            : ''
+          }`}>{value}
+        </span>
       </Stack>
     </Tile>
   )
@@ -32,14 +38,14 @@ function StatTile({ label, value, accent }: { label: string; value: string | num
  *  avoiding a chart-library dependency while still showing progression clearly. */
 function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
   const latest = trend.points[trend.points.length - 1]
-  const first = trend.points[0];
+  const first = trend.points[0]
   const delta = trend.points.length > 1 ? latest.score - first.score : 0
 
   return (
-    <Tile>
+    <Tile className={styles.trendTile}>
       <Stack gap={3}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h5 style={{ color: '#161616' }}>{trend.competencyName}</h5>
+        <div className={styles.trendHeader}>
+          <h5>{trend.competencyName}</h5>
           {trend.points.length > 1 && (
             <Tag type={delta >= 0 ? 'green' : 'red'} size="sm">
               {delta >= 0 ? '+' : ''}{delta} since first attempt
@@ -48,14 +54,14 @@ function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
         </div>
         <Stack gap={2}>
           {trend.points.map((p) => (
-            <div key={p.engagementId} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ color: '#525252', fontSize: '0.75rem', width: '6.5rem', flexShrink: 0 }}>
+            <div key={p.engagementId} className={styles.trendRow}>
+              <span className={styles.trendDate}>
                 {new Date(p.generatedAt).toLocaleDateString()}
               </span>
-              <div style={{ flex: 1 }}>
+              <div className={styles.trendProgress}>
                 <ProgressBar label="" hideLabel value={p.score} max={100} size="small" />
               </div>
-              <span style={{ color: '#525252', fontSize: '0.75rem', width: '2.5rem', textAlign: 'right' }}>
+              <span className={styles.trendScore}>
                 {p.score}
               </span>
             </div>
@@ -68,21 +74,22 @@ function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
 
 function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementView }) {
   const won = engagement.outcome === 'PROPOSAL_ACCEPTED' || engagement.outcome === 'WON'
+
   return (
-    <Tile>
+    <Tile className={styles.historyTile}>
       <Stack gap={2}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className={styles.historyHeader}>
           <div>
-            <h5 style={{ color: '#161616' }}>{engagement.scenarioTitle}</h5>
+            <h5 className={styles.historyTitle}>{engagement.scenarioTitle}</h5>
             <Tag type="cyan" size="sm">{engagement.industry}</Tag>
           </div>
           <Tag type={won ? 'green' : 'red'}>{engagement.outcome.replace(/_/g, ' ')}</Tag>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#525252', fontSize: '0.75rem' }}>
+        <div className={styles.historyMeta}>
+          <span className={styles.historyDate}>
             {engagement.completedAt ? new Date(engagement.completedAt).toLocaleDateString() : 'In review'}
           </span>
-          <span style={{ color: '#161616', fontWeight: 600 }}>{engagement.overallScore}/100</span>
+          <span className={styles.historyScore}>{engagement.overallScore}/100</span>
         </div>
       </Stack>
     </Tile>
@@ -97,9 +104,9 @@ function ReplayComparisonSection({ history }: { history: CompletedEngagementView
   if (history.length < 2) return null
 
   return (
-    <section>
-      <h3 style={{ marginBottom: '1rem', color: '#161616' }}>Replay Comparison</h3>
-      <Tile>
+    <section className={styles.replaySection}>
+      <h3 className={styles.sectionTitle}>Replay Comparison</h3>
+      <Tile className={styles.replayTile}>
         <Stack gap={4}>
           <Grid narrow>
             <Column lg={8} md={4} sm={4}>
@@ -136,27 +143,26 @@ function ReplayComparisonSection({ history }: { history: CompletedEngagementView
             <Grid narrow>
               {[comparison.engagementA, comparison.engagementB].map((snapshot, idx) => (
                 <Column key={idx} lg={8} md={4} sm={4}>
-                  <Tile>
+                  <Tile className={styles.replaySnapshot}>
                     <Stack gap={3}>
                       <div>
-                        <h5 style={{ color: '#161616' }}>{snapshot.scenarioTitle}</h5>
-                        <p style={{ color: '#525252', fontSize: '0.75rem' }}>vs. {snapshot.personaName}</p>
+                        <h5 className={styles.snapshotTitle}>{snapshot.scenarioTitle}</h5>
+                        <p className={styles.snapshotPersona}>vs. {snapshot.personaName}</p>
                       </div>
-                      <span style={{ color: '#161616', fontSize: '1.5rem', fontWeight: 600 }}>
-                        {snapshot.overallScore}/100
-                      </span>
-                      <Stack gap={2}>
+                      <span className={styles.snapshotScore}>{snapshot.overallScore}/100</span>
+                      <div className={styles.competencyScoreList}>
                         {snapshot.competencyScores.map((c) => (
-                          <div key={c.competencyName} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#525252', fontSize: '0.875rem' }}>{c.competencyName}</span>
-                            <span style={{ color: '#161616', fontSize: '0.875rem' }}>{c.score}</span>
+                          <div key={c.competencyName} className={styles.competencyScoreRow}>
+                            <span className={styles.competencyScoreName}>{c.competencyName}</span>
+                            <span className={styles.competencyScoreValue}>{c.score}</span>
                           </div>
                         ))}
-                      </Stack>
+                      </div>
                     </Stack>
                   </Tile>
                 </Column>
-              ))}
+                ),
+              )}
             </Grid>
           )}
         </Stack>
@@ -167,25 +173,28 @@ function ReplayComparisonSection({ history }: { history: CompletedEngagementView
 
 function AchievementBadge({ achievement }: { achievement: AchievementSummary }) {
   return (
-    <Tile style={{ opacity: achievement.unlocked ? 1 : 0.6 }}>
+    <Tile className={`${styles.achievementTile} ${ achievement.unlocked ? '' : styles.achievementLocked }`}>
       <Stack gap={3}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className={styles.achievementHeader}>
           {achievement.unlocked ? (
-            <TrophyFilled size={20} style={{ color: '#f1c21b' }} />
+            <TrophyFilled size={20} className={styles.achievementIcon} />
           ) : (
-            <Locked size={20} style={{ color: '#525252' }} />
+            <Locked size={20} className={styles.achievementLockedIcon} />
           )}
-          <h5 style={{ color: '#161616' }}>{achievement.name}</h5>
+          <h5 className={styles.achievementName}>{achievement.name}</h5>
         </div>
-        <p style={{ color: '#525252', fontSize: '0.8rem' }}>{achievement.description}</p>
+        <p className={styles.achievementDescription}>{achievement.description}</p>
         {achievement.unlocked ? (
           <Tag type="green" size="sm">
-            Unlocked {achievement.unlockedAt ? new Date(achievement.unlockedAt).toLocaleDateString() : ''}
+            Unlocked{' '}
+            {achievement.unlockedAt
+              ? new Date(achievement.unlockedAt).toLocaleDateString()
+              : ''}
           </Tag>
         ) : (
-          <div>
+          <div className={styles.achievementProgress}>
             <ProgressBar label="" hideLabel value={achievement.progressPercent} max={100} size="small" />
-            <span style={{ color: '#525252', fontSize: '0.75rem' }}>{Math.round(achievement.progressPercent)}% complete</span>
+            <span className={styles.achievementProgressText}>{Math.round(achievement.progressPercent)}% complete</span>
           </div>
         )}
       </Stack>
@@ -199,11 +208,11 @@ function AchievementsSection() {
   if (isLoading || !achievements || achievements.length === 0) return null
 
   return (
-    <section>
-      <h3 style={{ marginBottom: '1rem', color: '#161616' }}>Achievements</h3>
+    <section className={styles.section}>
+      <h3 className={styles.sectionTitle}>Achievements</h3>
       <Grid narrow>
         {achievements.map((a) => (
-          <Column key={a.id} lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
+          <Column key={a.id} lg={4} md={4} sm={4} className={styles.columnSpacing} >
             <AchievementBadge achievement={a} />
           </Column>
         ))}
@@ -229,33 +238,30 @@ export default function PortfolioPage() {
       phase="COMPLETED"
       description="Your competency growth and completed engagement history across every scenario."
     />
-    <Grid fullWidth style={{ padding: '1rem 2rem 2rem' }}>
+    <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
-          <div>
-          </div>
-
           <Grid narrow>
-            <Column lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
+            <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
               <StatTile label="Total Engagements" value={portfolio.totalEngagements} />
             </Column>
-            <Column lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
-              <StatTile label="Contracts Won" value={portfolio.contractsWon} accent="#24a148" />
+            <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
+              <StatTile label="Contracts Won" value={portfolio.contractsWon} accent="success" />
             </Column>
-            <Column lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
-              <StatTile label="Contracts Lost" value={portfolio.contractsLost} accent="#da1e28" />
+            <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
+              <StatTile label="Contracts Lost" value={portfolio.contractsLost} accent="danger" />
             </Column>
-            <Column lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
+            <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
               <StatTile label="Average Score" value={portfolio.averageOverallScore || '—'} />
             </Column>
           </Grid>
 
           {portfolio.competencyTrends.length > 0 && (
-            <section>
-              <h3 style={{ marginBottom: '1rem', color: '#161616' }}>Competency Progression</h3>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Competency Progression</h3>
               <Grid narrow>
                 {portfolio.competencyTrends.map((trend) => (
-                  <Column key={trend.competencyName} lg={8} md={4} sm={4} style={{ marginBottom: '1rem' }}>
+                  <Column key={trend.competencyName} lg={8} md={4} sm={4} className={styles.columnSpacing} >
                     <CompetencyTrendCard trend={trend} />
                   </Column>
                 ))}
@@ -264,11 +270,11 @@ export default function PortfolioPage() {
           )}
 
           {sortedHistory.length > 0 ? (
-            <section>
-              <h3 style={{ marginBottom: '1rem', color: '#161616' }}>Completed Engagements</h3>
+            <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Completed Engagements</h3>
               <Grid narrow>
                 {sortedHistory.map((h) => (
-                  <Column key={h.engagementId} lg={5} md={4} sm={4} style={{ marginBottom: '1rem' }}>
+                  <Column key={h.engagementId} lg={5} md={4} sm={4} className={styles.columnSpacing} >
                     <EngagementHistoryRow engagement={h} />
                   </Column>
                 ))}
@@ -276,7 +282,7 @@ export default function PortfolioPage() {
             </section>
           ) : (
             <Tile>
-              <p style={{ color: '#525252' }}>
+              <p className={styles.emptyState}>
                 Complete your first engagement to start building your portfolio.
               </p>
             </Tile>
