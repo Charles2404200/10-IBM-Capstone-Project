@@ -309,7 +309,6 @@ export default function MeetingPreparationPage() {
       showDots
       showCloseButton
       scrollSmooth
-      disableWhenSelectorFalse
       styles={{
         popover: (base) => ({
           ...base,

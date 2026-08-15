@@ -360,7 +360,6 @@ export default function OutreachWorkspacePage() {
       showDots
       showCloseButton
       scrollSmooth
-      disableWhenSelectorFalse
       styles={{
         popover: (base) => ({
           ...base,

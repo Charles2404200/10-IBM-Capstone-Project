@@ -196,7 +196,6 @@ const LIVE_MEETING_TOUR_STEPS: StepType[] =
       showDots
       showCloseButton
       scrollSmooth
-      disableWhenSelectorFalse
       styles={{
         popover: (base) => ({
           ...base,

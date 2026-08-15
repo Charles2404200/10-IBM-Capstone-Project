@@ -510,7 +510,6 @@ const CLIENT_INTELLIGENCE_TOUR_STEPS: StepType[] =
       showDots
       showCloseButton
       scrollSmooth
-      disableWhenSelectorFalse
       styles={{
         popover: (base) => ({
           ...base,

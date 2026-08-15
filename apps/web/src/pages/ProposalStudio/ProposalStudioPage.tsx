@@ -82,7 +82,6 @@ export default function ProposalStudioPage() {
       showDots
       showCloseButton
       scrollSmooth
-      disableWhenSelectorFalse
       styles={{
         popover: (base) => ({
           ...base,
