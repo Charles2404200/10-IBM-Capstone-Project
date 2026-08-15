@@ -68,6 +68,18 @@ export default function LoginPage() {
                   invalidText={errors.password?.message}
                   {...register('password')}
                 />
+                <div style={{ textAlign: 'right' }}>
+                  <Link
+                    to="/forgot-password"
+                    style={{
+                      color: '#0f62fe',
+                      fontSize: '0.875rem',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 {login.isError && (
                   <InlineNotification
                     kind="error"
