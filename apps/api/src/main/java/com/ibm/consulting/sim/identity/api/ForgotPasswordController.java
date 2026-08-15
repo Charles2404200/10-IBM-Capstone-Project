@@ -53,7 +53,11 @@ public class ForgotPasswordController {
 
             @NotBlank
             @Size(min = 8, max = 128)
-            String repeatPassword
+            String repeatPassword,
+
+            @NotBlank
+            @Email
+            String email
     ) {}
 
     record MessageResponse(
@@ -103,7 +107,8 @@ public class ForgotPasswordController {
         forgotPasswordService.changePassword(
                 request.resetToken(),
                 request.password(),
-                request.repeatPassword()
+                request.repeatPassword(),
+                request.email()
         );
 
         return ResponseEntity.ok(

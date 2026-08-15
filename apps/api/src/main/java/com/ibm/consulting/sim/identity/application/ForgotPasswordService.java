@@ -286,8 +286,12 @@ public class ForgotPasswordService {
     public void changePassword(
             String rawResetToken,
             String password,
-            String repeatPassword
+            String repeatPassword,
+            String email
     ) {
+
+        String normalizedEmail =
+                email.trim().toLowerCase(Locale.ROOT);
 
         log.info("Password change using reset token requested");
 
@@ -397,7 +401,13 @@ public class ForgotPasswordService {
         passwordResetOtpRepository
                 .revokeAllActiveOtpsByUserId(user.getId());
 
-        createSuccessfullyChangedPasswordEmailBody();
+        MailBody mailBody = new MailBody(
+                normalizedEmail,
+                "Password Changed Successfully",
+                createSuccessfullyChangedPasswordEmailBody()
+        );
+
+        emailService.sendEmail(mailBody);
 
         log.info(
                 "Password successfully reset for userId={}",
@@ -490,7 +500,7 @@ public class ForgotPasswordService {
                 If you did not request a password reset, you can safely ignore this email.
 
                 Regards,
-                Consulting Simulation Team
+                IBM Consulting Simulation Team
                 """.formatted(otp, expiryMinutes);
     }
 

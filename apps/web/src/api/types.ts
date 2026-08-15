@@ -815,6 +815,7 @@ export type ChangePasswordRequest = {
   resetToken: string
   password: string
   repeatPassword: string
+  email : string
 }
 
 export type ResetTokenResponse = {
