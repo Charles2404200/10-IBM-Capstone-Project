@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { useChangePassword } from '@/api/hooks/useForgotPassword'
 import { useForgotPasswordContext } from '@/context/forgot-password/useForgotPasswordContext'
 import PublicHeader from '@/components/layout/PublicHeader'
+import axios from 'axios'
 
 const schema = z
   .object({
@@ -34,6 +35,14 @@ const schema = z
   )
 
 type FormValues = z.infer<typeof schema>
+
+type ProblemDetail = {
+  type: string
+  title: string
+  status: number
+  detail: string
+  instance: string
+}
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate()
@@ -68,6 +77,11 @@ export default function ChangePasswordPage() {
       }
     )
   }
+
+  const errorMessage =
+    axios.isAxiosError<ProblemDetail>(changePassword.error)
+      ? changePassword.error.response?.data?.detail
+      : undefined
 
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff' }}>
@@ -124,7 +138,10 @@ export default function ChangePasswordPage() {
                   <InlineNotification
                     kind="error"
                     title="Password change failed"
-                    subtitle="The reset token may be invalid or expired. Please request a new password reset."
+                    subtitle={
+                      errorMessage ??
+                      'Unable to change password. Please try again.'
+                    }
                     hideCloseButton
                   />
                 )}
