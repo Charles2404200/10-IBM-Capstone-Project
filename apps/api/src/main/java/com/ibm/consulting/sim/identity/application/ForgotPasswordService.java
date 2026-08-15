@@ -359,6 +359,18 @@ public class ForgotPasswordService {
 
         User user = resetToken.getUser();
 
+        if (passwordEncoder.matches(
+                password,
+                user.getPasswordHash()
+        )) {
+            log.warn(
+                    "Password reset failed: new password matches current password for userId={}",
+                    user.getId()
+            );
+
+            throw new SamePasswordException();
+        }
+
         String newPasswordHash =
                 passwordEncoder.encode(password);
 
@@ -372,6 +384,8 @@ public class ForgotPasswordService {
 
         passwordResetOtpRepository
                 .revokeAllActiveOtpsByUserId(user.getId());
+
+        createSuccessfullyChangedPasswordEmailBody();
 
         log.info(
                 "Password successfully reset for userId={}",
@@ -425,6 +439,23 @@ public class ForgotPasswordService {
                 secret,
                 rawToken
         );
+    }
+
+    private String createSuccessfullyChangedPasswordEmailBody() {
+        return """
+            Hello,
+
+            Your password has been changed successfully.
+
+            You can now sign in to your account using your new password.
+
+            If you did not make this change, please contact support immediately to secure your account.
+
+            For security reasons, never share your password or password reset details with anyone.
+
+            Regards,
+            IBM Consulting Simulation Team
+            """;
     }
 
     private String createForgotPasswordEmailBody(
