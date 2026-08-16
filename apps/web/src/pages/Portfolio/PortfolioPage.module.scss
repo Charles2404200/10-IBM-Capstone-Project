@@ -188,6 +188,28 @@
   font-size: 0.875rem;
 }
 
+.competencyFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.competencyFiltersLabel {
+  color: #161616;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.competencyCheckboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.combinedTrendLegendItem {
+  cursor: default;
+}
+
 .achievementTile {
   height: 100%;
 }
@@ -235,8 +257,21 @@
   opacity: 0.6;
 }
 
-.combinedTrendLegendItem {
-  cursor: pointer;
+.combinedGraphLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.combinedGraphLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  :global(.cds--checkbox-label) {
+    color: var(--competency-color);
+  }
 }
 
 .historyButton {

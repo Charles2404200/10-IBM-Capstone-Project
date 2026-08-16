@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Grid, Column, Stack, Tile, Tag, Select, SelectItem, ProgressBar, Button } from '@carbon/react'
+import { Grid, Column, Stack, Tile, Tag, Select, SelectItem, ProgressBar, Button, Checkbox } from '@carbon/react'
 import { TrophyFilled, Locked } from '@carbon/icons-react'
 import { usePortfolioSummary, useReplayComparison } from '@/api/hooks/usePortfolio'
 import { useMyAchievements } from '@/api/hooks/useAchievements'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
@@ -66,9 +66,31 @@ function CompetencyTrendCard({ trend, showHistory }: { trend: CompetencyTrend, s
   )
 }
 
+const colors = ['#0f62fe', '#24a148', '#1192e8', '#da1e28']
+
+function CompetencyGraphLegend({ trends, hiddenCompetencies, toggleCompetency } : { trends: CompetencyTrend[], hiddenCompetencies: Set<string>, toggleCompetency: (competencyName: string) => void}) {
+  return (
+    <div className={styles.combinedGraphLegend}>
+      {trends.map((trend, index) => {
+        const isHidden = hiddenCompetencies.has(trend.competencyName)
+
+        return (
+          <div key={trend.competencyName} className={styles.combinedGraphLegendItem} style={{ '--competency-color': colors[index % colors.length] } as React.CSSProperties} >
+            <Checkbox
+              id={`competency-${index}`}
+              labelText={trend.competencyName}
+              checked={!isHidden}
+              onChange={() => toggleCompetency(trend.competencyName)}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // responsive graph to show progress over attempts
 function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
-  const colors = ['#0f62fe', '#24a148', '#1192e8', '#da1e28']
   const [hoveredCompetency, setHoveredCompetency] = useState<string | null>(null)
   const [hiddenCompetencies, setHiddenCompetencies] = useState<Set<string>>(new Set())
 
@@ -140,15 +162,6 @@ function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
                 }}
                 labelFormatter={(label) => label}
               />
-              <Legend
-                onClick={(data) => {
-                  const competencyName = String(data.value)
-                  toggleCompetency(competencyName)
-                }}
-                onMouseEnter={(data) => { setHoveredCompetency(String(data.value)) }}
-                onMouseLeave={() => { setHoveredCompetency(null) }}
-                formatter={(value) => (<span className={styles.combinedTrendLegendItem}>{value}</span>)}
-              />
               {trends.map((trend, index) => {
                 const isHidden = hiddenCompetencies.has(trend.competencyName)
                 const isDimmed = hoveredCompetency !== null && hoveredCompetency !== trend.competencyName
@@ -173,6 +186,11 @@ function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <CompetencyGraphLegend
+          trends={trends}
+          hiddenCompetencies={hiddenCompetencies}
+          toggleCompetency={toggleCompetency}
+        />
       </Stack>
     </Tile>
   )
