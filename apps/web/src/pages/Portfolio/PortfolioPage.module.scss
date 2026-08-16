@@ -244,6 +244,12 @@
   }
 }
 
+.historyButton {
+  margin-inline: calc(var(--cds-grid-mode-start) * -1) calc(var(--cds-grid-mode-end) * -1);
+  margin-bottom: 1rem;
+  padding-inline: 0;
+}
+
 @media (max-width: 672px) {
   .page {
     padding: 1rem;

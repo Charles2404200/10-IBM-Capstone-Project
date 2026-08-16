@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Grid, Column, Stack, Tile, Tag, Select, SelectItem, ProgressBar } from '@carbon/react'
+import { Grid, Column, Stack, Tile, Tag, Select, SelectItem, ProgressBar, Button } from '@carbon/react'
 import { TrophyFilled, Locked } from '@carbon/icons-react'
 import { usePortfolioSummary, useReplayComparison } from '@/api/hooks/usePortfolio'
 import { useMyAchievements } from '@/api/hooks/useAchievements'
@@ -29,10 +29,11 @@ function StatTile({ label, value, accent }: { label: string; value: string | num
 
 /** Lightweight competency trend visualisation: one row per historical score,
  *  avoiding a chart-library dependency while still showing progression clearly. */
-function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
+function CompetencyTrendCard({ trend, showHistory }: { trend: CompetencyTrend, showHistory: boolean }) {
   const latest = trend.points[trend.points.length - 1]
   const first = trend.points[0]
   const delta = trend.points.length > 1 ? latest.score - first.score : 0
+  const visiblePoints = showHistory ? trend.points : [latest]
 
   return (
     <Tile className={styles.trendTile}>
@@ -46,7 +47,7 @@ function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
           )}
         </div>
         <Stack gap={2}>
-          {trend.points.map((p) => (
+          {visiblePoints.map((p) => (
             <div key={p.engagementId} className={styles.trendRow}>
               <span className={styles.trendDate}>
                 {new Date(p.generatedAt).toLocaleDateString()}
@@ -332,6 +333,7 @@ function AchievementsSection() {
 export default function PortfolioPage() {
   const { data: portfolio, isLoading, isError } = usePortfolioSummary()
   const { displayName } = useAuthStore()
+  const [showCompetencyHistory, setShowCompetencyHistory] = useState(false)
   const sortedHistory = useMemo(
     () => (portfolio?.completedEngagementsHistory ?? []).slice().reverse(),
     [portfolio],
@@ -371,10 +373,15 @@ export default function PortfolioPage() {
           {portfolio.competencyTrends.length > 0 && (
             <section className={styles.section}>
               <h3 className={styles.sectionTitle}>Competency Progression</h3>
+              {portfolio.competencyTrends.some((trend) => trend.points.length > 1) && (
+                <Button kind="ghost" size="sm" className={styles.historyButton} onClick={() => setShowCompetencyHistory((current) => !current)} >
+                  {showCompetencyHistory ? 'Hide history' : 'View history'}
+                </Button>
+              )}
               <Grid narrow>
                 {portfolio.competencyTrends.map((trend) => (
                   <Column key={trend.competencyName} lg={8} md={4} sm={4} className={styles.columnSpacing} >
-                    <CompetencyTrendCard trend={trend} />
+                    <CompetencyTrendCard trend={trend} showHistory={showCompetencyHistory} />
                   </Column>
                 ))}
               </Grid>
