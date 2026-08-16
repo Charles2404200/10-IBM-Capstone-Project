@@ -3,14 +3,17 @@ package com.ibm.consulting.sim.identity.application;
 import com.ibm.consulting.sim.identity.domain.*;
 import com.ibm.consulting.sim.shared.domain.DistributedCacheFailurePolicy;
 import com.ibm.consulting.sim.shared.domain.RateLimitExceededException;
-import com.ibm.consulting.sim.shared.domain.RateLimiterFailurePolicy;
 import com.ibm.consulting.sim.shared.domain.RateLimiterService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,6 +33,7 @@ public class ForgotPasswordService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final RateLimiterService rateLimiterService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     private static final Logger log =
             LoggerFactory.getLogger(ForgotPasswordService.class);
@@ -100,7 +104,8 @@ public class ForgotPasswordService {
             PasswordResetOtpRepository passwordResetOtpRepository,
             PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
-            RateLimiterService<DistributedCacheFailurePolicy> rateLimiterService
+            RateLimiterService<DistributedCacheFailurePolicy> rateLimiterService,
+            ApplicationEventPublisher applicationEventPublisher
     ) {
         this.userRepository = userRepository;
         this.emailService = emailService;
@@ -108,6 +113,8 @@ public class ForgotPasswordService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.rateLimiterService = rateLimiterService;
+        this.applicationEventPublisher = applicationEventPublisher;
+        //https://chatgpt.com/c/6a81b976-2f0c-83ec-a8fb-2b2f1308dfbd
     }
 
     @Transactional
@@ -211,7 +218,12 @@ public class ForgotPasswordService {
                 )
         );
 
-        emailService.sendEmail(mailBody);
+        EmailRequestedEvent event = new EmailRequestedEvent(
+                mailBody,
+                "verifyEmail's email is sent to the user {}",
+                user.getId()
+        );
+        this.applicationEventPublisher.publishEvent(event);
 
         log.info(
                 "Password reset email sent for userId={}",
@@ -468,7 +480,12 @@ public class ForgotPasswordService {
                 createSuccessfullyChangedPasswordEmailBody()
         );
 
-        emailService.sendEmail(mailBody);
+        EmailRequestedEvent event = new EmailRequestedEvent(
+                mailBody,
+                "ChangePassword's email is sent to the user {}",
+                user.getId()
+        );
+        this.applicationEventPublisher.publishEvent(event);
 
         log.info(
                 "Password successfully reset for userId={}",
@@ -526,19 +543,19 @@ public class ForgotPasswordService {
 
     private String createSuccessfullyChangedPasswordEmailBody() {
         return """
-            Hello,
+                Hello,
 
-            Your password has been changed successfully.
+                Your password has been changed successfully.
 
-            You can now sign in to your account using your new password.
+                You can now sign in to your account using your new password.
 
-            If you did not make this change, please contact support immediately to secure your account.
+                If you did not make this change, please contact support immediately to secure your account.
 
-            For security reasons, never share your password or password reset details with anyone.
+                For security reasons, never share your password or password reset details with anyone.
 
-            Regards,
-            IBM Consulting Simulation Team
-            """;
+                Regards,
+                IBM Consulting Simulation Team
+                """;
     }
 
     private String createForgotPasswordEmailBody(
@@ -569,5 +586,8 @@ public class ForgotPasswordService {
             String selector,
             String secret,
             String rawToken
-    ) {}
+    ) {
+    }
+
+
 }

@@ -51,8 +51,7 @@ export default function ChangePasswordPage() {
 
   const {
     resetToken,
-    clearForgotPasswordState,
-    email
+    clearForgotPasswordState
   } = useForgotPasswordContext()
 
   const {
@@ -68,8 +67,7 @@ export default function ChangePasswordPage() {
       {
         resetToken,
         password: data.password,
-        repeatPassword: data.confirmPassword,
-        email
+        repeatPassword: data.confirmPassword
       },
       {
         onSuccess: () => {
