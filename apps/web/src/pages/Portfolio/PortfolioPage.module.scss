@@ -4,6 +4,9 @@
 
 .page {
   padding: 1rem 2rem 2rem;
+  :global(.cds--subgrid) {
+    margin-right: 0;
+  }
 }
 
 .section {
@@ -86,17 +89,15 @@
   height: 100%;
 }
 
-.historyHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
 .historyTitle {
   color: #161616;
   margin: 0 0 0.5rem;
+}
+
+.historyTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .historyMeta {
@@ -238,12 +239,6 @@
   cursor: pointer;
 }
 
-.page {
-  :global(.cds--subgrid) {
-    margin-right: 0;
-  }
-}
-
 .historyButton {
   margin-inline: calc(var(--cds-grid-mode-start) * -1) calc(var(--cds-grid-mode-end) * -1);
   margin-bottom: 1rem;
@@ -255,8 +250,7 @@
     padding: 1rem;
   }
 
-  .trendHeader,
-  .historyHeader {
+  .trendHeader {
     align-items: flex-start;
     flex-direction: column;
   }

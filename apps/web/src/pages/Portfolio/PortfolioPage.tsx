@@ -127,7 +127,6 @@ function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
           <h5 className={styles.combinedTrendTitle}>Progress Across Attempts</h5>
           <p className={styles.combinedTrendDescription}>Track how each competency has changed across your completed engagements.</p>
         </div>
-        <div></div>
         <div className={styles.combinedTrendChart}>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
@@ -185,13 +184,12 @@ function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementV
   return (
     <Tile className={styles.historyTile}>
       <Stack gap={2}>
-        <div className={styles.historyHeader}>
-          <div>
-            <h5 className={styles.historyTitle}>{engagement.scenarioTitle}</h5>
-            <Tag type={won ? 'green' : 'red'} size="sm">{engagement.outcome.replace(/_/g, ' ')}</Tag><div></div>
+        <div>
+          <h5 className={styles.historyTitle}>{engagement.scenarioTitle}</h5>
+          <div className={styles.historyTags}>
+            <Tag type={won ? 'green' : 'red'} size="sm">{engagement.outcome.replace(/_/g, ' ')}</Tag>
             <Tag type="cyan" size="sm">{engagement.industry}</Tag>
           </div>
-          <div></div>
         </div>
         <div className={styles.historyMeta}>
           <span className={styles.historyDate}>
@@ -353,7 +351,6 @@ export default function PortfolioPage() {
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
-          <div></div>
           <Grid narrow>
             <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
               <StatTile label="Total Engagements" value={portfolio.totalEngagements} />
