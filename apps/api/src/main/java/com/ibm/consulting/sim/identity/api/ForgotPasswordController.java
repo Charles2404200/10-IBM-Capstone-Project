@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.identity.api;
 
 import com.ibm.consulting.sim.identity.application.ForgotPasswordService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.http.ResponseEntity;
@@ -53,11 +54,7 @@ public class ForgotPasswordController {
 
             @NotBlank
             @Size(min = 8, max = 128)
-            String repeatPassword,
-
-            @NotBlank
-            @Email
-            String email
+            String repeatPassword
     ) {}
 
     record MessageResponse(
@@ -66,11 +63,15 @@ public class ForgotPasswordController {
 
     @PostMapping("/verify-email")
     public ResponseEntity<MessageResponse> verifyMail(
-            @Valid @RequestBody VerifyMailRequest request
+            @Valid @RequestBody VerifyMailRequest request,
+            HttpServletRequest httpRequest
     ) {
 
+        String clientIp = httpRequest.getRemoteAddr();
+
         forgotPasswordService.verifyEmail(
-                request.email()
+                request.email(),
+                clientIp
         );
 
         return ResponseEntity.ok(
@@ -82,13 +83,17 @@ public class ForgotPasswordController {
 
     @PostMapping("/verify-otp")
     public ResponseEntity<VerifyOtpResponse> verifyOtp(
-            @Valid @RequestBody VerifyOtpRequest request
+            @Valid @RequestBody VerifyOtpRequest request,
+            HttpServletRequest httpRequest
     ) {
+
+        String clientIp = httpRequest.getRemoteAddr();
 
         String resetToken =
                 forgotPasswordService.verifyOtp(
                         request.otp(),
-                        request.email()
+                        request.email(),
+                        clientIp
                 );
 
         return ResponseEntity.ok(
@@ -107,8 +112,7 @@ public class ForgotPasswordController {
         forgotPasswordService.changePassword(
                 request.resetToken(),
                 request.password(),
-                request.repeatPassword(),
-                request.email()
+                request.repeatPassword()
         );
 
         return ResponseEntity.ok(

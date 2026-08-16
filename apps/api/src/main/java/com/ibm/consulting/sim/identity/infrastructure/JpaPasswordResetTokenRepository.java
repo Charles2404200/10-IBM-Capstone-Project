@@ -2,7 +2,12 @@ package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.PasswordResetToken;
 import com.ibm.consulting.sim.identity.domain.PasswordResetTokenRepository;
+import com.ibm.consulting.sim.identity.domain.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -20,6 +25,16 @@ interface SpringDataPasswordResetTokenRepository
     findByUser_IdAndUsedAtIsNullAndRevokedAtIsNullAndExpiresAtAfter(
             UUID userId,
             Instant now
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+                SELECT t
+                FROM PasswordResetToken t
+                WHERE t.selector = :selector
+            """)
+    Optional<PasswordResetToken> findBySelectorForUpdate(
+            @Param("selector") String selector
     );
 }
 
@@ -63,5 +78,10 @@ class JpaPasswordResetTokenRepository
         for (PasswordResetToken token : activeTokens) {
             token.revoke();
         }
+    }
+
+    @Override
+    public Optional<PasswordResetToken>  findBySelectorForUpdate(String tokenHash) {
+        return repo. findBySelectorForUpdate(tokenHash);
     }
 }

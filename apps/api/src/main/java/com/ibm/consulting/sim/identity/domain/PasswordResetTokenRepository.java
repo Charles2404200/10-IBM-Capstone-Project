@@ -17,4 +17,6 @@ public interface PasswordResetTokenRepository {
     void revokeAllActiveTokensByUserId(
             UUID userId
     );
+
+    Optional<PasswordResetToken>  findBySelectorForUpdate(String tokenHash);
 }

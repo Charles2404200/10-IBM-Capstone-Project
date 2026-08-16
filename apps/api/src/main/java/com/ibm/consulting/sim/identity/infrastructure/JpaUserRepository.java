@@ -24,9 +24,28 @@ class JpaUserRepository implements UserRepository {
         this.repo = repo;
     }
 
-    @Override public User save(User user) { return repo.save(user); }
-    @Override public Optional<User> findById(UUID id) { return repo.findById(id); }
-    @Override public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
-    @Override public boolean existsByEmail(String email) { return repo.existsByEmail(email); }
-    @Override public List<User> findAll() { return repo.findAll(); }
+    @Override
+    public User save(User user) {
+        return repo.save(user);
+    }
+
+    @Override
+    public Optional<User> findById(UUID id) {
+        return repo.findById(id);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return repo.findByEmail(email);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return repo.existsByEmail(email);
+    }
+
+    @Override
+    public List<User> findAll() {
+        return repo.findAll();
+    }
 }

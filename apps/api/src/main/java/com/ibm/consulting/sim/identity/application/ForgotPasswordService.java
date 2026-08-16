@@ -1,7 +1,9 @@
 package com.ibm.consulting.sim.identity.application;
 
 import com.ibm.consulting.sim.identity.domain.*;
+import com.ibm.consulting.sim.shared.domain.DistributedCacheFailurePolicy;
 import com.ibm.consulting.sim.shared.domain.RateLimitExceededException;
+import com.ibm.consulting.sim.shared.domain.RateLimiterFailurePolicy;
 import com.ibm.consulting.sim.shared.domain.RateLimiterService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
@@ -40,23 +42,56 @@ public class ForgotPasswordService {
     @Value("${app.forgot-password.reset-token-expiry-minutes:15}")
     private int resetTokenExpiryMinutes;
 
-    @Value("${app.forgot-password.rate-limit.verify-email.max-attempts}")
+
+// ========================
+// VERIFY EMAIL RATE LIMITS
+// ========================
+
+    @Value("${app.forgot-password.rate-limit.verify-email.account.max-attempts}")
     private int verifyEmailMaxAttempts;
 
-    @Value("${app.forgot-password.rate-limit.verify-email.window-minutes}")
+    @Value("${app.forgot-password.rate-limit.verify-email.account.window-minutes}")
     private int verifyEmailWindow;
 
-    @Value("${app.forgot-password.rate-limit.verify-otp.max-attempts}")
+    @Value("${app.forgot-password.rate-limit.verify-email.ip.max-attempts}")
+    private int verifyEmailIpMaxAttempts;
+
+    @Value("${app.forgot-password.rate-limit.verify-email.ip.window-minutes}")
+    private int verifyEmailIpWindow;
+
+
+// ======================
+// VERIFY OTP RATE LIMITS
+// ======================
+
+    @Value("${app.forgot-password.rate-limit.verify-otp.account.max-attempts}")
     private int verifyOtpMaxAttempts;
 
-    @Value("${app.forgot-password.rate-limit.verify-otp.window-minutes}")
+    @Value("${app.forgot-password.rate-limit.verify-otp.account.window-minutes}")
     private int verifyOtpWindow;
 
-    @Value("${app.forgot-password.rate-limit.verify-email.max-attempts}")
+    @Value("${app.forgot-password.rate-limit.verify-otp.ip.max-attempts}")
+    private int verifyOtpIpMaxAttempts;
+
+    @Value("${app.forgot-password.rate-limit.verify-otp.ip.window-minutes}")
+    private int verifyOtpIpWindow;
+
+
+// ===========================
+// CHANGE PASSWORD RATE LIMITS
+// ===========================
+
+    @Value("${app.forgot-password.rate-limit.change-password.token.max-attempts}")
     private int changePasswordMaxAttempts;
 
-    @Value("${app.forgot-password.rate-limit.verify-email.window-minutes}")
+    @Value("${app.forgot-password.rate-limit.change-password.token.window-minutes}")
     private int changePasswordWindow;
+
+//    @Value("${app.forgot-password.rate-limit.change-password.ip.max-attempts}")
+//    private int changePasswordIpMaxAttempts;
+//
+//    @Value("${app.forgot-password.rate-limit.change-password.ip.window-minutes}")
+//    private int changePasswordIpWindow;
 
 
     public ForgotPasswordService(
@@ -65,7 +100,7 @@ public class ForgotPasswordService {
             PasswordResetOtpRepository passwordResetOtpRepository,
             PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
-            RateLimiterService rateLimiterService
+            RateLimiterService<DistributedCacheFailurePolicy> rateLimiterService
     ) {
         this.userRepository = userRepository;
         this.emailService = emailService;
@@ -76,25 +111,41 @@ public class ForgotPasswordService {
     }
 
     @Transactional
-    public void verifyEmail(String email) {
+    public void verifyEmail(
+            String email,
+            String clientIp
+    ) {
 
         log.info("Password reset requested");
 
         String normalizedEmail =
                 email.trim().toLowerCase(Locale.ROOT);
 
-        String key =
-                "forgot-password:" +
+        String accountKey =
+                "forgot-password:request:account:" +
                         hashIdentifier(normalizedEmail);
 
-        boolean allowed =
+        String ipKey =
+                "forgot-password:request:ip:" +
+                        hashIdentifier(clientIp);
+
+        boolean accountAllowed =
                 rateLimiterService.tryAcquire(
-                        key,
+                        accountKey,
                         verifyEmailMaxAttempts,
-                        Duration.ofMinutes(verifyEmailWindow)
+                        Duration.ofMinutes(verifyEmailWindow),
+                        DistributedCacheFailurePolicy.LOCAL_FALLBACK
                 );
 
-        if (!allowed) {
+        boolean ipAllowed =
+                rateLimiterService.tryAcquire(
+                        ipKey,
+                        verifyEmailIpMaxAttempts,
+                        Duration.ofMinutes(verifyEmailIpWindow),
+                        DistributedCacheFailurePolicy.LOCAL_FALLBACK
+                );
+
+        if (!accountAllowed || !ipAllowed) {
             log.warn(
                     "Password reset request rate limit exceeded"
             );
@@ -169,7 +220,9 @@ public class ForgotPasswordService {
     }
 
     @Transactional
-    public String verifyOtp(Integer otp, String email) {
+    public String verifyOtp(Integer otp,
+                            String email,
+                            String clientIp) {
 
         log.info("Password reset OTP verification requested");
 
@@ -177,19 +230,31 @@ public class ForgotPasswordService {
                 email.trim().toLowerCase(Locale.ROOT);
 
         String rateLimitKey =
-                "verify-otp:" + hashIdentifier(
+                "forgot-password:verify-otp:account" + hashIdentifier(
                         normalizedEmail
                 );
 
+        String ipKey =
+                "forgot-password:verify-otp:ip:" +
+                        hashIdentifier(clientIp);
 
         boolean allowed =
                 rateLimiterService.tryAcquire(
                         rateLimitKey,
                         verifyOtpMaxAttempts,
-                        Duration.ofMinutes(verifyOtpWindow)
+                        Duration.ofMinutes(verifyOtpWindow),
+                        DistributedCacheFailurePolicy.FAIL_CLOSED
                 );
 
-        if (!allowed) {
+        boolean ipAllowed =
+                rateLimiterService.tryAcquire(
+                        ipKey,
+                        verifyEmailIpMaxAttempts,
+                        Duration.ofMinutes(verifyEmailIpWindow),
+                        DistributedCacheFailurePolicy.LOCAL_FALLBACK
+                );
+
+        if (!allowed || !ipAllowed) {
 
             log.warn(
                     "Password reset OTP verification rate limit exceeded"
@@ -200,14 +265,12 @@ public class ForgotPasswordService {
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> {
-                    /*
-                     * Don't log email or OTP.
-                     */
+
                     log.warn(
-                            "Password reset OTP verification failed: account not resolved"
+                            "Password reset OTP verification failed"
                     );
 
-                    return new UserNotFoundException(email);
+                    return new InvalidOtpException();
                 });
 
         List<PasswordResetOtp> activeOtps =
@@ -227,13 +290,10 @@ public class ForgotPasswordService {
                         .orElseThrow(() -> {
 
                             log.warn(
-                                    "Password reset OTP verification failed for userId={}",
-                                    user.getId()
+                                    "Password reset OTP verification failed"
                             );
 
-                            return new InvalidOtpException(
-                                    "Otp is invalid"
-                            );
+                            return new InvalidOtpException();
                         });
 
         matchedOtp.markVerified();
@@ -286,12 +346,9 @@ public class ForgotPasswordService {
     public void changePassword(
             String rawResetToken,
             String password,
-            String repeatPassword,
-            String email
+            String repeatPassword
     ) {
 
-        String normalizedEmail =
-                email.trim().toLowerCase(Locale.ROOT);
 
         log.info("Password change using reset token requested");
 
@@ -327,7 +384,8 @@ public class ForgotPasswordService {
                 rateLimiterService.tryAcquire(
                         rateLimitKey,
                         changePasswordMaxAttempts,
-                        Duration.ofMinutes(changePasswordWindow)
+                        Duration.ofMinutes(changePasswordWindow),
+                        DistributedCacheFailurePolicy.FAIL_CLOSED
                 );
 
         if (!allowed) {
@@ -338,9 +396,12 @@ public class ForgotPasswordService {
             throw new RateLimitExceededException();
         }
 
+        // the pessimistic lock is applied on the reset token
+        // so that only one password update can be done at a time
+        // rather than 2 requests getting processed concurrently
         PasswordResetToken resetToken =
                 passwordResetTokenRepository
-                        .findBySelector(selector)
+                        .findBySelectorForUpdate(selector)
                         .orElseThrow(() -> {
 
                             log.warn(
@@ -402,7 +463,7 @@ public class ForgotPasswordService {
                 .revokeAllActiveOtpsByUserId(user.getId());
 
         MailBody mailBody = new MailBody(
-                normalizedEmail,
+                user.getEmail(),
                 "Password Changed Successfully",
                 createSuccessfullyChangedPasswordEmailBody()
         );
