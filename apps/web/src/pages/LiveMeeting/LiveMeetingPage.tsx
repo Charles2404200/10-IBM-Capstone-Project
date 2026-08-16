@@ -244,7 +244,7 @@ const LIVE_MEETING_TOUR_STEPS: StepType[] =
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
             {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
-              <section className={`{$styles.guidedComposer} objective-meeting-chat`} aria-label="Guided response choices">
+              <section className={`${styles.guidedComposer} objective-meeting-chat`} aria-label="Guided response choices">
                 <div className={styles.guidedHeading}>
                   <div>
                     <p className={styles.eyebrow}>Guided response</p>
