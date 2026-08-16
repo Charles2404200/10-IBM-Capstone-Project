@@ -7,17 +7,12 @@ import com.ibm.consulting.sim.shared.domain.RateLimiterService;
 import com.ibm.consulting.sim.shared.domain.RateLimiterUnavailableException;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@ConditionalOnProperty(
-        name = "app.cache.provider",
-        havingValue = "caffeine",
-        matchIfMissing = true
-)
 public class CaffeineRateLimiterService
         implements RateLimiterService<LocalCacheFailurePolicy> {
 
@@ -25,10 +20,16 @@ public class CaffeineRateLimiterService
     private static final Logger log =
             LoggerFactory.getLogger(UpstashRateLimiterService.class);
 
+    @Value("${app.forgot-password.rate-limit.caffeine.maximum-size}")
+    private int cache_size;
+
+    @Value("${app.forgot-password.rate-limit.caffeine.expire-after-access-minutes}")
+    private int cacheExpiry;
+
     public CaffeineRateLimiterService() {
         this.cache = Caffeine.newBuilder()
-                .maximumSize(100_000)
-                .expireAfterAccess(1, TimeUnit.HOURS)
+                .maximumSize(cache_size)
+                .expireAfterAccess(cacheExpiry, TimeUnit.MINUTES)
                 .build();
     }
 

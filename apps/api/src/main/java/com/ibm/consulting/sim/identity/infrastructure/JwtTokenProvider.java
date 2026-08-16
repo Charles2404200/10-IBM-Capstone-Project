@@ -29,6 +29,10 @@ public class JwtTokenProvider {
                 .subject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
+                .claim(
+                        "passwordChangedAt",
+                        user.getPasswordChangedAt().toEpochMilli()
+                )
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiryMs))
                 .signWith(key)

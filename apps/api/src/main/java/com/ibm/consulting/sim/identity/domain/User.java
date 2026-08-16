@@ -3,6 +3,8 @@ package com.ibm.consulting.sim.identity.domain;
 import com.ibm.consulting.sim.shared.domain.BaseEntity;
 import jakarta.persistence.*;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "users",
         uniqueConstraints = @UniqueConstraint(name = "uq_users_email", columnNames = "email"))
@@ -21,6 +23,12 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserRole role;
 
+    @Column(
+            name = "password_changed_at",
+            nullable = false
+    )
+    private Instant passwordChangedAt;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -32,6 +40,7 @@ public class User extends BaseEntity {
         user.passwordHash = passwordHash;
         user.displayName = displayName;
         user.role = role;
+        user.passwordChangedAt = Instant.now();
         return user;
     }
 
@@ -45,7 +54,12 @@ public class User extends BaseEntity {
     public UserRole getRole() { return role; }
     public boolean isActive() { return active; }
 
+    public Instant getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
     public void changePassword(String newPasswordHash) {
         this.passwordHash = newPasswordHash;
+        this.passwordChangedAt = Instant.now();
     }
 }

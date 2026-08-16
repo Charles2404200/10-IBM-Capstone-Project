@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.UserRepository;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -35,32 +36,136 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
         String token = extractToken(request);
-        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+        if (token != null
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
+
             try {
-                UUID userId = jwtTokenProvider.extractUserId(token);
-                var user = userRepository.findById(userId);
-                if (user.isEmpty()) {
-                    logAuthRejection("user_not_found", null);
-                } else if (!user.get().isActive()) {
-                    logAuthRejection("inactive_user", null);
+                Claims claims = jwtTokenProvider.parseToken(token);
+
+                UUID userId =
+                        UUID.fromString(claims.getSubject());
+
+                var userOptional =
+                        userRepository.findById(userId);
+
+                if (userOptional.isEmpty()) {
+
+                    logAuthRejection(
+                            "user_not_found",
+                            null
+                    );
+
                 } else {
-                    var activeUser = user.get();
-                    MDC.put("userId", activeUser.getId().toString());
-                    var auth = new UsernamePasswordAuthenticationToken(
-                            activeUser, null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + activeUser.getRole().name())));
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+
+                    var activeUser = userOptional.get();
+
+                    Number passwordChangedAtClaim =
+                            claims.get(
+                                    "passwordChangedAt",
+                                    Number.class
+                            );
+
+                    boolean tokenWasIssuedForCurrentPassword =
+                            passwordChangedAtClaim != null
+                                    && activeUser.getPasswordChangedAt() != null
+                                    && passwordChangedAtClaim.longValue()
+                                    == activeUser
+                                    .getPasswordChangedAt()
+                                    .toEpochMilli();
+
+                    if (!activeUser.isActive()) {
+
+                        logAuthRejection(
+                                "inactive_user",
+                                null
+                        );
+
+                    } else if (!tokenWasIssuedForCurrentPassword) {
+
+                        logAuthRejection(
+                                "password_changed",
+                                null
+                        );
+
+                    } else {
+
+                        MDC.put(
+                                "userId",
+                                activeUser.getId().toString()
+                        );
+
+                        var auth =
+                                new UsernamePasswordAuthenticationToken(
+                                        activeUser,
+                                        null,
+                                        List.of(
+                                                new SimpleGrantedAuthority(
+                                                        "ROLE_"
+                                                                + activeUser
+                                                                .getRole()
+                                                                .name()
+                                                )
+                                        )
+                                );
+
+                        auth.setDetails(
+                                new WebAuthenticationDetailsSource()
+                                        .buildDetails(request)
+                        );
+
+                        SecurityContextHolder
+                                .getContext()
+                                .setAuthentication(auth);
+                    }
                 }
+
             } catch (JwtException | IllegalArgumentException e) {
-                logAuthRejection("invalid_token", e.getClass().getSimpleName());
+
+                logAuthRejection(
+                        "invalid_token",
+                        e.getClass().getSimpleName()
+                );
             }
         }
+
         filterChain.doFilter(request, response);
     }
+
+//    @Override
+//    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+//                                    FilterChain filterChain) throws ServletException, IOException {
+//        String token = extractToken(request);
+//        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+//            try {
+//                UUID userId = jwtTokenProvider.extractUserId(token);
+//                var user = userRepository.findById(userId);
+//                if (user.isEmpty()) {
+//                    logAuthRejection("user_not_found", null);
+//                } else if (!user.get().isActive()) {
+//                    logAuthRejection("inactive_user", null);
+//                } else {
+//                    var activeUser = user.get();
+//                    MDC.put("userId", activeUser.getId().toString());
+//                    var auth = new UsernamePasswordAuthenticationToken(
+//                            activeUser, null,
+//                            List.of(new SimpleGrantedAuthority("ROLE_" + activeUser.getRole().name())));
+//                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+//                    SecurityContextHolder.getContext().setAuthentication(auth);
+//                }
+//            } catch (JwtException | IllegalArgumentException e) {
+//                logAuthRejection("invalid_token", e.getClass().getSimpleName());
+//            }
+//        }
+//        filterChain.doFilter(request, response);
+//    }
 
     private void logAuthRejection(String reason, String errorType) {
         MDC.put("authRejectionReason", reason);
