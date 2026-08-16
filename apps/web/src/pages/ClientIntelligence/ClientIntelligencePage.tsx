@@ -47,7 +47,7 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
     id: 'stakeholder',
     objective: 'Identify your stakeholder',
     description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
-    targets: ['.objective-stakeholder', '.objective-stakeholder-research'],
+    targets: ['.objective-stakeholder-research'],
   },
   {
     id: 'hypothesis',
@@ -228,7 +228,6 @@ function ResearchGateChecklist({
         <GateRequirement
           met={gate.hasStakeholderEvidence}
           label="Stakeholder evidence identified"
-          className="objective-stakeholder"
         />
         <GateRequirement
           met={gate.coverageCount >= gate.requiredCoverageCount}

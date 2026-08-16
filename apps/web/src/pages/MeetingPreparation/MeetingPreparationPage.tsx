@@ -342,7 +342,7 @@ export default function MeetingPreparationPage() {
               />
             </Tile>
 
-            <Tile className={styles.collectionPanel}>
+            <Tile className={`${styles.collectionPanel} objective-preparation`}>
             <Tabs>
               <TabList aria-label="Meeting plan sections" className={styles.sectionTabs}>
                 <Tab>Agenda <span className={styles.tabCount}>{agendaCount}</span></Tab>

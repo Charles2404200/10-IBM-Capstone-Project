@@ -36,12 +36,12 @@ const LIVE_MEETING_OBJECTIVES = [
     id: 'meeting-options',
     objective: 'Determine your responses',
     description: 'This is the area where your meeting will take place. You will either have the choice to choose a generated response or type in your response here, depending on the difficulty of this engagement.',
-    targets: ['.objective-meeting-view, .objective-meeting-chat'],
+    targets: ['.objective-meeting-view'],
   },
   {
     id: 'hints',
     objective: 'Meeting hints',
-    description: 'Pay attention to this, as this section will provide hints to guide an appropriate response to the client.',
+    description: 'Pay attention to this whole section, as it may provide useful hints to guide an appropriate response to the client.',
     targets: ['.objective-hints'],
   },
 ]
@@ -209,7 +209,7 @@ export default function LiveMeetingPage() {
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
             {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
-              <section className={`${styles.guidedComposer} objective-meeting-chat`} aria-label="Guided response choices">
+              <section className={styles.guidedComposer} aria-label="Guided response choices">
                 <div className={styles.guidedHeading}>
                   <div>
                     <p className={styles.eyebrow}>Guided response</p>
@@ -314,7 +314,7 @@ export default function LiveMeetingPage() {
         </Column>
 
         <Column lg={5} md={8} sm={4}>
-          <aside className={styles.decisionRail}>
+          <aside className={`${styles.decisionRail} objective-hints`}>
             <section className={`${styles.relationshipPanel} objective-relationship`}>
               <div className={styles.railHeading}>
                 <div>
@@ -333,7 +333,7 @@ export default function LiveMeetingPage() {
             </section>
 
             {!isCompleted && hint.length > 0 && (
-              <Tile className={`${styles.hintPanel} objective-hints`}>
+              <Tile className={styles.hintPanel}>
                 <p className={styles.eyebrow}>Response-based hint</p>
                 <h3>Focus your next turn</h3>
                 <ul>{hint.map((item) => <li key={item}>{item}</li>)}</ul>

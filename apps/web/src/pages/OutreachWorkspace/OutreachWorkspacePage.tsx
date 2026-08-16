@@ -58,6 +58,12 @@ const OUTREACH_WORKSPACE_OBJECTIVES = [
     description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
     targets: ['.objective-assistance'],
   },
+  {
+    id: 'email',
+    objective: 'Compose your outreach email',
+    description: 'This is where you will compose your outreach email to the client.',
+    targets: ['.objective-email'],
+  },
 ]
 
 type EmailFormValues = z.infer<typeof emailSchema>
@@ -392,7 +398,7 @@ export default function OutreachWorkspacePage() {
 
             {!meetingSecured && !documentRequired && (
               <div className={styles.composeWorkspace}>
-              <Tile className={styles.emailComposer}>
+              <Tile className={`${styles.emailComposer} objective-email`}>
                 <form onSubmit={handleSubmit(sendEmail)}>
                     <div className={styles.composerHeader}>
                       <div><h2>{latestAttempt ? 'Respond to the client' : 'Compose your first outreach email'}</h2><p>Use one evidence-backed reason and make one easy next-step request.</p></div>
