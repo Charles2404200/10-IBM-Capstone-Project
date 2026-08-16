@@ -165,7 +165,6 @@ function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
                     strokeOpacity={ isDimmed ? 0.25 : 1 }
                     dot={{ r: isDimmed ? 1 : 2.5 }}
                     activeDot={{ r: isDimmed ? 2 : 5 }}
-                    connectNulls
                     hide={ isHidden }
                     onMouseEnter={() => { setHoveredCompetency(trend.competencyName) }}
                     onMouseLeave={() => { setHoveredCompetency(null) }}
