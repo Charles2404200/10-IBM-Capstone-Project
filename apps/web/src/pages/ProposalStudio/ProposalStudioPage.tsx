@@ -11,10 +11,29 @@ import { proposalSections } from '@/features/proposal/services/proposalDraftServ
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
-import { TourProvider, type StepType } from '@reactour/tour'
-import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const SOURCES_PER_PAGE = 3
+const PROPOSAL_OBJECTIVES = [
+  {
+    id: 'completion-steps',
+    objective: 'Understand proposal steps',
+    description: 'This highlights the five necessary steps to complete a proposal. Complete each with detailed responses to successfully submit to client and move to the review of your progress.',
+    targets: ['.objective-steps'],
+  },
+  {
+    id: 'evidence',
+    objective: 'Attach evidence',
+    description: 'Similar to previous pages, you are able to attach evidence to support your claims.',
+    targets: ['.objective-evidence'],
+  },
+  {
+    id: 'review',
+    objective: 'Review proposal',
+    description: 'After completing all the sections, you are able to have AI review your proposal. It will note which areas require improvement and is recommended before submitting the proposal to the client.',
+    targets: ['.objective-review'],
+  },
+]
 
 export default function ProposalStudioPage() {
   const { engagementId = '' } = useParams<{ engagementId: string }>()
@@ -38,63 +57,8 @@ export default function ProposalStudioPage() {
   }
   if (studio.submitted && studio.proposal) return <ProposalOutcomeView proposal={studio.proposal} engagementId={engagementId} />
 
-  const PROPOSAL_OBJECTIVES = [
-    {
-      id: 'completion-steps',
-      objective: 'Understand proposal steps',
-      description: 'This highlights the five necessary steps to complete a proposal. Complete each with detailed responses to successfully submit to client and move to the review of your progress.',
-      targets: ['.objective-steps'],
-    },
-    {
-      id: 'evidence',
-      objective: 'Attach evidence',
-      description: 'Similar to previous pages, you are able to attach evidence to support your claims.',
-      targets: ['.objective-evidence'],
-    },
-    {
-      id: 'review',
-      objective: 'Review proposal',
-      description: 'After completing all the sections, you are able to have AI review your proposal. It will note which areas require improvement and is recommended before submitting the proposal to the client.',
-      targets: ['.objective-review'],
-    },
-  ]
-  
-  // Converts each objective into a Reactour step
-  const PROPOSAL_TOUR_STEPS: StepType[] =
-    PROPOSAL_OBJECTIVES.map((objective) => ({
-      selector: objective.targets[0],
-      highlightedSelectors: objective.targets,
-      content: (
-        <div>
-          <strong>{objective.objective}</strong>
-          <p style={{ marginTop: '0.75rem' }}>
-            {objective.description}
-          </p>
-        </div>
-      ),
-    }))
-
   return (
-    <TourProvider
-      steps={PROPOSAL_TOUR_STEPS}
-      showNavigation
-      showPrevNextButtons
-      showDots
-      showCloseButton
-      scrollSmooth
-      styles={{
-        popover: (base) => ({
-          ...base,
-          borderRadius: 0,
-          maxWidth: 360,
-        }),
-        maskArea: (base) => ({
-          ...base,
-          rx: 4,
-        }),
-      }}
-    >
-    <ObjectiveGuide />
+    <ObjectiveTourProvider tourId="proposal" objectives={PROPOSAL_OBJECTIVES}>
     <main className={styles.page}>
       <div className={styles.canvas}>
       <header className={styles.header}>
@@ -168,7 +132,7 @@ export default function ProposalStudioPage() {
       </div>
       </div>
     </main>
-    </TourProvider>
+    </ObjectiveTourProvider>
   )
 }
 

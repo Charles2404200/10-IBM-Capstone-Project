@@ -28,8 +28,34 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { ConfidenceLevel, EvidenceType, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
-import { TourProvider, type StepType } from '@reactour/tour'
-import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
+
+const CLIENT_INTELLIGENCE_OBJECTIVES = [
+  {
+    id: 'readiness',
+    objective: 'Understand outreach readiness',
+    description: 'These requirements show what you need to complete before you can move into outreach.',
+    targets: ['.objective-readiness'],
+  },
+  {
+    id: 'evidence',
+    objective: 'Build your evidence base',
+    description: 'Collect enough evidence and add your findings to the evidence board. The evidence requirement and evidence board are highlighted together.',
+    targets: ['.objective-evidence', '.objective-evidence-board'],
+  },
+  {
+    id: 'stakeholder',
+    objective: 'Identify your stakeholder',
+    description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
+    targets: ['.objective-stakeholder', '.objective-stakeholder-research'],
+  },
+  {
+    id: 'hypothesis',
+    objective: 'Form a grounded hypothesis',
+    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
+    targets: ['.objective-hypothesis'],
+  },
+]
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -460,70 +486,8 @@ export default function ClientIntelligencePage() {
 
   const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
 
-  const CLIENT_INTELLIGENCE_OBJECTIVES = [
-  {
-    id: 'readiness',
-    objective: 'Understand outreach readiness',
-    description: 'These requirements show what you need to complete before you can move into outreach.',
-    targets: ['.objective-readiness'],
-  },
-  {
-    id: 'evidence',
-    objective: 'Build your evidence base',
-    description: 'Collect enough evidence and add your findings to the evidence board. The evidence requirement and evidence board are highlighted together.',
-    targets: ['.objective-evidence', '.objective-evidence-board'],
-  },
-  {
-    id: 'stakeholder',
-    objective: 'Identify your stakeholder',
-    description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
-    targets: ['.objective-stakeholder', '.objective-stakeholder-research'],
-  },
-  {
-    id: 'hypothesis',
-    objective: 'Form a grounded hypothesis',
-    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
-    targets: ['.objective-hypothesis'],
-  },
-]
-
-// Converts each objective into a Reactour step
-const CLIENT_INTELLIGENCE_TOUR_STEPS: StepType[] =
-  CLIENT_INTELLIGENCE_OBJECTIVES.map((objective) => ({
-    selector: objective.targets[0],
-    highlightedSelectors: objective.targets,
-    content: (
-      <div>
-        <strong>{objective.objective}</strong>
-        <p style={{ marginTop: '0.75rem' }}>
-          {objective.description}
-        </p>
-      </div>
-    ),
-  }))
-
   return (
-    <TourProvider
-      steps={CLIENT_INTELLIGENCE_TOUR_STEPS}
-      showNavigation
-      showPrevNextButtons
-      showDots
-      showCloseButton
-      scrollSmooth
-      styles={{
-        popover: (base) => ({
-          ...base,
-          borderRadius: 0,
-          maxWidth: 360,
-        }),
-        maskArea: (base) => ({
-          ...base,
-          rx: 4,
-        }),
-      }}
-    >
-    <ObjectiveGuide />
-
+    <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4}>
         <nav className={styles.breadcrumbs} aria-label="Workflow path">
@@ -609,6 +573,6 @@ const CLIENT_INTELLIGENCE_TOUR_STEPS: StepType[] =
         </form>
       </Modal>
     </Grid>
-  </TourProvider>
+  </ObjectiveTourProvider>
   )
 }

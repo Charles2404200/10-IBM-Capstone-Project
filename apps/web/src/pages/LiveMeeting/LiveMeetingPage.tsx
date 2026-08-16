@@ -21,10 +21,30 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { ConversationTurn, MeetingTermination, PersonaState } from '@/api/types'
 import styles from './LiveMeetingPage.module.scss'
-import { TourProvider, type StepType } from '@reactour/tour'
-import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const MEETING_THRESHOLD = 70
+
+const LIVE_MEETING_OBJECTIVES = [
+  {
+    id: 'relationship',
+    objective: 'Understand relationship state',
+    description: 'This shows your current relationship state with the client and your goal metrics before you can move to the debrief and proposal stage.',
+    targets: ['.objective-relationship'],
+  },
+  {
+    id: 'meeting-options',
+    objective: 'Determine your responses',
+    description: 'This is the area where your meeting will take place. You will either have the choice to choose a generated response or type in your response here, depending on the difficulty of this engagement.',
+    targets: ['.objective-meeting-view, .objective-meeting-chat'],
+  },
+  {
+    id: 'hints',
+    objective: 'Meeting hints',
+    description: 'Pay attention to this, as this section will provide hints to guide an appropriate response to the client.',
+    targets: ['.objective-hints'],
+  },
+]
 
 function RelationshipMeter({ label, value }: { label: string; value: number }) {
   const tone = value >= MEETING_THRESHOLD ? styles.meterPass : value >= 50 ? styles.meterWatch : styles.meterRisk
@@ -152,63 +172,8 @@ export default function LiveMeetingPage() {
     })
   }
 
-  const LIVE_MEETING_OBJECTIVES = [
-  {
-    id: 'relationship',
-    objective: 'Understand relationship state',
-    description: 'This shows your current relationship state with the client and your goal metrics before you can move to the debrief and proposal stage.',
-    targets: ['.objective-relationship'],
-  },
-  {
-    id: 'meeting-options',
-    objective: 'Determine your responses',
-    description: 'This is the area where your meeting will take place. You will either have the choice to choose a generated response or type in your response here, depending on the difficulty of this engagement.',
-    targets: ['.objective-meeting-view, .objective-meeting-chat'],
-  },
-  {
-    id: 'hints',
-    objective: 'Meeting hints',
-    description: 'Pay attention to this, as this section will provide hints to guide an appropriate response to the client.',
-    targets: ['.objective-hints'],
-  },
-]
-
-// Converts each objective into a Reactour step
-const LIVE_MEETING_TOUR_STEPS: StepType[] =
-  LIVE_MEETING_OBJECTIVES.map((objective) => ({
-    selector: objective.targets[0],
-    highlightedSelectors: objective.targets,
-    content: (
-      <div>
-        <strong>{objective.objective}</strong>
-        <p style={{ marginTop: '0.75rem' }}>
-          {objective.description}
-        </p>
-      </div>
-    ),
-  }))
-
   return (
-    <TourProvider
-      steps={LIVE_MEETING_TOUR_STEPS}
-      showNavigation
-      showPrevNextButtons
-      showDots
-      showCloseButton
-      scrollSmooth
-      styles={{
-        popover: (base) => ({
-          ...base,
-          borderRadius: 0,
-          maxWidth: 360,
-        }),
-        maskArea: (base) => ({
-          ...base,
-          rx: 4,
-        }),
-      }}
-    >
-    <ObjectiveGuide />
+    <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
     <div className={styles.page}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
@@ -432,6 +397,6 @@ const LIVE_MEETING_TOUR_STEPS: StepType[] =
         </Stack>
       </Modal>
     </div>
-    </TourProvider>
+    </ObjectiveTourProvider>
   )
 }

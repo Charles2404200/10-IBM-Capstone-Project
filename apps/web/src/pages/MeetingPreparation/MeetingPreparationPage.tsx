@@ -25,8 +25,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
-import { TourProvider, type StepType } from '@reactour/tour'
-import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 interface DraftListItem {
   id: string
@@ -41,6 +40,26 @@ interface PreparationDraft {
 
 const ITEMS_PER_PAGE = 3
 const READY_THRESHOLD = 70
+const MEETING_PREP_OBJECTIVES = [
+  {
+    id: 'readiness',
+    objective: 'Understand readiness preview',
+    description: 'The preview shows what you need to complete before you can move to the live meeting.',
+    targets: ['.objective-readiness'],
+  },
+  {
+    id: 'meeting-objective',
+    objective: 'Determine the meeting objective',
+    description: 'Using your previous knowledge of the collected evidence and outreach email, write your meeting objective.',
+    targets: ['.objective-meeting-obj'],
+  },
+  {
+    id: 'preparation',
+    objective: 'Meeting preparations',
+    description: 'This is where you prepare for your meeting by adding agenda items and discovery questions.',
+    targets: ['.objective-preparation'],
+  },
+]
 
 let generatedItemId = 0
 
@@ -264,64 +283,9 @@ export default function MeetingPreparationPage() {
   )
   const ready = readinessScore >= READY_THRESHOLD
   const isSaving = updatePreparation.isPending || launchingMeeting
-  
-  const MEETING_PREP_OBJECTIVES = [
-    {
-      id: 'readiness',
-      objective: 'Understand readiness preview',
-      description: 'The preview shows what you need to complete before you can move to the live meeting.',
-      targets: ['.objective-readiness'],
-    },
-    {
-      id: 'meeting-objective',
-      objective: 'Determine the meeting objective',
-      description: 'Using your previous knowledge of the collected evidence and outreach email, write your meeting objective.',
-      targets: ['.objective-meeting-obj'],
-    },
-    {
-      id: 'preparation',
-      objective: 'Meeting preparations',
-      description: 'This is where you prepare for your meeting by adding agenda items and discovery questions.',
-      targets: ['.objective-preparation'],
-    },
-  ]
-  
-  // Converts each objective into a Reactour step
-  const MEETING_PREP_TOUR_STEPS: StepType[] =
-    MEETING_PREP_OBJECTIVES.map((objective) => ({
-      selector: objective.targets[0],
-      highlightedSelectors: objective.targets,
-      content: (
-        <div>
-          <strong>{objective.objective}</strong>
-          <p style={{ marginTop: '0.75rem' }}>
-            {objective.description}
-          </p>
-        </div>
-      ),
-    }))
 
   return (
-    <TourProvider
-      steps={MEETING_PREP_TOUR_STEPS}
-      showNavigation
-      showPrevNextButtons
-      showDots
-      showCloseButton
-      scrollSmooth
-      styles={{
-        popover: (base) => ({
-          ...base,
-          borderRadius: 0,
-          maxWidth: 360,
-        }),
-        maskArea: (base) => ({
-          ...base,
-          rx: 4,
-        }),
-      }}
-    >
-    <ObjectiveGuide />
+    <ObjectiveTourProvider tourId="meeting-preparation" objectives={MEETING_PREP_OBJECTIVES}>
     <div className={styles.page}>
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
@@ -434,7 +398,7 @@ export default function MeetingPreparationPage() {
         </main>
       </div>
     </div>
-    </TourProvider>
+    </ObjectiveTourProvider>
   )
 }
 

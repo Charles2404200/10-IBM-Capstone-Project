@@ -25,8 +25,7 @@ import { getProblemDetail } from '@/api/problemDetails'
 import styles from './OutreachWorkspacePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import OutreachSelfCheck from '@/lifecycle/components/OutreachSelfCheck'
-import { TourProvider, type StepType } from '@reactour/tour'
-import ObjectiveGuide from '@/components/shared/ObjectiveGuide'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const emailSchema = z.object({
   subject: z.string().min(5, 'Enter a clear subject').max(200),
@@ -39,6 +38,27 @@ const briefSchema = z.object({
   caseExample: z.string().trim().min(80, 'Add a concrete case example').max(3000),
   clientFit: z.string().trim().min(80, 'Explain why this fits the client').max(3000),
 })
+
+const OUTREACH_WORKSPACE_OBJECTIVES = [
+  {
+    id: 'checklist',
+    objective: 'Complete the outreach checklist',
+    description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
+    targets: ['.objective-checklist'],
+  },
+  {
+    id: 'evidence',
+    objective: 'Use your evidence base',
+    description: 'Utilise your collected evidence to write an outreach email.',
+    targets: ['.objective-evidence'],
+  },
+  {
+    id: 'assistance',
+    objective: 'Possible assistance',
+    description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
+    targets: ['.objective-assistance'],
+  },
+]
 
 type EmailFormValues = z.infer<typeof emailSchema>
 type BriefFormValues = z.infer<typeof briefSchema>
@@ -316,63 +336,8 @@ export default function OutreachWorkspacePage() {
     setValue('body', `${prefix}I noticed ${source.note} `, { shouldDirty: true, shouldValidate: true })
   }
 
-  const OUTREACH_WORKSPACE_OBJECTIVES = [
-    {
-      id: 'checklist',
-      objective: 'Complete the outreach checklist',
-      description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
-      targets: ['.objective-checklist'],
-    },
-    {
-      id: 'evidence',
-      objective: 'Use your evidence base',
-      description: 'Utilise your collected evidence to write an outreach email.',
-      targets: ['.objective-evidence'],
-    },
-    {
-      id: 'assistance',
-      objective: 'Possible assistance',
-      description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
-      targets: ['.objective-assistance'],
-    },
-  ]
-  
-  // Converts each objective into a Reactour step
-  const OUTREACH_WORKSPACE_TOUR_STEPS: StepType[] =
-    OUTREACH_WORKSPACE_OBJECTIVES.map((objective) => ({
-      selector: objective.targets[0],
-      highlightedSelectors: objective.targets,
-      content: (
-        <div>
-          <strong>{objective.objective}</strong>
-          <p style={{ marginTop: '0.75rem' }}>
-            {objective.description}
-          </p>
-        </div>
-      ),
-    }))
-
   return (
-    <TourProvider
-      steps={OUTREACH_WORKSPACE_TOUR_STEPS}
-      showNavigation
-      showPrevNextButtons
-      showDots
-      showCloseButton
-      scrollSmooth
-      styles={{
-        popover: (base) => ({
-          ...base,
-          borderRadius: 0,
-          maxWidth: 360,
-        }),
-        maskArea: (base) => ({
-          ...base,
-          rx: 4,
-        }),
-      }}
-    >
-    <ObjectiveGuide />
+    <ObjectiveTourProvider tourId="outreach" objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.makeContactHero}>
@@ -570,6 +535,6 @@ export default function OutreachWorkspacePage() {
         <ThreadHistory attempts={thread} />
       </Modal>
     </div>
-    </TourProvider>
+    </ObjectiveTourProvider>
   )
 }
