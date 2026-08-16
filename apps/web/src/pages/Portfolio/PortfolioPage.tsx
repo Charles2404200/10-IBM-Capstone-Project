@@ -160,7 +160,7 @@ function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
                     type="monotone"
                     dataKey={ `competency_${index}` }
                     name={ trend.competencyName }
-                    stroke={ colors[index] }
+                    stroke={ colors[index % colors.length] }
                     strokeWidth={ isDimmed ? 0.5 : 1.75 }
                     strokeOpacity={ isDimmed ? 0.25 : 1 }
                     dot={{ r: isDimmed ? 1 : 2.5 }}
