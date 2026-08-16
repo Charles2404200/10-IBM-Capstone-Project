@@ -30,11 +30,13 @@ function StatTile({ label, value, accent }: { label: string; value: string | num
 /** Lightweight competency trend visualisation: one row per historical score,
  *  avoiding a chart-library dependency while still showing progression clearly. */
 function CompetencyTrendCard({ trend, showHistory }: { trend: CompetencyTrend, showHistory: boolean }) {
-  const latest = trend.points[trend.points.length - 1]
-  const first = trend.points[0]
-  const delta = trend.points.length > 1 ? latest.score - first.score : 0
-  const visiblePoints = showHistory ? trend.points : [latest]
-
+  const orderedPoints = [...trend.points].sort((a, b) =>
+    new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime()
+  )
+  const latest = orderedPoints[orderedPoints.length - 1]
+  const first = orderedPoints[0]
+  const delta = orderedPoints.length > 1 ? latest.score - first.score : 0
+  const visiblePoints = showHistory ? orderedPoints : [latest]
   return (
     <Tile className={styles.trendTile}>
       <Stack gap={3}>
