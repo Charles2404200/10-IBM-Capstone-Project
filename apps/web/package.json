@@ -19,6 +19,7 @@
   "dependencies": {
     "@carbon/react": "^1.70.0",
     "@hookform/resolvers": "^3.9.0",
+    "@reactour/tour": "^3.8.0",
     "@stomp/stompjs": "^7.3.0",
     "@tanstack/react-query": "^5.56.0",
     "axios": "^1.7.7",

@@ -25,6 +25,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import styles from './MeetingPreparationPage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 interface DraftListItem {
   id: string
@@ -39,6 +40,26 @@ interface PreparationDraft {
 
 const ITEMS_PER_PAGE = 3
 const READY_THRESHOLD = 70
+const MEETING_PREP_OBJECTIVES = [
+  {
+    id: 'readiness',
+    objective: 'Understand readiness preview',
+    description: 'The preview shows what you need to complete before you can move to the live meeting.',
+    targets: ['.objective-readiness'],
+  },
+  {
+    id: 'meeting-objective',
+    objective: 'Determine the meeting objective',
+    description: 'Using your previous knowledge of the collected evidence and outreach email, write your meeting objective.',
+    targets: ['.objective-meeting-obj'],
+  },
+  {
+    id: 'preparation',
+    objective: 'Meeting preparations',
+    description: 'This is where you prepare for your meeting by adding agenda items and discovery questions.',
+    targets: ['.objective-preparation'],
+  },
+]
 
 let generatedItemId = 0
 
@@ -109,7 +130,7 @@ function EditableList({
   }
 
   return (
-    <section className={styles.listWorkspace} aria-label={label}>
+    <section className={`${styles.listWorkspace} objective-preparation`} aria-label={label}>
       <div className={styles.listHeading}>
         <div>
           <p className={styles.listEyebrow}>Meeting plan</p>
@@ -264,6 +285,7 @@ export default function MeetingPreparationPage() {
   const isSaving = updatePreparation.isPending || launchingMeeting
 
   return (
+    <ObjectiveTourProvider tourId="meeting-preparation" objectives={MEETING_PREP_OBJECTIVES}>
     <div className={styles.page}>
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
@@ -282,7 +304,7 @@ export default function MeetingPreparationPage() {
           </div>
         </header>
 
-        <section className={styles.readinessStrip} aria-label="Meeting readiness">
+        <section className={`${styles.readinessStrip} objective-readiness`} aria-label="Meeting readiness">
           <div className={styles.readinessScore}>
             <div>
               <p className={styles.eyebrow}>Readiness preview</p>
@@ -300,7 +322,7 @@ export default function MeetingPreparationPage() {
 
         <main className={styles.workspaceGrid}>
           <section className={styles.primaryWorkspace} aria-label="Meeting plan workspace">
-            <Tile className={styles.objectivePanel}>
+            <Tile className={`${styles.objectivePanel} objective-meeting-obj`}>
               <div className={styles.panelHeading}>
                 <div>
                   <p className={styles.eyebrow}>Conversation outcome</p>
@@ -320,7 +342,7 @@ export default function MeetingPreparationPage() {
               />
             </Tile>
 
-            <Tile className={styles.collectionPanel}>
+            <Tile className={`${styles.collectionPanel} objective-preparation`}>
             <Tabs>
               <TabList aria-label="Meeting plan sections" className={styles.sectionTabs}>
                 <Tab>Agenda <span className={styles.tabCount}>{agendaCount}</span></Tab>
@@ -376,6 +398,7 @@ export default function MeetingPreparationPage() {
         </main>
       </div>
     </div>
+    </ObjectiveTourProvider>
   )
 }
 
