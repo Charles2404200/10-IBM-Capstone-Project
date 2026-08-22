@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
+import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
 interface SpringDataUserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    List<User> findByActiveTrueAndRole(UserRole role);
 }
 
 @Repository
@@ -29,4 +31,7 @@ class JpaUserRepository implements UserRepository {
     @Override public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
     @Override public boolean existsByEmail(String email) { return repo.existsByEmail(email); }
     @Override public List<User> findAll() { return repo.findAll(); }
+    @Override public List<User> findAllActiveByRole(UserRole role) {
+        return repo.findByActiveTrueAndRole(role);
+    }
 }

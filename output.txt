@@ -1,11 +1,11 @@
 spring:
   application:
     name: consulting-simulation-api
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require&prepareThreshold=0}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    #    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require&prepareThreshold=0}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://host.docker.internal:5432/mydatabase}
+    # username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    username: ${SPRING_DATASOURCE_USERNAME:myuser}
     password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:4}
@@ -21,6 +21,18 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   flyway:
     enabled: true
     locations: classpath:db/migration
@@ -42,8 +54,6 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-      probes:
-        enabled: true
 
 springdoc:
   api-docs:
@@ -53,35 +63,8 @@ springdoc:
     operationsSorter: method
 
 app:
-  kafka:
-    producer:
-      delivery-timeout-ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:120000}
-      request-timeout-ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:30000}
-      retry-backoff-ms: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS:500}
-      retries: ${KAFKA_PRODUCER_RETRIES:2147483647}
-    notifications:
-      dlt:
-        topic-name: ${KAFKA_NOTIFICATIONS_DLT_TOPIC_NAME:notifications.DLT}
-        consumer:
-          group-id: ${KAFKA_NOTIFICATIONS_DLT_GROUP_ID:notification-dlt-monitor}
-          concurrency: ${KAFKA_NOTIFICATIONS_DLT_CONCURRENCY:1}
-      topic:
-        name: ${KAFKA_NOTIFICATION_TOPIC:notifications}
-        partitions: ${KAFKA_NOTIFICATION_PARTITIONS:1}
-        replicas: ${KAFKA_NOTIFICATION_REPLICAS:1}
-      consumer:
-        group-id: ${KAFKA_NOTIFICATION_CONSUMER_GROUP:user-notification-listener}
-        concurrency: ${KAFKA_NOTIFICATION_CONCURRENCY:1}
   observability:
     token: ${OBSERVABILITY_TOKEN:}
-    loki:
-      # Railway containers cannot mount another service's stdout. In production the
-      # API ships its structured events directly to Loki over private networking.
-      enabled: ${LOKI_ENABLED:false}
-      push-url: ${LOKI_PUSH_URL:}
-      service-name: ${LOKI_SERVICE_NAME:consulting-simulation-api}
-      batch-size: ${LOKI_BATCH_SIZE:100}
-      flush-interval-ms: ${LOKI_FLUSH_INTERVAL_MS:1000}
   # Comma-separated list of origins allowed to call the API (CORS) and open the
   # STOMP/WebSocket handshake (see WebSocketConfig). Defaults cover local dev
   # (Vite on 3000/5173); production deployments (Railway, IBM Cloud, ...) set
@@ -90,6 +73,9 @@ app:
   # this file for datasource/AI/COS/cache.
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  password-reset:
+    otp-expiry-minutes: ${PASSWORD_RESET_OTP_EXPIRY_MINUTES:10}
+    reset-token-expiry-minutes: ${RESET_TOKEN_EXPIRY_MINUTES:15}
   jwt:
     secret: ${JWT_SECRET}
     expiry-ms: ${JWT_EXPIRY_MS:86400000}
@@ -146,9 +132,6 @@ app:
       # watsonx/Granite is first-choice here: its real job on this platform, not a
       # branding requirement (see docs/architecture/AI_ORCHESTRATION.md).
       assessment: ${AI_ROUTE_ASSESSMENT:watsonx-granite,gemini-free,openrouter-free}
-      # Proposal scoring is deterministic. This task only produces coaching
-      # narrative, so return the first schema-valid low-latency model response.
-      proposal-review: ${AI_ROUTE_PROPOSAL_REVIEW:gemini-free,watsonx-granite,openrouter-free}
       evidence_extraction: ${AI_ROUTE_EVIDENCE_EXTRACTION:gemini-free,watsonx-granite,openrouter-free}
     # Circuit breaker (Resilience4j) — after failure-rate-threshold% of the last
     # sliding-window-size calls to a provider fail, its circuit opens for
@@ -203,3 +186,6 @@ logging:
   level:
     com.ibm.consulting: DEBUG
     org.hibernate.SQL: DEBUG
+
+ docker compose --profile containerized-web up
+
