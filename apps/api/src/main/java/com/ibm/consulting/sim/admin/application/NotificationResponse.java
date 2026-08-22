@@ -15,15 +15,4 @@ public record NotificationResponse(
         Instant createdAt,
         boolean read,
         Instant readAt) {
-
-    public static NotificationResponse from(UserNotification notification) {
-        return new NotificationResponse(
-                notification.eventId(),
-                notification.producedByUserId(),
-                notification.message(),
-                notification.role(),
-                notification.createdAt(),
-                notification.read(),
-                notification.readAt());
-    }
 }

@@ -52,17 +52,18 @@ public class NotificationQueryService {
         log.debug("Found {} read notifications for userId={}",
                 reads.size(), userId);
 
-        List<UserNotification> userNotifications = notificationsRoleOnly.stream()
+        List<NotificationResponse> userNotifications = notificationsRoleOnly.stream()
                 .map(notification -> {
                     NotificationRead read = reads.get(notification.getId());
 
-                    return new UserNotification(
+                    return new NotificationResponse(
                             notification.getEventId(),
                             notification.getUserId(),
                             notification.getMessage(),
                             notification.getRole(),
                             notification.getCreatedAt(),
-                            read != null ? read.getReadAt() : null
+                            read != null ?true : false,
+                            read.getReadAt()
                     );
                 })
                 .toList();
@@ -76,9 +77,7 @@ public class NotificationQueryService {
                 userNotifications.size() - reads.size()
         );
 
-        return userNotifications.stream()
-                .map(NotificationResponse::from)
-                .toList();
+        return userNotifications;
     }
 
     @Transactional

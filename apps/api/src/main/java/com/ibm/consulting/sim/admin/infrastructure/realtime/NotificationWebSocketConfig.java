@@ -43,4 +43,14 @@ public class NotificationWebSocketConfig implements WebSocketMessageBrokerConfig
         // Runs after the shared STOMP JWT authenticator registered at order 0.
         registration.interceptors(roleInterceptor);
     }
+
+    @Override
+    public void configureClientOutboundChannel(
+            ChannelRegistration registration) {
+
+        registration.taskExecutor()
+                .corePoolSize(16)
+                .maxPoolSize(32)
+                .queueCapacity(5000);
+    }
 }

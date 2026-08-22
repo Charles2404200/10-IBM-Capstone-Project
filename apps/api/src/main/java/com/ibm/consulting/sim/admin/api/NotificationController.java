@@ -2,9 +2,7 @@ package com.ibm.consulting.sim.admin.api;
 
 import com.ibm.consulting.sim.admin.application.NotificationQueryService;
 import com.ibm.consulting.sim.admin.application.NotificationResponse;
-import com.ibm.consulting.sim.admin.domain.UserNotification;
 import com.ibm.consulting.sim.identity.domain.User;
-import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

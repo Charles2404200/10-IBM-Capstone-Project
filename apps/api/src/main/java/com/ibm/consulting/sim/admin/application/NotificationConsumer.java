@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.admin.domain.NotificationEvent;
 import com.ibm.consulting.sim.admin.domain.NotificationObject;
 import com.ibm.consulting.sim.admin.domain.NotificationRepository;
 import com.ibm.consulting.sim.admin.infrastructure.realtime.NotificationWebSocketDestinations;
+import com.ibm.consulting.sim.shared.domain.EventEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -11,7 +12,9 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @Component
@@ -21,11 +24,14 @@ public class NotificationConsumer {
 
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ObjectMapper objectMapper;
 
     public NotificationConsumer(NotificationRepository notificationRepository,
-                                SimpMessagingTemplate messagingTemplate) {
+                                SimpMessagingTemplate messagingTemplate,
+                                ObjectMapper objectMapper) {
         this.notificationRepository = notificationRepository;
         this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
     }
 
     @KafkaListener(
@@ -35,9 +41,28 @@ public class NotificationConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void consume(
-            NotificationObject notification,
+            EventEnvelope envelope,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition
-    ) {
+    ) throws IOException {
+        NotificationObject notification;
+
+        try
+        {
+            notification =
+                    objectMapper.readValue(
+                            envelope.payload(),
+                            NotificationObject.class
+                    );
+        }
+        catch(RuntimeException | IOException e)
+        {
+            log.error(
+                    "Error while parsing: " + envelope.payload()
+            );
+
+            throw e;
+        }
+
 
         UUID eventId = notification.getEventId();
 
@@ -62,10 +87,10 @@ public class NotificationConsumer {
             return;
         }
 
-        String destination =
-                NotificationWebSocketDestinations.subscriptionTopic(
-                        notification.getRole()
-                );
+//        String destination =
+//                NotificationWebSocketDestinations.subscriptionTopic(
+//                        notification.getRole()
+//                );
 
         try {
 
@@ -85,7 +110,7 @@ public class NotificationConsumer {
             );
 
             messagingTemplate.convertAndSend(
-                    destination,
+                    envelope.dest(),
                     notification
             );
 
@@ -95,7 +120,7 @@ public class NotificationConsumer {
                     notification.getUserId(),
                     notification.getRole(),
                     partition,
-                    destination
+                    envelope.dest()
             );
 
         } catch (RuntimeException exception) {
