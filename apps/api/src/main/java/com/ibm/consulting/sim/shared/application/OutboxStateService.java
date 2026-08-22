@@ -17,6 +17,17 @@ public class OutboxStateService {
         this.outboxRepository = repo;
 
     }
+
+    @Transactional
+    public void markProcessing(UUID eventId) {
+
+        OutboxEvent event =
+                outboxRepository.findById(eventId)
+                        .orElseThrow();
+
+        event.markProcessing();
+    }
+
     @Transactional
     public void markPublished(UUID eventId) {
 

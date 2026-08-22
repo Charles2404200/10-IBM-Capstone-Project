@@ -8,7 +8,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -69,6 +68,8 @@ public class OutboxDispatcher {
 
         try {
 
+            outboxStateService.markProcessing(event.getId());
+
             kafkaTemplate.send(
                     event.getTopic(),
 
@@ -95,6 +96,8 @@ public class OutboxDispatcher {
     private void processUnordered(OutboxEvent event) {
 
         try {
+
+            outboxStateService.markProcessing(event.getId());
 
             messagingTemplate.convertAndSend(
                     event.getDest(),

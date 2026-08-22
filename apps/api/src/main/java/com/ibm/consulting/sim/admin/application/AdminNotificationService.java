@@ -6,6 +6,7 @@ import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.admin.infrastructure.realtime.NotificationWebSocketDestinations;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.domain.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.OutboxEvent;
 import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
 import com.ibm.consulting.sim.shared.infrastructure.JPAOutboxRepository;
 import org.slf4j.Logger;
