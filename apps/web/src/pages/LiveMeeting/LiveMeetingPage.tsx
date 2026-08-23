@@ -21,6 +21,7 @@ import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { ConversationTurn, MeetingTermination, PersonaState } from '@/api/types'
 import styles from './LiveMeetingPage.module.scss'
+import { shouldShowPlaceholder } from './transcriptPlaceholder'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const MEETING_THRESHOLD = 70
@@ -195,7 +196,9 @@ export default function LiveMeetingPage() {
         <Column lg={11} md={8} sm={4}>
           <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
             <div className={styles.transcriptViewport}>
-              {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
+              {shouldShowPlaceholder(turns.length, pendingMessage, isStreaming) && (
+                <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>
+              )}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
                 <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />

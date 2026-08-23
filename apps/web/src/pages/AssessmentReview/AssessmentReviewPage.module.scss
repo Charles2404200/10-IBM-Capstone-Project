@@ -10,6 +10,13 @@
    Matching the convention gives the boxes an edge on all four sides rather
    than a rule on one, so they sit with every other card in the product. */
 .card {
-  border: 1px solid $border-subtle;
+  /* Measured against the tile's own background of #f4f4f4:
+       $border-subtle    #d0d7e5 -> 1.31:1  (invisible, and short of WCAG 1.4.11)
+       $border-strong-01 #8d8d8d -> 3.02:1  (visible, and meets it)
+     The convention elsewhere in the app is the fainter token, but a line no one
+     can see does not answer a request for a line. The rest of the product's
+     cards sit at about 1.15:1 against the same background, which is a
+     design-system question rather than something to settle on one page. */
+  border: 1px solid $border-strong-01;
   border-radius: 6px;
 }
