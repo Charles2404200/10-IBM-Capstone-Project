@@ -77,8 +77,10 @@
 }
 
 .hudDot {
+  flex: 0 0 auto;
   width: 0.5rem;
   height: 0.5rem;
+  aspect-ratio: 1;
   border-radius: 50%;
 }
 
@@ -169,6 +171,9 @@
 .hudGrow {
   flex: 1 1 auto;
   min-width: 0;
+  /* Lets the stepper below ask how much room it actually has. Safe here
+     because this element's width comes from flex, never from its contents. */
+  container-type: inline-size;
 }
 
 .hudLabel {
@@ -191,9 +196,9 @@
 .stepper {
   display: flex;
   align-items: center;
-  /* Wraps rather than scrolling sideways: a horizontally scrolling progress
-     indicator hides exactly the steps the learner has not reached yet. */
-  flex-wrap: wrap;
+  /* Belt and braces: even if a label is revealed when it does not fit, the bar
+     must stay one row rather than growing and shifting the page beneath it. */
+  flex-wrap: nowrap;
   gap: 0;
   list-style: none;
   margin: 0;
@@ -260,23 +265,37 @@
   font-weight: 600;
 }
 
-/* Below this the ten labels wrap to a second line, which pushes the map down
-   and gets it cut off. Under that width the stepper keeps its dots but names
-   only the step you are on; the rest stay reachable by tooltip and to screen
-   readers. */
-@media (max-width: 90rem) {
-  .stepLabel {
-    display: none;
-  }
+/* Ten full phase names need 1014px of stepper. The old rule revealed them
+   whenever the *viewport* passed 90rem, but the stepper only ever receives a
+   share of the bar — 814px at that width, with the client meters and next
+   action taking the rest. So the labels appeared roughly 200px before they
+   fitted and wrapped onto a second row, doubling the bar's height from 21px
+   to 42px. That is the defect Christine reported.
 
-  .stepLabel.stepCurrentLabel {
+   Asking the stepper's own container instead of the viewport is correct by
+   construction: it responds to the width actually available, so a long client
+   name shrinking the bar cannot reintroduce the wrap. Where container queries
+   are unavailable the labels simply stay hidden, which is the safe state. */
+.stepLabel {
+  display: none;
+}
+
+.stepLabel.stepCurrentLabel {
+  display: inline;
+}
+
+@container (min-width: 64rem) {
+  .stepLabel {
     display: inline;
   }
+}
 
+@container (max-width: 63.99rem) {
   .stepConnector {
     width: 0.5rem;
   }
 }
+
 
 .stepDoneLabel {
   color: #52657d;
