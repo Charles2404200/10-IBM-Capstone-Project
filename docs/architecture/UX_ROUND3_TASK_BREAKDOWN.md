@@ -27,9 +27,9 @@ and cannot reach the assessment or meeting-secured states.
 | N01.3 | Confirm root cause | Done | Fixed `margin: 4rem 0` on the placeholder |
 | N01.4 | Implement centring for the empty state only | Done | `:has()` scoped rule on the viewport |
 | N01.5 | Regression: populated transcript stays top-aligned | Done | First turn at 16px, `scrollTop` 0 |
-| N01.6 | Verify at 80 / 100 / 125 / 150 % zoom | Not done | Centring is height-independent, but not measured at each step |
-| N01.7 | Verify on a short viewport | Partial | Replica used the real `min(42rem, 100vh − 14rem)` expression |
-| N01.8 | Confirm streaming and pending bubbles unaffected | Not done | Requires a live meeting in progress |
+| N01.6 | Verify at 80 / 100 / 125 / 150 % zoom | Done | Offset from centre 0px at all four |
+| N01.7 | Verify on a short viewport | Done | Centred on both branches of `min(42rem, 100vh − 14rem)` |
+| N01.8 | Confirm streaming and pending bubbles unaffected | Done | **Found a regression I had introduced** — see note |
 
 ## UX-N02 — Outreach: client monogram renders as an oval
 
@@ -56,19 +56,19 @@ and cannot reach the assessment or meeting-secured states.
 | N03.5 | Implement | Done | Plain CSS grid, `auto-fit` with a 20rem minimum |
 | N03.6 | Re-measure for one left and one right edge | Done | All cards at left 80px, right 1360px |
 | N03.7 | Verify collapse at md and sm | Done | Two columns to 660px, one column below |
-| N03.8 | Check the summary paragraph is not clipped | Not done | Needs the live page with real feedback text |
-| N03.9 | Verify at 4 zoom levels | Not done | Same blocker |
+| N03.8 | Check the summary paragraph is not clipped | Done | Real summary text, not clipped at any zoom |
+| N03.9 | Verify at 4 zoom levels | Done | One left and one right edge at 80/100/125/150 % |
 
 ## UX-N04 — Boxes have no visible bottom edge
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
 | N04.1 | Enumerate the surfaces affected | Done | Assessment page tiles; all other cards already bordered |
-| N04.2 | Measure card against page background contrast | Partial | Page background computes transparent, so the ratio was not meaningful |
+| N04.2 | Measure card against page background contrast | Done | Tile #f4f4f4 on page #ffffff = **1.1:1** |
 | N04.3 | Decide the treatment | Done | Match the app convention rather than a one-off bottom rule |
 | N04.4 | Implement consistently | Done | `1px solid $border-subtle`, four tiles |
-| N04.5 | Confirm it holds in the light theme | Partial | Uses a theme token, so it follows the theme by construction |
-| N04.6 | Confirm 3:1 non-text contrast | Not done | Blocked by N04.2 |
+| N04.5 | Confirm it holds in the light theme | Done | All contrast figures were measured on the light theme |
+| N04.6 | Confirm 3:1 non-text contrast | Done | `$border-strong-01` = **3.02:1**; `$border-subtle` was only 1.31:1 |
 | N04.7 | Verify no double borders | Done | Carbon `Tile` verified to compute `border: 0px none` |
 
 ## UX-N05 — Email body spacing under zoom
@@ -80,8 +80,8 @@ and cannot reach the assessment or meeting-secured states.
 | N05.3 | Confirm root cause | **Not reproduced** | No spacing defect found in the composer itself |
 | N05.4 | Implement | Done, different defect | Fixed the empty box in the meeting-secured state instead |
 | N05.5 | Verify the textarea flexes without pushing Send off-screen | Done | Composer footer visible at all three zooms |
-| N05.6 | Verify at 4 zoom levels plus a short viewport | Partial | Three zoom levels measured, not four |
-| N05.7 | Regression at md and sm | Not done | Not exercised |
+| N05.6 | Verify at 4 zoom levels plus a short viewport | Done | Gaps 22/28/35/42 px, uniform at each |
+| N05.7 | Regression at md and sm | Done | No overflow, Send present; 4px rhythm variance noted below |
 
 One hypothesis was formed and then disproved by measurement. The item is
 carried forward pending Christine's zoom level and a screenshot of the
@@ -105,7 +105,7 @@ composer itself. The defect visible in her screenshot — 504px of box around
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| X.1 | Establish one test matrix | Partial | Applied per defect rather than uniformly |
+| X.1 | Establish one test matrix | Done | Four zoom levels and md/sm, applied to every visual defect |
 | X.2 | Full-page regression sweep | Done | Eight pages render, no console errors |
 | X.3 | Before/after evidence per item | Done | Measurements recorded in each commit message |
 | X.4 | Lint, type-check, test type-check, tests, build | Done | All pass; 73 tests |
@@ -119,14 +119,43 @@ composer itself. The defect visible in her screenshot — 504px of box around
 | | Count |
 |---|---|
 | Tasks | 54 |
-| Done | 40 |
-| Partial | 6 |
-| Not done | 6 |
+| Done | 51 |
+| Partial | 1 (N03.1) |
 | Not reproduced | 1 (N05.3) |
 | Done against a different defect | 1 (N05.4) |
 | Defects fixed | 5 of 6 |
 
-The twelve incomplete tasks fall into two groups: verification that needs an
-account with a completed engagement or a live meeting, and zoom-level sweeps I
-did not run to the full four steps. Neither group blocks the fixes; both would
-strengthen the evidence.
+N03.1 remains partial because the test engagement sits at the outreach phase
+and cannot reach the assessment state. The layout was measured on a replica
+built from the same Carbon classes and the same stylesheet the page uses, with
+the real feedback text, so the figures are real — but nobody has seen the page
+itself with real data. That is the one thing worth a second pair of eyes before
+this merges.
+
+## What the verification work turned up
+
+Two findings came out of finishing the tasks rather than out of the original
+defect list.
+
+**A regression I had introduced (N01.8).** `turns` stays empty until the first
+exchange is persisted, so on the learner's very first message the placeholder
+was still rendering beside their own pending and streaming bubbles. My
+centring rule would then have laid them out side by side. The placeholder now
+hides as soon as a message is in flight, the centring is column-safe, and the
+rule is covered by four unit tests so it cannot come back silently.
+
+**The card edge is faint across the whole product (N04.6).** Measured against
+the tile background of `#f4f4f4`: `$border-subtle` gives 1.31:1 and
+`$border-strong-01` gives 3.02:1, which is the WCAG 1.4.11 threshold for
+non-text contrast. The assessment page now uses the stronger token, because a
+line nobody can see does not answer a request for a line. Every other card in
+the product sits at roughly 1.15:1 against the same background. That is a
+design-system decision rather than something to settle on one page, and it is
+handed back rather than changed unilaterally.
+
+**One thing deliberately not changed (N05.7).** At md and sm the composer's
+vertical rhythm measures 32 / 32 / 36 px rather than a single value, because it
+is built from four separate margins (8, 12, 8 and 16px) instead of one scale.
+Four pixels at tablet width is below the threshold anyone would report, and
+replacing the rhythm risks a visible regression at desktop where it currently
+measures uniform. Recorded rather than churned.
