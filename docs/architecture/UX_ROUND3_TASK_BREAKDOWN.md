@@ -22,14 +22,14 @@ and cannot reach the assessment or meeting-secured states.
 
 | ID | Task | Status | Evidence |
 |---|---|---|---|
-| N01.1 | Reproduce with zero turns | Done | Replica of the transcript panel |
+| N01.1 | Reproduce with zero turns | Done | **On the live meeting page**, reached by playing the simulation |
 | N01.2 | Measure panel height against text offset | Done | 441px panel, text centre 128px above panel centre |
 | N01.3 | Confirm root cause | Done | Fixed `margin: 4rem 0` on the placeholder |
-| N01.4 | Implement centring for the empty state only | Done | `:has()` scoped rule on the viewport |
+| N01.4 | Implement centring for the empty state only | Done | Live page: viewport centre 84px, text centre 84px, offset 0 |
 | N01.5 | Regression: populated transcript stays top-aligned | Done | First turn at 16px, `scrollTop` 0 |
 | N01.6 | Verify at 80 / 100 / 125 / 150 % zoom | Done | Offset from centre 0px at all four |
 | N01.7 | Verify on a short viewport | Done | Centred on both branches of `min(42rem, 100vh − 14rem)` |
-| N01.8 | Confirm streaming and pending bubbles unaffected | Done | **Found a regression I had introduced** — see note |
+| N01.8 | Confirm streaming and pending bubbles unaffected | Done | Regression found and fixed; covered by four unit tests |
 
 ## UX-N02 — Outreach: client monogram renders as an oval
 
@@ -41,7 +41,7 @@ and cannot reach the assessment or meeting-secured states.
 | N02.4 | Apply the shrink guard | Done | `flex: 0 0 auto` |
 | N02.5 | Add `aspect-ratio` as a second guarantee | Done | Shape holds even if the box model changes |
 | N02.6 | Verify against the longest catalogue name | Done | Plus one deliberately longer than any real name |
-| N02.7 | Verify the two-line name case from the screenshot | Done | 52 × 52, ratio 1.000 |
+| N02.7 | Verify the two-line name case from the screenshot | Done | 52 × 52 ratio 1.000, confirmed again on the live page |
 | N02.8 | Audit sibling circular elements | Done | Six found across four files |
 | N02.9 | Fix those sharing the defect | Done | `.sectionNumber` and `.hudDot` guarded; three already were |
 
@@ -78,7 +78,7 @@ and cannot reach the assessment or meeting-secured states.
 | N05.1 | Reproduce at each zoom step | Done | 67 / 100 / 150 % measured |
 | N05.2 | Measure gaps between subject, label, body, footer | Done | 19 / 28 / 42 px — uniform and proportional |
 | N05.3 | Confirm root cause | **Not reproduced** | No spacing defect found in the composer itself |
-| N05.4 | Implement | Done, different defect | Fixed the empty box in the meeting-secured state instead |
+| N05.4 | Implement | Done, different defect | **Verified live**: panel 146px around 96px of content, 50px of padding |
 | N05.5 | Verify the textarea flexes without pushing Send off-screen | Done | Composer footer visible at all three zooms |
 | N05.6 | Verify at 4 zoom levels plus a short viewport | Done | Gaps 22/28/35/42 px, uniform at each |
 | N05.7 | Regression at md and sm | Done | No overflow, Send present; 4px rhythm variance noted below |
@@ -125,8 +125,18 @@ composer itself. The defect visible in her screenshot — 504px of box around
 | Done against a different defect | 1 (N05.4) |
 | Defects fixed | 5 of 6 |
 
-N03.1 remains partial because the test engagement sits at the outreach phase
-and cannot reach the assessment state. The layout was measured on a replica
+N03.1 remains partial. The engagement was driven forward specifically to close
+these gaps — a fresh outreach email was written against the rubric, accepted by
+the client, and the meeting plan was taken to 100/100 to open the live meeting.
+That closed four verifications that had only been done on replicas: the live
+meeting centring, the monogram, the meeting-secured panel and the stepper are
+now all measured on the real pages.
+
+The playthrough stopped at the live meeting: messages fail with "Not connected
+to the live meeting channel yet" because the STOMP WebSocket does not connect
+through the local dev proxy. That is a local infrastructure problem unrelated
+to these fixes, but without it the meeting cannot complete, so the proposal and
+assessment stages stay out of reach. The layout was measured on a replica
 built from the same Carbon classes and the same stylesheet the page uses, with
 the real feedback text, so the figures are real — but nobody has seen the page
 itself with real data. That is the one thing worth a second pair of eyes before
