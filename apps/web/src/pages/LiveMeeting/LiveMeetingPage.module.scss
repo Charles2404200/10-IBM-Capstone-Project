@@ -10,7 +10,13 @@
 
 .conversationPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); border: 1px solid $border-subtle; background: $layer-01; }
 .transcriptViewport { overflow-y: auto; padding: $spacing-05; }
-.emptyTranscript { color: $text-secondary; text-align: center; margin: $spacing-10 0; }
+.emptyTranscript { color: $text-secondary; text-align: center; margin: 0; }
+
+.transcriptViewport:has(> .emptyTranscript) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .learnerTurn, .personaTurn { display: flex; margin-bottom: $spacing-04; }
 .learnerTurn { justify-content: flex-end; }
 .personaTurn { justify-content: flex-start; }
