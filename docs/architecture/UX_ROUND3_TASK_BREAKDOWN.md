@@ -163,6 +163,19 @@ the product sits at roughly 1.15:1 against the same background. That is a
 design-system decision rather than something to settle on one page, and it is
 handed back rather than changed unilaterally.
 
+**A new defect found while playing through, not on Christine's list.** The
+coach-mark tour opens over the Live Client Meeting and covers the conversation
+panel, including the placeholder this round was fixing. It is not touched here
+because it belongs to the coach-mark work rather than to these six defects, but
+it is worth someone owning.
+
+**A local blocker, recorded so nobody repeats the diagnosis.** The live meeting
+cannot send messages through the local dev proxy: "Not connected to the live
+meeting channel yet". The `/ws` proxy already declares `ws: true` and the proxy
+log shows no errors, so the STOMP CONNECT is failing somewhere past the
+upgrade. Unrelated to these fixes, but it is what stops a local playthrough
+reaching the proposal and assessment stages.
+
 **One thing deliberately not changed (N05.7).** At md and sm the composer's
 vertical rhythm measures 32 / 32 / 36 px rather than a single value, because it
 is built from four separate margins (8, 12, 8 and 16px) instead of one scale.
