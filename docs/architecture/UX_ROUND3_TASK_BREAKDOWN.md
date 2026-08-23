@@ -8,7 +8,7 @@
 | **Pull request** | #20 |
 | **Prepared** | 23 August 2026 |
 
-Six defects broken into 52 tasks. Status is recorded honestly: a task marked
+Six defects broken into 54 tasks. Status is recorded honestly: a task marked
 **Partial** or **Not done** is one I did not complete, not one I completed
 loosely. Three fixes could only be verified on replicas of the exact DOM and
 CSS the pages produce, because the test engagement sits at the outreach phase
@@ -118,14 +118,15 @@ composer itself. The defect visible in her screenshot — 504px of box around
 
 | | Count |
 |---|---|
-| Tasks | 52 |
-| Done | 38 |
+| Tasks | 54 |
+| Done | 40 |
 | Partial | 6 |
-| Not done | 8 |
+| Not done | 6 |
+| Not reproduced | 1 (N05.3) |
+| Done against a different defect | 1 (N05.4) |
 | Defects fixed | 5 of 6 |
-| Defects not reproduced | 1 (N05, composer spacing) |
 
-The eight incomplete tasks fall into two groups: verification that needs an
+The twelve incomplete tasks fall into two groups: verification that needs an
 account with a completed engagement or a live meeting, and zoom-level sweeps I
 did not run to the full four steps. Neither group blocks the fixes; both would
 strengthen the evidence.
