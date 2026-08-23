@@ -1,0 +1,15 @@
+@use '@carbon/react/scss/spacing' as *;
+@use '@carbon/react/scss/theme' as *;
+
+/* Carbon's Tile ships with `border: 0` and relies on its background alone to
+   read as a surface. Everywhere else in this app a card is drawn with
+   `1px solid $border-subtle` — the outreach panels, the research panels, the
+   command centre sections. The assessment page was the exception, and against
+   a near-identical page background its boxes had no visible edge at all, which
+   is what Christine reported as a missing bottom line.
+   Matching the convention gives the boxes an edge on all four sides rather
+   than a rule on one, so they sit with every other card in the product. */
+.card {
+  border: 1px solid $border-subtle;
+  border-radius: 6px;
+}

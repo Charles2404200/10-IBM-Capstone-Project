@@ -7,10 +7,11 @@ import { resolveEngagementRoute } from '@/api/engagementRouting'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
+import styles from './AssessmentReviewPage.module.scss'
 
 function CompetencyBar({ name, score, evidenceNote }: { name: string; score: number; evidenceNote: string | null }) {
   return (
-    <Tile>
+    <Tile className={styles.card}>
       <Stack gap={2}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <h5 style={{ color: '#161616' }}>{name}</h5>
@@ -102,7 +103,7 @@ export default function AssessmentReviewPage() {
             </p>
           </div>
 
-          <Tile>
+          <Tile className={styles.card}>
             <Stack gap={3}>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                 <Tag type={won ? 'green' : 'red'} size="lg">
@@ -121,7 +122,7 @@ export default function AssessmentReviewPage() {
           </div>
 
           <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))' }}>
-            <Tile>
+            <Tile className={styles.card}>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>
                   {result.strengths.map((s, i) => (
@@ -133,7 +134,7 @@ export default function AssessmentReviewPage() {
                   {result.strengths.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
             </Tile>
-            <Tile>
+            <Tile className={styles.card}>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
                   {result.improvementAreas.map((s, i) => (
