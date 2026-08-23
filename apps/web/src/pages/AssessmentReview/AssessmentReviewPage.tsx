@@ -114,17 +114,14 @@ export default function AssessmentReviewPage() {
             </Stack>
           </Tile>
 
-          <Grid narrow>
+          <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))' }}>
             {result.competencyScores.map((c) => (
-              <Column key={c.name} lg={8} md={4} sm={4} style={{ marginBottom: '1rem' }}>
-                <CompetencyBar name={c.name} score={c.score} evidenceNote={c.evidenceNote} />
-              </Column>
+              <CompetencyBar key={c.name} name={c.name} score={c.score} evidenceNote={c.evidenceNote} />
             ))}
-          </Grid>
+          </div>
 
-          <Grid narrow>
-            <Column lg={8} md={4} sm={4}>
-              <Tile>
+          <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))' }}>
+            <Tile>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>
                   {result.strengths.map((s, i) => (
@@ -135,10 +132,8 @@ export default function AssessmentReviewPage() {
                   ))}
                   {result.strengths.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
-              </Tile>
-            </Column>
-            <Column lg={8} md={4} sm={4}>
-              <Tile>
+            </Tile>
+            <Tile>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
                   {result.improvementAreas.map((s, i) => (
@@ -149,9 +144,8 @@ export default function AssessmentReviewPage() {
                   ))}
                   {result.improvementAreas.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
-              </Tile>
-            </Column>
-          </Grid>
+            </Tile>
+          </div>
 
           <Button href="/dashboard" kind="secondary">
             Back to Command Centre
