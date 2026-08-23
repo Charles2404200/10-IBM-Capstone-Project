@@ -39,6 +39,7 @@
 
 .workspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 25rem; gap: $spacing-05; align-items: stretch; }
 .primaryColumn { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: $spacing-04; }
+.primaryColumn:has(> .successPanel) { grid-template-rows: auto auto; align-content: start; }
 .decisionRail { min-height: 0; display: grid; align-content: start; gap: $spacing-04; }
 
 .composeWorkspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 17rem; overflow: hidden; border: 1px solid $border-subtle; border-radius: 10px; background: $layer-01; box-shadow: 0 1px 3px rgb(15 38 71 / 8%); }
