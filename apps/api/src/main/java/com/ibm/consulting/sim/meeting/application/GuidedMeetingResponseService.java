@@ -103,7 +103,7 @@ public class GuidedMeetingResponseService {
                 "guided_meeting_options", engagement.getId(),
                 GuidedResponsePromptAssembler.assemble(persona, state, evidence, knowledge, turns, profile), PROMPT_VERSION,
                 new GuidedResponseOptionsParser(objectMapper), () -> new GuidedResponseOptions(List.of()));
-        List<String> balancedOptions = GuidedResponseBalancePolicy.balance(generated.options(), profile);
+        List<String> balancedOptions = GuidedResponseBalancePolicy.balance(generated.options(), profile, sourceSequence);
         if (!validOptions(balancedOptions)) {
             return MeetingResponseOptionsResponse.unavailable(sourceSequence,
                     "Guided responses are temporarily unavailable. Please try again.");
@@ -123,7 +123,7 @@ public class GuidedMeetingResponseService {
         if (MeetingInteractionMode.forDifficulty(profile.level()) == MeetingInteractionMode.FREEFORM) {
             return MeetingResponseOptionsResponse.freeform();
         }
-        List<String> balancedOptions = GuidedResponseBalancePolicy.balance(options, profile);
+        List<String> balancedOptions = GuidedResponseBalancePolicy.balance(options, profile, sourceSequence);
         if (!validOptions(balancedOptions)) {
             return MeetingResponseOptionsResponse.unavailable(sourceSequence,
                     "Guided responses are temporarily unavailable. Please try again.");

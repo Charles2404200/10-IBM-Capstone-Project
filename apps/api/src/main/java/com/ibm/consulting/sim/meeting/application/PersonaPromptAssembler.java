@@ -129,8 +129,13 @@ final class PersonaPromptAssembler {
 
     private static String guidedChoiceMix(DifficultyProfile profile) {
         if (profile.level() == com.ibm.consulting.sim.scenario.domain.DifficultyLevel.MEDIUM) {
-            return "Include one strong response, one vague or evasive response, and one premature recommendation that ignores part of the concern.";
+            return "Include exactly one response that directly advances the client's latest concern and two professional "
+                    + "near-misses. Each near-miss must use a different failure mode: premature scope commitment, focus on "
+                    + "an adjacent issue, or treating an unvalidated assumption as fact. Never make a near-miss visibly "
+                    + "unprepared, evasive, rude, or generic.";
         }
-        return "Include one strong response, one plausible but incomplete response, and one professionally worded evasive or premature response.";
+        return "Include exactly two responses that advance the client's latest concern and one professional near-miss. "
+                + "Make the near-miss subtly premature, misaligned, or assumption-led; never make it visibly evasive, "
+                + "unprepared, rude, or generic.";
     }
 }

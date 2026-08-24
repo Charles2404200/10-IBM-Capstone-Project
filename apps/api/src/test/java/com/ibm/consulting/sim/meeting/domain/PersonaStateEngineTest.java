@@ -176,6 +176,27 @@ class PersonaStateEngineTest {
     }
 
     @Test
+    void penalizesProfessionalNearMissesUsedByGuidedMeetings() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        for (String nearMiss : List.of(
+                "Based on the direction so far, I would frame the next phase around a focused pilot and refine the remaining operational detail as the work begins.",
+                "To keep momentum, I would prioritise the technical workstream first and leave the operating constraints for the implementation plan.",
+                "We can use the standard pilot pattern from comparable programmes, then validate the client-specific constraints once mobilisation begins.")) {
+            PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+
+            PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile, nearMiss, 1);
+
+            assertThat(state.getTrust()).isLessThan(50);
+            assertThat(state.getInterest()).isLessThan(50);
+            assertThat(state.getPatience()).isLessThan(50);
+        }
+    }
+
+    @Test
     void penalizesTheGuidedEvasiveChoiceEvenWhenTheProviderSuggestsAPositiveDelta() {
         DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
         PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);

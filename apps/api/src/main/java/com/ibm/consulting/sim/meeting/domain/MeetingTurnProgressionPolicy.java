@@ -38,7 +38,10 @@ final class MeetingTurnProgressionPolicy {
     private static final Pattern EVASIVE_RESPONSE = Pattern.compile(
             "\\b(i\\s+cannot\\s+help|i\\s+can\\s*not\\s+help|can\\s*not\\s+answer|can\\s*not\\s+say|we\\s+will\\s+get\\s+back\\s+to\\s+you)\\b");
     private static final Pattern PREMATURE_RECOMMENDATION = Pattern.compile(
-            "\\b(less\\s+important|move\\s+straight\\s+to|broader\\s+recommendation|ignore\\s+(the|that)\\s+concern)\\b");
+            "\\b(less\\s+important|move\\s+straight\\s+to|broader\\s+recommendation|ignore\\s+(the|that)\\s+concern"
+                    + "|refine\\s+the\\s+remaining\\s+operational\\s+detail\\s+as\\s+the\\s+work\\s+begins"
+                    + "|leave\\s+the\\s+operating\\s+constraints\\s+for\\s+the\\s+implementation\\s+plan"
+                    + "|validate\\s+the\\s+client\\s+specific\\s+constraints\\s+once\\s+mobilisation\\s+begins)\\b");
     private static final Set<String> SCOREABLE_BEHAVIOURS = Set.of(
             "directly_addresses_concern", "addresses_client_concern", "acknowledges_constraint",
             "uses_client_fact", "uses_disclosed_evidence", "quantifies_business_impact",
