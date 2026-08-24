@@ -604,6 +604,7 @@ export interface Assessment {
   feedbackSummary: string
   strengths: string[]
   improvementAreas: string[]
+  coachingPending: boolean
   generatedAt: string
 }
 

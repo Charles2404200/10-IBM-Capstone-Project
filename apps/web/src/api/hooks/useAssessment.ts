@@ -17,6 +17,9 @@ export function useAssessment(engagementId: string) {
     },
     enabled: Boolean(engagementId),
     retry: false,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: (query) => query.state.data?.coachingPending ? 1_500 : false,
   })
 }
 

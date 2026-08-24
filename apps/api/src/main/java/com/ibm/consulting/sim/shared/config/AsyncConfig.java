@@ -92,6 +92,23 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor.getThreadPoolExecutor();
     }
 
+    /** Keeps assessment coaching off the assessment/portfolio completion path. */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService assessmentFeedbackExecutor(
+            @Value("${app.async.assessment-feedback-core-pool-size:2}") int corePoolSize,
+            @Value("${app.async.assessment-feedback-max-pool-size:8}") int maxPoolSize,
+            @Value("${app.async.assessment-feedback-queue-capacity:100}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("assessment-feedback-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
     /** General-purpose pool for {@code @Async}-annotated application methods. */
     @Override
     public Executor getAsyncExecutor() {

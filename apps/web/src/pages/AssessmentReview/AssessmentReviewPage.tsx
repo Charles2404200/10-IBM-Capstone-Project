@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Grid, Column, Heading, Stack, Button, Tile, Tag, ProgressBar } from '@carbon/react'
+import { Grid, Column, Heading, Stack, Button, Tile, Tag, ProgressBar, InlineLoading } from '@carbon/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAssessment, useGenerateAssessment } from '@/api/hooks/useAssessment'
 import { engagementKeys, useEngagement } from '@/api/hooks/useEngagements'
@@ -154,7 +154,11 @@ export default function AssessmentReviewPage() {
                 <span style={{ color: '#161616', fontSize: '1.5rem' }}>{result.overallScore}/100</span>
               </div>
               <p style={{ color: '#525252' }}><strong>{outcome.contractStatus}</strong></p>
-              <p style={{ color: '#525252' }}>{result.feedbackSummary}</p>
+              {result.coachingPending ? (
+                <InlineLoading description="Preparing personalised AI coaching..." status="active" />
+              ) : (
+                <p style={{ color: '#525252' }}>{result.feedbackSummary}</p>
+              )}
             </Stack>
           </Tile>
 
