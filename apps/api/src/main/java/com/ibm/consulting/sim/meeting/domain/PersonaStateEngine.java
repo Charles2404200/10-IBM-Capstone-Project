@@ -30,17 +30,43 @@ public final class PersonaStateEngine {
      */
     public static void apply(PersonaState state, PersonaTurnResponse turn, DifficultyProfile profile,
                              String learnerMessage, int learnerTurnNumber) {
+        MeetingBehaviourAssessment assessment = assess(turn, learnerMessage);
+        apply(state, turn, profile, learnerTurnNumber, assessment);
+    }
+
+    /** Evaluates a learner turn before state mutation so the result can be audited and rendered. */
+    public static MeetingBehaviourAssessment assess(PersonaTurnResponse turn, String learnerMessage) {
+        return assess(turn, learnerMessage, java.util.List.of());
+    }
+
+    /**
+     * Assesses a turn against the persisted learner transcript. The transcript is
+     * supplied by the application layer; the domain engine still owns the rules.
+     */
+    public static MeetingBehaviourAssessment assess(PersonaTurnResponse turn, String learnerMessage,
+                                                     java.util.List<String> previousLearnerMessages) {
+        PersonaStateDelta proposedDelta = turn.stateDelta() != null ? turn.stateDelta().clamped() : PersonaStateDelta.zero();
+        return MeetingTurnProgressionPolicy.assess(proposedDelta, learnerMessage, turn.detectedLearnerBehaviours(),
+                turn.spokenResponse(), turn.meetingSignals(), previousLearnerMessages);
+    }
+
+    /** Applies a precomputed assessment. Keeping this separate prevents scoring twice on retries/replays. */
+    public static PersonaStateDelta apply(PersonaState state, PersonaTurnResponse turn, DifficultyProfile profile,
+                                          int learnerTurnNumber, MeetingBehaviourAssessment assessment) {
+        int trustBefore = state.getTrust();
+        int interestBefore = state.getInterest();
+        int patienceBefore = state.getPatience();
         if (profile == null) {
             apply(state, turn);
-            return;
+            return new PersonaStateDelta(state.getTrust() - trustBefore, state.getInterest() - interestBefore,
+                    state.getPatience() - patienceBefore);
         }
-        PersonaStateDelta proposedDelta = turn.stateDelta() != null ? turn.stateDelta().clamped() : PersonaStateDelta.zero();
-        PersonaStateDelta delta = MeetingTurnProgressionPolicy.constrain(
-                proposedDelta, learnerMessage, turn.detectedLearnerBehaviours(),
-                turn.spokenResponse(), turn.meetingSignals());
+        PersonaStateDelta delta = assessment.relationshipDelta();
         delta = scale(delta, profile);
         state.applyProgressionBoundedDelta(delta, profile, learnerTurnNumber);
         turn.factsDisclosed().forEach(state::disclose);
+        return new PersonaStateDelta(state.getTrust() - trustBefore, state.getInterest() - interestBefore,
+                state.getPatience() - patienceBefore);
     }
 
     private static PersonaStateDelta scale(PersonaStateDelta delta, DifficultyProfile profile) {

@@ -61,11 +61,15 @@ final class GuidedResponsePromptAssembler {
 
     private static String choiceMix(DifficultyProfile profile) {
         if (profile.level() == DifficultyLevel.MEDIUM) {
-            return "Option 1 must directly advance the client's concern. Options 2 and 3 must be plausible but "
-                    + "counterproductive consulting choices: one should be vague or evasive, and one should jump to "
-                    + "a recommendation before addressing the concern. They must remain professional.";
+            return "Create exactly one response that directly advances the latest client concern and exactly two "
+                    + "professional near-misses. A near-miss must sound credible, but fail in a different consulting "
+                    + "way: either recommend scope before validating the client's constraint, focus on an adjacent issue "
+                    + "instead of the stated concern, or treat an unconfirmed assumption as settled. Do not use obvious "
+                    + "phrases such as 'I do not know', 'we can revisit it later', or 'that is less important'.";
         }
-        return "Option 1 must directly advance the client's concern. Option 2 may be incomplete but plausible. "
-                + "Option 3 must be a professionally worded evasive or premature response that would weaken the conversation.";
+        return "Create exactly two responses that would credibly advance the latest client concern and exactly one "
+                + "professional near-miss. The near-miss should be subtly premature, misaligned to the stated concern, "
+                + "or based on an unvalidated assumption. It must sound plausible and must not use obvious evasive wording "
+                + "such as 'I do not know' or 'we can revisit it later'.";
     }
 }

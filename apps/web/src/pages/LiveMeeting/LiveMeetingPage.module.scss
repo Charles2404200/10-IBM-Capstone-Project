@@ -58,6 +58,19 @@
 .readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0 0 $spacing-03; }
 .readyToClosePanel p:last-child { margin: 0; color: $text-secondary; }
 
+.behaviourPanel { padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
+.behaviourPositive { border-left: 3px solid $support-success; }
+.behaviourRecovery { border-left: 3px solid $support-warning; }
+.behaviourHeading { display: flex; justify-content: space-between; gap: $spacing-03; align-items: flex-start; }
+.behaviourHeading h3 { @include type-style('heading-compact-02'); margin: 0; text-transform: capitalize; }
+.behaviourDeltas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $spacing-02; }
+.behaviourDeltas span { @include type-style('label-01'); color: $text-secondary; white-space: nowrap; }
+.behaviourPanel > p:not(.eyebrow) { margin: $spacing-03 0; color: $text-secondary; @include type-style('body-compact-01'); line-height: 1.45; }
+.behaviourTags { display: flex; flex-wrap: wrap; gap: $spacing-02; margin: $spacing-03 0; }
+.behaviourNextAction { display: grid; gap: $spacing-02; padding-top: $spacing-03; border-top: 1px solid $border-subtle; @include type-style('body-compact-01'); }
+.behaviourNextAction strong { @include type-style('label-01'); color: $text-primary; }
+.behaviourNextAction span { color: $text-secondary; }
+
 .passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
 .debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
