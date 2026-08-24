@@ -140,7 +140,7 @@ export default function ProposalStudioPage() {
 type DraftUpdate = (fn: (value: ProposalDraftRequest) => ProposalDraftRequest) => void
 
 function Foundation({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
-  return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><TextArea id="problem-statement" labelText="Problem statement" helperText="Describe observed operational, commercial or risk impacts." rows={3} value={draft.problemStatement} onChange={(event) => update((current) => ({ ...current, problemStatement: event.target.value }))} /><TextArea id="solution-strategy" labelText="Recommended solution" helperText="Explain why this approach addresses the problem." rows={3} value={draft.solutionStrategy} onChange={(event) => update((current) => ({ ...current, solutionStrategy: event.target.value }))} /><ListEditor label="Solution components" values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
+  return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><TextArea id="problem-statement" labelText="Problem statement" helperText="Describe observed operational, commercial or risk impacts." rows={3} value={draft.problemStatement} onChange={(event) => update((current) => ({ ...current, problemStatement: event.target.value }))} /><TextArea id="solution-strategy" labelText="Recommended solution" helperText="Explain why this approach addresses the problem." rows={3} value={draft.solutionStrategy} onChange={(event) => update((current) => ({ ...current, solutionStrategy: event.target.value }))} /><ListEditor label="Solution components" itemsPerPage={2} values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
 }
 
 function Commercial({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
@@ -160,20 +160,20 @@ function EditorIntroduction({ title, description }: { title: string; description
   return <div className={styles.editorIntroduction}><p className={styles.eyebrow}>Proposal section</p><h2>{title}</h2><p>{description}</p></div>
 }
 
-function ListEditor({ label, values, placeholder, onChange }: { label: string; values: string[]; placeholder: string; onChange: (values: string[]) => void }) {
+function ListEditor({ label, values, placeholder, onChange, itemsPerPage = EDITOR_ITEMS_PER_PAGE }: { label: string; values: string[]; placeholder: string; onChange: (values: string[]) => void; itemsPerPage?: number }) {
   const [page, setPage] = useState(0)
-  const pageCount = Math.max(1, Math.ceil(values.length / EDITOR_ITEMS_PER_PAGE))
-  const visibleValues = values.slice(page * EDITOR_ITEMS_PER_PAGE, page * EDITOR_ITEMS_PER_PAGE + EDITOR_ITEMS_PER_PAGE)
+  const pageCount = Math.max(1, Math.ceil(values.length / itemsPerPage))
+  const visibleValues = values.slice(page * itemsPerPage, page * itemsPerPage + itemsPerPage)
 
   useEffect(() => setPage((current) => Math.min(current, pageCount - 1)), [pageCount])
 
   const add = () => {
     const next = [...values, '']
     onChange(next)
-    setPage(Math.floor((next.length - 1) / EDITOR_ITEMS_PER_PAGE))
+    setPage(Math.floor((next.length - 1) / itemsPerPage))
   }
 
-  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleValues.map((value, visibleIndex) => { const index = page * EDITOR_ITEMS_PER_PAGE + visibleIndex; return <div className={styles.row} key={`${label}-${index}`}><TextInput id={`${label}-${index}`} labelText="" hideLabel placeholder={placeholder} value={value} onChange={(event) => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} /><Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(values.length === 1 ? [''] : values.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>Add item</Button></Stack></section>
+  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleValues.map((value, visibleIndex) => { const index = page * itemsPerPage + visibleIndex; return <div className={styles.row} key={`${label}-${index}`}><TextInput id={`${label}-${index}`} labelText="" hideLabel placeholder={placeholder} value={value} onChange={(event) => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} /><Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(values.length === 1 ? [''] : values.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>Add item</Button></Stack></section>
 }
 
 function StructuredEditor<T extends Record<string, string>>({ label, addLabel, rows, empty, fields, onChange }: { label: string; addLabel: string; rows: T[]; empty: T; fields: [keyof T, string][]; onChange: (rows: T[]) => void }) {
