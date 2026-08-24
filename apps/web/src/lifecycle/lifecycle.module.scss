@@ -16,6 +16,10 @@
   border: 0;
 }
 
+.shellContent {
+  margin-block-start: 0 !important;
+}
+
 /* ── Persistent HUD ───────────────────────────────────────────────────────── */
 
 /* The HUD is one strip with two faces: a compact summary that always fits, and
