@@ -230,7 +230,18 @@ function Pager({ page, pageCount, onPrevious, onNext }: { page: number; pageCoun
 }
 
 function EvidenceSummary({ draft }: { draft: ProposalDraftRequest }) {
-  return <section className={styles.evidenceSummary}><h3>Attached sources</h3>{draft.evidenceLinks.length ? <ul>{draft.evidenceLinks.map((link) => <li key={`${link.section}-${link.sourceId}`}>{link.section}: {link.sourceId.startsWith('meeting:') ? 'Meeting discovery' : 'Research evidence'}</li>)}</ul> : <p>No sources attached yet. Return to a proposal section and select a source from the context panel.</p>}</section>
+  const [page, setPage] = useState(0)
+  const pageSize = 3
+  const pageCount = Math.max(1, Math.ceil(draft.evidenceLinks.length / pageSize))
+  const safePage = Math.min(page, pageCount - 1)
+  const visibleLinks = draft.evidenceLinks.slice(safePage * pageSize, safePage * pageSize + pageSize)
+
+  return <section className={styles.evidenceSummary}>
+    <div className={styles.evidenceSummaryHeading}><h3>Attached sources</h3>{draft.evidenceLinks.length > pageSize && <Pager page={safePage} pageCount={pageCount} onPrevious={() => setPage((current) => Math.max(0, current - 1))} onNext={() => setPage((current) => Math.min(pageCount - 1, current + 1))} />}</div>
+    {draft.evidenceLinks.length
+      ? <ul>{visibleLinks.map((link) => <li key={`${link.section}-${link.sourceId}`}>{link.section}: {link.sourceId.startsWith('meeting:') ? 'Meeting discovery' : 'Research evidence'}</li>)}</ul>
+      : <p>No sources attached yet. Return to a proposal section and select a source from the context panel.</p>}
+  </section>
 }
 
 function ReviewPanel({ review }: { review: ProposalReview }) {
