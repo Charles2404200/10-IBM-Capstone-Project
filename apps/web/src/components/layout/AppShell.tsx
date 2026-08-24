@@ -22,6 +22,7 @@ export default function AppShell() {
   const navigate = useNavigate()
   const canAccessAdmin = role === 'SCENARIO_AUTHOR' || role === 'REVIEWER' || role === 'ADMINISTRATOR'
   const usesFixedCanvas = /^\/dashboard\/engagements\/[^/]+\/(intelligence|outreach|preparation)$/.test(location.pathname)
+    || /^\/dashboard\/engagements\/[^/]+\/meetings\/[^/]+$/.test(location.pathname)
   // Carbon hides HeaderNavigation below 1056px and hides this button above it,
   // so exactly one of the two is on screen at any width.
   const [navOpen, setNavOpen] = useState(false)

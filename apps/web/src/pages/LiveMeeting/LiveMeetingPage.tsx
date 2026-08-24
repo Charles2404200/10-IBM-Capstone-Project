@@ -138,7 +138,7 @@ export default function LiveMeetingPage() {
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [terminationDismissed, setTerminationDismissed] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const transcriptRef = useRef<HTMLDivElement>(null)
 
   const turns = useMemo(() => transcript ?? [], [transcript])
   const currentState = personaState ?? persistedPersonaState
@@ -150,7 +150,13 @@ export default function LiveMeetingPage() {
   )
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const transcriptViewport = transcriptRef.current
+    if (!transcriptViewport) return
+
+    transcriptViewport.scrollTo({
+      top: transcriptViewport.scrollHeight,
+      behavior: 'smooth',
+    })
   }, [turns.length, streamingText])
 
   useEffect(() => {
@@ -208,7 +214,7 @@ export default function LiveMeetingPage() {
 
   return (
     <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
-    <div className={styles.page}>
+    <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
@@ -221,9 +227,9 @@ export default function LiveMeetingPage() {
       </Grid>
 
       <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={11} md={8} sm={4}>
+        <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
           <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
-            <div className={styles.transcriptViewport}>
+            <div className={styles.transcriptViewport} ref={transcriptRef}>
               {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
@@ -232,7 +238,6 @@ export default function LiveMeetingPage() {
               {isStreaming && streamingText && (
                 <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
               )}
-              <div ref={scrollRef} />
             </div>
 
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
