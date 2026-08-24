@@ -121,9 +121,9 @@ final class PersonaPromptAssembler {
                 + "Do not label or rank them, do not invent facts, and do not include unprofessional language. "
                 + guidedChoiceMix(profile)
                 + " They must reflect the latest client concern and remain grounded in the available evidence.";
-        return "Resistance %d/100. The client needs a credible next step within %d simulated days. %s "
+        return ("Resistance %d/100. The client needs a credible next step within %d simulated days. %s "
                 + "Ask for more precise evidence when resistance is high. "
-                + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes. %s"
+                + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes. %s")
                 .formatted(profile.personaResistance(), profile.timelinePressureDays(), guidedResponseInstruction, scoringInstruction);
     }
 

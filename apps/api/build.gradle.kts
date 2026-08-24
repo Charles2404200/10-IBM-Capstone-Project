@@ -78,6 +78,23 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+tasks.register<Test>("aiEvaluation") {
+    group = "verification"
+    description = "Runs the versioned AI behaviour regression corpus."
+    useJUnitPlatform()
+    include("**/AiEvaluationRegressionSuiteTest.class")
+    include("**/PersonaPromptContractRegressionTest.class")
+}
+
+tasks.named<Test>("test") {
+    exclude("**/AiEvaluationRegressionSuiteTest.class")
+    exclude("**/PersonaPromptContractRegressionTest.class")
+}
+
+tasks.named("check") {
+    dependsOn("aiEvaluation")
+}
+
 // Load variables from the repo-root .env file (if present) into the bootRun
 // task's environment so `./gradlew bootRun` works the same way docker-compose
 // does, without requiring developers to manually export every variable.

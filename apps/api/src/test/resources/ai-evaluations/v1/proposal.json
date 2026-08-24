@@ -1,0 +1,46 @@
+{
+  "suiteVersion": "1.0.0",
+  "purpose": "Proposal submission is deterministic: required grounding and valid source links are enforced independently from AI review copy.",
+  "cases": [
+    {
+      "id": "grounded-proposal-has-no-blocking-findings",
+      "sources": [
+        { "id": "M-01", "label": "Client discovery", "type": "MEETING_DISCOVERY", "content": "The client needs a controlled eight-week pilot to reduce outage restoration time. A $150,000 pilot estimate can be evaluated against restoration and dispatch metrics.", "reliability": "HIGH" }
+      ],
+      "draft": {
+        "problem": "HarborGrid is experiencing repeated outage restoration delays and manual field-service coordination that create avoidable operational and customer impact.",
+        "solution": "Run a controlled read-only pilot that combines outage, asset and field-service data to provide prioritised dispatch recommendations without changing safety-critical systems.",
+        "components": ["Read-only data integration", "Dispatch recommendation workflow"],
+        "budget": "150000",
+        "budgetSource": "Client discovery estimate",
+        "timelineWeeks": 8,
+        "outcomes": [{ "outcome": "Faster restoration", "metric": "Restoration time", "target": "15% reduction" }],
+        "milestones": [{ "phase": "Data mapping", "duration": "Weeks 1-2" }],
+        "risks": [{ "risk": "Safety control disruption", "severity": "HIGH", "mitigation": "Read-only pilot and control-room validation" }],
+        "assumptions": ["HarborGrid will provide OT and field-service subject matter experts."],
+        "links": [{ "section": "PROBLEM", "sourceId": "M-01" }, { "section": "SOLUTION", "sourceId": "M-01" }]
+      },
+      "expectedBlockingCodes": []
+    },
+    {
+      "id": "invented-source-link-and-unsupported-number-are-flagged",
+      "sources": [
+        { "id": "M-01", "label": "Client discovery", "type": "MEETING_DISCOVERY", "content": "The client needs evidence before approving a pilot.", "reliability": "HIGH" }
+      ],
+      "draft": {
+        "problem": "The client needs a controlled improvement to reduce outage restoration delays across the regional network.",
+        "solution": "Implement a pilot with clear delivery controls and measurable validation before a wider rollout.",
+        "components": ["Pilot integration"],
+        "budget": "250000",
+        "budgetSource": "Consultant estimate",
+        "timelineWeeks": 8,
+        "outcomes": [{ "outcome": "Faster restoration", "metric": "Restoration time", "target": "15% reduction" }],
+        "milestones": [{ "phase": "Data mapping", "duration": "Weeks 1-2" }],
+        "risks": [{ "risk": "Integration complexity", "severity": "HIGH", "mitigation": "Early validation" }],
+        "assumptions": ["Client access will be available."],
+        "links": [{ "section": "PROBLEM", "sourceId": "invented-approval" }]
+      },
+      "expectedBlockingCodes": ["INVALID_EVIDENCE_LINK"]
+    }
+  ]
+}

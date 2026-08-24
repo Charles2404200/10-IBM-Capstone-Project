@@ -1,0 +1,48 @@
+{
+  "suiteVersion": "1.0.0",
+  "purpose": "Client-intelligence evidence must remain grounded in scenario-approved facts and research quality must reflect evidence quality rather than volume.",
+  "cases": [
+    {
+      "id": "corroborated-evidence-unlocks-grounded-intelligence",
+      "scenarioPotentialValueRange": "$1.2M-$1.8M annual opportunity",
+      "expected": {
+        "complete": true,
+        "minimumConfidence": 70,
+        "decisionMaker": "Sarah Chen, VP Supply Chain, owns the decision process.",
+        "technology": "Legacy WMS and spreadsheets drive reconciliation work.",
+        "budget": "Pilot funding is under review for a measurable operational case."
+      },
+      "evidence": [
+        { "sequence": 1, "type": "STAKEHOLDER_PROFILE", "note": "Sarah Chen, VP Supply Chain, owns the decision process.", "origin": "AI_SYNTHESIZED", "verification": "CORROBORATED", "confidence": "HIGH", "relevance": 96 },
+        { "sequence": 2, "type": "FINANCIAL_SIGNAL", "note": "Pilot funding is under review for a measurable operational case.", "origin": "AI_SYNTHESIZED", "verification": "VERIFIED", "confidence": "HIGH", "relevance": 92 },
+        { "sequence": 3, "type": "TECHNOLOGY_INDICATOR", "note": "Legacy WMS and spreadsheets drive reconciliation work.", "origin": "AI_SYNTHESIZED", "verification": "CORROBORATED", "confidence": "HIGH", "relevance": 94 },
+        { "sequence": 4, "type": "COMPANY_NEWS", "note": "Leadership has prioritised a low-disruption supply-chain modernisation programme.", "origin": "AI_SYNTHESIZED", "verification": "CORROBORATED", "confidence": "HIGH", "relevance": 88 },
+        { "sequence": 5, "type": "HYPOTHESIS", "note": "Legacy inventory processes and fragmented tools are causing reconciliation delays and stockout risk; a controlled pilot should validate the measurable operational impact.", "origin": "USER_SUPPLIED", "verification": "UNVERIFIED", "confidence": "MEDIUM", "relevance": 90, "supports": [1, 2, 3] }
+      ]
+    },
+    {
+      "id": "unverified-noise-cannot-create-confidence-or-reveal-truth",
+      "scenarioPotentialValueRange": "$1.2M-$1.8M annual opportunity",
+      "expected": { "complete": false, "maximumConfidence": 39, "decisionMaker": null, "budget": null },
+      "evidence": [
+        { "sequence": 1, "type": "COMPANY_NEWS", "note": "The company sponsored a local charity event.", "origin": "USER_SUPPLIED", "verification": "UNVERIFIED", "confidence": "LOW", "relevance": 5 },
+        { "sequence": 2, "type": "MARKET_TREND", "note": "A competitor opened a showroom in another region.", "origin": "USER_SUPPLIED", "verification": "UNVERIFIED", "confidence": "LOW", "relevance": 10 },
+        { "sequence": 3, "type": "STAKEHOLDER_PROFILE", "note": "I think the decision maker has a $10M budget.", "origin": "USER_SUPPLIED", "verification": "UNVERIFIED", "confidence": "LOW", "relevance": 10 }
+      ]
+    }
+  ],
+  "factGuardCases": [
+    {
+      "id": "approved-fact-keys-are-accepted",
+      "allowedFacts": ["legacy_wms", "pilot_budget_review"],
+      "artifactFacts": ["legacy_wms"],
+      "expectedValid": true
+    },
+    {
+      "id": "invented-budget-fact-is-rejected",
+      "allowedFacts": ["legacy_wms", "pilot_budget_review"],
+      "artifactFacts": ["approved_10m_budget"],
+      "expectedValid": false
+    }
+  ]
+}
