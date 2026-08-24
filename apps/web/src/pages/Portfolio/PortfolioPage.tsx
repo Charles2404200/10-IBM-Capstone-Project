@@ -18,12 +18,23 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 
-function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+function StatTile({
+  label,
+  value,
+  accent,
+  helper,
+}: {
+  label: string
+  value: string | number
+  accent?: string
+  helper?: string
+}) {
   return (
     <Tile>
       <Stack gap={2}>
         <p style={{ color: '#525252', fontSize: '0.75rem', textTransform: 'uppercase' }}>{label}</p>
         <span style={{ color: accent ?? '#161616', fontSize: '2rem', fontWeight: 600 }}>{value}</span>
+        {helper && <p style={{ color: '#525252', fontSize: '0.75rem' }}>{helper}</p>}
       </Stack>
     </Tile>
   )
@@ -68,7 +79,9 @@ function CompetencyTrendCard({ trend }: { trend: CompetencyTrend }) {
 }
 
 function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementView }) {
-  const won = engagement.outcome === 'PROPOSAL_ACCEPTED' || engagement.outcome === 'WON'
+  const won = ['PILOT_APPROVED', 'PROPOSAL_ACCEPTED', 'STRATEGIC_PARTNERSHIP', 'WON']
+    .includes(engagement.outcome)
+  const rejected = ['REJECTED', 'PROPOSAL_REJECTED', 'LOST'].includes(engagement.outcome)
   return (
     <Tile>
       <Stack gap={2}>
@@ -77,7 +90,7 @@ function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementV
             <h5 style={{ color: '#161616' }}>{engagement.scenarioTitle}</h5>
             <Tag type="cyan" size="sm">{engagement.industry}</Tag>
           </div>
-          <Tag type={won ? 'green' : 'red'}>{engagement.outcome.replace(/_/g, ' ')}</Tag>
+          <Tag type={won ? 'green' : rejected ? 'red' : 'purple'}>{engagement.outcome.replace(/_/g, ' ')}</Tag>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ color: '#525252', fontSize: '0.75rem' }}>
@@ -237,7 +250,11 @@ export default function PortfolioPage() {
 
           <Grid narrow>
             <Column lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
-              <StatTile label="Total Engagements" value={portfolio.totalEngagements} />
+              <StatTile
+                label="Completed Engagements"
+                value={`${portfolio.completedEngagements} / ${portfolio.totalEngagements}`}
+                helper={`${portfolio.totalEngagements - portfolio.completedEngagements} still in progress`}
+              />
             </Column>
             <Column lg={4} md={4} sm={4} style={{ marginBottom: '1rem' }}>
               <StatTile label="Contracts Won" value={portfolio.contractsWon} accent="#24a148" />
@@ -265,7 +282,9 @@ export default function PortfolioPage() {
 
           {sortedHistory.length > 0 ? (
             <section>
-              <h3 style={{ marginBottom: '1rem', color: '#161616' }}>Completed Engagements</h3>
+              <h3 style={{ marginBottom: '1rem', color: '#161616' }}>
+                Completed Engagements ({portfolio.completedEngagements} of {portfolio.totalEngagements})
+              </h3>
               <Grid narrow>
                 {sortedHistory.map((h) => (
                   <Column key={h.engagementId} lg={5} md={4} sm={4} style={{ marginBottom: '1rem' }}>
