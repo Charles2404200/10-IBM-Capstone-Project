@@ -78,16 +78,20 @@ public class AssessmentService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         return assessmentRepository.findByEngagementId(engagementId)
-                .map(AssessmentResponse::from)
+                .map(assessment -> {
+                    completeAssessmentLifecycle(engagement, "Recovered completed assessment lifecycle");
+                    return AssessmentResponse.from(assessment);
+                })
                 .orElseGet(() -> buildAndPersist(engagement));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AssessmentResponse get(UUID engagementId, UUID userId) {
-        engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         Assessment assessment = assessmentRepository.findByEngagementId(engagementId)
                 .orElseThrow(() -> new NotFoundException("Assessment for engagement", engagementId));
+        completeAssessmentLifecycle(engagement, "Completed assessment opened");
         return AssessmentResponse.from(assessment);
     }
 
@@ -141,14 +145,30 @@ public class AssessmentService {
                 feedback.feedbackSummary(), feedback.strengths(), feedback.improvementAreas());
         assessmentRepository.save(assessment);
 
-        if (engagement.getState() == EngagementState.CLIENT_DECISION) {
-            engagement.transitionTo(EngagementState.REVIEW, "Assessment generated");
-            engagementRepository.save(engagement);
-        }
-
         achievementEvaluationService.evaluateForUser(engagement.getUserId());
+        completeAssessmentLifecycle(engagement, "Assessment generated and portfolio updated");
 
         return AssessmentResponse.from(assessment);
+    }
+
+    /**
+     * Completes the final two lifecycle steps after a durable assessment exists.
+     * This is intentionally idempotent so engagements created before the
+     * completion transition was introduced are repaired on their next read.
+     */
+    private void completeAssessmentLifecycle(Engagement engagement, String reason) {
+        boolean changed = false;
+        if (engagement.getState() == EngagementState.CLIENT_DECISION) {
+            engagement.transitionTo(EngagementState.REVIEW, "Assessment available for review");
+            changed = true;
+        }
+        if (engagement.getState() == EngagementState.REVIEW) {
+            engagement.transitionTo(EngagementState.COMPLETED, reason);
+            changed = true;
+        }
+        if (changed) {
+            engagementRepository.save(engagement);
+        }
     }
 
     /**

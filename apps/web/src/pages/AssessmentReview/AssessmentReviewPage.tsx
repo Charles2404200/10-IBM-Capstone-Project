@@ -5,6 +5,36 @@ import { useAssessment, useGenerateAssessment } from '@/api/hooks/useAssessment'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 
+type OutcomePresentation = {
+  label: string
+  contractStatus: string
+  tagType: 'green' | 'red' | 'blue' | 'purple'
+}
+
+function describeOutcome(outcome: string): OutcomePresentation {
+  switch (outcome) {
+    case 'PILOT_APPROVED':
+      return { label: 'Pilot approved', contractStatus: 'Contract won', tagType: 'green' }
+    case 'PROPOSAL_ACCEPTED':
+    case 'WON':
+      return { label: 'Proposal accepted', contractStatus: 'Contract won', tagType: 'green' }
+    case 'STRATEGIC_PARTNERSHIP':
+      return { label: 'Strategic partnership', contractStatus: 'Contract won', tagType: 'green' }
+    case 'REVISION_REQUESTED':
+      return { label: 'Revision requested', contractStatus: 'Client decision recorded', tagType: 'purple' }
+    case 'FURTHER_DISCOVERY_REQUIRED':
+      return { label: 'Further discovery requested', contractStatus: 'Client decision recorded', tagType: 'blue' }
+    case 'DEFERRED':
+      return { label: 'Decision deferred', contractStatus: 'Contract not awarded', tagType: 'blue' }
+    case 'REJECTED':
+    case 'PROPOSAL_REJECTED':
+    case 'LOST':
+      return { label: 'Proposal rejected', contractStatus: 'Contract not won', tagType: 'red' }
+    default:
+      return { label: outcome.replaceAll('_', ' '), contractStatus: 'Client decision recorded', tagType: 'blue' }
+  }
+}
+
 function CompetencyBar({ name, score, evidenceNote }: { name: string; score: number; evidenceNote: string | null }) {
   return (
     <Tile>
@@ -56,7 +86,7 @@ export default function AssessmentReviewPage() {
   const result = assessment ?? generateAssessment.data
   if (!result) return <LoadingState description="Generating assessment…" />
 
-  const won = result.outcome === 'PROPOSAL_ACCEPTED' || result.outcome === 'WON'
+  const outcome = describeOutcome(result.outcome)
 
   return (
     <Grid fullWidth style={{ padding: '2rem' }}>
@@ -72,11 +102,15 @@ export default function AssessmentReviewPage() {
           <Tile>
             <Stack gap={3}>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <Tag type={won ? 'green' : 'red'} size="lg">
-                  {result.outcome}
+                <Tag type="blue" size="lg">
+                  ENGAGEMENT COMPLETE
+                </Tag>
+                <Tag type={outcome.tagType} size="lg">
+                  {outcome.label}
                 </Tag>
                 <span style={{ color: '#161616', fontSize: '1.5rem' }}>{result.overallScore}/100</span>
               </div>
+              <p style={{ color: '#525252' }}><strong>{outcome.contractStatus}</strong></p>
               <p style={{ color: '#525252' }}>{result.feedbackSummary}</p>
             </Stack>
           </Tile>
