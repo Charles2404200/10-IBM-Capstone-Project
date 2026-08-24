@@ -66,6 +66,21 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const pendingResolversRef = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null)
 
   useEffect(() => {
+    // A retry navigates to a new meeting while this page component remains
+    // mounted. Reset every ephemeral stream value before connecting so the
+    // failed attempt cannot keep its termination modal or relationship state.
+    setStreamingText('')
+    setIsStreaming(false)
+    setError(null)
+    setPersonaState(null)
+    setLatestSignals([])
+    setTermination(null)
+    setGuidedOptionsPending(false)
+    setGuidedOptionsError(null)
+    setBehaviourFeedback(null)
+    sendingRef.current = false
+
+    let disposed = false
     const token = useAuthStore.getState().token
     const client = new Client({
       brokerURL: toWebSocketUrl(baseUrl),
@@ -78,6 +93,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     client.onConnect = () => {
       connectedRef.current = true
       client.subscribe(`/topic/meetings/${meetingId}`, (frame: IMessage) => {
+        if (disposed) return
         const event = JSON.parse(frame.body) as SocketEvent
         if (event.type === 'turn.thinking') {
           setStreamingText('Client is reading your message...')
@@ -161,6 +177,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     clientRef.current = client
 
     return () => {
+      disposed = true
       connectedRef.current = false
       client.deactivate()
       clientRef.current = null

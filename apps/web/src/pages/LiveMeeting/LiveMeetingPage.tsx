@@ -14,7 +14,7 @@ import {
   Tile,
 } from '@carbon/react'
 import { ArrowRight, Send } from '@carbon/icons-react'
-import { useCompleteMeeting, useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
+import { useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
@@ -132,7 +132,6 @@ export default function LiveMeetingPage() {
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
   const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
-  const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
   const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
@@ -153,6 +152,12 @@ export default function LiveMeetingPage() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [turns.length, streamingText])
+
+  useEffect(() => {
+    setMessage('')
+    setPendingMessage(null)
+    setTerminationDismissed(false)
+  }, [meetingId])
 
   if (meetingLoading || transcriptLoading || personaStateLoading) return <LoadingState />
   if (meetingError || !meeting) return <ErrorState />
@@ -189,10 +194,6 @@ export default function LiveMeetingPage() {
 
   const handleSend = async () => sendResponse(message.trim())
 
-  const handleComplete = () => {
-    completeMeeting.mutate()
-  }
-
   const handleRetryLead = () => {
     retryEngagement.mutate(undefined, {
       onSuccess: (retry) => navigate(`/dashboard/engagements/${retry.id}/intelligence`),
@@ -215,11 +216,6 @@ export default function LiveMeetingPage() {
               <p className={styles.eyebrow}>Live discovery</p>
               <Heading>Live Client Meeting</Heading>
             </div>
-            {!isCompleted && (
-              <Button kind={meetingGateMet ? 'primary' : 'secondary'} disabled={isStreaming || completeMeeting.isPending} onClick={handleComplete}>
-                {completeMeeting.isPending ? 'Preparing debrief...' : meetingGateMet ? 'Complete Meeting' : 'End Meeting'}
-              </Button>
-            )}
           </div>
         </Column>
       </Grid>

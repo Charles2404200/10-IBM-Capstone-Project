@@ -99,20 +99,6 @@ export function useMeetingResponseOptions(meetingId: string, enabled = true) {
   })
 }
 
-export function useCompleteMeeting(meetingId: string, engagementId: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async () => {
-      const res = await apiClient.post<Meeting>(`/api/v1/meetings/${meetingId}/complete`)
-      return res.data
-    },
-    onSuccess: (meeting) => {
-      qc.setQueryData(meetingKeys.meeting(meetingId), meeting)
-      void qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
-    },
-  })
-}
-
 export function useRetryMeeting(meetingId: string, engagementId: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -121,7 +107,13 @@ export function useRetryMeeting(meetingId: string, engagementId: string) {
       return res.data
     },
     onSuccess: (meeting) => {
+      // Prime the new attempt with an empty client-side view before navigation.
+      // The first page render therefore cannot inherit transcript/options/state
+      // from the failed meeting while its own queries are in flight.
       qc.setQueryData(meetingKeys.meeting(meeting.id), meeting)
+      qc.setQueryData(meetingKeys.transcript(meeting.id), [])
+      qc.removeQueries({ queryKey: meetingKeys.personaState(meeting.id) })
+      qc.removeQueries({ queryKey: meetingKeys.responseOptions(meeting.id) })
       void qc.invalidateQueries({ queryKey: ['engagements', engagementId] })
       void qc.invalidateQueries({ queryKey: ['engagements'] })
     },

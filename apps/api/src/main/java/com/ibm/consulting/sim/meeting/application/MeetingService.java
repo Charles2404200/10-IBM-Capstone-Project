@@ -390,16 +390,11 @@ public class MeetingService {
     @Transactional
     public MeetingResponse complete(UUID meetingId, UUID userId) {
         Meeting meeting = loadOwnedMeeting(meetingId, userId);
-        Engagement engagement = engagementRepository.findByIdAndUserId(meeting.getEngagementId(), userId)
-                .orElseThrow(() -> new NotFoundException("Engagement", meeting.getEngagementId()));
-
         if (meeting.getStatus() == MeetingStatus.COMPLETED) {
             return responseFor(meeting);
         }
-
-        PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
-                .orElseGet(() -> PersonaState.initial(meeting.getEngagementId()));
-        return completeMeeting(meeting, engagement, state);
+        throw new InvalidMeetingStateException(
+                "Manual meeting completion is not supported. The meeting closes automatically after the client confirms a passed next step.");
     }
 
     private MeetingResponse completeMeeting(Meeting meeting, Engagement engagement, PersonaState state) {
