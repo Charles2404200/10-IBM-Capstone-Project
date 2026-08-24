@@ -210,6 +210,7 @@ public class MeetingService {
         PersonaProfile persona = personaCatalogService.getPersona(meeting.getPersonaId());
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
                 .orElseGet(() -> PersonaState.initial(meeting.getEngagementId(), profile));
+        boolean conclusionRequired = MeetingClosingPolicy.requiresConclusionAfterReply(state, (int) learnerTurnCount);
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(meeting.getEngagementId());
         int transcriptStart = Math.max(0, existingTurns.size() - PROMPT_TRANSCRIPT_WINDOW);
         List<ConversationTurn> recentTurns = existingTurns.subList(transcriptStart, existingTurns.size());
@@ -240,7 +241,7 @@ public class MeetingService {
                 KnowledgeCollection.SCENARIO_TRUTH, engagement.getScenarioId(), persona.getId(), learnerMessage);
 
         String prompt = PersonaPromptAssembler.assemble(persona, state, evidence, retrievedKnowledge, recentTurns,
-                learnerMessage, profile);
+                learnerMessage, profile, conclusionRequired);
         PersonaTurnResponseParser parser = new PersonaTurnResponseParser(objectMapper, Set.of());
 
         PersonaTurnResponse aiResponse = aiOrchestrationService.execute(
@@ -254,6 +255,12 @@ public class MeetingService {
 
         PersonaStateEngine.apply(state, aiResponse, profile, learnerMessage, (int) learnerTurnCount + 1);
         personaStateRepository.save(state);
+
+        // The simulation engine owns lifecycle truth. A provider cannot keep a
+        // passed meeting alive by asking another question or omitting a signal.
+        if (MeetingClosingPolicy.canConclude(state, conclusionRequired, (int) learnerTurnCount + 1)) {
+            aiResponse = MeetingClosingResponsePolicy.conclude(aiResponse);
+        }
 
         String signals = String.join(",", combineSignals(aiResponse));
         ConversationTurn personaTurn = ConversationTurn.personaTurn(

@@ -190,11 +190,15 @@ export default function LiveMeetingPage() {
                 <div className={styles.guidedHeading}>
                   <div>
                     <p className={styles.eyebrow}>Guided response</p>
-                    <h3>Choose your next response</h3>
+                    <h3>{meetingGateMet ? 'Confirm the agreed next step' : 'Choose your next response'}</h3>
                   </div>
                   <Tag type="blue">Three options</Tag>
                 </div>
-                <p className={styles.guidedDescription}>Choose carefully: not every professional-sounding response advances the conversation. Its impact is evaluated from the actual conversation.</p>
+                <p className={styles.guidedDescription}>
+                  {meetingGateMet
+                    ? 'The client is ready to conclude. Confirm one concrete next step; the meeting will then close automatically.'
+                    : 'Choose carefully: not every professional-sounding response advances the conversation. Its impact is evaluated from the actual conversation.'}
+                </p>
                 {responseOptionsLoading && <InlineLoading description="Preparing response options..." />}
                 {(isStreaming || guidedOptionsPending) && <InlineLoading description={isStreaming ? 'Client is responding...' : 'Preparing next response options...'} />}
                 {!isStreaming && !guidedOptionsPending && !responseOptionsLoading && responseOptions?.available && (
@@ -321,7 +325,7 @@ export default function LiveMeetingPage() {
               <Tile className={styles.readyToClosePanel}>
                 <p className={styles.eyebrow}>Client readiness</p>
                 <h3>Ready to conclude</h3>
-                <p>The client has enough confidence to move forward. Confirm the agreed next step, then complete the meeting.</p>
+                <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
               </Tile>
             )}
 
