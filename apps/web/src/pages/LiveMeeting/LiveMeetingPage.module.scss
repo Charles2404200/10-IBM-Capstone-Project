@@ -72,19 +72,18 @@
 .behaviourNextAction strong { @include type-style('label-01'); color: $text-primary; }
 .behaviourNextAction span { color: $text-secondary; }
 
-.passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
+.passedDebrief, .failedDebrief { padding: $spacing-04; border-top: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
-.debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
+.debriefFeedback { color: $text-primary; line-height: 1.4; margin: $spacing-02 0 $spacing-03; }
 .terminationGuidance { margin: 0; padding-left: $spacing-05; }
 .terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; }
-.historyModal { max-height: 55vh; overflow-y: auto; padding-right: $spacing-03; }
 
 @media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
 @media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.responseChoice { grid-template-columns: 1fr auto; }.choiceNumber { grid-column: 1 / -1; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }
 
-/* Keep the live conversation as one active desk on desktop. Older turns live
-   behind the explicit history action above, so neither the page nor the chat
-   pane needs a scrollbar during the decision-making moment. */
+/* Keep the live conversation as one active desk on desktop. The transcript is
+   the only scrolling surface, so full context stays available without turning
+   the surrounding workflow into a document page. */
 @media (min-width: 82rem) and (min-height: 43.75rem) {
   .page {
     box-sizing: border-box;
@@ -105,7 +104,7 @@
   .pageHeader h1 { @include type-style('heading-04'); }
   .workspaceGrid :global([class*='cds--col-lg-11']) { display: flex; flex-direction: column; }
   .conversationPanel { flex: 1 1 auto; min-height: 0; height: 100%; }
-  .transcriptViewport { overflow: hidden; padding: $spacing-03 $spacing-04; }
+  .transcriptViewport { overflow-y: auto; padding: $spacing-03 $spacing-04; }
   .transcriptToolbar { margin-bottom: $spacing-02; }
   .learnerTurn, .personaTurn { margin-bottom: $spacing-03; }
   .bubble { max-width: 82%; padding: $spacing-03; }
@@ -130,6 +129,5 @@
   .behaviourNextAction { padding-top: $spacing-02; }
   .readyToClosePanel, .factsPanel { display: none; }
 
-  .passedDebrief, .failedDebrief { margin-top: $spacing-03; padding: $spacing-04; }
-  .completedPage { height: auto; overflow: visible; }
+  .passedDebrief, .failedDebrief { padding: $spacing-03 $spacing-04; }
 }
