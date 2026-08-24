@@ -488,7 +488,7 @@ export default function ClientIntelligencePage() {
   return (
     <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
     <Grid fullWidth className={styles.page}>
-      <Column lg={16} md={8} sm={4}>
+      <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
         <nav className={styles.breadcrumbs} aria-label="Workflow path">
           <span>Research workflow</span><ChevronRight size={16} />
           <span>Build evidence and test a hypothesis</span><ChevronRight size={16} />
