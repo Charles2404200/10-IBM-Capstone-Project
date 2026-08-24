@@ -14,6 +14,7 @@ import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const SOURCES_PER_PAGE = 3
+const EDITOR_ITEMS_PER_PAGE = 4
 const PROPOSAL_OBJECTIVES = [
   {
     id: 'completion-steps',
@@ -161,34 +162,34 @@ function EditorIntroduction({ title, description }: { title: string; description
 
 function ListEditor({ label, values, placeholder, onChange }: { label: string; values: string[]; placeholder: string; onChange: (values: string[]) => void }) {
   const [page, setPage] = useState(0)
-  const pageCount = Math.max(1, Math.ceil(values.length / 2))
-  const visibleValues = values.slice(page * 2, page * 2 + 2)
+  const pageCount = Math.max(1, Math.ceil(values.length / EDITOR_ITEMS_PER_PAGE))
+  const visibleValues = values.slice(page * EDITOR_ITEMS_PER_PAGE, page * EDITOR_ITEMS_PER_PAGE + EDITOR_ITEMS_PER_PAGE)
 
   useEffect(() => setPage((current) => Math.min(current, pageCount - 1)), [pageCount])
 
   const add = () => {
     const next = [...values, '']
     onChange(next)
-    setPage(Math.floor((next.length - 1) / 2))
+    setPage(Math.floor((next.length - 1) / EDITOR_ITEMS_PER_PAGE))
   }
 
-  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleValues.map((value, visibleIndex) => { const index = page * 2 + visibleIndex; return <div className={styles.row} key={`${label}-${index}`}><TextInput id={`${label}-${index}`} labelText="" hideLabel placeholder={placeholder} value={value} onChange={(event) => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} /><Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(values.length === 1 ? [''] : values.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>Add item</Button></Stack></section>
+  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleValues.map((value, visibleIndex) => { const index = page * EDITOR_ITEMS_PER_PAGE + visibleIndex; return <div className={styles.row} key={`${label}-${index}`}><TextInput id={`${label}-${index}`} labelText="" hideLabel placeholder={placeholder} value={value} onChange={(event) => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} /><Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(values.length === 1 ? [''] : values.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>Add item</Button></Stack></section>
 }
 
 function StructuredEditor<T extends Record<string, string>>({ label, addLabel, rows, empty, fields, onChange }: { label: string; addLabel: string; rows: T[]; empty: T; fields: [keyof T, string][]; onChange: (rows: T[]) => void }) {
   const [page, setPage] = useState(0)
-  const pageCount = Math.max(1, Math.ceil(rows.length / 2))
-  const visibleRows = rows.slice(page * 2, page * 2 + 2)
+  const pageCount = Math.max(1, Math.ceil(rows.length / EDITOR_ITEMS_PER_PAGE))
+  const visibleRows = rows.slice(page * EDITOR_ITEMS_PER_PAGE, page * EDITOR_ITEMS_PER_PAGE + EDITOR_ITEMS_PER_PAGE)
 
   useEffect(() => setPage((current) => Math.min(current, pageCount - 1)), [pageCount])
 
   const add = () => {
     const next = [...rows, empty]
     onChange(next)
-    setPage(Math.floor((next.length - 1) / 2))
+    setPage(Math.floor((next.length - 1) / EDITOR_ITEMS_PER_PAGE))
   }
 
-  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleRows.map((row, visibleIndex) => { const index = page * 2 + visibleIndex; return <div className={styles.structuredRow} key={`${label}-${index}`}>{fields.map(([key, fieldLabel]) => key === 'severity' ? <Select key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select> : <TextInput key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))} />)}<Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(rows.length === 1 ? [empty] : rows.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>{addLabel}</Button></Stack></section>
+  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleRows.map((row, visibleIndex) => { const index = page * EDITOR_ITEMS_PER_PAGE + visibleIndex; return <div className={styles.structuredRow} key={`${label}-${index}`}>{fields.map(([key, fieldLabel]) => key === 'severity' ? <Select key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select> : <TextInput key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))} />)}<Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(rows.length === 1 ? [empty] : rows.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>{addLabel}</Button></Stack></section>
 }
 
 function Pager({ page, pageCount, onPrevious, onNext }: { page: number; pageCount: number; onPrevious: () => void; onNext: () => void }) {
