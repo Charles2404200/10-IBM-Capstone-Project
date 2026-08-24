@@ -47,6 +47,10 @@ The Kafka-to-WebSocket notification design, environment variables, role endpoint
 security checks, and operational logs are documented in
 [`docs/architecture/NOTIFICATION_PIPELINE.md`](docs/architecture/NOTIFICATION_PIPELINE.md).
 
+The AI package, provider routing, validation/repair flow, quotas, circuit breakers,
+configuration, and extension steps are documented in
+[`docs/ai/README.md`](docs/ai/README.md).
+
 ### Observability
 
 The API emits structured JSON logs to stdout and Prometheus metrics from a

@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
@@ -41,6 +42,28 @@ class NotificationQueryServiceTest {
     private NotificationQueryService service;
 
     @Test
+    void inboxIncludesTheNotificationTopicName() {
+        UUID userId = UUID.randomUUID();
+        NotificationEvent notification = NotificationEvent.create(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "Maintenance Notice",
+                "The platform will restart tonight.",
+                UserRole.LEARNER);
+        when(notificationRepository.findNotificationsByRole(UserRole.LEARNER))
+                .thenReturn(List.of(notification));
+        when(notificationReadRepository.findReadNotificationsByUserId(userId))
+                .thenReturn(List.of());
+
+        List<NotificationResponse> response = service.listForUser(userId, UserRole.LEARNER);
+
+        assertEquals(1, response.size());
+        assertEquals("Maintenance Notice", response.getFirst().topicName());
+        assertFalse(response.getFirst().read());
+        assertNull(response.getFirst().readAt());
+    }
+
+    @Test
     void roleMismatchIsReportedAsNotFoundWhenMarkingRead() {
         UUID eventId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -59,7 +82,7 @@ class NotificationQueryServiceTest {
         Instant readAt = Instant.parse("2026-08-20T01:15:00Z");
 
         NotificationEvent notification = NotificationEvent.create(
-                eventId, UUID.randomUUID(), "Message", UserRole.LEARNER);
+                eventId, UUID.randomUUID(), "Scenario Update", "Message", UserRole.LEARNER);
         NotificationRead readReceipt = NotificationRead.create(
                 notification.getId(), readLearner.getId(), readAt);
 

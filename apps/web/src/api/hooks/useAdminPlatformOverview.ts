@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { PlatformOverview } from '@/api/types'
+import type { AdminNotificationRequest, AdminNotificationResponse, PlatformOverview, UserRole } from '@/api/types'
 
 export const adminPlatformKeys = {
   overview: ['admin', 'platform', 'overview'] as const,
@@ -15,4 +15,17 @@ export function useAdminPlatformOverview(enabled: boolean) {
     refetchInterval: 30_000,
     refetchOnWindowFocus: false,
   })
+}
+
+
+export function useAdminNotifyUsers(
+) {
+  return useMutation({
+    mutationFn: async (notificationObject: AdminNotificationRequest) => {
+      const res = await apiClient.post<AdminNotificationResponse>(`/api/v1/admin/platform/publish-notifications/`,
+        notificationObject
+      );
+      return res.data;
+    }
+  });
 }

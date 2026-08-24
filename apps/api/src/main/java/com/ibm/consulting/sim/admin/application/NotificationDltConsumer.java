@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.admin.application;
 
 import com.ibm.consulting.sim.admin.domain.NotificationObject;
+import com.ibm.consulting.sim.shared.domain.EventEnvelope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,16 +22,12 @@ public class NotificationDltConsumer {
             containerFactory = "kafkaListenerContainerFactory"
     )
     public void consumeDlt(
-            NotificationObject notification,
+            EventEnvelope envelope,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition
     ) {
 
         log.error(
-                "Notification found in DLT: eventId={}, userId={}, role={}, partition={}",
-                notification.getEventId(),
-                notification.getUserId(),
-                notification.getRole(),
-                partition
+                "Error occured with this object = {}", envelope.toString()
         );
 
         // Later:

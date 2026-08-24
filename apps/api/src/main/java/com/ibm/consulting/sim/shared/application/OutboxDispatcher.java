@@ -8,11 +8,31 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
 public class OutboxDispatcher {
+
+    // the outbox pattern exists so that
+    // we do not need one atomic
+    // operation where
+    // i want both the kafka transaction
+    // and the database transaction to be
+    // successful together
+    // i should put every event
+    // which is ordered in the database
+    // and update whether it is processed
+    // so i know whether the event is processed
+    // or not and published and use it to see
+    // whether the order is proper or not
+    // and then if nothing is there before the
+    // sequence it means all of them are published
+    // and so i can remove all the published ones
+    // every day
 
     private final JPAOutboxRepository outboxRepository;
     private final KafkaTemplate<String, EventEnvelope> kafkaTemplate;
@@ -29,6 +49,16 @@ public class OutboxDispatcher {
         this.kafkaTemplate = kafkaTemplate;
         this.messagingTemplate = messagingTemplate;
         this.outboxStateService = outboxStateService;
+    }
+
+    // every 10 minutes 0 seconds
+    @Scheduled(cron = "0 */10 * * * *")
+    @Transactional
+    public void cleanupPublishedEvents() {
+
+        Instant cutoff = Instant.now().minus(2, ChronoUnit.DAYS);
+
+        outboxRepository.deletePublishedBefore(cutoff);
     }
 
     @Scheduled(fixedDelay = 200)
@@ -68,7 +98,12 @@ public class OutboxDispatcher {
 
         try {
 
-            outboxStateService.markProcessing(event.getId());
+            boolean processed = outboxStateService.tryMarkProcessing(event.getId());
+
+            if(processed)
+            {
+                return;
+            }
 
             kafkaTemplate.send(
                     event.getTopic(),
@@ -97,7 +132,14 @@ public class OutboxDispatcher {
 
         try {
 
-            outboxStateService.markProcessing(event.getId());
+            // this makes sure that other threads or servers
+            // are not able to process the failed message event
+            boolean processed = outboxStateService.tryMarkProcessing(event.getId());
+
+            if(processed)
+            {
+                return;
+            }
 
             messagingTemplate.convertAndSend(
                     event.getDest(),

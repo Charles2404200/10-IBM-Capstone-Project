@@ -6,17 +6,15 @@ import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.admin.infrastructure.realtime.NotificationWebSocketDestinations;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.domain.EventEnvelope;
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
 import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
-import com.ibm.consulting.sim.shared.infrastructure.JPAOutboxRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 import java.util.List;
@@ -50,8 +48,9 @@ public class AdminNotificationService {
      */
     @Transactional
     public CompletableFuture<NotificationPublishResult> notifyRoles(
-            UUID userId, String message, List<UserRole> roles) {
+            UUID userId, String topicName, String message, List<UserRole> roles) {
         Objects.requireNonNull(userId, "userId must not be null");
+        Objects.requireNonNull(topicName, "topicName must not be null");
         Objects.requireNonNull(message, "message must not be null");
         Objects.requireNonNull(roles, "roles must not be null");
 
@@ -69,7 +68,7 @@ public class AdminNotificationService {
         List<CompletableFuture<SendResult<String, Object>>> sends = distinctRoles.stream()
                 .map(role -> {
                     try {
-                        return notifyUsers(UUID.randomUUID() , userId, message, role);
+                        return notifyUsers(UUID.randomUUID(), userId, topicName, message, role);
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
                     }
@@ -102,8 +101,10 @@ public class AdminNotificationService {
      * notifications for the same audience retain partition ordering.
      */
     private CompletableFuture<SendResult<String, Object>> notifyUsers(
-            UUID eventId , UUID userId, String message, UserRole role) throws JsonProcessingException {
-        NotificationObject notification = new NotificationObject(eventId , userId, message, role);
+            UUID eventId, UUID userId, String topicName, String message, UserRole role)
+            throws JsonProcessingException {
+        NotificationObject notification = new NotificationObject(
+                eventId, userId, topicName, message, role);
         String topic = properties.topic().name();
 
         log.debug("Publishing notification: eventId={} userId={}, role={}, topic={}",eventId, userId, role, topic);

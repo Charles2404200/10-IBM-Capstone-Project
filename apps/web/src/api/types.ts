@@ -74,6 +74,18 @@ export interface PlatformOverview {
     scenarios: ScenarioActivity[]
 }
 
+export interface AdminNotificationResponse {
+  status : string,
+  publishedCount : number,
+  roles : UserRole[]
+}
+
+export interface AdminNotificationRequest {
+  topicName: string,
+  notificationDescription: string
+  roles : UserRole[]
+}
+
 export interface GameplayDifficultyProfile {
   level: 'EASY' | 'MEDIUM' | 'HARD'
   researchArtifactsPerAction: number

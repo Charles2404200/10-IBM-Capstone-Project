@@ -44,6 +44,7 @@ public class AdminPlatformController {
     }
 
     record PublishNotificationRequest(
+            @NotBlank @Size(max = 160) String topicName,
             @NotBlank @Size(max = 4000) String message,
             @NotEmpty List<@NotNull UserRole> roles) {
     }
@@ -56,14 +57,14 @@ public class AdminPlatformController {
         return overviewService.getOverview();
     }
 
-    @PostMapping("/notifications")
+    @PostMapping("/publish-notifications")
     @ResponseStatus(HttpStatus.ACCEPTED)
     CompletableFuture<PublishNotificationResponse> publishNotification(
             @Valid @RequestBody PublishNotificationRequest request,
             @AuthenticationPrincipal User user) {
         return adminNotificationService.notifyRoles(
                         user.getId(),
-                        request.message(), request.roles())
+                        request.topicName(), request.message(), request.roles())
                 .thenApply(result -> new PublishNotificationResponse(
                         "PUBLISHED", result.publishedCount(), result.roles()));
     }

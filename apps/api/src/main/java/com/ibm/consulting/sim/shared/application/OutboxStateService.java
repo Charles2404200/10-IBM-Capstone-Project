@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.shared.application;
 import com.ibm.consulting.sim.shared.domain.OutboxEvent;
 import com.ibm.consulting.sim.shared.infrastructure.JPAOutboxRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -17,34 +18,25 @@ public class OutboxStateService {
         this.outboxRepository = repo;
 
     }
+    // requires new means telling explicitly that it required new transaction
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean tryMarkProcessing(UUID eventId) {
 
-    @Transactional
-    public void markProcessing(UUID eventId) {
+        int updated =
+                outboxRepository.markProcessingIfPending(eventId);
 
-        OutboxEvent event =
-                outboxRepository.findById(eventId)
-                        .orElseThrow();
-
-        event.markProcessing();
+        return updated == 1;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markPublished(UUID eventId) {
 
-        OutboxEvent event =
-                outboxRepository.findById(eventId)
-                        .orElseThrow();
-
-        event.markPublished();
+        outboxRepository.markPublished(eventId);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markPendingAgain(UUID eventId) {
 
-        OutboxEvent event =
-                outboxRepository.findById(eventId)
-                        .orElseThrow();
-
-        event.retry();
+        outboxRepository.markPendingAgain(eventId);
     }
 }

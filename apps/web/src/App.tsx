@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import LoadingState from '@/components/shared/LoadingState'
 
+const NotifyUsersPage = lazy(() => import('@/pages/Admin/NotifyUsersPage'))
 const LandingPage = lazy(() => import('@/pages/Landing/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/Auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/Auth/RegisterPage'))
@@ -89,6 +90,14 @@ export default function App() {
           <Route
             path="admin"
             element={<RequireRole roles={['SCENARIO_AUTHOR', 'REVIEWER', 'ADMINISTRATOR']}><AdminConsolePage /></RequireRole>}
+          />
+          <Route
+          path="admin/notify"
+          element={
+            <RequireRole roles={['ADMINISTRATOR']}>
+              <NotifyUsersPage/>
+            </RequireRole>
+          }
           />
           <Route
             path="admin/scenarios"

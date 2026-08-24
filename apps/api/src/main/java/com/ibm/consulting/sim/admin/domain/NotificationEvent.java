@@ -35,6 +35,10 @@ public class NotificationEvent extends BaseEntity {
     @Column(name = "event_id", nullable = false, unique = true)
     private UUID eventId;
 
+    /** User-facing notification heading; unrelated to the Kafka topic name. */
+    @Column(name = "topic_name", nullable = false, updatable = false, length = 160)
+    private String topicName;
+
     @Column(nullable = false, updatable = false, columnDefinition = "text")
     private String message;
 
@@ -44,10 +48,16 @@ public class NotificationEvent extends BaseEntity {
 
     public NotificationEvent() {}
 
-    public static NotificationEvent create(UUID eventId,UUID userId, String message, UserRole role) {
+    public static NotificationEvent create(
+            UUID eventId,
+            UUID userId,
+            String topicName,
+            String message,
+            UserRole role) {
         NotificationEvent event = new NotificationEvent();
         event.eventId = eventId;
         event.userId = userId;
+        event.topicName = topicName;
         event.message = message;
         event.role = role;
         return event;
@@ -55,6 +65,7 @@ public class NotificationEvent extends BaseEntity {
 
     public UUID getEventId() { return eventId ;}
     public UUID getUserId() { return userId; }
+    public String getTopicName() { return topicName; }
     public String getMessage() { return message; }
     public UserRole getRole() { return role; }
 }

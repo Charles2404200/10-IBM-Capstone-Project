@@ -59,11 +59,12 @@ public class NotificationQueryService {
                     return new NotificationResponse(
                             notification.getEventId(),
                             notification.getUserId(),
+                            notification.getTopicName(),
                             notification.getMessage(),
                             notification.getRole(),
                             notification.getCreatedAt(),
-                            read != null ?true : false,
-                            read.getReadAt()
+                            read != null,
+                            read == null ? null : read.getReadAt()
                     );
                 })
                 .toList();

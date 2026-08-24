@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.admin.domain.NotificationObject;
 import com.ibm.consulting.sim.admin.domain.NotificationRepository;
 import com.ibm.consulting.sim.admin.infrastructure.realtime.NotificationWebSocketDestinations;
 import com.ibm.consulting.sim.shared.domain.EventEnvelope;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -12,7 +13,6 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -104,6 +104,7 @@ public class NotificationConsumer {
                     NotificationEvent.create(
                             notification.getEventId(),
                             notification.getUserId(),
+                            notification.getTopicName(),
                             notification.getMessage(),
                             notification.getRole()
                     )
