@@ -100,10 +100,18 @@ final class PersonaPromptAssembler {
                 ? "Return guidedResponseOptions as an empty array."
                 : "Also create exactly three distinct guidedResponseOptions the learner could realistically say after your spokenResponse. "
                 + "Do not label or rank them, do not invent facts, and do not include unprofessional language. "
-                + "They must reflect the latest client concern and remain grounded in the available evidence.";
+                + guidedChoiceMix(profile)
+                + " They must reflect the latest client concern and remain grounded in the available evidence.";
         return "Resistance %d/100. The client needs a credible next step within %d simulated days. %s "
                 + "Ask for more precise evidence when resistance is high. "
                 + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes. %s"
                 .formatted(profile.personaResistance(), profile.timelinePressureDays(), guidedResponseInstruction, scoringInstruction);
+    }
+
+    private static String guidedChoiceMix(DifficultyProfile profile) {
+        if (profile.level() == com.ibm.consulting.sim.scenario.domain.DifficultyLevel.MEDIUM) {
+            return "Include one strong response, one vague or evasive response, and one premature recommendation that ignores part of the concern.";
+        }
+        return "Include one strong response, one plausible but incomplete response, and one professionally worded evasive or premature response.";
     }
 }

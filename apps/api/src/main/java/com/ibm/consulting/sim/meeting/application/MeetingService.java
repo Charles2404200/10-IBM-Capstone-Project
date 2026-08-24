@@ -259,14 +259,22 @@ public class MeetingService {
         ConversationTurn personaTurn = ConversationTurn.personaTurn(
                 meeting.getId(), nextSequence + 1, aiResponse.spokenResponse(), signals);
         turnRepository.save(personaTurn);
-        MeetingResponseOptionsResponse nextResponseOptions = guidedResponseService.cachePreGenerated(
-                meeting.getId(), personaTurn.getSequence(), profile, aiResponse.guidedResponseOptions());
 
         var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
                 .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
         MeetingRetryEligibility retryEligibility = relationshipTermination
                 .map(decision -> completeAutomatically(meeting, engagement, decision))
                 .orElse(null);
+
+        MeetingResponse completedMeeting = null;
+        if (relationshipTermination.isEmpty() && MeetingNaturalCompletionPolicy.shouldConclude(
+                state, aiResponse.meetingSignals(), (int) learnerTurnCount + 1)) {
+            completedMeeting = completeMeeting(meeting, engagement, state);
+        }
+        MeetingResponseOptionsResponse nextResponseOptions = completedMeeting == null && relationshipTermination.isEmpty()
+                ? guidedResponseService.cachePreGenerated(
+                        meeting.getId(), personaTurn.getSequence(), profile, aiResponse.guidedResponseOptions())
+                : null;
 
         return new MeetingTurnResult(
                 ConversationTurnResponse.from(learnerTurn),
@@ -275,7 +283,8 @@ public class MeetingService {
                 aiResponse.meetingSignals(),
                 relationshipTermination.map(decision -> MeetingTerminationResponse.from(
                         decision, retryEligibility == null ? MeetingRetryEligibility.unavailable() : retryEligibility)).orElse(null),
-                nextResponseOptions);
+                nextResponseOptions,
+                completedMeeting);
     }
 
     /**
@@ -366,8 +375,12 @@ public class MeetingService {
 
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
                 .orElseGet(() -> PersonaState.initial(meeting.getEngagementId()));
+        return completeMeeting(meeting, engagement, state);
+    }
+
+    private MeetingResponse completeMeeting(Meeting meeting, Engagement engagement, PersonaState state) {
         MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
-        List<ConversationTurn> turns = turnRepository.findByMeetingIdOrderBySequenceAsc(meetingId);
+        List<ConversationTurn> turns = turnRepository.findByMeetingIdOrderBySequenceAsc(meeting.getId());
         MeetingDebriefNarrative debrief = aiOrchestrationService.execute(
                 "meeting_debrief",
                 meeting.getEngagementId(),

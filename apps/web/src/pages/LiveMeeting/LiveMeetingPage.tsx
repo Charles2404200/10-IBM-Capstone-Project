@@ -194,7 +194,7 @@ export default function LiveMeetingPage() {
                   </div>
                   <Tag type="blue">Three options</Tag>
                 </div>
-                <p className={styles.guidedDescription}>Choose the response you would use with this client. Its impact is evaluated from the actual conversation.</p>
+                <p className={styles.guidedDescription}>Choose carefully: not every professional-sounding response advances the conversation. Its impact is evaluated from the actual conversation.</p>
                 {responseOptionsLoading && <InlineLoading description="Preparing response options..." />}
                 {(isStreaming || guidedOptionsPending) && <InlineLoading description={isStreaming ? 'Client is responding...' : 'Preparing next response options...'} />}
                 {!isStreaming && !guidedOptionsPending && !responseOptionsLoading && responseOptions?.available && (

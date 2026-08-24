@@ -31,11 +31,13 @@ final class MeetingTurnProgressionPolicy {
             "what do you need to know", "what do you want to know", "tell me more",
             "can you explain", "please explain", "can you elaborate");
     private static final Pattern UNPREPARED_RESPONSE = Pattern.compile(
-            "\\b(i\\s+(do\\s+not|dont|don t|don't)\\s+know|no\\s+idea|i\\s+am\\s+not\\s+sure|not\\s+prepared)\\b");
+            "\\b(i\\s+(do\\s+not|dont|don t|don't)\\s+(know|have\\s+enough\\s+detail)|no\\s+idea|i\\s+am\\s+not\\s+sure|not\\s+prepared)\\b");
     private static final Pattern DISMISSIVE_RESPONSE = Pattern.compile(
             "\\b(what\\s+(are|r|ur)\\s+(you\\s+)?talking\\s+about|who\\s+cares|whatever|not\\s+my\\s+problem)\\b");
     private static final Pattern EVASIVE_RESPONSE = Pattern.compile(
             "\\b(i\\s+cannot\\s+help|i\\s+can\\s*not\\s+help|can\\s*not\\s+answer|can\\s*not\\s+say|we\\s+will\\s+get\\s+back\\s+to\\s+you)\\b");
+    private static final Pattern PREMATURE_RECOMMENDATION = Pattern.compile(
+            "\\b(less\\s+important|move\\s+straight\\s+to|broader\\s+recommendation|ignore\\s+(the|that)\\s+concern)\\b");
 
     private MeetingTurnProgressionPolicy() {}
 
@@ -78,6 +80,7 @@ final class MeetingTurnProgressionPolicy {
                 .trim();
         if (DISMISSIVE_RESPONSE.matcher(normalized).find()) return TurnQuality.DISMISSIVE;
         if (UNPREPARED_RESPONSE.matcher(normalized).find()) return TurnQuality.UNPREPARED;
+        if (PREMATURE_RECOMMENDATION.matcher(normalized).find()) return TurnQuality.PREMATURE_RECOMMENDATION;
         if (EVASIVE_RESPONSE.matcher(normalized).find() || hasNegativeBehaviour(detectedLearnerBehaviours)) {
             return TurnQuality.EVASIVE;
         }
@@ -300,6 +303,7 @@ final class MeetingTurnProgressionPolicy {
         DEFLECTING(-6, -5, -4),
         EVASIVE(-7, -6, -5),
         UNPREPARED(-14, -12, -10),
+        PREMATURE_RECOMMENDATION(-9, -8, -7),
         DISMISSIVE(-16, -14, -12);
 
         private final int trustGainCap;

@@ -160,6 +160,38 @@ class PersonaStateEngineTest {
     }
 
     @Test
+    void penalizesAPrematureRecommendationEvenWhenTheProviderSuggestsAPositiveDelta() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
+                "The exact constraint is less important, so I suggest moving straight to a broader recommendation.", 1);
+
+        assertThat(state.getTrust()).isLessThan(50);
+        assertThat(state.getInterest()).isLessThan(50);
+        assertThat(state.getPatience()).isLessThan(50);
+    }
+
+    @Test
+    void penalizesTheGuidedEvasiveChoiceEvenWhenTheProviderSuggestsAPositiveDelta() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
+                "I do not have enough detail to address that concern today, so perhaps we should revisit it later.", 1);
+
+        assertThat(state.getTrust()).isLessThan(50);
+        assertThat(state.getInterest()).isLessThan(50);
+        assertThat(state.getPatience()).isLessThan(50);
+    }
+
+    @Test
     void rewardsGroundedBehaviourLabelsInsteadOfAnUnboundedModelDelta() {
         DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
         PersonaState scoredByBehaviour = PersonaState.initial(UUID.randomUUID(), profile);
