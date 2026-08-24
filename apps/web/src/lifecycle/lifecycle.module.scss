@@ -603,6 +603,20 @@
     max-height: 100%;
   }
 
+  /* A completed meeting intentionally renders its full debrief below the
+     conversation. It opts out of the active-meeting canvas rather than
+     clipping that assessment behind the viewport. */
+  .fixedShellRoot:has([data-meeting-completed='true']) {
+    height: auto;
+    overflow: visible;
+  }
+
+  .fixedShellRoot:has([data-meeting-completed='true']) :global(.cds--content),
+  .fixedShellRoot:has([data-meeting-completed='true']) .fixedShellContent {
+    display: block;
+    overflow: visible;
+  }
+
   /* Anything marked as a panel scrolls itself. */
   .scrollPanel {
     overflow-y: auto;

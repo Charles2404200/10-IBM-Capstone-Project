@@ -24,6 +24,7 @@ import styles from './LiveMeetingPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const MEETING_THRESHOLD = 70
+const ACTIVE_TRANSCRIPT_TURNS = 3
 
 const LIVE_MEETING_OBJECTIVES = [
   {
@@ -138,9 +139,12 @@ export default function LiveMeetingPage() {
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [terminationDismissed, setTerminationDismissed] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const turns = useMemo(() => transcript ?? [], [transcript])
+  const visibleTurns = useMemo(() => turns.slice(-ACTIVE_TRANSCRIPT_TURNS), [turns])
+  const hiddenTurnCount = Math.max(0, turns.length - visibleTurns.length)
   const currentState = personaState ?? persistedPersonaState
   const latestPersistedFeedback = meeting?.behaviourLedger?.[meeting.behaviourLedger.length - 1] ?? null
   const currentBehaviourFeedback = behaviourFeedback ?? latestPersistedFeedback
@@ -208,7 +212,7 @@ export default function LiveMeetingPage() {
 
   return (
     <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
-    <div className={styles.page}>
+    <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`} data-meeting-completed={isCompleted || undefined}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
@@ -224,8 +228,16 @@ export default function LiveMeetingPage() {
         <Column lg={11} md={8} sm={4}>
           <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
             <div className={styles.transcriptViewport}>
+              <div className={styles.transcriptToolbar}>
+                <span>{hiddenTurnCount > 0 ? `Showing the latest ${visibleTurns.length} turns` : 'Current conversation'}</span>
+                {hiddenTurnCount > 0 && (
+                  <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>
+                    View history ({turns.length})
+                  </Button>
+                )}
+              </div>
               {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
-              {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
+              {visibleTurns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
                 <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />
               )}
@@ -430,6 +442,11 @@ export default function LiveMeetingPage() {
             />
           )}
         </Stack>
+      </Modal>
+      <Modal open={historyOpen} modalHeading="Live meeting history" passiveModal onRequestClose={() => setHistoryOpen(false)}>
+        <div className={styles.historyModal}>
+          {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
+        </div>
       </Modal>
     </div>
     </ObjectiveTourProvider>
