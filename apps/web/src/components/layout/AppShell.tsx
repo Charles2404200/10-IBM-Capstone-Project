@@ -86,10 +86,10 @@ export default function AppShell() {
         </nav>
       )}
 
-      {/* Carbon's fixed Header needs one offset for both the workflow HUD and
-          route content. The shell owns that offset; shellContent clears
-          Carbon's default Content margin to prevent a second empty header row. */}
-      <div className={styles.fixedShellRoot} style={{ paddingBlockStart: '3rem' }}>
+      {/* The HUD owns the fixed-header offset through its sticky inset. Keeping
+          the shell itself at the document origin prevents a duplicate 3rem
+          spacer above every engagement workspace. */}
+      <div className={styles.fixedShellRoot}>
         <EngagementHUD />
         <Content className={`${styles.shellContent} ${usesFixedCanvas ? styles.fixedShellContent : ''}`}>
           <Outlet />
