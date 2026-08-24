@@ -43,6 +43,12 @@ public class PortfolioService {
     private static final Set<EngagementState> COMPLETED_STATES = Set.of(
             EngagementState.CLIENT_DECISION, EngagementState.REVIEW, EngagementState.COMPLETED);
 
+    private static final Set<String> WON_OUTCOMES = Set.of(
+            "PILOT_APPROVED", "PROPOSAL_ACCEPTED", "STRATEGIC_PARTNERSHIP", "WON");
+
+    private static final Set<String> LOST_OUTCOMES = Set.of(
+            "REJECTED", "PROPOSAL_REJECTED", "LOST");
+
     private final EngagementRepository engagementRepository;
     private final AssessmentRepository assessmentRepository;
     private final ScenarioRepository scenarioRepository;
@@ -78,10 +84,10 @@ public class PortfolioService {
         Map<UUID, Scenario> scenarioCache = new HashMap<>();
 
         int won = (int) assessments.stream()
-                .filter(a -> "PROPOSAL_ACCEPTED".equals(a.getOutcome()))
+                .filter(a -> WON_OUTCOMES.contains(a.getOutcome()))
                 .count();
         int lost = (int) assessments.stream()
-                .filter(a -> "PROPOSAL_REJECTED".equals(a.getOutcome()))
+                .filter(a -> LOST_OUTCOMES.contains(a.getOutcome()))
                 .count();
 
         double avgScore = assessments.stream().mapToInt(Assessment::getOverallScore).average().orElse(0.0);

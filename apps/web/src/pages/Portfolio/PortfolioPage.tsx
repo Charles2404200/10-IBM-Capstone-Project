@@ -11,17 +11,28 @@ import PageHeader from '@/lifecycle/components/PageHeader'
 import styles from './PortfolioPage.module.scss'
 import { useAuthStore } from '@/store/authStore'
 
-function StatTile({ label, value, accent }: { label: string; value: string | number; accent?: 'success' | 'danger'}) {
+function StatTile({
+  label,
+  value,
+  accent,
+  helper,
+}: {
+  label: string
+  value: string | number
+  accent?: 'success' | 'danger'
+  helper?: string
+}) {
   return (
     <Tile className={styles.statTile}>
       <Stack gap={2}>
         <p className={styles.statLabel}>{label}</p>
         <span className={`${styles.statValue} ${
-            accent === 'success' ? styles.statValueSuccess 
-            : accent === 'danger' ? styles.statValueDanger 
+            accent === 'success' ? styles.statValueSuccess
+            : accent === 'danger' ? styles.statValueDanger
             : ''
           }`}>{value}
         </span>
+        {helper && <p className={styles.statHelper}>{helper}</p>}
       </Stack>
     </Tile>
   )
@@ -199,15 +210,16 @@ function CompetencyTrendGraph({ trends }: { trends: CompetencyTrend[] }) {
 }
 
 function EngagementHistoryRow({ engagement }: { engagement: CompletedEngagementView }) {
-  const won = engagement.outcome === 'PROPOSAL_ACCEPTED' || engagement.outcome === 'WON'
-
+  const won = ['PILOT_APPROVED', 'PROPOSAL_ACCEPTED', 'STRATEGIC_PARTNERSHIP', 'WON']
+    .includes(engagement.outcome)
+  const rejected = ['REJECTED', 'PROPOSAL_REJECTED', 'LOST'].includes(engagement.outcome)
   return (
     <Tile className={styles.historyTile}>
       <Stack gap={2}>
         <div>
           <h5 className={styles.historyTitle}>{engagement.scenarioTitle}</h5>
           <div className={styles.historyTags}>
-            <Tag type={won ? 'green' : 'red'} size="sm">{engagement.outcome.replace(/_/g, ' ')}</Tag>
+            <Tag type={won ? 'green' : rejected ? 'red' : 'purple'} size="sm">{engagement.outcome.replace(/_/g, ' ')}</Tag>
             <Tag type="cyan" size="sm">{engagement.industry}</Tag>
           </div>
         </div>
@@ -372,8 +384,12 @@ export default function PortfolioPage() {
       <Column lg={16} md={8} sm={4}>
         <Stack gap={7}>
           <Grid narrow>
-            <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
-              <StatTile label="Total Engagements" value={portfolio.totalEngagements} />
+            <Column lg={4} md={4} sm={4} className={styles.columnSpacing}>
+              <StatTile
+                label="Completed engagements"
+                value={`${portfolio.completedEngagements} / ${portfolio.totalEngagements}`}
+                helper={`${portfolio.totalEngagements - portfolio.completedEngagements} still in progress`}
+              />
             </Column>
             <Column lg={4} md={4} sm={4} className={styles.columnSpacing} >
               <StatTile label="Contracts Won" value={portfolio.contractsWon} accent="success" />
@@ -407,7 +423,9 @@ export default function PortfolioPage() {
 
           {sortedHistory.length > 0 ? (
             <section className={styles.section}>
-              <h3 className={styles.sectionTitle}>Completed Engagements</h3>
+              <h3 className={styles.sectionTitle}>
+                Completed Engagements ({portfolio.completedEngagements} of {portfolio.totalEngagements})
+              </h3>
               <Grid narrow>
                 {sortedHistory.map((h) => (
                   <Column key={h.engagementId} lg={5} md={4} sm={4} className={styles.columnSpacing} >

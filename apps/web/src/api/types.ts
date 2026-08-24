@@ -424,6 +424,7 @@ export interface MeetingTurnResult {
   meetingSignals: string[]
   termination: MeetingTermination | null
   responseOptions: MeetingResponseOptions | null
+  completedMeeting: Meeting | null
 }
 
 export interface MeetingTermination {

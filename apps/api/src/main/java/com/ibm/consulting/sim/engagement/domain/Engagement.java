@@ -71,7 +71,7 @@ public class Engagement extends BaseEntity {
     public void transitionTo(EngagementState newState, String reason) {
         EngagementPolicy.assertValidTransition(this.state, newState);
         this.state = newState;
-        if (newState == EngagementState.CLIENT_DECISION) {
+        if (newState == EngagementState.COMPLETED) {
             this.completedAt = Instant.now();
         }
         recordEvent(reason);

@@ -35,6 +35,14 @@ final class PersonaPromptAssembler {
     static String assemble(PersonaProfile persona, PersonaState state, List<ResearchEvidence> evidence,
                             List<String> retrievedKnowledge, List<ConversationTurn> recentTurns,
                             String learnerMessage, DifficultyProfile difficultyProfile) {
+        return assemble(persona, state, evidence, retrievedKnowledge, recentTurns, learnerMessage,
+                difficultyProfile, false);
+    }
+
+    static String assemble(PersonaProfile persona, PersonaState state, List<ResearchEvidence> evidence,
+                            List<String> retrievedKnowledge, List<ConversationTurn> recentTurns,
+                            String learnerMessage, DifficultyProfile difficultyProfile,
+                            boolean conclusionRequired) {
         String evidenceSummary = evidence.isEmpty()
                 ? "(none discovered yet)"
                 : evidence.stream().map(e -> "- " + e.getNote()).collect(Collectors.joining("\n"));
@@ -57,6 +65,7 @@ final class PersonaPromptAssembler {
 
                 Current relationship state — trust: %d/100, interest: %d/100, patience: %d/100.
                 Simulation behavior controls: %s
+                Closing instruction: %s
                 Facts you have already disclosed to the consultant: %s
 
                 Evidence the consultant has already researched about your organisation:
@@ -83,8 +92,18 @@ final class PersonaPromptAssembler {
                 persona.getCommunicationStyle(), persona.getBusinessGoals(), persona.getVisibleConcerns(),
                 persona.getHiddenConcerns(),
                 state.getTrust(), state.getInterest(), state.getPatience(), behaviourControls(difficultyProfile),
+                conclusionInstruction(conclusionRequired),
                 state.getDisclosedFacts().isEmpty() ? "(none)" : String.join(", ", state.getDisclosedFacts()),
                 evidenceSummary, knowledgeSummary, transcript, learnerMessage);
+    }
+
+    private static String conclusionInstruction(boolean conclusionRequired) {
+        if (!conclusionRequired) {
+            return "Keep the dialogue focused on the unresolved client concern. Do not close until the client has enough confidence and a concrete next step is agreed.";
+        }
+        return "THIS IS THE FINAL CONFIRMATION EXCHANGE. The relationship gate was already achieved before this learner reply. "
+                + "Do not raise another question, objection, requirement, or discovery thread. Acknowledge the learner's answer, confirm the agreed next step, thank them, and close naturally. "
+                + "Set meetingSignals to include client_ready_to_close and client_committed_next_step. guidedResponseOptions must be an empty array.";
     }
 
     private static String behaviourControls(DifficultyProfile profile) {
@@ -100,10 +119,18 @@ final class PersonaPromptAssembler {
                 ? "Return guidedResponseOptions as an empty array."
                 : "Also create exactly three distinct guidedResponseOptions the learner could realistically say after your spokenResponse. "
                 + "Do not label or rank them, do not invent facts, and do not include unprofessional language. "
-                + "They must reflect the latest client concern and remain grounded in the available evidence.";
+                + guidedChoiceMix(profile)
+                + " They must reflect the latest client concern and remain grounded in the available evidence.";
         return "Resistance %d/100. The client needs a credible next step within %d simulated days. %s "
                 + "Ask for more precise evidence when resistance is high. "
                 + "Do not disclose hidden or unvalidated facts, and never decide simulation outcomes. %s"
                 .formatted(profile.personaResistance(), profile.timelinePressureDays(), guidedResponseInstruction, scoringInstruction);
+    }
+
+    private static String guidedChoiceMix(DifficultyProfile profile) {
+        if (profile.level() == com.ibm.consulting.sim.scenario.domain.DifficultyLevel.MEDIUM) {
+            return "Include one strong response, one vague or evasive response, and one premature recommendation that ignores part of the concern.";
+        }
+        return "Include one strong response, one plausible but incomplete response, and one professionally worded evasive or premature response.";
     }
 }

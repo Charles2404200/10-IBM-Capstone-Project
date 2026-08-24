@@ -32,9 +32,9 @@ export default function ObjectiveTourProvider({ tourId, objectives, children }: 
 
   return (
     <TourProvider steps={steps} showNavigation showPrevNextButtons showDots showCloseButton scrollSmooth
-      styles={{ 
-        popover: (base) => ({ ...base, borderRadius: 0, maxWidth: 360 }), 
-        maskArea: (base) => ({ ...base, rx: 4 }) 
+      styles={{
+        popover: (base) => ({ ...base, borderRadius: 0, maxWidth: 360 }),
+        maskArea: (base) => ({ ...base, rx: 4 }),
       }}
     >
       <ObjectiveGuide tourId={tourId} />

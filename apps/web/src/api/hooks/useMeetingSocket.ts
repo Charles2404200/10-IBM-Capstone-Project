@@ -90,6 +90,9 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           })
           setPersonaState(result.personaState)
           qc.setQueryData(meetingKeys.personaState(meetingId), result.personaState)
+          if (result.completedMeeting) {
+            qc.setQueryData(meetingKeys.meeting(meetingId), result.completedMeeting)
+          }
           if (result.responseOptions?.available) {
             qc.setQueryData(meetingKeys.responseOptions(meetingId), result.responseOptions)
             setGuidedOptionsPending(false)
