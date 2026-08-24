@@ -531,7 +531,9 @@ export default function OutreachWorkspacePage() {
             )}
 
             {!meetingSecured && !documentRequired && (
-              <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
+              <div className={styles.selfCheckPanel}>
+                <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
+              </div>
             )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
