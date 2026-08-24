@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Grid, Column, Heading, Stack, Button, Tile, Tag, ProgressBar } from '@carbon/react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAssessment, useGenerateAssessment } from '@/api/hooks/useAssessment'
+import { engagementKeys } from '@/api/hooks/useEngagements'
+import { portfolioKeys } from '@/api/hooks/usePortfolio'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 
@@ -52,6 +55,7 @@ function CompetencyBar({ name, score, evidenceNote }: { name: string; score: num
 
 export default function AssessmentReviewPage() {
   const { engagementId } = useParams<{ engagementId: string }>()
+  const queryClient = useQueryClient()
   const { data: assessment, isLoading, isError, error } = useAssessment(engagementId!)
   const generateAssessment = useGenerateAssessment(engagementId!)
 
@@ -66,6 +70,13 @@ export default function AssessmentReviewPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notFound])
+
+  useEffect(() => {
+    if (!assessment && !generateAssessment.data) return
+    void queryClient.invalidateQueries({ queryKey: engagementKeys.all })
+    void queryClient.invalidateQueries({ queryKey: engagementKeys.detail(engagementId!) })
+    void queryClient.invalidateQueries({ queryKey: portfolioKeys.summary })
+  }, [assessment, engagementId, generateAssessment.data, queryClient])
 
   if (isLoading || generateAssessment.isPending) return <LoadingState description="Generating assessment…" />
   if (isError && !notFound) {
