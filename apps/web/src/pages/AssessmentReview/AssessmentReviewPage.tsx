@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Grid, Column, Heading, Stack, Button, Tile, Tag, ProgressBar } from '@carbon/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAssessment, useGenerateAssessment } from '@/api/hooks/useAssessment'
-import { engagementKeys } from '@/api/hooks/useEngagements'
+import { engagementKeys, useEngagement } from '@/api/hooks/useEngagements'
 import { portfolioKeys } from '@/api/hooks/usePortfolio'
+import { resolveEngagementRoute } from '@/api/engagementRouting'
+import { PHASE_LABEL } from '@/lifecycle/phases'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 
@@ -53,9 +55,23 @@ function CompetencyBar({ name, score, evidenceNote }: { name: string; score: num
   )
 }
 
+/**
+ * The backend refuses to assess an engagement that hasn't reached the end, and
+ * says so in its own vocabulary: "Assessment is not available in state:
+ * OUTREACHING". That is a correct refusal phrased as a leak — a learner is
+ * shown an internal enum, and offered a Retry button that cannot ever succeed.
+ * Detecting the refusal lets us say which step is actually outstanding and send
+ * them there instead.
+ */
+function isTooEarly(detail: string | undefined): boolean {
+  return !!detail && /not available in state/i.test(detail)
+}
+
 export default function AssessmentReviewPage() {
   const { engagementId } = useParams<{ engagementId: string }>()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { data: engagement } = useEngagement(engagementId!)
   const { data: assessment, isLoading, isError, error } = useAssessment(engagementId!)
   const generateAssessment = useGenerateAssessment(engagementId!)
 
@@ -84,10 +100,26 @@ export default function AssessmentReviewPage() {
     return <ErrorState title="Assessment unavailable" message={problem.response?.data?.detail ?? 'The assessment could not be loaded. Retry to recover the assessment for this engagement.'} actionLabel="Retry assessment" onAction={() => generateAssessment.mutate()} />
   }
   if (generateAssessment.isError) {
+    const detail = generationError?.response?.data?.detail
+    if (isTooEarly(detail)) {
+      const step = engagement ? PHASE_LABEL[engagement.phase] : null
+      return (
+        <ErrorState
+          title="Your review isn't ready yet"
+          message={
+            step
+              ? `Your review is written once the client has decided on your proposal. You're still on "${step}".`
+              : 'Your review is written once the client has decided on your proposal.'
+          }
+          actionLabel={engagement ? `Back to ${PHASE_LABEL[engagement.phase]}` : undefined}
+          onAction={engagement ? () => navigate(resolveEngagementRoute(engagement)) : undefined}
+        />
+      )
+    }
     return (
       <ErrorState
         title="Assessment could not be generated"
-        message={generationError?.response?.data?.detail ?? 'Please retry after completing the proposal outcome.'}
+        message={detail ?? 'Please retry after completing the proposal outcome.'}
         actionLabel="Retry assessment"
         onAction={() => generateAssessment.mutate()}
       />
@@ -140,7 +172,10 @@ export default function AssessmentReviewPage() {
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>
                   {result.strengths.map((s, i) => (
-                    <p key={i} style={{ color: '#24a148' }}>✓ {s}</p>
+                    <p key={i} style={{ color: '#161616' }}>
+                      <span style={{ color: '#24a148' }} aria-hidden="true">✓ </span>
+                      {s}
+                    </p>
                   ))}
                   {result.strengths.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
@@ -151,7 +186,10 @@ export default function AssessmentReviewPage() {
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
                   {result.improvementAreas.map((s, i) => (
-                    <p key={i} style={{ color: '#f1c21b' }}>△ {s}</p>
+                    <p key={i} style={{ color: '#161616' }}>
+                      <span style={{ color: '#b28600' }} aria-hidden="true">△ </span>
+                      {s}
+                    </p>
                   ))}
                   {result.improvementAreas.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>

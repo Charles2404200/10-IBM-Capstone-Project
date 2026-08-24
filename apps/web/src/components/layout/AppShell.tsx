@@ -89,7 +89,7 @@ export default function AppShell() {
           the two lands underneath the header and disappears. Wrapping the body
           means that rule no longer applies and this element owns the offset for
           both children. */}
-      <div style={{ paddingBlockStart: '3rem' }}>
+      <div className={styles.fixedShellRoot} style={{ paddingBlockStart: '3rem' }}>
         <EngagementHUD />
         <Content>
           <Outlet />

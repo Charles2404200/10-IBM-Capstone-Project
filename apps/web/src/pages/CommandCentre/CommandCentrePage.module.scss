@@ -1,7 +1,7 @@
 .page {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem 2rem;
 }
 
 .header,
@@ -575,7 +575,7 @@
 }
 
 .difficultyStars {
-  color: #8d6e00;
+  color: #6b5300;
   font-family: monospace;
   letter-spacing: 0;
 }
@@ -736,3 +736,82 @@
     justify-content: flex-start;
   }
 }
+
+.scenarioMore {
+  color: #525252;
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.scenarioSearch {
+  max-width: 28rem;
+  margin-bottom: 1rem;
+}
+
+/* Groups everything below the featured engagement. main designs this page as
+   an ordinary scrolling dashboard rather than a fixed canvas, so this is a
+   container, not a scrollport: splitting it left the catalogue 54px tall. */
+.browseBody { display: grid; align-content: start; gap: 2rem; }
+
+/* ── First visit ──────────────────────────────────────────────────────────── */
+
+.firstRun {
+  border: 1px solid #d0d0d0;
+  border-left: 4px solid #0f62fe;
+  background: #ffffff;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.firstRunHeading {
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.25;
+  margin: 0.25rem 0 1rem;
+}
+
+.firstRunArc {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  max-width: 46rem;
+
+  li { color: #525252; line-height: 1.5; }
+  strong { color: #161616; }
+}
+
+.firstRunNote {
+  color: #525252;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+  max-width: 46rem;
+}
+
+.firstRunStarter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border: 1px solid #d0d0d0;
+  background: #f4f4f4;
+  padding: 1rem 1.25rem;
+
+  h3 { font-size: 1.125rem; margin: 0.25rem 0 0.25rem; }
+  p { color: #525252; font-size: 0.875rem; margin: 0; }
+}
+
+.firstRunAlt {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-top: 1rem;
+  color: #0f62fe;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:focus-visible { outline: 2px solid #0f62fe; outline-offset: 2px; }
+}
+

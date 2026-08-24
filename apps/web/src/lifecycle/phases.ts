@@ -116,3 +116,40 @@ export const PHASE_BRIEF: Record<EngagementPhase, { goal: string; done: string; 
     next: 'Harder scenarios are worth attempting once this one is behind you.',
   },
 }
+
+/**
+ * Which phase's *page* the learner is currently looking at.
+ *
+ * This is not the same thing as the engagement's phase, and conflating the two
+ * was a real defect: after walking back to an earlier step, the stepper kept
+ * highlighting the step the engagement had reached rather than the page on
+ * screen, so it pointed somewhere the learner was not. The bar now marks the
+ * page you are on, and shows separately how far the engagement itself has got.
+ */
+export function phaseFromPath(pathname: string): EngagementPhase | null {
+  const tail = /\/dashboard\/engagements\/[^/]+\/([^/?#]+)/.exec(pathname)?.[1]
+  if (!tail) return null
+  switch (tail) {
+    case 'leads':
+      return 'LEAD'
+    case 'intelligence':
+      return 'CLIENT_INTELLIGENCE'
+    case 'outreach':
+      return 'OUTREACH'
+    case 'preparation':
+      return 'MEETING_PREPARATION'
+    case 'meetings':
+      return 'LIVE_MEETING'
+    case 'proposal':
+      return 'PROPOSAL'
+    case 'assessment':
+      return 'REVIEW'
+    default:
+      return null
+  }
+}
+
+/** True on the screens that belong to no single engagement. */
+export function isEngagementRoute(pathname: string): boolean {
+  return /\/dashboard\/engagements\//.test(pathname)
+}
