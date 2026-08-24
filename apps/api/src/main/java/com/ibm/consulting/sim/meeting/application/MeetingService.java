@@ -256,7 +256,14 @@ public class MeetingService {
                 () -> PersonaTurnResponse.safeFallback(
                         "Sorry, could you repeat that? I want to make sure I understand you correctly."));
 
-        PersonaStateEngine.apply(state, aiResponse, profile, learnerMessage, (int) learnerTurnCount + 1);
+        List<String> priorLearnerMessages = existingTurns.stream()
+                .filter(turn -> turn.getActor() == ConversationActor.LEARNER)
+                .map(ConversationTurn::getContent)
+                .toList();
+        MeetingBehaviourAssessment assessment = PersonaStateEngine.assess(aiResponse, learnerMessage, priorLearnerMessages);
+        var appliedDelta = PersonaStateEngine.apply(state, aiResponse, profile, (int) learnerTurnCount + 1, assessment);
+        assessment = assessment.withRelationshipDelta(appliedDelta);
+        meeting.recordBehaviourAssessment(nextSequence, assessment);
         personaStateRepository.save(state);
 
         // The simulation engine owns lifecycle truth. A provider cannot keep a
@@ -294,7 +301,8 @@ public class MeetingService {
                 relationshipTermination.map(decision -> MeetingTerminationResponse.from(
                         decision, retryEligibility == null ? MeetingRetryEligibility.unavailable() : retryEligibility)).orElse(null),
                 nextResponseOptions,
-                completedMeeting);
+                completedMeeting,
+                MeetingBehaviourFeedbackResponse.from(assessment));
     }
 
     /**
@@ -336,7 +344,10 @@ public class MeetingService {
                 ConversationTurnResponse.from(last),
                 PersonaStateResponse.from(state),
                 signals,
-                MeetingTerminationResponse.from(meeting));
+                MeetingTerminationResponse.from(meeting),
+                null,
+                null,
+                behaviourFeedbackFor(meeting, secondLast.getSequence()));
     }
 
     /**
@@ -368,7 +379,10 @@ public class MeetingService {
                             ConversationTurnResponse.from(existingPersonaTurn),
                             PersonaStateResponse.from(state),
                             signals,
-                            MeetingTerminationResponse.from(meeting));
+                            MeetingTerminationResponse.from(meeting),
+                            null,
+                            null,
+                            behaviourFeedbackFor(meeting, existingLearnerTurn.getSequence()));
                 })
                 .orElse(null);
     }
@@ -484,6 +498,14 @@ public class MeetingService {
     private MeetingResponse responseFor(Meeting meeting) {
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
         return MeetingResponse.from(meeting, eligibility.available(), eligibility.retriesRemaining());
+    }
+
+    private MeetingBehaviourFeedbackResponse behaviourFeedbackFor(Meeting meeting, int learnerSequence) {
+        return meeting.getBehaviourLedger().stream()
+                .filter(entry -> entry.getLearnerSequence() == learnerSequence)
+                .reduce((first, second) -> second)
+                .map(MeetingBehaviourFeedbackResponse::from)
+                .orElse(null);
     }
 
     private MeetingRetryEligibility retryEligibilityFor(Meeting meeting) {

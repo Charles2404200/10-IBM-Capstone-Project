@@ -310,4 +310,26 @@ class PersonaStateEngineTest {
         assertThat(state.getInterest()).isEqualTo(50);
         assertThat(state.getPatience()).isEqualTo(50);
     }
+
+    @Test
+    void penalizesARepeatedDiscoveryPointInsteadOfLettingItFarmRelationshipScore() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        String original = "Given the current outage risk and field-service data gap, which dispatch workflow should we validate first?";
+        String repetition = "Given the current outage risk and field service data gap, which dispatch workflow should we validate first?";
+        PersonaTurnResponse overlyPositiveResponse = new PersonaTurnResponse(
+                "That is useful.",
+                List.of("directly_addresses_concern", "uses_client_fact", "asks_focused_question"),
+                new PersonaStateDelta(10, 10, 10), List.of(), null, List.of(),
+                new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile, original, 1);
+        int trustAfterOriginal = state.getTrust();
+        MeetingBehaviourAssessment assessment = PersonaStateEngine.assess(overlyPositiveResponse, repetition, List.of(original));
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile, 2, assessment);
+
+        assertThat(assessment.quality()).isEqualTo("REPETITIVE");
+        assertThat(assessment.relationshipDelta().trust()).isNegative();
+        assertThat(state.getTrust()).isLessThan(trustAfterOriginal);
+    }
 }

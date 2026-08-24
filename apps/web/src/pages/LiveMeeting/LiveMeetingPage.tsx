@@ -19,7 +19,7 @@ import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConversationTurn, MeetingTermination, PersonaState } from '@/api/types'
+import type { ConversationTurn, MeetingBehaviourFeedback, MeetingTermination, PersonaState } from '@/api/types'
 import styles from './LiveMeetingPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
@@ -57,6 +57,37 @@ function RelationshipMeter({ label, value }: { label: string; value: number }) {
       <div className={styles.meterTrack}><div className={tone} style={{ width: `${value}%` }} /></div>
       <p>{value >= MEETING_THRESHOLD ? 'Meeting threshold met' : `${MEETING_THRESHOLD - value} points to threshold`}</p>
     </div>
+  )
+}
+
+function scoreDelta(value: number) {
+  return value > 0 ? `+${value}` : `${value}`
+}
+
+function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback }) {
+  const positive = feedback.trustDelta >= 0 && feedback.interestDelta >= 0 && feedback.patienceDelta >= 0
+  return (
+    <Tile className={`${styles.behaviourPanel} ${positive ? styles.behaviourPositive : styles.behaviourRecovery}`}>
+      <p className={styles.eyebrow}>Simulation Director</p>
+      <div className={styles.behaviourHeading}>
+        <h3>{feedback.quality.replaceAll('_', ' ').toLowerCase()}</h3>
+        <div className={styles.behaviourDeltas} aria-label="Relationship impact">
+          <span>Trust {scoreDelta(feedback.trustDelta)}</span>
+          <span>Interest {scoreDelta(feedback.interestDelta)}</span>
+          <span>Patience {scoreDelta(feedback.patienceDelta)}</span>
+        </div>
+      </div>
+      <p>{feedback.explanation}</p>
+      {feedback.verifiedBehaviours.length > 0 && (
+        <div className={styles.behaviourTags}>
+          {feedback.verifiedBehaviours.map((behaviour) => <Tag key={behaviour} type="blue">{behaviour.replaceAll('_', ' ')}</Tag>)}
+        </div>
+      )}
+      <div className={styles.behaviourNextAction}>
+        <strong>Next best action</strong>
+        <span>{feedback.nextBestAction}</span>
+      </div>
+    </Tile>
   )
 }
 
@@ -103,7 +134,7 @@ export default function LiveMeetingPage() {
   const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
   const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
-  const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, sendMessage } = useMeetingSocket(meetingId!)
+  const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
@@ -112,6 +143,8 @@ export default function LiveMeetingPage() {
 
   const turns = useMemo(() => transcript ?? [], [transcript])
   const currentState = personaState ?? persistedPersonaState
+  const latestPersistedFeedback = meeting?.behaviourLedger?.[meeting.behaviourLedger.length - 1] ?? null
+  const currentBehaviourFeedback = behaviourFeedback ?? latestPersistedFeedback
   const hint = useMemo(
     () => currentState ? deriveHint(turns, latestSignals, currentState) : [],
     [turns, latestSignals, currentState]
@@ -343,6 +376,8 @@ export default function LiveMeetingPage() {
                 <ul>{hint.map((item) => <li key={item}>{item}</li>)}</ul>
               </Tile>
             )}
+
+            {currentBehaviourFeedback && <BehaviourFeedback feedback={currentBehaviourFeedback} />}
 
             {!isCompleted && (meetingGateMet || clientReadyToClose) && (
               <Tile className={styles.readyToClosePanel}>

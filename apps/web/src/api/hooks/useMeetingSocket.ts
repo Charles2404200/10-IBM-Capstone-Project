@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Client, type IMessage } from '@stomp/stompjs'
 import { useAuthStore } from '@/store/authStore'
 import { meetingKeys } from '@/api/hooks/useMeeting'
-import type { ConversationTurn, Meeting, MeetingResponseOptions, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
+import type { ConversationTurn, Meeting, MeetingBehaviourFeedback, MeetingResponseOptions, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
 
 interface UsePersonaTurnStreamResult {
   streamingText: string
@@ -14,6 +14,7 @@ interface UsePersonaTurnStreamResult {
   termination: MeetingTermination | null
   guidedOptionsPending: boolean
   guidedOptionsError: string | null
+  behaviourFeedback: MeetingBehaviourFeedback | null
   sendMessage: (message: string) => Promise<void>
 }
 
@@ -52,6 +53,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const [termination, setTermination] = useState<MeetingTermination | null>(null)
   const [guidedOptionsPending, setGuidedOptionsPending] = useState(false)
   const [guidedOptionsError, setGuidedOptionsError] = useState<string | null>(null)
+  const [behaviourFeedback, setBehaviourFeedback] = useState<MeetingBehaviourFeedback | null>(null)
   const qc = useQueryClient()
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -107,6 +109,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
             void qc.invalidateQueries({ queryKey: meetingKeys.responseOptions(meetingId) })
           }
           setLatestSignals(result.meetingSignals ?? [])
+          setBehaviourFeedback(result.behaviourFeedback ?? null)
           const termination = result.termination
           setTermination(termination ?? null)
           if (termination) {
@@ -201,5 +204,5 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     [meetingId]
   )
 
-  return { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, sendMessage }
+  return { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage }
 }

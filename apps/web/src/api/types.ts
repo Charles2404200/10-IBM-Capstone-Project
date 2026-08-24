@@ -395,6 +395,7 @@ export interface Meeting {
   terminationMessage: string | null
   meetingRetryAvailable: boolean
   meetingRetriesRemaining: number
+  behaviourLedger?: MeetingBehaviourFeedback[]
 }
 
 export type ConversationActor = 'LEARNER' | 'PERSONA'
@@ -417,6 +418,16 @@ export interface PersonaState {
   disclosedFacts: string[]
 }
 
+export interface MeetingBehaviourFeedback {
+  quality: string
+  trustDelta: number
+  interestDelta: number
+  patienceDelta: number
+  verifiedBehaviours: string[]
+  explanation: string
+  nextBestAction: string
+}
+
 export interface MeetingTurnResult {
   learnerTurn: ConversationTurn
   personaTurn: ConversationTurn
@@ -425,6 +436,7 @@ export interface MeetingTurnResult {
   termination: MeetingTermination | null
   responseOptions: MeetingResponseOptions | null
   completedMeeting: Meeting | null
+  behaviourFeedback?: MeetingBehaviourFeedback | null
 }
 
 export interface MeetingTermination {
