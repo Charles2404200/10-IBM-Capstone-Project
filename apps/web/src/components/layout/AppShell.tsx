@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   Header,
@@ -18,8 +18,11 @@ import styles from '@/lifecycle/lifecycle.module.scss'
 
 export default function AppShell() {
   const { displayName, role, logout } = useAuthStore()
+  const location = useLocation()
   const navigate = useNavigate()
   const canAccessAdmin = role === 'SCENARIO_AUTHOR' || role === 'REVIEWER' || role === 'ADMINISTRATOR'
+  const usesFixedCanvas = /^\/dashboard\/engagements\/[^/]+\/(intelligence|outreach|preparation|proposal)$/.test(location.pathname)
+    || /^\/dashboard\/engagements\/[^/]+\/meetings\/[^/]+$/.test(location.pathname)
   // Carbon hides HeaderNavigation below 1056px and hides this button above it,
   // so exactly one of the two is on screen at any width.
   const [navOpen, setNavOpen] = useState(false)
@@ -84,14 +87,12 @@ export default function AppShell() {
         </nav>
       )}
 
-      {/* Carbon's Header is position: fixed and compensates by giving a
-          *sibling* .cds--content a 3rem top margin, so anything placed between
-          the two lands underneath the header and disappears. Wrapping the body
-          means that rule no longer applies and this element owns the offset for
-          both children. */}
-      <div className={styles.fixedShellRoot} style={{ paddingBlockStart: '3rem' }}>
+      {/* The HUD owns the fixed-header offset through its sticky inset. Keeping
+          the shell itself at the document origin prevents a duplicate 3rem
+          spacer above every engagement workspace. */}
+      <div className={styles.fixedShellRoot}>
         <EngagementHUD />
-        <Content>
+        <Content className={`${styles.shellContent} ${usesFixedCanvas ? styles.fixedShellContent : ''}`}>
           <Outlet />
         </Content>
       </div>

@@ -1061,6 +1061,10 @@ $accent-blue-dark: #0043ce;
   margin-top: $spacing-03;
 }
 
+.researchContextForm {
+  min-width: 0;
+}
+
 .researchMethod {
   background: #fcfcfc;
   border: 1px solid $border-subtle;
@@ -1352,5 +1356,176 @@ $accent-blue-dark: #0043ce;
   .readinessTitle { grid-column: auto; }
   .readinessBand .gateRequirement { border-left: 0; border-top: 1px solid $border-subtle; padding-left: 0; padding-top: $spacing-03; }
   .findingsGrid, .evidenceGrid { grid-template-columns: 1fr; }
+}
+
+// Desktop research canvas. The workflow HUD consumes the space above this
+// page, so the canvas must use the remaining viewport rather than independently
+// sizing the header and each work column. Results and evidence are paged in the
+// component; no list needs its own scrollbar.
+@media (min-width: 1056px) {
+  .page {
+    align-content: stretch;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+    overflow: hidden;
+    padding: $spacing-04 clamp(1rem, 2vw, 2rem);
+    row-gap: $spacing-04;
+  }
+
+  .headerColumn {
+    min-height: 0;
+  }
+
+  .breadcrumbs {
+    height: 1.125rem;
+    margin-bottom: $spacing-02;
+  }
+
+  .pageHeader {
+    margin-bottom: $spacing-03;
+  }
+
+  .titleIcon {
+    height: 2.5rem;
+    width: 2.5rem;
+  }
+
+  .heading {
+    font-size: 1.75rem;
+  }
+
+  .metricTile {
+    min-height: 3.875rem;
+    padding: $spacing-03 $spacing-04;
+  }
+
+  .readinessBand {
+    margin-bottom: 0;
+    min-height: 3.875rem;
+    padding: $spacing-03 $spacing-04;
+  }
+
+  .workColumn {
+    height: auto;
+    min-height: 0;
+  }
+
+  .researchActions,
+  .workspace,
+  .decisionRail {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .researchActions {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .actionButton {
+    flex: 1 1 0;
+    margin-bottom: $spacing-02;
+    min-height: 0;
+    padding: $spacing-03;
+  }
+
+  .actionButton:last-child {
+    margin-bottom: 0;
+  }
+
+  .workspace {
+    grid-template-rows: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  }
+
+  .researchWorkspace,
+  .evidenceBoard {
+    display: flex;
+    flex-direction: column;
+    padding: $spacing-03;
+  }
+
+  .researchMethods {
+    margin-top: $spacing-02;
+  }
+
+  .researchMethod {
+    height: 7.5rem;
+    padding: $spacing-03;
+  }
+
+  // Carbon renders the invalid message beneath the textarea. The generated
+  // research card never needs that row, but the user-context form does. Give
+  // it a real layout height rather than letting its submit button escape into
+  // the findings below.
+  .researchContextForm .researchMethod {
+    height: auto;
+    min-height: 10rem;
+  }
+
+  .workspaceEmpty,
+  .evidenceEmpty {
+    flex: 1 1 auto;
+    height: auto;
+    margin-top: $spacing-02;
+    min-height: 0;
+  }
+
+  .researchLoading {
+    height: auto;
+    margin-top: $spacing-02;
+    min-height: 5rem;
+  }
+
+  .findingsSection {
+    margin-top: $spacing-02;
+  }
+
+  .findingsGrid,
+  .evidenceGrid {
+    margin-top: $spacing-02;
+  }
+
+  .evidenceCard {
+    height: 5.5rem;
+    padding: $spacing-03;
+  }
+
+  .evidenceTitle {
+    -webkit-line-clamp: 1;
+    margin: 0.125rem 0;
+  }
+
+  .evidenceNote {
+    -webkit-line-clamp: 1;
+  }
+
+  .decisionRail {
+    gap: $spacing-03;
+  }
+
+  .hypothesisWorkspace,
+  .researchGate {
+    padding: $spacing-03;
+  }
+
+  .hypothesisEmpty {
+    line-height: 1.3;
+    padding: $spacing-02 0;
+  }
+
+  .researchGate .gateRequirement {
+    margin-bottom: 0.25rem;
+  }
+
+  .gateCoaching {
+    margin-top: $spacing-02;
+    padding: $spacing-02;
+  }
+
+  .researchGate :global(.cds--btn) {
+    margin-top: $spacing-02 !important;
+  }
 }
 

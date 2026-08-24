@@ -29,6 +29,10 @@ public class Assessment extends BaseEntity {
     @Column(columnDefinition = "text")
     private String feedbackSummary;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private AssessmentFeedbackStatus feedbackStatus = AssessmentFeedbackStatus.READY;
+
     @ElementCollection
     @CollectionTable(name = "assessment_strengths", joinColumns = @JoinColumn(name = "assessment_id"))
     @Column(name = "item", columnDefinition = "text")
@@ -46,7 +50,8 @@ public class Assessment extends BaseEntity {
 
     public static Assessment create(UUID engagementId, List<CompetencyScore> competencyScores, int overallScore,
                                      String outcome, String feedbackSummary,
-                                     List<String> strengths, List<String> improvementAreas) {
+                                     List<String> strengths, List<String> improvementAreas,
+                                     AssessmentFeedbackStatus feedbackStatus) {
         Assessment a = new Assessment();
         a.engagementId = engagementId;
         a.competencyScores = new ArrayList<>(competencyScores);
@@ -55,6 +60,7 @@ public class Assessment extends BaseEntity {
         a.feedbackSummary = feedbackSummary;
         a.strengths = new ArrayList<>(strengths);
         a.improvementAreas = new ArrayList<>(improvementAreas);
+        a.feedbackStatus = feedbackStatus;
         a.generatedAt = Instant.now();
         return a;
     }
@@ -64,7 +70,15 @@ public class Assessment extends BaseEntity {
     public int getOverallScore() { return overallScore; }
     public String getOutcome() { return outcome; }
     public String getFeedbackSummary() { return feedbackSummary; }
+    public AssessmentFeedbackStatus getFeedbackStatus() { return feedbackStatus; }
     public List<String> getStrengths() { return Collections.unmodifiableList(strengths); }
     public List<String> getImprovementAreas() { return Collections.unmodifiableList(improvementAreas); }
     public Instant getGeneratedAt() { return generatedAt; }
+
+    public void replaceFeedback(String summary, List<String> updatedStrengths, List<String> updatedImprovementAreas) {
+        this.feedbackSummary = summary;
+        this.strengths = new ArrayList<>(updatedStrengths);
+        this.improvementAreas = new ArrayList<>(updatedImprovementAreas);
+        this.feedbackStatus = AssessmentFeedbackStatus.READY;
+    }
 }

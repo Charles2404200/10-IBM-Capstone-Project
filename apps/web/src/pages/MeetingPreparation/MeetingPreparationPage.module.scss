@@ -250,3 +250,60 @@
   .itemsViewport, .listHeading, .listFooter { padding-left: $spacing-04; padding-right: $spacing-04; }
 }
 
+/* Fixed desktop canvas: the plan has pagination, so all editing controls can
+   remain visible without turning the browser document into a long form. */
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .page {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    padding: $spacing-04 clamp($spacing-05, 3vw, $spacing-07);
+    overflow: hidden;
+  }
+
+  .canvas {
+    width: min(100%, 100rem);
+    min-height: 0;
+    height: 100%;
+    gap: $spacing-03;
+  }
+
+  .pageHeader h1 { @include type-style('heading-04'); }
+  .pageDescription { margin-top: $spacing-02; }
+
+  .readinessStrip {
+    gap: $spacing-04;
+    padding: $spacing-03 $spacing-04;
+  }
+  .readinessScore strong { @include type-style('heading-04'); margin-top: 2px; }
+  .readinessChecks { gap: $spacing-03; }
+
+  .workspaceGrid {
+    min-height: 0;
+    gap: $spacing-03;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    overflow: hidden;
+  }
+  .primaryWorkspace { min-height: 0; gap: $spacing-03; overflow: hidden; }
+
+  .objectivePanel { padding: $spacing-04; }
+  .objectivePanel :global(.cds--text-area__wrapper) { margin-top: $spacing-03; }
+  .objectivePanel :global(.cds--text-area) { min-height: 3.75rem; }
+
+  .collectionPanel { min-height: 0; }
+  .sectionTabs { padding: 0 $spacing-04; }
+  .listWorkspace { height: 100%; min-height: 0; }
+  .listHeading { padding: $spacing-03 $spacing-04; }
+  .itemsViewport { padding: 0 $spacing-04; }
+  .listRow { min-height: 3.25rem; }
+  .listFooter { min-height: 3rem; padding: $spacing-02 $spacing-04; }
+
+  .coachingRail { min-height: 0; gap: $spacing-03; overflow: hidden; }
+  .coachingPanel, .scoreGuide { padding: $spacing-04; }
+  .coachingPanel > p:not(.eyebrow) { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+  .coachingTip { margin-top: $spacing-03; padding: $spacing-03; }
+  .scoreGuide { gap: $spacing-02; }
+  .scoreGuide > div { padding-bottom: $spacing-02; }
+  .scoreGuide > p:last-child { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+}
+
