@@ -1,5 +1,5 @@
 -- Additive audit trail for Simulation Director decisions. Existing meetings keep an empty ledger.
-CREATE TABLE IF NOT EXISTS meeting_behaviour_ledger (
+CREATE TABLE meeting_behaviour_ledger (
     meeting_id           UUID NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
     ledger_order         INT NOT NULL,
     learner_sequence     INT NOT NULL,
@@ -13,5 +13,5 @@ CREATE TABLE IF NOT EXISTS meeting_behaviour_ledger (
     PRIMARY KEY (meeting_id, ledger_order)
 );
 
-CREATE INDEX IF NOT EXISTS idx_meeting_behaviour_ledger_meeting
+CREATE INDEX idx_meeting_behaviour_ledger_meeting
     ON meeting_behaviour_ledger (meeting_id, learner_sequence);
