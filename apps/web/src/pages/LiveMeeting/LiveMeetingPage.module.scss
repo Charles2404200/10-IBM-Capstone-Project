@@ -10,7 +10,6 @@
 
 .conversationPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); border: 1px solid $border-subtle; background: $layer-01; }
 .transcriptViewport { overflow-y: auto; padding: $spacing-05; }
-.transcriptToolbar { display: flex; align-items: center; justify-content: space-between; gap: $spacing-03; margin-bottom: $spacing-03; color: $text-secondary; @include type-style('label-01'); }
 .emptyTranscript { color: $text-secondary; text-align: center; margin: $spacing-10 0; }
 .learnerTurn, .personaTurn { display: flex; margin-bottom: $spacing-04; }
 .learnerTurn { justify-content: flex-end; }
@@ -72,62 +71,11 @@
 .behaviourNextAction strong { @include type-style('label-01'); color: $text-primary; }
 .behaviourNextAction span { color: $text-secondary; }
 
-.passedDebrief, .failedDebrief { padding: $spacing-04; border-top: 1px solid $border-subtle; }
+.passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
-.debriefFeedback { color: $text-primary; line-height: 1.4; margin: $spacing-02 0 $spacing-03; }
+.debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
 .terminationGuidance { margin: 0; padding-left: $spacing-05; }
 .terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; }
 
 @media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
 @media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.responseChoice { grid-template-columns: 1fr auto; }.choiceNumber { grid-column: 1 / -1; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }
-
-/* Keep the live conversation as one active desk on desktop. The transcript is
-   the only scrolling surface, so full context stays available without turning
-   the surrounding workflow into a document page. */
-@media (min-width: 82rem) and (min-height: 43.75rem) {
-  .page {
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    padding: $spacing-03 clamp($spacing-05, 3vw, $spacing-07);
-    overflow: hidden;
-  }
-
-  .headerGrid, .workspaceGrid { width: min(100%, 100rem); }
-  .headerGrid { flex: 0 0 auto; }
-  .workspaceGrid { flex: 1 1 auto; min-height: 0; margin-top: $spacing-03; overflow: hidden; }
-  .workspaceGrid :global(.cds--row),
-  .workspaceGrid :global([class*='cds--col']) { min-height: 0; }
-
-  .pageHeader h1 { @include type-style('heading-04'); }
-  .workspaceGrid :global([class*='cds--col-lg-11']) { display: flex; flex-direction: column; }
-  .conversationPanel { flex: 1 1 auto; min-height: 0; height: 100%; }
-  .transcriptViewport { overflow-y: auto; padding: $spacing-03 $spacing-04; }
-  .transcriptToolbar { margin-bottom: $spacing-02; }
-  .learnerTurn, .personaTurn { margin-bottom: $spacing-03; }
-  .bubble { max-width: 82%; padding: $spacing-03; }
-  .bubble p { display: -webkit-box; overflow: hidden; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 5; }
-
-  .guidedComposer { padding: $spacing-03 $spacing-04; }
-  .guidedDescription { display: -webkit-box; overflow: hidden; margin: $spacing-02 0 $spacing-03; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .responseChoices { gap: $spacing-02; }
-  .responseChoice { gap: $spacing-03; padding: $spacing-02 $spacing-03; }
-  .choiceContent { display: -webkit-box; overflow: hidden; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .composer { padding: $spacing-03 $spacing-04; }
-
-  .decisionRail { position: static; min-height: 0; gap: $spacing-03; overflow: hidden; }
-  .relationshipPanel, .hintPanel, .behaviourPanel, .readyToClosePanel, .factsPanel { padding: $spacing-03 $spacing-04; }
-  .railHeading { margin-bottom: $spacing-03; }
-  .relationshipMetric p { margin-top: 2px; }
-  .relationshipMetric > div:first-child { margin-bottom: 2px; }
-  .hintPanel ul { margin: $spacing-02 0 0; }
-  .hintPanel li { margin-bottom: 2px; }
-  .behaviourPanel > p:not(.eyebrow) { display: -webkit-box; overflow: hidden; margin: $spacing-02 0; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .behaviourTags { margin: $spacing-02 0; }
-  .behaviourNextAction { padding-top: $spacing-02; }
-  .readyToClosePanel, .factsPanel { display: none; }
-
-  .passedDebrief, .failedDebrief { padding: $spacing-03 $spacing-04; }
-}

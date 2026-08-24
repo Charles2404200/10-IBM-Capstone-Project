@@ -24,6 +24,7 @@ import styles from './LiveMeetingPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const MEETING_THRESHOLD = 70
+
 const LIVE_MEETING_OBJECTIVES = [
   {
     id: 'relationship',
@@ -137,7 +138,7 @@ export default function LiveMeetingPage() {
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [terminationDismissed, setTerminationDismissed] = useState(false)
-  const transcriptRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const turns = useMemo(() => transcript ?? [], [transcript])
   const currentState = personaState ?? persistedPersonaState
@@ -149,8 +150,7 @@ export default function LiveMeetingPage() {
   )
 
   useEffect(() => {
-    const viewport = transcriptRef.current
-    if (viewport) viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [turns.length, streamingText])
 
   useEffect(() => {
@@ -223,10 +223,7 @@ export default function LiveMeetingPage() {
       <Grid fullWidth className={styles.workspaceGrid}>
         <Column lg={11} md={8} sm={4}>
           <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
-            <div className={styles.transcriptViewport} ref={transcriptRef}>
-              <div className={styles.transcriptToolbar}>
-                <span>Conversation history ({turns.length} turns)</span>
-              </div>
+            <div className={styles.transcriptViewport}>
               {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
@@ -235,6 +232,7 @@ export default function LiveMeetingPage() {
               {isStreaming && streamingText && (
                 <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
               )}
+              <div ref={scrollRef} />
             </div>
 
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
@@ -310,9 +308,11 @@ export default function LiveMeetingPage() {
                 </Button>
               </div>
             )}
+          </section>
 
-            {isCompleted && (
-              <section className={meeting.completionOutcome === 'PASSED' ? styles.passedDebrief : styles.failedDebrief}>
+          {isCompleted && (
+            <Tile className={meeting.completionOutcome === 'PASSED' ? styles.passedDebrief : styles.failedDebrief}>
+              <Stack gap={4}>
                 <div className={styles.debriefHeading}>
                   <div>
                     <p className={styles.eyebrow}>Meeting debrief</p>
@@ -321,23 +321,29 @@ export default function LiveMeetingPage() {
                   <Tag type={meeting.completionOutcome === 'PASSED' ? 'green' : 'red'}>{meeting.completionOutcome}</Tag>
                 </div>
                 <p className={styles.debriefFeedback}>{meeting.debriefFeedback}</p>
+                {debriefTips.length > 0 && (
+                  <ul className={styles.debriefTips}>
+                    {debriefTips.map((tip) => <li key={tip}>{tip}</li>)}
+                  </ul>
+                )}
                 {meeting.completionOutcome === 'PASSED' ? (
                   <Button renderIcon={ArrowRight} onClick={() => navigate(`/dashboard/engagements/${engagementId}/proposal`)}>
                     Continue to Discovery Synthesis
                   </Button>
-                ) : canRetryMeeting ? (
-                  <Button kind="secondary" disabled={retryMeeting.isPending} onClick={handleRetryMeeting}>
-                    {retryMeeting.isPending ? 'Starting live meeting...' : `Retry live meeting (${meetingRetriesRemaining} remaining)`}
-                  </Button>
                 ) : (
-                  <Button kind="secondary" disabled={retryEngagement.isPending} onClick={handleRetryLead}>
-                    {retryEngagement.isPending ? 'Starting lead retry...' : 'Retry this lead from the start'}
-                  </Button>
+                  canRetryMeeting ? (
+                    <Button kind="secondary" disabled={retryMeeting.isPending} onClick={handleRetryMeeting}>
+                      {retryMeeting.isPending ? 'Starting live meeting...' : `Retry live meeting (${meetingRetriesRemaining} remaining)`}
+                    </Button>
+                  ) : (
+                    <Button kind="secondary" disabled={retryEngagement.isPending} onClick={handleRetryLead}>
+                      {retryEngagement.isPending ? 'Starting lead retry...' : 'Retry this lead from the start'}
+                    </Button>
+                  )
                 )}
-              </section>
-            )}
-          </section>
-
+              </Stack>
+            </Tile>
+          )}
         </Column>
 
         <Column lg={5} md={8} sm={4}>
