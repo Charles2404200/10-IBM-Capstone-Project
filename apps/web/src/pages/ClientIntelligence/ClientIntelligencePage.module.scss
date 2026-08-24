@@ -1061,6 +1061,10 @@ $accent-blue-dark: #0043ce;
   margin-top: $spacing-03;
 }
 
+.researchContextForm {
+  min-width: 0;
+}
+
 .researchMethod {
   background: #fcfcfc;
   border: 1px solid $border-subtle;
@@ -1449,6 +1453,15 @@ $accent-blue-dark: #0043ce;
   .researchMethod {
     height: 7.5rem;
     padding: $spacing-03;
+  }
+
+  // Carbon renders the invalid message beneath the textarea. The generated
+  // research card never needs that row, but the user-context form does. Give
+  // it a real layout height rather than letting its submit button escape into
+  // the findings below.
+  .researchContextForm .researchMethod {
+    height: auto;
+    min-height: 10rem;
   }
 
   .workspaceEmpty,
