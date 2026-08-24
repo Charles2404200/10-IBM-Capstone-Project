@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   Header,
@@ -18,8 +18,10 @@ import styles from '@/lifecycle/lifecycle.module.scss'
 
 export default function AppShell() {
   const { displayName, role, logout } = useAuthStore()
+  const location = useLocation()
   const navigate = useNavigate()
   const canAccessAdmin = role === 'SCENARIO_AUTHOR' || role === 'REVIEWER' || role === 'ADMINISTRATOR'
+  const usesFixedCanvas = /^\/dashboard\/engagements\/[^/]+\/intelligence$/.test(location.pathname)
   // Carbon hides HeaderNavigation below 1056px and hides this button above it,
   // so exactly one of the two is on screen at any width.
   const [navOpen, setNavOpen] = useState(false)
@@ -91,7 +93,7 @@ export default function AppShell() {
           both children. */}
       <div className={styles.fixedShellRoot} style={{ paddingBlockStart: '3rem' }}>
         <EngagementHUD />
-        <Content>
+        <Content className={usesFixedCanvas ? styles.fixedShellContent : undefined}>
           <Outlet />
         </Content>
       </div>

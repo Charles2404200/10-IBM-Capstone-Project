@@ -1363,7 +1363,7 @@ $accent-blue-dark: #0043ce;
     align-content: stretch;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    height: calc(100dvh - 6.5rem);
+    height: 100%;
     overflow: hidden;
     padding: $spacing-04 clamp(1rem, 2vw, 2rem);
     row-gap: $spacing-04;

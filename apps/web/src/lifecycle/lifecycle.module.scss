@@ -541,7 +541,8 @@
      bottom" failure this work set out to remove, recreated at a larger scale.
      `:has()` keeps the opt-in on the page rather than in the shell, so a page
      cannot get clipped without asking for it. */
-  .fixedShellRoot:has(.fixedShellBody) :global(.cds--content) {
+  .fixedShellRoot:has(.fixedShellBody) :global(.cds--content),
+  .fixedShellRoot:has(.fixedShellContent) :global(.cds--content) {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
@@ -554,7 +555,9 @@
      shows blank space. Clipping the root removes it. Scoped to the same
      `:has()` opt-in, because on a page with no scroll panels this would hide
      real content instead of empty space. */
-  .fixedShellRoot:has(.fixedShellBody) {
+  .fixedShellRoot:has(.fixedShellBody),
+  .fixedShellRoot:has(.fixedShellContent) {
+    box-sizing: border-box;
     overflow: hidden;
     /* `overflow: hidden` alone did not stop it. Carbon's visually-hidden labels
        and tooltip popovers are `position: absolute`, and with no positioned
@@ -582,6 +585,14 @@
   .fixedShellBody {
     flex: 1 1 auto;
     min-height: 0;
+  }
+
+  // Pages that declare a fixed canvas own the remaining shell height. This is
+  // deliberately opt-in: catalogue and admin pages remain ordinary documents.
+  .fixedShellContent {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .fixedShellBody > * {
