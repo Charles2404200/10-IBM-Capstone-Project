@@ -140,7 +140,40 @@ export default function ProposalStudioPage() {
 type DraftUpdate = (fn: (value: ProposalDraftRequest) => ProposalDraftRequest) => void
 
 function Foundation({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
-  return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><div className={styles.foundationFields}><TextArea id="problem-statement" labelText="Problem statement" helperText="Describe observed operational, commercial or risk impacts." rows={3} value={draft.problemStatement} onChange={(event) => update((current) => ({ ...current, problemStatement: event.target.value }))} /><TextArea id="solution-strategy" labelText="Recommended solution" helperText="Explain why this approach addresses the problem." rows={3} value={draft.solutionStrategy} onChange={(event) => update((current) => ({ ...current, solutionStrategy: event.target.value }))} /></div><ListEditor label="Solution components" itemsPerPage={2} values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
+  return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><FoundationNarrativeEditor draft={draft} update={update} /><ListEditor label="Solution components" itemsPerPage={2} values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
+}
+
+type FoundationNarrative = 'problem' | 'solution'
+
+function FoundationNarrativeEditor({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
+  const [activeNarrative, setActiveNarrative] = useState<FoundationNarrative>('problem')
+  const isProblem = activeNarrative === 'problem'
+  const label = isProblem ? 'Problem statement' : 'Recommended solution'
+  const helperText = isProblem
+    ? 'Describe the observed operational, commercial or risk impact.'
+    : 'Explain how the recommendation addresses the client problem.'
+  const value = isProblem ? draft.problemStatement : draft.solutionStrategy
+
+  return <section className={styles.foundationNarrative} aria-label="Proposal foundation narrative">
+    <div className={styles.foundationTabs} role="tablist" aria-label="Proposal foundation sections">
+      <button className={isProblem ? styles.foundationTabActive : styles.foundationTab} role="tab" type="button" aria-selected={isProblem} onClick={() => setActiveNarrative('problem')}>
+        <span>1</span><div><strong>Problem framing</strong><small>What is happening and why it matters</small></div>
+      </button>
+      <button className={!isProblem ? styles.foundationTabActive : styles.foundationTab} role="tab" type="button" aria-selected={!isProblem} onClick={() => setActiveNarrative('solution')}>
+        <span>2</span><div><strong>Recommended solution</strong><small>How the approach creates value</small></div>
+      </button>
+    </div>
+    <div className={styles.foundationInput}>
+      <TextArea
+        id={isProblem ? 'problem-statement' : 'solution-strategy'}
+        labelText={label}
+        helperText={helperText}
+        rows={4}
+        value={value}
+        onChange={(event) => update((current) => isProblem ? { ...current, problemStatement: event.target.value } : { ...current, solutionStrategy: event.target.value })}
+      />
+    </div>
+  </section>
 }
 
 function Commercial({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
