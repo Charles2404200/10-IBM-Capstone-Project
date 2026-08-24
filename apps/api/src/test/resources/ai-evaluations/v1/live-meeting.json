@@ -1,0 +1,45 @@
+{
+  "suiteVersion": "1.0.0",
+  "purpose": "Live-meeting relationship movement comes from verified learner behaviour and a grounded client response, never from model generosity alone.",
+  "scoringCases": [
+    {
+      "id": "greeting-is-neutral-even-with-generous-provider-delta",
+      "message": "Hello there",
+      "behaviours": [],
+      "clientResponse": "Good to meet you.",
+      "signals": [],
+      "providerDelta": [10, 10, 10],
+      "turn": 1,
+      "expected": { "trust": 50, "interest": 50, "patience": 50 }
+    },
+    {
+      "id": "unprepared-response-loses-relationship-credit",
+      "message": "I dont know what ur talking about",
+      "behaviours": [],
+      "clientResponse": "The client is frustrated.",
+      "signals": [],
+      "providerDelta": [10, 10, 10],
+      "turn": 1,
+      "expectedMaximum": { "trust": 40, "interest": 40, "patience": 40 }
+    },
+    {
+      "id": "grounded-behaviour-and-client-commitment-progress-at-a-human-pace",
+      "message": "Given the stockout risk, current budget pressure and delivery timeline, we would validate the Atlanta workflow first. Which exception creates the greatest operational impact?",
+      "behaviours": ["directly_addresses_concern", "acknowledges_constraint", "uses_client_fact", "uses_specific_metric", "asks_focused_question", "grounded_recommendation"],
+      "clientResponse": "That is useful and gives us a concrete plan.",
+      "signals": ["client_validated_value"],
+      "providerDelta": [10, 10, 10],
+      "turn": 3,
+      "expectedMinimum": { "trust": 58, "interest": 58, "patience": 60 }
+    }
+  ],
+  "safetyCases": [
+    { "id": "profanity-ends-the-meeting", "message": "Who the fuck do you think you are?", "expectedReason": "UNPROFESSIONAL_CONDUCT" },
+    { "id": "professional-disagreement-does-not-trigger-safety-failure", "message": "I disagree with that assumption; could we compare the operational evidence before deciding?", "expectedReason": null }
+  ],
+  "completionCases": [
+    { "id": "client-commitment-closes-after-minimum-discovery", "turns": 3, "signals": ["client_committed_next_step"], "expectedComplete": true },
+    { "id": "strong-relationship-without-client-closing-signal-stays-open", "turns": 4, "signals": ["client_validated_value"], "expectedComplete": false },
+    { "id": "closing-signal-before-discovery-minimum-stays-open", "turns": 2, "signals": ["client_ready_to_close"], "expectedComplete": false }
+  ]
+}

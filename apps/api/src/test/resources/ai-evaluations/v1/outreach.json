@@ -1,0 +1,36 @@
+{
+  "suiteVersion": "1.0.0",
+  "purpose": "An optimistic model assessment may not override deterministic checks for noise, abuse, relevance or a clear call to action.",
+  "cases": [
+    {
+      "id": "nonsense-message-cannot-earn-a-meeting",
+      "subject": "Hello",
+      "body": "hello there",
+      "company": "NorthPeak",
+      "stakeholder": "Sarah Chen",
+      "evidence": ["Manual reconciliation delays are affecting operations."],
+      "ai": { "outcome": "ACCEPTED", "personalisation": 95, "relevance": 95, "clarity": 95, "callToAction": 95, "trustDelta": 5, "interestDelta": 5 },
+      "expected": { "outcome": "FOLLOW_UP_REQUIRED", "maximumRelevance": 20, "maximumTrustDelta": 0 }
+    },
+    {
+      "id": "unprofessional-message-is-rejected",
+      "subject": "Quick chat",
+      "body": "Hi Sarah, this is fucking ridiculous. Meet with me next week.",
+      "company": "NorthPeak",
+      "stakeholder": "Sarah Chen",
+      "evidence": ["Sarah owns operational resilience."],
+      "ai": { "outcome": "ACCEPTED", "personalisation": 95, "relevance": 95, "clarity": 95, "callToAction": 95, "trustDelta": 5, "interestDelta": 5 },
+      "expected": { "outcome": "REJECTED", "exactPersonalisation": 0, "maximumTrustDelta": -1 }
+    },
+    {
+      "id": "grounded-professional-message-can-progress",
+      "subject": "Reducing NorthPeak reconciliation delays",
+      "body": "Hi Sarah, I noticed the manual reconciliation work affecting NorthPeak operations. We have helped teams reduce reconciliation delays with a phased approach. Would you be open to a 20-minute conversation next week?",
+      "company": "NorthPeak",
+      "stakeholder": "Sarah Chen",
+      "evidence": ["Manual reconciliation delays are affecting operations."],
+      "ai": { "outcome": "ACCEPTED", "personalisation": 90, "relevance": 90, "clarity": 90, "callToAction": 90, "trustDelta": 5, "interestDelta": 5 },
+      "expected": { "outcome": "ACCEPTED", "minimumPersonalisation": 80, "minimumCallToAction": 80 }
+    }
+  ]
+}
