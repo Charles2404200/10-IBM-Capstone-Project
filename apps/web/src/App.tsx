@@ -7,6 +7,9 @@ import LoadingState from '@/components/shared/LoadingState'
 const LandingPage = lazy(() => import('@/pages/Landing/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/Auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/Auth/RegisterPage'))
+const VerifyEmailPage = lazy(() => import('@/pages/Auth/VerifyEmailPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/Auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/Auth/ResetPasswordPage'))
 const CommandCentrePage = lazy(() => import('@/pages/CommandCentre/CommandCentrePage'))
 const LeadPipelinePage = lazy(() => import('@/pages/LeadPipeline/LeadPipelinePage'))
 const ClientIntelligencePage = lazy(() => import('@/pages/ClientIntelligence/ClientIntelligencePage'))
@@ -69,6 +72,9 @@ export default function App() {
             </PublicOnlyRoute>
           }
         />
+        <Route path="/verify-email" element={<PublicOnlyRoute><VerifyEmailPage /></PublicOnlyRoute>} />
+        <Route path="/forgot-password" element={<PublicOnlyRoute><ForgotPasswordPage /></PublicOnlyRoute>} />
+        <Route path="/reset-password" element={<PublicOnlyRoute><ResetPasswordPage /></PublicOnlyRoute>} />
         <Route
           path="/dashboard"
           element={

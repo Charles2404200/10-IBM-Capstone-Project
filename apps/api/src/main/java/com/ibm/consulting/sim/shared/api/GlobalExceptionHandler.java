@@ -2,6 +2,8 @@ package com.ibm.consulting.sim.shared.api;
 
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.identity.domain.EmailVerificationRequiredException;
+import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -42,6 +44,18 @@ public class GlobalExceptionHandler {
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "validation-error", "Request validation failed");
         pd.setProperty("violations", violations);
         return pd;
+    }
+
+    @ExceptionHandler(EmailVerificationRequiredException.class)
+    ProblemDetail handleEmailVerificationRequired(EmailVerificationRequiredException ex) {
+        return problem(HttpStatus.FORBIDDEN, "email-verification-required", ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailDeliveryUnavailableException.class)
+    ProblemDetail handleEmailDeliveryUnavailable(EmailDeliveryUnavailableException ex) {
+        log.warn("Transactional email delivery unavailable: {}", ex.getMessage());
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "email-delivery-unavailable",
+                "We could not send email right now. Please try again shortly.");
     }
 
     /** Domain guards use IllegalArgumentException for invalid authoring input. */

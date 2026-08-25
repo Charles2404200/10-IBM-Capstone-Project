@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useLogin } from '@/api/hooks/useAuth'
 import PublicHeader from '@/components/layout/PublicHeader'
+import { isAxiosError } from 'axios'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -34,6 +35,8 @@ export default function LoginPage() {
   const onSubmit = (data: FormValues) => {
     login.mutate(data, { onSuccess: () => navigate('/dashboard') })
   }
+
+  const verificationRequired = isAxiosError(login.error) && login.error.response?.status === 403
 
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff' }}>
@@ -71,8 +74,8 @@ export default function LoginPage() {
                 {login.isError && (
                   <InlineNotification
                     kind="error"
-                    title="Login failed"
-                    subtitle="Check your credentials and try again."
+                    title={verificationRequired ? 'Confirm your email first' : 'Login failed'}
+                    subtitle={verificationRequired ? 'Use the confirmation email, or request another link below.' : 'Check your credentials and try again.'}
                     hideCloseButton
                   />
                 )}
@@ -84,6 +87,19 @@ export default function LoginPage() {
                   <Link to="/register" style={{ color: '#0f62fe' }}>
                     Register
                   </Link>
+                </p>
+                <p style={{ color: '#525252', fontSize: '0.875rem', marginTop: '-0.5rem' }}>
+                  <Link to="/forgot-password" style={{ color: '#0f62fe' }}>
+                    Forgot password?
+                  </Link>
+                  {verificationRequired && (
+                    <>
+                      {' | '}
+                      <Link to="/verify-email" style={{ color: '#0f62fe' }}>
+                        Resend confirmation
+                      </Link>
+                    </>
+                  )}
                 </p>
               </Stack>
             </Form>

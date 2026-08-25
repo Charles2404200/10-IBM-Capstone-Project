@@ -138,6 +138,36 @@ npm run dev
 # Web: http://localhost:3000 (Vite proxies /api to localhost:8080)
 ```
 
+### Transactional email and account recovery
+
+Registration creates an inactive-to-login account until its email address is
+confirmed. The API issues a high-entropy, single-use verification credential;
+only its SHA-256 digest is persisted. Password-reset credentials use the same
+pattern, expire after 15 minutes by default, and are invalidated after use.
+
+Configure the following values in local `.env` or as Railway service variables:
+
+```dotenv
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM=IBM Consulting Simulation <accounts@your-verified-domain.com>
+RESEND_REPLY_TO=support@your-verified-domain.com
+APP_PUBLIC_WEB_URL=https://your-web-domain.com
+```
+
+For initial Resend testing, `onboarding@resend.dev` can only deliver to the
+Resend account owner's inbox. Before production, verify your sending domain in
+Resend and set `RESEND_FROM` to that domain. Never commit an API key. If a key
+is exposed, revoke it in Resend and create a replacement.
+
+The web flow is available at `/verify-email`, `/forgot-password`, and
+`/reset-password`. Product-facing copy and HTML are centralized in
+`apps/api/src/main/java/com/ibm/consulting/sim/shared/email/template/TransactionalEmailTemplates.java`;
+the Resend adapter only transports the rendered message.
+
+The additive `V38` migration marks all existing users as already verified, so
+deploying this capability does not interrupt current learner or administrator
+accounts.
+
 ### Everyday workflow
 Once set up, day-to-day development is just:
 ```bash

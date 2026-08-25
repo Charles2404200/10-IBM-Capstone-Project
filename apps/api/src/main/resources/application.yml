@@ -77,6 +77,20 @@ app:
       email: ${ADMIN_EMAIL:}
       password: ${ADMIN_PASSWORD:}
       display-name: ${ADMIN_DISPLAY_NAME:Platform Administrator}
+  identity:
+    email:
+      public-web-url: ${APP_PUBLIC_WEB_URL:http://localhost:3000}
+      verification-ttl-minutes: ${EMAIL_VERIFICATION_TTL_MINUTES:1440}
+      password-reset-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:15}
+      resend-cooldown-seconds: ${EMAIL_RESEND_COOLDOWN_SECONDS:60}
+  email:
+    resend:
+      api-key: ${RESEND_API_KEY:}
+      base-url: ${RESEND_BASE_URL:https://api.resend.com}
+      from: ${RESEND_FROM:IBM Consulting Simulation <onboarding@resend.dev>}
+      reply-to: ${RESEND_REPLY_TO:}
+      connect-timeout-ms: ${RESEND_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${RESEND_READ_TIMEOUT_MS:8000}
   watsonx:
     api-key: ${WATSONX_API_KEY:mock}
     project-id: ${WATSONX_PROJECT_ID:mock}
