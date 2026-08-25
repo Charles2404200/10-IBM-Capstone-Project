@@ -115,13 +115,13 @@ export default function AssessmentReviewPage() {
             </Stack>
           </Tile>
 
-          <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))' }}>
+          <div className={styles.cardRow}>
             {result.competencyScores.map((c) => (
               <CompetencyBar key={c.name} name={c.name} score={c.score} evidenceNote={c.evidenceNote} />
             ))}
           </div>
 
-          <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(20rem, 1fr))' }}>
+          <div className={styles.cardRow}>
             <Tile className={styles.card}>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>

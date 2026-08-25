@@ -20,3 +20,13 @@
   border: 1px solid $border-strong-01;
   border-radius: 6px;
 }
+
+/* The two-column rows for competencies and for strengths/improvements.
+   `auto-fit` with a 20rem minimum is what removes the hand-set lg/md/sm spans:
+   the row collapses to one column at 660px on its own, so there is no
+   breakpoint to keep in step with the card contents. */
+.cardRow {
+  display: grid;
+  gap: $spacing-05;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+}
