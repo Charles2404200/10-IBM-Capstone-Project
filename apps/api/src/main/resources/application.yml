@@ -87,7 +87,7 @@ app:
     resend:
       api-key: ${RESEND_API_KEY:}
       base-url: ${RESEND_BASE_URL:https://api.resend.com}
-      from: ${RESEND_FROM:IBM Consulting Simulation <onboarding@resend.dev>}
+      from: ${RESEND_FROM:IBM Consulting Simulation <no-reply@mail.ibm-simulator.com>}
       reply-to: ${RESEND_REPLY_TO:}
       connect-timeout-ms: ${RESEND_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${RESEND_READ_TIMEOUT_MS:8000}

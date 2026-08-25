@@ -78,7 +78,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRY_MS: ${JWT_EXPIRY_MS:-86400000}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RESEND_FROM: ${RESEND_FROM:-IBM Consulting Simulation <onboarding@resend.dev>}
+      RESEND_FROM: ${RESEND_FROM:-IBM Consulting Simulation <no-reply@mail.ibm-simulator.com>}
       RESEND_REPLY_TO: ${RESEND_REPLY_TO:-}
       APP_PUBLIC_WEB_URL: ${APP_PUBLIC_WEB_URL:-http://localhost:3000}
       EMAIL_VERIFICATION_TTL_MINUTES: ${EMAIL_VERIFICATION_TTL_MINUTES:-1440}

@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ResendEmailProperties {
     private String apiKey = "";
     private String baseUrl = "https://api.resend.com";
-    private String from = "IBM Consulting Simulation <onboarding@resend.dev>";
+    private String from = "IBM Consulting Simulation <no-reply@mail.ibm-simulator.com>";
     private String replyTo = "";
     private int connectTimeoutMs = 3_000;
     private int readTimeoutMs = 8_000;
