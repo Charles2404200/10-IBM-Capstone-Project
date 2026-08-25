@@ -85,6 +85,11 @@ app:
       resend-cooldown-seconds: ${EMAIL_RESEND_COOLDOWN_SECONDS:60}
   email:
     provider: ${EMAIL_PROVIDER:resend}
+    delivery:
+      # Delivery is async-after-commit: account and credential state return
+      # immediately, while a bounded worker handles SMTP/provider latency.
+      max-attempts: ${EMAIL_DELIVERY_MAX_ATTEMPTS:3}
+      initial-backoff-ms: ${EMAIL_DELIVERY_INITIAL_BACKOFF_MS:250}
     resend:
       api-key: ${RESEND_API_KEY:}
       base-url: ${RESEND_BASE_URL:https://api.resend.com}

@@ -1,7 +1,7 @@
 package com.ibm.consulting.sim.identity.application;
 
 import com.ibm.consulting.sim.identity.domain.*;
-import com.ibm.consulting.sim.shared.email.application.EmailDeliveryGateway;
+import com.ibm.consulting.sim.shared.email.application.TransactionalEmailPublisher;
 import com.ibm.consulting.sim.shared.email.template.TransactionalEmailTemplates;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,21 +16,21 @@ public class RegisterUserUseCase {
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationTokenRepository verificationTokens;
     private final CredentialTokenService credentialTokenService;
-    private final EmailDeliveryGateway emailDeliveryGateway;
+    private final TransactionalEmailPublisher emailPublisher;
     private final TransactionalEmailTemplates emailTemplates;
     private final IdentityEmailProperties emailProperties;
 
     public RegisterUserUseCase(UserRepository userRepository, PasswordEncoder passwordEncoder,
                                EmailVerificationTokenRepository verificationTokens,
                                CredentialTokenService credentialTokenService,
-                               EmailDeliveryGateway emailDeliveryGateway,
+                               TransactionalEmailPublisher emailPublisher,
                                TransactionalEmailTemplates emailTemplates,
                                IdentityEmailProperties emailProperties) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.verificationTokens = verificationTokens;
         this.credentialTokenService = credentialTokenService;
-        this.emailDeliveryGateway = emailDeliveryGateway;
+        this.emailPublisher = emailPublisher;
         this.emailTemplates = emailTemplates;
         this.emailProperties = emailProperties;
     }
@@ -46,7 +46,7 @@ public class RegisterUserUseCase {
         CredentialTokenService.IssuedCredential credential = credentialTokenService.issue();
         verificationTokens.save(EmailVerificationToken.issue(user.getId(), credential.selector(),
                 credential.hash(), credentialTokenService.expiresAt(emailProperties.getVerificationTtlMinutes())));
-        emailDeliveryGateway.send(emailTemplates.verification(user.getEmail(), user.getDisplayName(),
+        emailPublisher.publish(emailTemplates.verification(user.getEmail(), user.getDisplayName(),
                 emailProperties.verificationUrl(credential.compactToken())));
         return new RegistrationResponse(user.getEmail(), true);
     }

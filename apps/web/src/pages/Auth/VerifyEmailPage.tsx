@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { Button, Form, Heading, InlineNotification, Stack, TextInput, Tile } from '@carbon/react'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,8 +12,13 @@ type EmailForm = z.infer<typeof emailSchema>
 
 export default function VerifyEmailPage() {
   const [params] = useSearchParams()
+  const location = useLocation()
   const token = params.get('token')
-  const emailFromRegistration = params.get('email') ?? ''
+  const navigationState = location.state as { accountCreated?: boolean; email?: string } | null
+  const emailFromRegistration = params.get('email')
+    ?? navigationState?.email
+    ?? sessionStorage.getItem('pendingVerificationEmail')
+    ?? ''
   const confirm = useConfirmVerification()
   const resend = useResendVerification()
   const started = useRef(false)
@@ -38,6 +43,14 @@ export default function VerifyEmailPage() {
         {token && confirm.isPending && <InlineNotification kind="info" title="Confirming your email" subtitle="This will only take a moment." hideCloseButton />}
         {confirmed && <InlineNotification kind="success" title="Email confirmed" subtitle="Your account is active. You can now sign in." hideCloseButton />}
         {confirmationProblem && <InlineNotification kind="error" title="This confirmation link is unavailable" subtitle="It may have expired or already been used. Request a new one below." hideCloseButton />}
+        {navigationState?.accountCreated && !token && (
+          <InlineNotification
+            kind="success"
+            title="Account created"
+            subtitle="Your confirmation email is being sent. Check your inbox and spam folder shortly."
+            hideCloseButton
+          />
+        )}
         {!token && <p style={{ margin: 0, color: '#525252' }}>Check your inbox for the confirmation link. You must confirm before signing in.</p>}
         {(confirmed || !token || confirmationProblem) && (
           <Form onSubmit={form.handleSubmit(requestAnother)}>

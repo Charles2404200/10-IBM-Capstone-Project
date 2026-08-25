@@ -5,7 +5,7 @@ import com.ibm.consulting.sim.identity.domain.EmailVerificationTokenRepository;
 import com.ibm.consulting.sim.identity.domain.InvalidCredentialTokenException;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
-import com.ibm.consulting.sim.shared.email.application.EmailDeliveryGateway;
+import com.ibm.consulting.sim.shared.email.application.TransactionalEmailPublisher;
 import com.ibm.consulting.sim.shared.email.template.TransactionalEmailTemplates;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,19 +20,19 @@ public class EmailVerificationService {
     private final UserRepository users;
     private final EmailVerificationTokenRepository tokens;
     private final CredentialTokenService credentialTokenService;
-    private final EmailDeliveryGateway emailDeliveryGateway;
+    private final TransactionalEmailPublisher emailPublisher;
     private final TransactionalEmailTemplates emailTemplates;
     private final IdentityEmailProperties properties;
 
     public EmailVerificationService(UserRepository users, EmailVerificationTokenRepository tokens,
                                     CredentialTokenService credentialTokenService,
-                                    EmailDeliveryGateway emailDeliveryGateway,
+                                    TransactionalEmailPublisher emailPublisher,
                                     TransactionalEmailTemplates emailTemplates,
                                     IdentityEmailProperties properties) {
         this.users = users;
         this.tokens = tokens;
         this.credentialTokenService = credentialTokenService;
-        this.emailDeliveryGateway = emailDeliveryGateway;
+        this.emailPublisher = emailPublisher;
         this.emailTemplates = emailTemplates;
         this.properties = properties;
     }
@@ -73,7 +73,7 @@ public class EmailVerificationService {
         CredentialTokenService.IssuedCredential credential = credentialTokenService.issue();
         tokens.save(EmailVerificationToken.issue(user.getId(), credential.selector(), credential.hash(),
                 credentialTokenService.expiresAt(properties.getVerificationTtlMinutes())));
-        emailDeliveryGateway.send(emailTemplates.verification(user.getEmail(), user.getDisplayName(),
+        emailPublisher.publish(emailTemplates.verification(user.getEmail(), user.getDisplayName(),
                 properties.verificationUrl(credential.compactToken())));
     }
 

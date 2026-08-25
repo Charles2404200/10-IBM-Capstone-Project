@@ -34,7 +34,13 @@ export default function RegisterPage() {
 
   const onSubmit = (data: FormValues) => {
     register_.mutate(data, {
-      onSuccess: (response) => navigate(`/verify-email?email=${encodeURIComponent(response.email)}`),
+      onSuccess: (response) => {
+        sessionStorage.setItem('pendingVerificationEmail', response.email)
+        navigate('/verify-email', {
+          replace: true,
+          state: { accountCreated: true, email: response.email },
+        })
+      },
     })
   }
 

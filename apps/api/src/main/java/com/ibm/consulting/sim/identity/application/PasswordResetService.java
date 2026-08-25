@@ -5,7 +5,7 @@ import com.ibm.consulting.sim.identity.domain.PasswordResetToken;
 import com.ibm.consulting.sim.identity.domain.PasswordResetTokenRepository;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
-import com.ibm.consulting.sim.shared.email.application.EmailDeliveryGateway;
+import com.ibm.consulting.sim.shared.email.application.TransactionalEmailPublisher;
 import com.ibm.consulting.sim.shared.email.template.TransactionalEmailTemplates;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,19 +22,19 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokens;
     private final CredentialTokenService credentialTokenService;
     private final PasswordEncoder passwordEncoder;
-    private final EmailDeliveryGateway emailDeliveryGateway;
+    private final TransactionalEmailPublisher emailPublisher;
     private final TransactionalEmailTemplates emailTemplates;
     private final IdentityEmailProperties properties;
 
     public PasswordResetService(UserRepository users, PasswordResetTokenRepository tokens,
                                 CredentialTokenService credentialTokenService, PasswordEncoder passwordEncoder,
-                                EmailDeliveryGateway emailDeliveryGateway, TransactionalEmailTemplates emailTemplates,
+                                TransactionalEmailPublisher emailPublisher, TransactionalEmailTemplates emailTemplates,
                                 IdentityEmailProperties properties) {
         this.users = users;
         this.tokens = tokens;
         this.credentialTokenService = credentialTokenService;
         this.passwordEncoder = passwordEncoder;
-        this.emailDeliveryGateway = emailDeliveryGateway;
+        this.emailPublisher = emailPublisher;
         this.emailTemplates = emailTemplates;
         this.properties = properties;
     }
@@ -76,7 +76,7 @@ public class PasswordResetService {
         CredentialTokenService.IssuedCredential credential = credentialTokenService.issue();
         tokens.save(PasswordResetToken.issue(user.getId(), credential.selector(), credential.hash(),
                 credentialTokenService.expiresAt(properties.getPasswordResetTtlMinutes())));
-        emailDeliveryGateway.send(emailTemplates.passwordReset(user.getEmail(), user.getDisplayName(),
+        emailPublisher.publish(emailTemplates.passwordReset(user.getEmail(), user.getDisplayName(),
                 properties.passwordResetUrl(credential.compactToken())));
     }
 
