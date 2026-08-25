@@ -124,14 +124,14 @@ export default function NotifyUsersPage() {
         notifyUsers.mutate(form, {
             onSuccess: () => {
                 emptyForm();
+
+                setShowSuccessToast(true);
+
+                setTimeout(() => {
+                    setShowSuccessToast(false);
+                }, 4000);
             }
         });
-
-        setShowSuccessToast(true);
-
-        setTimeout(() => {
-            setShowSuccessToast(false);
-        }, 4000);
     };
 
     return (

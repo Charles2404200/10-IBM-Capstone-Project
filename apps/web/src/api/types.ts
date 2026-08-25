@@ -86,6 +86,16 @@ export interface AdminNotificationRequest {
   roles : UserRole[]
 }
 
+// Notification ------------------------------
+export interface NotificationObject {
+    eventId: string
+    userId: string
+    topicName: string
+    message: string
+    role: UserRole
+}
+//
+
 export interface GameplayDifficultyProfile {
   level: 'EASY' | 'MEDIUM' | 'HARD'
   researchArtifactsPerAction: number

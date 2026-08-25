@@ -13,6 +13,7 @@ import {
 } from '@carbon/react'
 import { Logout } from '@carbon/icons-react'
 import { useAuthStore } from '@/store/authStore'
+import NotificationPopup from '@/components/shared/NotificationPopup'
 import EngagementHUD from '@/lifecycle/components/EngagementHUD'
 import styles from '@/lifecycle/lifecycle.module.scss'
 
@@ -66,6 +67,7 @@ export default function AppShell() {
           </HeaderGlobalAction>
         </HeaderGlobalBar>
       </Header>
+      <NotificationPopup />
       {navOpen && (
         <nav className={styles.mobileNav} aria-label="Main navigation">
           {links.map((link) => (

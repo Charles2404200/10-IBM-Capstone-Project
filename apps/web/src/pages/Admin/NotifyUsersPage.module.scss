@@ -76,6 +76,13 @@
   gap: 0.75rem;
 }
 
+.toastContainer {
+  position: fixed;
+  top: 5rem;
+  right: 1.5rem;
+  z-index: 9999;
+}
+
 .roleOption {
   padding: 1rem;
   border: 1px solid var(--cds-border-subtle-01);

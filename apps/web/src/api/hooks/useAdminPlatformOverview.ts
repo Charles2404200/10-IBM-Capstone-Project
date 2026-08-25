@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { AdminNotificationRequest, AdminNotificationResponse, PlatformOverview, UserRole } from '@/api/types'
+import type { AdminNotificationRequest, AdminNotificationResponse, PlatformOverview} from '@/api/types'
 
 export const adminPlatformKeys = {
   overview: ['admin', 'platform', 'overview'] as const,

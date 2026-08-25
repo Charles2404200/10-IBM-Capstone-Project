@@ -43,8 +43,9 @@ Supabase Postgres, so no local Postgres container is started.
 `redis` / `kafka` are scaffolded for future phases and are **not** started
 by default; run `docker compose --profile extended up -d` if you need them.
 
-The Kafka-to-WebSocket notification design, environment variables, role endpoints,
-security checks, and operational logs are documented in
+The current Kafka/notification implementation, APIs, data contracts, environment
+variables, role WebSockets, outbox status, terminal tests, and known blockers are
+documented for maintainers and AI handoff in
 [`docs/architecture/NOTIFICATION_PIPELINE.md`](docs/architecture/NOTIFICATION_PIPELINE.md).
 
 The AI package, provider routing, validation/repair flow, quotas, circuit breakers,
