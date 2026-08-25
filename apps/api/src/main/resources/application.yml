@@ -59,6 +59,9 @@ app:
       request-timeout-ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:30000}
       retry-backoff-ms: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS:500}
       retries: ${KAFKA_PRODUCER_RETRIES:2147483647}
+    consumer:
+      retry-backoff-ms: ${KAFKA_CONSUMER_RETRY_BACKOFF_MS:2000}
+      max-retries: ${KAFKA_CONSUMER_MAX_RETRIES:3}
     notifications:
       dlt:
         topic-name: ${KAFKA_NOTIFICATIONS_DLT_TOPIC_NAME:notifications.DLT}

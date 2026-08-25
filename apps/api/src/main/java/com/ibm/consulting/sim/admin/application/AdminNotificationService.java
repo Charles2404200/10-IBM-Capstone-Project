@@ -6,7 +6,6 @@ import com.ibm.consulting.sim.admin.domain.NotificationObject;
 import com.ibm.consulting.sim.admin.domain.NotifyUsersEvents;
 import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.identity.domain.UserRole;
-import com.ibm.consulting.sim.shared.application.kafka.KafkaEventPublisher;
 import com.ibm.consulting.sim.shared.domain.EventEnvelope;
 import com.ibm.consulting.sim.shared.domain.EventSequenceRepository;
 import com.ibm.consulting.sim.shared.domain.OrderingMode;
@@ -15,6 +14,7 @@ import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -31,26 +31,24 @@ public class AdminNotificationService {
     private static final int NOTIFICATION_SCHEMA_VERSION = 1;
     private static final String ORDERING_KEY_PREFIX = "notifications:";
 
-    private final KafkaEventPublisher kafkaPublisher;
     private final NotificationKafkaProperties properties;
     private final EventSequenceRepository sequenceRepository;
     private final OutboxEventRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
     public AdminNotificationService(
-            KafkaEventPublisher kafkaPublisher,
             NotificationKafkaProperties properties,
             EventSequenceRepository sequenceRepository,
             OutboxEventRepository outboxRepository,
             ObjectMapper objectMapper
     ) {
-        this.kafkaPublisher = kafkaPublisher;
         this.properties = properties;
         this.sequenceRepository = sequenceRepository;
         this.outboxRepository = outboxRepository;
         this.objectMapper = objectMapper;
     }
 
+    @Transactional
     public CompletableFuture<NotificationPublishResult> notifyRoles(
             UUID userId,
             String topicName,
@@ -79,7 +77,7 @@ public class AdminNotificationService {
         }
 
         log.info(
-                "Publishing notification batch: userId={}, roles={}, roleCount={}",
+                "Queueing notification batch: userId={}, roles={}, roleCount={}",
                 userId,
                 distinctRoles,
                 distinctRoles.size()
@@ -152,57 +150,12 @@ public class AdminNotificationService {
         );
 
         log.debug(
-                "Publishing notification directly: eventId={}, userId={}, role={}, topic={}, sequence={}",
+                "Queueing ordered notification: eventId={}, userId={}, role={}, topic={}, sequence={}",
                 eventId,
                 userId,
                 role,
                 kafkaTopic,
                 sequenceNumber
-        );
-
-        try {
-            return kafkaPublisher.publish(kafkaTopic, envelope)
-                    .handle((ignored, failure) -> {
-                        if (failure == null) {
-                            log.info(
-                                    "Notification published directly: eventId={}, userId={}, role={}, topic={}",
-                                    eventId,
-                                    userId,
-                                    role,
-                                    kafkaTopic
-                            );
-                        } else {
-                            saveFailedPublication(
-                                    envelope,
-                                    kafkaTopic,
-                                    failure
-                            );
-                        }
-
-                        return null;
-                    });
-        } catch (RuntimeException failure) {
-            try {
-                saveFailedPublication(envelope, kafkaTopic, failure);
-                return CompletableFuture.completedFuture(null);
-            } catch (RuntimeException outboxFailure) {
-                outboxFailure.addSuppressed(failure);
-                return CompletableFuture.failedFuture(outboxFailure);
-            }
-        }
-    }
-
-    private void saveFailedPublication(
-            EventEnvelope envelope,
-            String kafkaTopic,
-            Throwable failure
-    ) {
-        log.warn(
-                "Direct Kafka publication failed; saving to outbox: eventId={}, eventType={}, topic={}",
-                envelope.eventId(),
-                envelope.eventType(),
-                kafkaTopic,
-                failure
         );
 
         OutboxEvent outboxEvent = OutboxEvent.ordered(
@@ -217,11 +170,13 @@ public class AdminNotificationService {
         outboxRepository.save(outboxEvent);
 
         log.info(
-                "Failed Kafka publication saved to outbox: eventId={}, eventType={}, topic={}",
+                "Notification queued in outbox: eventId={}, eventType={}, topic={}",
                 envelope.eventId(),
                 envelope.eventType(),
                 kafkaTopic
         );
+
+        return CompletableFuture.completedFuture(null);
     }
 
     private String serialize(Object payload) {

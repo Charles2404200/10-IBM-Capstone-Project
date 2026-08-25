@@ -82,7 +82,7 @@ export interface AdminNotificationResponse {
 
 export interface AdminNotificationRequest {
   topicName: string,
-  notificationDescription: string
+  message: string
   roles : UserRole[]
 }
 

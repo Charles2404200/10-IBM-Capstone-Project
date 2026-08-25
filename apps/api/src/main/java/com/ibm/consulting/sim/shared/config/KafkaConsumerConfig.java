@@ -94,10 +94,6 @@ public class KafkaConsumerConfig {
     ConsumerFactory<String, Object> consumerFactory(KafkaProperties properties) {
         log.info("Configuring shared Kafka JSON consumer: bootstrapServerCount={}, typeHeaders=true",
                 properties.getBootstrapServers().size());
-        JsonDeserializer<Object> deserializer = new JsonDeserializer<>();
-        deserializer.addTrustedPackages("com.ibm.consulting.sim.*");
-        deserializer.setUseTypeHeaders(true);
-
         Map<String, Object> config = new HashMap<>();
         config.put(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
@@ -122,6 +118,16 @@ public class KafkaConsumerConfig {
         config.put(
                 ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS,
                 JsonDeserializer.class
+        );
+
+        config.put(
+                JsonDeserializer.TRUSTED_PACKAGES,
+                "com.ibm.consulting.sim.*"
+        );
+
+        config.put(
+                JsonDeserializer.USE_TYPE_INFO_HEADERS,
+                true
         );
 
         return new DefaultKafkaConsumerFactory<>(

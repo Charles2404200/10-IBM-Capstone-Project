@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.shared.infrastructure.kafka;
 
 
 import com.ibm.consulting.sim.shared.domain.kafka.KafkaInboxEntity;
+import com.ibm.consulting.sim.shared.domain.kafka.KafkaInboxId;
 import com.ibm.consulting.sim.shared.domain.kafka.KafkaInboxRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,7 +14,7 @@ import java.util.UUID;
 
 @Repository
 interface SpringDataKafkaInboxRepository
-        extends JpaRepository<KafkaInboxEntity, UUID> {
+        extends JpaRepository<KafkaInboxEntity, KafkaInboxId> {
 
     @Modifying
     @Query(

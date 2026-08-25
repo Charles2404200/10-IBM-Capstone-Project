@@ -1,5 +1,6 @@
 import { useAdminNotifyUsers } from "@/api/hooks/useAdminPlatformOverview";
-import { AdminNotificationRequest, UserRole } from "@/api/types";
+import type { UserRole } from "@/api/types";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
     Button,
     Checkbox,
@@ -12,7 +13,9 @@ import {
     ToastNotification
 } from "@carbon/react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import styles from "./NotifyUsersPage.module.scss";
+import { z } from "zod";
 
 const ROLES: UserRole[] = [
     "LEARNER",
@@ -28,110 +31,89 @@ const ROLE_LABELS: Record<UserRole, string> = {
     ADMINISTRATOR: "Administrators"
 };
 
+const schema = z.object({
+    topicName: z.string()
+        .trim()
+        .min(1, "Topic name is required")
+        .max(160, "Topic name cannot be more than 160 characters"),
+    message: z.string()
+        .trim()
+        .min(1, "Notification description is required")
+        .max(4000, "Notification description cannot be more than 4000 characters"),
+    roles: z.array(z.enum([
+        "LEARNER",
+        "SCENARIO_AUTHOR",
+        "REVIEWER",
+        "ADMINISTRATOR"
+    ])).min(1, "Select at least one audience")
+});
+
+type FormValues = z.infer<typeof schema>;
+
+const DEFAULT_VALUES: FormValues = {
+    topicName: "",
+    message: "",
+    roles: []
+};
+
+
 export default function NotifyUsersPage() {
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [showFailureToast, setShowFailureToast] = useState(false);
     const notifyUsers = useAdminNotifyUsers();
 
-    const [form, setForm] = useState<AdminNotificationRequest>({
-        topicName: "",
-        notificationDescription: "",
-        roles: []
+    const {
+        register,
+        handleSubmit,
+        reset,
+        setValue,
+        watch,
+        formState: { errors }
+    } = useForm<FormValues>({
+        resolver: zodResolver(schema),
+        defaultValues: DEFAULT_VALUES
     });
 
-    const [errors, setErrors] = useState({
-        topicName: "",
-        notificationDescription: "",
-        roles: ""
-    });
-
-    const emptyForm = () => {
-        setForm({
-            topicName: "",
-            notificationDescription: "",
-            roles: []
-        });
-
-        setErrors({
-            topicName: "",
-            notificationDescription: "",
-            roles: ""
-        });
-    };
-
-    const validateForm = () => {
-        const newErrors = {
-            topicName: "",
-            notificationDescription: "",
-            roles: ""
-        };
-
-        if (!form.topicName.trim()) {
-            newErrors.topicName = "Topic name is required";
-        } else if (form.topicName.length > 160) {
-            newErrors.topicName =
-                "Topic name cannot be more than 160 characters";
-        }
-
-        if (!form.notificationDescription.trim()) {
-            newErrors.notificationDescription =
-                "Notification description is required";
-        } else if (form.notificationDescription.length > 4000) {
-            newErrors.notificationDescription =
-                "Notification description cannot be more than 4000 characters";
-        }
-
-        if (form.roles.length === 0) {
-            newErrors.roles = "Select at least one audience";
-        }
-
-        setErrors(newErrors);
-
-        return !Object.values(newErrors).some(Boolean);
-    };
+    const message = watch("message");
+    const selectedRoles = watch("roles");
 
     const handleRoleChange = (
         role: UserRole,
         checked: boolean
     ) => {
-        setForm((current) => ({
-            ...current,
-            roles: checked
-                ? [...current.roles, role]
-                : current.roles.filter((r) => r !== role)
-        }));
+        const roles = checked
+            ? [...selectedRoles, role]
+            : selectedRoles.filter((selectedRole) => selectedRole !== role);
 
-        if (checked) {
-            setErrors((current) => ({
-                ...current,
-                roles: ""
-            }));
-        }
+        setValue("roles", [...new Set(roles)], {
+            shouldDirty: true,
+            shouldValidate: true
+        });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!validateForm()) {
-            setShowFailureToast(true);
-
-            setTimeout(() => {
-                setShowFailureToast(false);
-            }, 4000);
-            return;
-        }
-
-        notifyUsers.mutate(form, {
+    const submitNotification = (values: FormValues) => {
+        notifyUsers.mutate(values, {
             onSuccess: () => {
-                emptyForm();
+                reset(DEFAULT_VALUES);
 
                 setShowSuccessToast(true);
 
                 setTimeout(() => {
                     setShowSuccessToast(false);
                 }, 4000);
+            },
+            onError: () => {
+                triggerFailureToast();
             }
         });
+    };
+
+    const triggerFailureToast = () => {
+        setShowFailureToast(true);
+
+        setTimeout(() => {
+            setShowFailureToast(false);
+        }, 4000);
     };
 
     return (
@@ -167,7 +149,7 @@ export default function NotifyUsersPage() {
 
                 <Tile className={styles.notificationCard}>
                     <Form
-                        onSubmit={handleSubmit}
+                        onSubmit={handleSubmit(submitNotification, triggerFailureToast)}
                         className={styles.form}
                     >
                         <div className={styles.section}>
@@ -182,50 +164,23 @@ export default function NotifyUsersPage() {
                                 id="topic-name"
                                 labelText="Topic name"
                                 helperText="A short title for the notification"
-                                value={form.topicName}
                                 disabled={notifyUsers.isPending}
                                 invalid={Boolean(errors.topicName)}
-                                invalidText={errors.topicName}
+                                invalidText={errors.topicName?.message}
                                 maxLength={160}
-                                onChange={(e) => {
-                                    setForm((current) => ({
-                                        ...current,
-                                        topicName: e.target.value
-                                    }));
-
-                                    setErrors((current) => ({
-                                        ...current,
-                                        topicName: ""
-                                    }));
-                                }}
+                                {...register("topicName")}
                             />
 
                             <TextArea
                                 id="notification-description"
                                 labelText="Message"
-                                helperText={`${form.notificationDescription.length}/4000 characters`}
-                                value={form.notificationDescription}
+                                helperText={`${message.length}/4000 characters`}
                                 disabled={notifyUsers.isPending}
-                                invalid={Boolean(
-                                    errors.notificationDescription
-                                )}
-                                invalidText={
-                                    errors.notificationDescription
-                                }
+                                invalid={Boolean(errors.message)}
+                                invalidText={errors.message?.message}
                                 maxLength={4000}
                                 rows={6}
-                                onChange={(e) => {
-                                    setForm((current) => ({
-                                        ...current,
-                                        notificationDescription:
-                                            e.target.value
-                                    }));
-
-                                    setErrors((current) => ({
-                                        ...current,
-                                        notificationDescription: ""
-                                    }));
-                                }}
+                                {...register("message")}
                             />
                         </div>
 
@@ -250,7 +205,7 @@ export default function NotifyUsersPage() {
                                             <Checkbox
                                                 id={`role-${role}`}
                                                 labelText={ROLE_LABELS[role]}
-                                                checked={form.roles.includes(role)}
+                                                checked={selectedRoles.includes(role)}
                                                 disabled={
                                                     notifyUsers.isPending
                                                 }
@@ -272,12 +227,12 @@ export default function NotifyUsersPage() {
                                     ))}
                                 </div>
 
-                                {errors.roles && (
+                                {errors.roles?.message && (
                                     <p
                                         className={styles.error}
                                         role="alert"
                                     >
-                                        {errors.roles}
+                                        {errors.roles.message}
                                     </p>
                                 )}
                             </FormGroup>

@@ -66,7 +66,7 @@ public class AdminPlatformController {
                         user.getId(),
                         request.topicName(), request.message(), request.roles())
                 .thenApply(result -> new PublishNotificationResponse(
-                        "PUBLISHED", result.publishedCount(), result.roles()));
+                        "ACCEPTED", result.publishedCount(), result.roles()));
     }
 
     @GetMapping("/notifications/{eventId}/read-status")

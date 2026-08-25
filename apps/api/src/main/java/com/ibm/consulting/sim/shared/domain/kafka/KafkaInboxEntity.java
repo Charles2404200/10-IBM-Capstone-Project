@@ -22,8 +22,6 @@ package com.ibm.consulting.sim.shared.domain.kafka;
 //CREATE INDEX idx_kafka_inbox_processed_at
 //ON kafka_inbox(processed_at);
 
-import com.ibm.consulting.sim.shared.domain.BaseEntity;
-
 import jakarta.persistence.*;
 
 import java.time.Instant;
@@ -39,7 +37,7 @@ import java.util.UUID;
                 )
         }
 )
-public class KafkaInboxEntity extends BaseEntity {
+public class KafkaInboxEntity {
 
     @EmbeddedId
     private KafkaInboxId id;
