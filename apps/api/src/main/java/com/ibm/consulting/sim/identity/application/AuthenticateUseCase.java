@@ -33,6 +33,6 @@ public class AuthenticateUseCase {
             throw new EmailVerificationRequiredException();
         }
         return new TokenResponse(jwtTokenProvider.generateToken(user), user.getId().toString(),
-                user.getDisplayName(), user.getRole().name());
+                user.getDisplayName(), user.getRole().name(), user.requiresOnboarding());
     }
 }

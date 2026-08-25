@@ -5,6 +5,7 @@ export interface TokenResponse {
   userId: string
   displayName: string
   role: string
+  onboardingRequired?: boolean
 }
 
 // ─── Scenario ────────────────────────────────────────────────────────────────

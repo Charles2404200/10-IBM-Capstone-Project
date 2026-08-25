@@ -23,6 +23,17 @@ export function useRegister() {
   })
 }
 
+export function useCompleteOnboarding() {
+  const completeOnboarding = useAuthStore((s) => s.completeOnboarding)
+
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.post('/api/v1/users/me/onboarding/complete', undefined, { timeout: 5_000 })
+    },
+    onSuccess: completeOnboarding,
+  })
+}
+
 export function useResendVerification() {
   return useMutation({
     mutationFn: async (email: string) => {

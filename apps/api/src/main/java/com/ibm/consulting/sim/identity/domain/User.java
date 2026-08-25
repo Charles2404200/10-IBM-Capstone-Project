@@ -31,6 +31,9 @@ public class User extends BaseEntity {
 
     private Instant emailVerifiedAt;
 
+    /** Account-owned first-use state; it must not depend on a browser session. */
+    private Instant onboardingCompletedAt;
+
     protected User() {}
 
     public static User create(String email, String passwordHash, String displayName, UserRole role) {
@@ -39,6 +42,7 @@ public class User extends BaseEntity {
         user.passwordHash = passwordHash;
         user.displayName = displayName;
         user.role = role;
+        user.onboardingCompletedAt = Instant.now();
         return user;
     }
 
@@ -47,6 +51,7 @@ public class User extends BaseEntity {
         User user = create(email, passwordHash, displayName, UserRole.LEARNER);
         user.emailVerified = false;
         user.emailVerifiedAt = null;
+        user.onboardingCompletedAt = null;
         return user;
     }
 
@@ -57,6 +62,7 @@ public class User extends BaseEntity {
         this.emailVerified = true;
         this.emailVerifiedAt = verifiedAt;
     }
+    public void completeOnboarding(Instant completedAt) { this.onboardingCompletedAt = completedAt; }
     public void changePasswordHash(String newPasswordHash) { this.passwordHash = newPasswordHash; }
 
     public String getEmail() { return email; }
@@ -66,4 +72,6 @@ public class User extends BaseEntity {
     public boolean isActive() { return active; }
     public boolean isEmailVerified() { return emailVerified; }
     public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public Instant getOnboardingCompletedAt() { return onboardingCompletedAt; }
+    public boolean requiresOnboarding() { return onboardingCompletedAt == null; }
 }
