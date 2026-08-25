@@ -1,18 +1,15 @@
 package com.ibm.consulting.sim.shared.application;
 
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
-import com.ibm.consulting.sim.shared.domain.OrderingMode;
+import com.ibm.consulting.sim.shared.application.kafka.KafkaEventPublisher;
 import com.ibm.consulting.sim.shared.domain.OutboxEvent;
-import com.ibm.consulting.sim.shared.infrastructure.JPAOutboxRepository;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class OutboxDispatcher {
@@ -34,125 +31,76 @@ public class OutboxDispatcher {
     // and so i can remove all the published ones
     // every day
 
-    private final JPAOutboxRepository outboxRepository;
-    private final KafkaTemplate<String, EventEnvelope> kafkaTemplate;
-    private final SimpMessagingTemplate messagingTemplate;
-    private final OutboxStateService outboxStateService;
 
-    public OutboxDispatcher(
-            JPAOutboxRepository outboxRepository,
-            KafkaTemplate<String, EventEnvelope> kafkaTemplate,
-            SimpMessagingTemplate messagingTemplate,
-            OutboxStateService outboxStateService
-    ) {
-        this.outboxRepository = outboxRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.messagingTemplate = messagingTemplate;
-        this.outboxStateService = outboxStateService;
-    }
-
-    // every 10 minutes 0 seconds
-    @Scheduled(cron = "0 */10 * * * *")
-    @Transactional
-    public void cleanupPublishedEvents() {
-
-        Instant cutoff = Instant.now().minus(2, ChronoUnit.DAYS);
-
-        outboxRepository.deletePublishedBefore(cutoff);
-    }
-
-    @Scheduled(fixedDelay = 200)
-    public void process() {
-
-        List<OutboxEvent> events =
-                outboxRepository.findDispatchableEvents(100);
-
-        for (OutboxEvent event : events) {
-            try
-            {
-                if (event.getOrderingMode() == OrderingMode.ORDERED) {
-                    processOrdered(event);
-                } else {
-                    processUnordered(event);
-                }
-            }
-            catch(Exception e)
-            {
-                // so kafka cannot process the event
-                break;
-            }
-        }
-    }
-
-    private void processOrdered(OutboxEvent event) {
-
-        EventEnvelope envelope =
-                new EventEnvelope(
-                        event.getId(),
-                        event.getEventType(),
-                        event.getOrderingKey(),
-                        event.getSequenceNumber(),
-                        event.getDest(),
-                        event.getPayload()
-                );
-
-        try {
-
-            boolean processed = outboxStateService.tryMarkProcessing(event.getId());
-
-            if(processed)
-            {
-                return;
-            }
-
-            kafkaTemplate.send(
-                    event.getTopic(),
-
-                    // VERY IMPORTANT
-                    event.getOrderingKey(),
-
-                    envelope
-            ).join();
-
-            outboxStateService.markPublished(event.getId());
-
-        } catch (Exception e) {
-
-            outboxStateService.markPendingAgain(event.getId());
-
-            // Stop hammering Kafka
-            throw e;
-        }
-    }
-
-    // i do not want database
-    // transaction to be dependent on
-    // the Web Socket event
-    private void processUnordered(OutboxEvent event) {
-
-        try {
-
-            // this makes sure that other threads or servers
-            // are not able to process the failed message event
-            boolean processed = outboxStateService.tryMarkProcessing(event.getId());
-
-            if(processed)
-            {
-                return;
-            }
-
-            messagingTemplate.convertAndSend(
-                    event.getDest(),
-                    event.getPayload()
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    OutboxDispatcher.class
             );
 
-            outboxStateService.markPublished(event.getId());
+    private final OutboxClaimService claimService;
 
-        } catch (Exception e) {
+    private final OutboxEventRepository repository;
 
-            outboxStateService.markPendingAgain(event.getId());
+    private final OutboxStateService stateService;
 
-            throw e;
+    private final KafkaEventPublisher publisher;
+
+    public OutboxDispatcher(OutboxClaimService claimService, OutboxEventRepository repository, OutboxStateService stateService, KafkaEventPublisher publisher) {
+        this.claimService = claimService;
+        this.repository = repository;
+        this.stateService = stateService;
+        this.publisher = publisher;
+    }
+
+
+    @Scheduled(
+            fixedDelayString =
+                    "${app.kafka.outbox.poll-delay-ms:200}"
+    )
+    public void dispatch() {
+
+        List<UUID> ids =
+                claimService.claimBatch(100);
+
+        for (UUID id : ids) {
+
+            OutboxEvent event =
+                    repository.findById(id)
+                            .orElseThrow();
+
+            try {
+
+                /*
+                 * Same method handles
+                 *
+                 * ORDERED and UNORDERED.
+                 *
+                 * KafkaEventPublisher chooses
+                 * the correct Kafka key.
+                 */
+                publisher.publish(
+                        event.getTopic(),
+                        event.toEnvelope()
+                ).join();
+
+                stateService.markPublished(
+                        id
+                );
+
+            } catch (Exception ex) {
+
+                stateService.markPendingAgain(
+                        id
+                );
+
+                log.warn(
+                        "Outbox publication failed: eventId={}, eventType={}, topic={}",
+                        event.getId(),
+                        event.getEventType(),
+                        event.getTopic(),
+                        ex
+                );
+            }
         }
     }
 }

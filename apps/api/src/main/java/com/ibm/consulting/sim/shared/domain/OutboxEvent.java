@@ -1,149 +1,262 @@
 package com.ibm.consulting.sim.shared.domain;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
 
 @Entity
-@Table(name = "event_outbox")
+@Table(
+        name = "event_outbox",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_outbox_ordering_sequence",
+                        columnNames = {
+                                "ordering_key",
+                                "sequence_number"
+                        }
+                )
+        }
+)
 public class OutboxEvent extends BaseEntity {
-
-    @Column(nullable = false)
-    private String eventType;
 
     @Column(nullable = false)
     private String topic;
 
     @Column(nullable = false)
-    private String dest;
+    private String eventType;
+
+    @Column(nullable = false)
+    private int schemaVersion;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderingMode orderingMode;
 
-    /**
-     * orderId, accountId, conversationId, etc.
-     *
-     * null when ordering does not matter.
-     */
     private String orderingKey;
 
-    /**
-     * 1, 2, 3...
-     *
-     * null for unordered events.
-     */
-    private int sequenceNumber;
+    private Long sequenceNumber;
 
-    @Column(nullable = false, columnDefinition = "text")
+    @Column(
+            nullable = false,
+            columnDefinition = "text"
+    )
     private String payload;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OutboxStatus status;
 
-    private Instant publishedAt;
+    @Column(nullable = false)
+    private int attemptCount;
 
     private Instant processingStartedAt;
 
-    //is effectively treated by Java as:
-    //
-    //protected OutboxEvent() {
-    //    super();
-    //}
+    private Instant nextAttemptAt;
+
+    private Instant publishedAt;
+
+    /*
+     * Required by JPA.
+     *
+     * protected is sufficient because application
+     * code should create OutboxEvent through the
+     * ordered() / unordered() factory methods.
+     */
     protected OutboxEvent() {
     }
 
-    public static OutboxEvent ordered(
-            String eventType,
-            String orderingKey,
-            int sequence,
-            String payload,
-            String topic,
-            String dest
-    ) {
-        OutboxEvent event = new OutboxEvent();
-
-        event.eventType = eventType;
-        event.orderingMode = OrderingMode.ORDERED;
-        event.orderingKey = orderingKey;
-        event.sequenceNumber = sequence;
-        event.payload = payload;
-        event.status = OutboxStatus.PENDING;
-        event.topic = topic;
-        event.dest = dest;
-
-        return event;
+    private OutboxEvent(UUID id) {
+        super(id);
     }
 
     public static OutboxEvent unordered(
-            String eventType,
-            String payload,
+            UUID id,
             String topic,
-            String dest
+            String eventType,
+            int schemaVersion,
+            String payload
     ) {
-        // this is used for calling the
-        // constructor of the super class
-        OutboxEvent event = new OutboxEvent();
 
-        event.eventType = eventType;
-        event.orderingMode = OrderingMode.UNORDERED;
-        event.payload = payload;
-        event.status = OutboxStatus.PENDING;
+        OutboxEvent event =
+                new OutboxEvent(id);
+
         event.topic = topic;
-        event.dest = dest;
+        event.eventType = eventType;
+        event.schemaVersion = schemaVersion;
+
+        event.orderingMode =
+                OrderingMode.UNORDERED;
+
+        event.payload = payload;
+
+        event.status =
+                OutboxStatus.PENDING;
+
+        event.attemptCount = 0;
 
         return event;
     }
 
+    public static OutboxEvent ordered(
+            UUID id,
+            String topic,
+            String eventType,
+            int schemaVersion,
+            String orderingKey,
+            long sequence,
+            String payload
+    ) {
+
+        OutboxEvent event =
+                new OutboxEvent(id);
+
+        event.topic = topic;
+        event.eventType = eventType;
+        event.schemaVersion = schemaVersion;
+
+        event.orderingMode =
+                OrderingMode.ORDERED;
+
+        event.orderingKey =
+                orderingKey;
+
+        event.sequenceNumber =
+                sequence;
+
+        event.payload =
+                payload;
+
+        event.status =
+                OutboxStatus.PENDING;
+
+        event.attemptCount = 0;
+
+
+        return event;
+    }
+
+    public EventEnvelope toEnvelope() {
+
+        return new EventEnvelope(
+                getId(),
+                eventType,
+                schemaVersion,
+                orderingMode,
+                orderingKey,
+                sequenceNumber,
+                getCreatedAt(),
+                payload
+        );
+    }
+
     public void markProcessing() {
-        this.status = OutboxStatus.PROCESSING;
-        this.processingStartedAt = Instant.now();
+
+        requireStatus(OutboxStatus.PENDING, "mark processing");
+
+        this.status =
+                OutboxStatus.PROCESSING;
+
+        this.processingStartedAt =
+                Instant.now();
     }
 
     public void markPublished() {
-        this.status = OutboxStatus.PUBLISHED;
-        this.publishedAt = Instant.now();
-    }
 
-    public void retry() {
-        this.status = OutboxStatus.PENDING;
+        requireStatus(OutboxStatus.PROCESSING, "mark published");
+
+        this.status =
+                OutboxStatus.PUBLISHED;
+
+        this.publishedAt =
+                Instant.now();
+
         this.processingStartedAt = null;
+
+        this.nextAttemptAt = null;
     }
 
-    // getters...
+    public void markRetry(
+            Duration delay
+    ) {
 
-    public String getEventType()
-    {
-        return this.eventType;
+        requireStatus(OutboxStatus.PROCESSING, "mark retry");
+        Objects.requireNonNull(delay, "delay must not be null");
+        if (delay.isNegative()) {
+            throw new IllegalArgumentException("delay must not be negative");
+        }
+
+        this.status =
+                OutboxStatus.PENDING;
+
+        this.attemptCount++;
+
+        this.processingStartedAt = null;
+
+        this.nextAttemptAt =
+                Instant.now().plus(delay);
     }
 
-    public String getOrderingKey()
-    {
-        return this.orderingKey;
+    private void requireStatus(OutboxStatus requiredStatus, String transition) {
+        if (status != requiredStatus) {
+            throw new IllegalStateException(
+                    "Cannot " + transition + " outbox event from status " + status
+            );
+        }
     }
 
-    public int getSequenceNumber()
-    {
-        return this.sequenceNumber;
-    }
-
-    public String getPayload()
-    {
-        return this.payload;
-    }
-
-    public String getTopic()
-    {
+    public String getTopic() {
         return topic;
     }
 
-    public String getDest() {
-        return this.dest;
+    public String getEventType() {
+        return eventType;
     }
 
-    public OrderingMode getOrderingMode()
-    {
-        return this.orderingMode;
+    public int getSchemaVersion() {
+        return schemaVersion;
+    }
+
+    public OrderingMode getOrderingMode() {
+        return orderingMode;
+    }
+
+    public String getOrderingKey() {
+        return orderingKey;
+    }
+
+    public Long getSequenceNumber() {
+        return sequenceNumber;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public OutboxStatus getStatus() {
+        return status;
+    }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public Instant getProcessingStartedAt() {
+        return processingStartedAt;
+    }
+
+    public Instant getNextAttemptAt() {
+        return nextAttemptAt;
+    }
+
+    public Instant getPublishedAt() {
+        return publishedAt;
     }
 }

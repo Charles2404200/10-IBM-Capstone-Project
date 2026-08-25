@@ -22,7 +22,11 @@ public abstract class BaseEntity {
     private Long version;
 
     protected BaseEntity() {
-        this.id = UUID.randomUUID();
+        this(UUID.randomUUID());
+    }
+
+    protected BaseEntity(UUID id) {
+        this.id = id;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
     }
