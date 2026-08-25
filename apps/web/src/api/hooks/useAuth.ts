@@ -34,7 +34,7 @@ export function useResendVerification() {
 export function useConfirmVerification() {
   return useMutation({
     mutationFn: async (token: string) => {
-      await apiClient.post('/api/v1/auth/email-verification/confirm', { token })
+      await apiClient.post('/api/v1/auth/email-verification/confirm', { token }, { timeout: 15_000 })
     },
   })
 }

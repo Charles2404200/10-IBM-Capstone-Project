@@ -43,6 +43,8 @@ public class EmailVerificationToken extends BaseEntity {
         return verifiedAt == null && revokedAt == null && expiresAt.isAfter(now);
     }
 
+    public boolean isVerified() { return verifiedAt != null; }
+
     public void markVerified(Instant now) { this.verifiedAt = now; }
     public void revoke(Instant now) { this.revokedAt = now; }
 

@@ -48,13 +48,23 @@ public class EmailVerificationService {
         CredentialTokenService.ParsedCredential credential = credentialTokenService.parse(suppliedToken);
         EmailVerificationToken token = tokens.findBySelector(credential.selector())
                 .orElseThrow(() -> new InvalidCredentialTokenException("email verification"));
-        Instant now = Instant.now();
-        if (!token.isUsableAt(now) || !credentialTokenService.matches(token.getTokenHash(), credential.secret())) {
+        if (!credentialTokenService.matches(token.getTokenHash(), credential.secret())) {
             throw new InvalidCredentialTokenException("email verification");
         }
         User user = users.findById(token.getUserId())
                 .orElseThrow(() -> new InvalidCredentialTokenException("email verification"));
         if (!user.isActive()) {
+            throw new InvalidCredentialTokenException("email verification");
+        }
+
+        // A user may refresh or reopen the original confirmation link after success.
+        // Accept only the same verified credential; expired or revoked unverified tokens remain invalid.
+        if (token.isVerified() && user.isEmailVerified()) {
+            return;
+        }
+
+        Instant now = Instant.now();
+        if (!token.isUsableAt(now)) {
             throw new InvalidCredentialTokenException("email verification");
         }
         user.verifyEmail(now);

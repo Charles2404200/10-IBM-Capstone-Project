@@ -14,14 +14,20 @@ export default function VerifyEmailPage() {
   const [params] = useSearchParams()
   const location = useLocation()
   const token = params.get('token')
+  const alreadyConfirmed = params.get('confirmed') === '1'
   const navigationState = location.state as { accountCreated?: boolean; email?: string } | null
   const emailFromRegistration = params.get('email')
     ?? navigationState?.email
     ?? sessionStorage.getItem('pendingVerificationEmail')
     ?? ''
-  const confirm = useConfirmVerification()
+  const {
+    mutate: confirmVerification,
+    isError: confirmationFailed,
+    isPending: confirmationPending,
+    isSuccess: confirmationSucceeded,
+  } = useConfirmVerification()
   const resend = useResendVerification()
-  const started = useRef(false)
+  const startedToken = useRef<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const form = useForm<EmailForm>({
     resolver: zodResolver(emailSchema),
@@ -29,19 +35,26 @@ export default function VerifyEmailPage() {
   })
 
   useEffect(() => {
-    if (!token || started.current) return
-    started.current = true
-    confirm.mutate(token, { onSuccess: () => setConfirmed(true) })
-  }, [token, confirm])
+    if (!token || startedToken.current === token) return
+    startedToken.current = token
+    confirmVerification(token, {
+      onSuccess: () => {
+        setConfirmed(true)
+        sessionStorage.removeItem('pendingVerificationEmail')
+        window.history.replaceState(null, document.title, '/verify-email?confirmed=1')
+      },
+    })
+  }, [token, confirmVerification])
 
   const requestAnother = (values: EmailForm) => resend.mutate(values.email)
-  const confirmationProblem = token && confirm.isError
+  const verificationSucceeded = alreadyConfirmed || confirmed || confirmationSucceeded
+  const confirmationProblem = Boolean(token && !verificationSucceeded && confirmationFailed)
 
   return (
     <AuthFrame title="Confirm your email">
       <Stack gap={5}>
-        {token && confirm.isPending && <InlineNotification kind="info" title="Confirming your email" subtitle="This will only take a moment." hideCloseButton />}
-        {confirmed && <InlineNotification kind="success" title="Email confirmed" subtitle="Your account is active. You can now sign in." hideCloseButton />}
+        {token && !verificationSucceeded && !confirmationProblem && confirmationPending && <InlineNotification kind="info" title="Confirming your email" subtitle="This will only take a moment." hideCloseButton />}
+        {verificationSucceeded && <InlineNotification kind="success" title="Email confirmed" subtitle="Your account is active. You can now sign in." hideCloseButton />}
         {confirmationProblem && <InlineNotification kind="error" title="This confirmation link is unavailable" subtitle="It may have expired or already been used. Request a new one below." hideCloseButton />}
         {navigationState?.accountCreated && !token && (
           <InlineNotification
@@ -51,8 +64,9 @@ export default function VerifyEmailPage() {
             hideCloseButton
           />
         )}
-        {!token && <p style={{ margin: 0, color: '#525252' }}>Check your inbox for the confirmation link. You must confirm before signing in.</p>}
-        {(confirmed || !token || confirmationProblem) && (
+        {!token && !verificationSucceeded && <p style={{ margin: 0, color: '#525252' }}>Check your inbox for the confirmation link. You must confirm before signing in.</p>}
+        {verificationSucceeded && <Button as={Link} to="/login">Continue to sign in</Button>}
+        {(!token || confirmationProblem) && (
           <Form onSubmit={form.handleSubmit(requestAnother)}>
             <Stack gap={5}>
               <TextInput id="resend-email" type="email" labelText="Email address" invalid={Boolean(form.formState.errors.email)} invalidText={form.formState.errors.email?.message} {...form.register('email')} />
