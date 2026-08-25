@@ -84,6 +84,7 @@ app:
       password-reset-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:15}
       resend-cooldown-seconds: ${EMAIL_RESEND_COOLDOWN_SECONDS:60}
   email:
+    provider: ${EMAIL_PROVIDER:resend}
     resend:
       api-key: ${RESEND_API_KEY:}
       base-url: ${RESEND_BASE_URL:https://api.resend.com}
@@ -91,6 +92,15 @@ app:
       reply-to: ${RESEND_REPLY_TO:}
       connect-timeout-ms: ${RESEND_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${RESEND_READ_TIMEOUT_MS:8000}
+    smtp:
+      host: ${SMTP_HOST:smtp.gmail.com}
+      port: ${SMTP_PORT:587}
+      username: ${SMTP_USERNAME:}
+      password: ${SMTP_PASSWORD:}
+      from: ${SMTP_FROM:}
+      reply-to: ${SMTP_REPLY_TO:}
+      connection-timeout-ms: ${SMTP_CONNECTION_TIMEOUT_MS:5000}
+      timeout-ms: ${SMTP_TIMEOUT_MS:10000}
   watsonx:
     api-key: ${WATSONX_API_KEY:mock}
     project-id: ${WATSONX_PROJECT_ID:mock}

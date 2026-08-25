@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.shared.email.infrastructure;
 import com.ibm.consulting.sim.shared.email.application.EmailDeliveryGateway;
 import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
 import com.ibm.consulting.sim.shared.email.application.OutboundEmail;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /** Production adapter for Resend's transactional-email API. */
 @Component
+@ConditionalOnProperty(prefix = "app.email", name = "provider", havingValue = "resend", matchIfMissing = true)
 public class ResendEmailGateway implements EmailDeliveryGateway {
 
     private final ResendEmailProperties properties;
