@@ -6,6 +6,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 @Service
 public class AuthenticateUseCase {
 
@@ -22,10 +24,13 @@ public class AuthenticateUseCase {
 
     @Transactional(readOnly = true)
     public TokenResponse execute(String email, String password) {
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT))
                 .orElseThrow(InvalidCredentialsException::new);
         if (!user.isActive() || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new InvalidCredentialsException();
+        }
+        if (!user.isEmailVerified()) {
+            throw new EmailVerificationRequiredException();
         }
         return new TokenResponse(jwtTokenProvider.generateToken(user), user.getId().toString(),
                 user.getDisplayName(), user.getRole().name());

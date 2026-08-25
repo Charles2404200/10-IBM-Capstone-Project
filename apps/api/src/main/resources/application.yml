@@ -77,6 +77,35 @@ app:
       email: ${ADMIN_EMAIL:}
       password: ${ADMIN_PASSWORD:}
       display-name: ${ADMIN_DISPLAY_NAME:Platform Administrator}
+  identity:
+    email:
+      public-web-url: ${APP_PUBLIC_WEB_URL:http://localhost:3000}
+      verification-ttl-minutes: ${EMAIL_VERIFICATION_TTL_MINUTES:1440}
+      password-reset-ttl-minutes: ${PASSWORD_RESET_TTL_MINUTES:15}
+      resend-cooldown-seconds: ${EMAIL_RESEND_COOLDOWN_SECONDS:60}
+  email:
+    provider: ${EMAIL_PROVIDER:resend}
+    delivery:
+      # Delivery is async-after-commit: account and credential state return
+      # immediately, while a bounded worker handles SMTP/provider latency.
+      max-attempts: ${EMAIL_DELIVERY_MAX_ATTEMPTS:3}
+      initial-backoff-ms: ${EMAIL_DELIVERY_INITIAL_BACKOFF_MS:250}
+    resend:
+      api-key: ${RESEND_API_KEY:}
+      base-url: ${RESEND_BASE_URL:https://api.resend.com}
+      from: ${RESEND_FROM:IBM Consulting Simulation <no-reply@mail.ibm-simulator.com>}
+      reply-to: ${RESEND_REPLY_TO:}
+      connect-timeout-ms: ${RESEND_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${RESEND_READ_TIMEOUT_MS:8000}
+    smtp:
+      host: ${SMTP_HOST:smtp.gmail.com}
+      port: ${SMTP_PORT:587}
+      username: ${SMTP_USERNAME:}
+      password: ${SMTP_PASSWORD:}
+      from: ${SMTP_FROM:}
+      reply-to: ${SMTP_REPLY_TO:}
+      connection-timeout-ms: ${SMTP_CONNECTION_TIMEOUT_MS:5000}
+      timeout-ms: ${SMTP_TIMEOUT_MS:10000}
   watsonx:
     api-key: ${WATSONX_API_KEY:mock}
     project-id: ${WATSONX_PROJECT_ID:mock}

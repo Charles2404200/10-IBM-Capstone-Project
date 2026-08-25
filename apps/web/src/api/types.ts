@@ -24,6 +24,11 @@ export interface DifficultyProfile {
   commercialPressure: number
 }
 
+export interface RegistrationResponse {
+  email: string
+  verificationRequired: boolean
+}
+
 export type UserRole = 'LEARNER' | 'SCENARIO_AUTHOR' | 'REVIEWER' | 'ADMINISTRATOR'
 
 export interface AdminUserSummary {

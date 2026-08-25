@@ -1,33 +1,53 @@
 package com.ibm.consulting.sim.identity.application;
 
 import com.ibm.consulting.sim.identity.domain.*;
-import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
+import com.ibm.consulting.sim.shared.email.application.TransactionalEmailPublisher;
+import com.ibm.consulting.sim.shared.email.template.TransactionalEmailTemplates;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Locale;
 
 @Service
 public class RegisterUserUseCase {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final EmailVerificationTokenRepository verificationTokens;
+    private final CredentialTokenService credentialTokenService;
+    private final TransactionalEmailPublisher emailPublisher;
+    private final TransactionalEmailTemplates emailTemplates;
+    private final IdentityEmailProperties emailProperties;
 
     public RegisterUserUseCase(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                               JwtTokenProvider jwtTokenProvider) {
+                               EmailVerificationTokenRepository verificationTokens,
+                               CredentialTokenService credentialTokenService,
+                               TransactionalEmailPublisher emailPublisher,
+                               TransactionalEmailTemplates emailTemplates,
+                               IdentityEmailProperties emailProperties) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.jwtTokenProvider = jwtTokenProvider;
+        this.verificationTokens = verificationTokens;
+        this.credentialTokenService = credentialTokenService;
+        this.emailPublisher = emailPublisher;
+        this.emailTemplates = emailTemplates;
+        this.emailProperties = emailProperties;
     }
 
     @Transactional
-    public TokenResponse execute(String email, String password, String displayName) {
-        if (userRepository.existsByEmail(email)) {
-            throw new UserAlreadyExistsException(email);
+    public RegistrationResponse execute(String email, String password, String displayName) {
+        String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(normalisedEmail)) {
+            throw new UserAlreadyExistsException(normalisedEmail);
         }
-        User user = User.create(email, passwordEncoder.encode(password), displayName, UserRole.LEARNER);
+        User user = User.createUnverified(normalisedEmail, passwordEncoder.encode(password), displayName.trim());
         userRepository.save(user);
-        return new TokenResponse(jwtTokenProvider.generateToken(user), user.getId().toString(),
-                user.getDisplayName(), user.getRole().name());
+        CredentialTokenService.IssuedCredential credential = credentialTokenService.issue();
+        verificationTokens.save(EmailVerificationToken.issue(user.getId(), credential.selector(),
+                credential.hash(), credentialTokenService.expiresAt(emailProperties.getVerificationTtlMinutes())));
+        emailPublisher.publish(emailTemplates.verification(user.getEmail(), user.getDisplayName(),
+                emailProperties.verificationUrl(credential.compactToken())));
+        return new RegistrationResponse(user.getEmail(), true);
     }
 }
