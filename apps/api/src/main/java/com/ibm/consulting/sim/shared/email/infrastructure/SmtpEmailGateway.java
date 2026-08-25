@@ -6,7 +6,9 @@ import com.ibm.consulting.sim.shared.email.application.OutboundEmail;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.MailException;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
@@ -20,11 +22,16 @@ import java.util.Properties;
 public class SmtpEmailGateway implements EmailDeliveryGateway {
 
     private final SmtpEmailProperties properties;
-    private final JavaMailSenderImpl sender;
+    private final JavaMailSender sender;
 
+    @Autowired
     public SmtpEmailGateway(SmtpEmailProperties properties) {
+        this(properties, createSender(properties));
+    }
+
+    SmtpEmailGateway(SmtpEmailProperties properties, JavaMailSender sender) {
         this.properties = properties;
-        this.sender = createSender(properties);
+        this.sender = sender;
     }
 
     @Override
@@ -32,7 +39,9 @@ public class SmtpEmailGateway implements EmailDeliveryGateway {
         validateConfiguration();
         try {
             MimeMessage message = sender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, StandardCharsets.UTF_8.name());
+            // Verification and reset messages have text and HTML alternatives.
+            // Multipart mode is required for those alternatives and for Reply-To.
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
             helper.setFrom(properties.getFrom());
             helper.setTo(email.recipient());
             helper.setSubject(email.subject());
