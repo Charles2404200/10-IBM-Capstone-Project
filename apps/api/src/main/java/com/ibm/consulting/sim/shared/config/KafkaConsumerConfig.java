@@ -1,14 +1,22 @@
 package com.ibm.consulting.sim.shared.config;
 
+import com.ibm.consulting.sim.shared.domain.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaEventException;
+import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaPayloadException;
+import com.ibm.consulting.sim.shared.domain.kafka.UnsupportedKafkaEventException;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -27,13 +35,15 @@ import java.util.Map;
 @EnableKafka
 public class KafkaConsumerConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(KafkaConsumerConfig.class);
 
-    @Value("${app.kafka.consumer.retry-backoff-ms}")
+    @Value("${app.kafka.consumer.retry-backoff-ms:2000}")
     private long retryBackoffMs;
 
-    @Value("${app.kafka.consumer.max-retries}")
+    @Value("${app.kafka.consumer.max-retries:3}")
     private long maxRetries;
+
 
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(
@@ -43,12 +53,9 @@ public class KafkaConsumerConfig {
         DeadLetterPublishingRecoverer recoverer =
                 new DeadLetterPublishingRecoverer(
                         kafkaTemplate,
-                        // we create dead letter topic
-                        // if the consumer fails to
-                        // to consume the message from
-                        // kafka so that we can latter discover
-                        // what is wrong with the message
-                        // by retrieving the data from that topic
+
+                        // If processing permanently fails,
+                        // send the record to <original-topic>.DLT
                         (record, exception) ->
                                 new TopicPartition(
                                         record.topic() + ".DLT",
@@ -56,50 +63,64 @@ public class KafkaConsumerConfig {
                                 )
                 );
 
-        DefaultErrorHandler errorHandler = getDefaultErrorHandler(recoverer);
-
-        // when kafka listioner throws an error
-        // it is received by the errorHandler
-        // and then if it checks it IllegalArgumentException
-        // no point retrying so addNotRetryingExceptions
-        // so it talls something is wrong in code
-        errorHandler.addNotRetryableExceptions(
-                IllegalArgumentException.class
-        );
-
-        return errorHandler;
-    }
-
-    private DefaultErrorHandler getDefaultErrorHandler(DeadLetterPublishingRecoverer recoverer) {
         FixedBackOff backOff =
                 new FixedBackOff(
-                        retryBackoffMs, // retry wait time
-                        maxRetries    // 3 retries
+                        retryBackoffMs,
+                        maxRetries
                 );
 
         DefaultErrorHandler errorHandler =
                 new DefaultErrorHandler(
-                        // for message recovery
                         recoverer,
-                        // try to pull or consume
-                        // for max retries if not
-                        // successful then Dead DeadLetterPublishingRecoverer
-                        // pushes it Dead Letter topic
                         backOff
                 );
+
+        /*
+         * These represent invalid/unsupported messages.
+         * Retrying them will not fix them, so send them
+         * directly to the DLT.
+         */
+        errorHandler.addNotRetryableExceptions(
+                InvalidKafkaEventException.class,
+                InvalidKafkaPayloadException.class,
+                UnsupportedKafkaEventException.class
+        );
+
         return errorHandler;
     }
 
+
     @Bean
-    ConsumerFactory<String, Object> consumerFactory(KafkaProperties properties) {
-        log.info("Configuring shared Kafka JSON consumer: bootstrapServerCount={}, typeHeaders=true",
-                properties.getBootstrapServers().size());
-        Map<String, Object> config = new HashMap<>();
-        config.put(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+    public ConsumerFactory<String, Object> consumerFactory(
+            KafkaProperties properties,
+            SslBundles sslBundles
+    ) {
+
+        /*
+         * Start with Spring Boot's Kafka configuration.
+         *
+         * This preserves:
+         *   spring.kafka.bootstrap-servers
+         *   consumer properties
+         *   security settings
+         *   SSL/SASL settings
+         *   etc.
+         */
+        Map<String, Object> config =
+                new HashMap<>(
+                        properties.buildConsumerProperties(sslBundles)
+                );
+
+        log.info(
+                "Configuring Kafka consumer: bootstrapServers={}",
                 properties.getBootstrapServers()
         );
 
+
+        /*
+         * ErrorHandlingDeserializer wraps the real
+         * deserializers.
+         */
         config.put(
                 ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 ErrorHandlingDeserializer.class
@@ -110,41 +131,80 @@ public class KafkaConsumerConfig {
                 ErrorHandlingDeserializer.class
         );
 
+
+        /*
+         * Actual key deserializer.
+         */
         config.put(
                 ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS,
                 StringDeserializer.class
         );
 
+
+        /*
+         * Actual value deserializer.
+         */
         config.put(
                 ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS,
                 JsonDeserializer.class
         );
 
+
+        /*
+         * Only allow classes from our application.
+         */
         config.put(
                 JsonDeserializer.TRUSTED_PACKAGES,
                 "com.ibm.consulting.sim.*"
         );
 
+
+        /*
+         * We know every Kafka event contains EventEnvelope.
+         *
+         * Therefore we don't need Spring's __TypeId__
+         * Kafka header to determine the Java class.
+         */
         config.put(
                 JsonDeserializer.USE_TYPE_INFO_HEADERS,
-                true
+                false
         );
+
+
+        /*
+         * Without type headers, tell JsonDeserializer
+         * exactly which Java class the JSON represents.
+         */
+        config.put(
+                JsonDeserializer.VALUE_DEFAULT_TYPE,
+                EventEnvelope.class.getName()
+        );
+
 
         return new DefaultKafkaConsumerFactory<>(
                 config
         );
     }
 
-    @Bean("kafkaListenerContainerFactory")
-    ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> consumerFactory,
-            DefaultErrorHandler kafkaErrorHandler) {
 
-        var factory = new ConcurrentKafkaListenerContainerFactory<String, Object>();
-        factory.setConsumerFactory(consumerFactory);
+    @Bean("kafkaListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, Object>
+    kafkaListenerContainerFactory(
+            ConsumerFactory<String, Object> consumerFactory,
+            DefaultErrorHandler kafkaErrorHandler
+    ) {
+
+        var factory =
+                new ConcurrentKafkaListenerContainerFactory<String, Object>();
+
+        factory.setConsumerFactory(
+                consumerFactory
+        );
+
         factory.setCommonErrorHandler(
                 kafkaErrorHandler
         );
+
         return factory;
     }
 }

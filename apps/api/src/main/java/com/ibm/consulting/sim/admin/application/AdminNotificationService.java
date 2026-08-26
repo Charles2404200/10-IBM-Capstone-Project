@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class AdminNotificationService {
@@ -49,7 +48,7 @@ public class AdminNotificationService {
     }
 
     @Transactional
-    public CompletableFuture<NotificationPublishResult> notifyRoles(
+    public NotificationPublishResult notifyRoles(
             UUID userId,
             String topicName,
             String message,
@@ -69,10 +68,8 @@ public class AdminNotificationService {
                 .toList();
 
         if (distinctRoles.isEmpty()) {
-            return CompletableFuture.failedFuture(
-                    new IllegalArgumentException(
-                            "At least one notification role is required"
-                    )
+            throw new IllegalArgumentException(
+                    "At least one notification role is required"
             );
         }
 
@@ -83,41 +80,27 @@ public class AdminNotificationService {
                 distinctRoles.size()
         );
 
-        List<CompletableFuture<Void>> publications = distinctRoles.stream()
-                .map(role -> publishForRole(
-                        userId,
-                        topicName,
-                        message,
-                        role
-                ))
-                .toList();
+        distinctRoles.forEach(role -> publishForRole(
+                userId,
+                topicName,
+                message,
+                role
+        ));
 
-        return CompletableFuture
-                .allOf(publications.toArray(CompletableFuture[]::new))
-                .thenApply(ignored -> new NotificationPublishResult(
-                        publications.size(),
-                        distinctRoles
-                ))
-                .whenComplete((result, failure) -> {
-                    if (failure == null) {
-                        log.info(
-                                "Notification batch accepted: userId={}, roles={}, count={}",
-                                userId,
-                                distinctRoles,
-                                result.publishedCount()
-                        );
-                    } else {
-                        log.error(
-                                "Notification batch failed: userId={}, roles={}",
-                                userId,
-                                distinctRoles,
-                                failure
-                        );
-                    }
-                });
+        NotificationPublishResult result = new NotificationPublishResult(
+                distinctRoles.size(),
+                distinctRoles
+        );
+        log.info(
+                "Notification batch accepted: userId={}, roles={}, count={}",
+                userId,
+                distinctRoles,
+                result.publishedCount()
+        );
+        return result;
     }
 
-    private CompletableFuture<Void> publishForRole(
+    private void publishForRole(
             UUID userId,
             String topicName,
             String message,
@@ -176,7 +159,6 @@ public class AdminNotificationService {
                 kafkaTopic
         );
 
-        return CompletableFuture.completedFuture(null);
     }
 
     private String serialize(Object payload) {

@@ -49,7 +49,7 @@ class AdminNotificationServiceTest {
                 "Maintenance",
                 "Maintenance begins shortly.",
                 List.of(UserRole.LEARNER, UserRole.LEARNER)
-        ).join();
+        );
 
         assertEquals(1, result.publishedCount());
         assertEquals(List.of(UserRole.LEARNER), result.roles());

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Client, type IMessage } from '@stomp/stompjs'
 import type { NotificationObject } from '@/api/types'
 import { useAuthStore } from '@/store/authStore'
@@ -52,8 +52,12 @@ export function useNotification() {
     }
   }, [baseUrl, role, token])
 
+  const dismissNotification = useCallback(() => {
+    setNotification(null)
+  }, [])
+
   return {
     notification,
-    dismissNotification: () => setNotification(null),
+    dismissNotification,
   }
 }

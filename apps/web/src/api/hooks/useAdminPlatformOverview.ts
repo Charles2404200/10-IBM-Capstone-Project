@@ -22,7 +22,7 @@ export function useAdminNotifyUsers(
 ) {
   return useMutation({
     mutationFn: async (notificationObject: AdminNotificationRequest) => {
-      const res = await apiClient.post<AdminNotificationResponse>(`/api/v1/admin/platform/publish-notifications/`,
+      const res = await apiClient.post<AdminNotificationResponse>(`/api/v1/admin/platform/publish-notifications`,
         notificationObject
       );
       return res.data;

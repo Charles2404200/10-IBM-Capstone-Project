@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/v1/admin/platform")
@@ -59,14 +58,14 @@ public class AdminPlatformController {
 
     @PostMapping("/publish-notifications")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    CompletableFuture<PublishNotificationResponse> publishNotification(
+    PublishNotificationResponse publishNotification(
             @Valid @RequestBody PublishNotificationRequest request,
             @AuthenticationPrincipal User user) {
-        return adminNotificationService.notifyRoles(
-                        user.getId(),
-                        request.topicName(), request.message(), request.roles())
-                .thenApply(result -> new PublishNotificationResponse(
-                        "ACCEPTED", result.publishedCount(), result.roles()));
+        var result = adminNotificationService.notifyRoles(
+                user.getId(),
+                request.topicName(), request.message(), request.roles());
+        return new PublishNotificationResponse(
+                "ACCEPTED", result.publishedCount(), result.roles());
     }
 
     @GetMapping("/notifications/{eventId}/read-status")

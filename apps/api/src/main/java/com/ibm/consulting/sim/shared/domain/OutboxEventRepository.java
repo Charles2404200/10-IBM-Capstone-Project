@@ -15,5 +15,7 @@ public interface OutboxEventRepository {
 
     List<OutboxEvent> findDispatchableForUpdate(int limit);
 
+    int recoverStaleProcessing(Instant cutoff);
+
     void deletePublishedBefore(Instant cutoff);
 }

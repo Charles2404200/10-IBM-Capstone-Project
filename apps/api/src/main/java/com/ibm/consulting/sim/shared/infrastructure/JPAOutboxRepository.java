@@ -71,6 +71,20 @@ interface SpringDataOutboxRepository
 
     @Modifying
     @Query("""
+            UPDATE OutboxEvent outbox
+               SET outbox.status = :pending,
+                   outbox.processingStartedAt = NULL
+             WHERE outbox.status = :processing
+               AND outbox.processingStartedAt < :cutoff
+            """)
+    int recoverStaleProcessing(
+            @Param("processing") OutboxStatus processing,
+            @Param("pending") OutboxStatus pending,
+            @Param("cutoff") Instant cutoff
+    );
+
+    @Modifying
+    @Query("""
             DELETE FROM OutboxEvent outbox
             WHERE outbox.status = :status
               AND outbox.publishedAt < :cutoff
@@ -123,6 +137,16 @@ public class JPAOutboxRepository implements OutboxEventRepository {
                 OrderingMode.UNORDERED,
                 Instant.now(),
                 PageRequest.of(0, limit)
+        );
+    }
+
+    @Override
+    @Transactional
+    public int recoverStaleProcessing(Instant cutoff) {
+        return repository.recoverStaleProcessing(
+                OutboxStatus.PROCESSING,
+                OutboxStatus.PENDING,
+                Objects.requireNonNull(cutoff, "cutoff must not be null")
         );
     }
 
