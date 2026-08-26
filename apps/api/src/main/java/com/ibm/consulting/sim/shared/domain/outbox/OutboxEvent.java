@@ -1,5 +1,6 @@
-package com.ibm.consulting.sim.shared.domain;
+package com.ibm.consulting.sim.shared.domain.outbox;
 
+import com.ibm.consulting.sim.shared.domain.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -40,6 +41,16 @@ public class OutboxEvent extends BaseEntity {
     @Column(nullable = false)
     private OrderingMode orderingMode;
 
+    /**
+     * Identifies the current PROCESSING ownership attempt.
+     *
+     * A new token must be generated every time an event is claimed.
+     * It is used to prevent stale workers from changing the state
+     * of an event that has already been reclaimed by another worker.
+     */
+    @Column(name = "claim_token")
+    private UUID claimToken;
+
     private String orderingKey;
 
     private Long sequenceNumber;
@@ -65,10 +76,6 @@ public class OutboxEvent extends BaseEntity {
 
     /*
      * Required by JPA.
-     *
-     * protected is sufficient because application
-     * code should create OutboxEvent through the
-     * ordered() / unordered() factory methods.
      */
     protected OutboxEvent() {
     }
@@ -139,7 +146,6 @@ public class OutboxEvent extends BaseEntity {
 
         event.attemptCount = 0;
 
-
         return event;
     }
 
@@ -157,9 +163,23 @@ public class OutboxEvent extends BaseEntity {
         );
     }
 
-    public void markProcessing() {
+    /**
+     * Claims this event for one specific processing attempt.
+     *
+     * The claim token must be unique for every new claim.
+     */
+    public void markProcessing(UUID claimToken) {
 
-        requireStatus(OutboxStatus.PENDING, "mark processing");
+        requireStatus(
+                OutboxStatus.PENDING,
+                "mark processing"
+        );
+
+        this.claimToken =
+                Objects.requireNonNull(
+                        claimToken,
+                        "claimToken must not be null"
+                );
 
         this.status =
                 OutboxStatus.PROCESSING;
@@ -170,7 +190,10 @@ public class OutboxEvent extends BaseEntity {
 
     public void markPublished() {
 
-        requireStatus(OutboxStatus.PROCESSING, "mark published");
+        requireStatus(
+                OutboxStatus.PROCESSING,
+                "mark published"
+        );
 
         this.status =
                 OutboxStatus.PUBLISHED;
@@ -178,19 +201,35 @@ public class OutboxEvent extends BaseEntity {
         this.publishedAt =
                 Instant.now();
 
-        this.processingStartedAt = null;
+        this.processingStartedAt =
+                null;
 
-        this.nextAttemptAt = null;
+        this.nextAttemptAt =
+                null;
+
+        // No worker owns a published event anymore.
+        this.claimToken =
+                null;
     }
 
     public void markRetry(
             Duration delay
     ) {
 
-        requireStatus(OutboxStatus.PROCESSING, "mark retry");
-        Objects.requireNonNull(delay, "delay must not be null");
+        requireStatus(
+                OutboxStatus.PROCESSING,
+                "mark retry"
+        );
+
+        Objects.requireNonNull(
+                delay,
+                "delay must not be null"
+        );
+
         if (delay.isNegative()) {
-            throw new IllegalArgumentException("delay must not be negative");
+            throw new IllegalArgumentException(
+                    "delay must not be negative"
+            );
         }
 
         this.status =
@@ -198,16 +237,28 @@ public class OutboxEvent extends BaseEntity {
 
         this.attemptCount++;
 
-        this.processingStartedAt = null;
+        this.processingStartedAt =
+                null;
 
         this.nextAttemptAt =
                 Instant.now().plus(delay);
+
+        // Previous ownership is no longer valid.
+        this.claimToken =
+                null;
     }
 
-    private void requireStatus(OutboxStatus requiredStatus, String transition) {
+    private void requireStatus(
+            OutboxStatus requiredStatus,
+            String transition
+    ) {
+
         if (status != requiredStatus) {
             throw new IllegalStateException(
-                    "Cannot " + transition + " outbox event from status " + status
+                    "Cannot "
+                            + transition
+                            + " outbox event from status "
+                            + status
             );
         }
     }
@@ -226,6 +277,10 @@ public class OutboxEvent extends BaseEntity {
 
     public OrderingMode getOrderingMode() {
         return orderingMode;
+    }
+
+    public UUID getClaimToken() {
+        return claimToken;
     }
 
     public String getOrderingKey() {

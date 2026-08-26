@@ -1,4 +1,4 @@
-package com.ibm.consulting.sim.shared.domain;
+package com.ibm.consulting.sim.shared.domain.outbox;
 
 import java.time.Instant;
 import java.util.UUID;

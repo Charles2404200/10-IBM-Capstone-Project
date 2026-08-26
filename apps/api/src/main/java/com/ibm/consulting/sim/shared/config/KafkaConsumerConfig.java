@@ -1,6 +1,6 @@
 package com.ibm.consulting.sim.shared.config;
 
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
 import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaEventException;
 import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaPayloadException;
 import com.ibm.consulting.sim.shared.domain.kafka.UnsupportedKafkaEventException;

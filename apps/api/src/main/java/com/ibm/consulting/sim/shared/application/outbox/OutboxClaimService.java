@@ -1,7 +1,7 @@
-package com.ibm.consulting.sim.shared.application;
+package com.ibm.consulting.sim.shared.application.outbox;
 
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +24,8 @@ public class OutboxClaimService {
                     Propagation.REQUIRES_NEW
     )
     public List<UUID> claimBatch(
-            int limit
+            int limit,
+            UUID claimToken
     ) {
 
         List<OutboxEvent> events =
@@ -33,7 +34,7 @@ public class OutboxClaimService {
                 );
 
         for (OutboxEvent event : events) {
-            event.markProcessing();
+            event.markProcessing(claimToken);
         }
 
         /*

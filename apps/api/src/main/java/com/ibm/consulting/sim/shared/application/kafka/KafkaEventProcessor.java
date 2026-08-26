@@ -1,7 +1,7 @@
 package com.ibm.consulting.sim.shared.application.kafka;
 
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
-import com.ibm.consulting.sim.shared.domain.OrderingMode;
+import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaEventException;
 import com.ibm.consulting.sim.shared.domain.kafka.KafkaInboxRepository;
 

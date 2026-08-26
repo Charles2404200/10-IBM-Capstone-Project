@@ -1,7 +1,7 @@
 package com.ibm.consulting.sim.shared.application;
 
-import com.ibm.consulting.sim.shared.domain.OrderingMode;
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
+import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

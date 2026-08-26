@@ -1,6 +1,6 @@
 package com.ibm.consulting.sim.shared.application.kafka;
 
-import com.ibm.consulting.sim.shared.domain.OrderingMode;
+import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 
 import java.time.Instant;
 import java.util.UUID;

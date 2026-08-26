@@ -1,7 +1,7 @@
 package com.ibm.consulting.sim.shared.application;
 
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
-import com.ibm.consulting.sim.shared.domain.OrderingMode;
+import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

@@ -2,7 +2,7 @@ package com.ibm.consulting.sim.shared.application.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
 import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaPayloadException;
 import com.ibm.consulting.sim.shared.domain.kafka.UnsupportedKafkaEventException;
 import org.springframework.stereotype.Component;

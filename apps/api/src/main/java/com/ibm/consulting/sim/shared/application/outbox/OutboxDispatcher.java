@@ -1,8 +1,8 @@
-package com.ibm.consulting.sim.shared.application;
+package com.ibm.consulting.sim.shared.application.outbox;
 
 import com.ibm.consulting.sim.shared.application.kafka.KafkaEventPublisher;
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -59,8 +59,9 @@ public class OutboxDispatcher {
     )
     public void dispatch() {
 
+        UUID claimToken = UUID.randomUUID();
         List<UUID> ids =
-                claimService.claimBatch(100);
+                claimService.claimBatch(100 , claimToken);
 
         for (UUID id : ids) {
 
@@ -84,13 +85,15 @@ public class OutboxDispatcher {
                 ).join();
 
                 stateService.markPublished(
-                        id
+                        id,
+                        claimToken
                 );
 
             } catch (Exception ex) {
 
                 stateService.markPendingAgain(
-                        id
+                        id,
+                        claimToken
                 );
 
                 log.warn(

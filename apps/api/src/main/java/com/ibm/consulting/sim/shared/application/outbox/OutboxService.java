@@ -1,10 +1,10 @@
-package com.ibm.consulting.sim.shared.application;
+package com.ibm.consulting.sim.shared.application.outbox;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ibm.consulting.sim.shared.domain.EventSequenceRepository;
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.EventSequenceRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

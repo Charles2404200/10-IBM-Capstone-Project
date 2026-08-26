@@ -5,10 +5,10 @@ import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.config.KafkaConsumerProperties;
 import com.ibm.consulting.sim.shared.config.KafkaTopicProperties;
-import com.ibm.consulting.sim.shared.domain.EventSequenceRepository;
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
-import com.ibm.consulting.sim.shared.domain.OutboxStatus;
+import com.ibm.consulting.sim.shared.domain.outbox.EventSequenceRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

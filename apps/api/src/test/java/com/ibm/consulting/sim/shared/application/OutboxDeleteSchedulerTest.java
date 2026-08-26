@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.shared.application;
 
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.application.outbox.OutboxDeleteScheduler;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

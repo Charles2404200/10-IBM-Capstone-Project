@@ -2,7 +2,7 @@ package com.ibm.consulting.sim.admin.application;
 
 
 import com.ibm.consulting.sim.shared.application.kafka.KafkaEventProcessor;
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;

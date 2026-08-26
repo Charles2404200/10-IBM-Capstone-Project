@@ -6,14 +6,15 @@ import com.ibm.consulting.sim.admin.domain.NotificationObject;
 import com.ibm.consulting.sim.admin.domain.NotifyUsersEvents;
 import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.identity.domain.UserRole;
-import com.ibm.consulting.sim.shared.domain.EventEnvelope;
-import com.ibm.consulting.sim.shared.domain.EventSequenceRepository;
-import com.ibm.consulting.sim.shared.domain.OrderingMode;
-import com.ibm.consulting.sim.shared.domain.OutboxEvent;
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
+import com.ibm.consulting.sim.shared.domain.outbox.EventSequenceRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -80,7 +81,7 @@ public class AdminNotificationService {
                 distinctRoles.size()
         );
 
-        distinctRoles.forEach(role -> publishForRole(
+        distinctRoles.forEach(role -> publishForRoleOrdered(
                 userId,
                 topicName,
                 message,
@@ -100,7 +101,64 @@ public class AdminNotificationService {
         return result;
     }
 
-    private void publishForRole(
+    @Transactional(propagation = Propagation.MANDATORY)
+    private void publishForRoleUnOrdered(
+            UUID userId,
+            String topicName,
+            String message,
+            UserRole role
+    ){
+        UUID eventId = UUID.randomUUID();
+        String kafkaTopic = properties.topic().name();
+        String eventType = NotifyUsersEvents.NOTIFICATION_PUBLISHED.name();
+
+        NotificationObject notification = new NotificationObject(
+                eventId,
+                userId,
+                topicName,
+                message,
+                role
+        );
+        String payload = serialize(notification);
+
+        EventEnvelope envelope = new EventEnvelope(
+                eventId,
+                eventType,
+                NOTIFICATION_SCHEMA_VERSION,
+                OrderingMode.UNORDERED,
+                null,
+                null,
+                Instant.now(),
+                payload
+        );
+
+        log.debug(
+                "Queueing unordered notification: eventId={}, userId={}, role={}, topic={}",
+                eventId,
+                userId,
+                role,
+                kafkaTopic
+        );
+
+        OutboxEvent outboxEvent = OutboxEvent.unordered(
+                envelope.eventId(),
+                kafkaTopic,
+                envelope.eventType(),
+                envelope.schemaVersion(),
+                envelope.payload()
+        );
+        outboxRepository.save(outboxEvent);
+
+        log.info(
+                "Notification queued in outbox: eventId={}, eventType={}, topic={}",
+                envelope.eventId(),
+                envelope.eventType(),
+                kafkaTopic
+        );
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    private void publishForRoleOrdered(
             UUID userId,
             String topicName,
             String message,

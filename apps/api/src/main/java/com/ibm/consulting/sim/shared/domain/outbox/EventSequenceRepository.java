@@ -1,4 +1,4 @@
-package com.ibm.consulting.sim.shared.domain;
+package com.ibm.consulting.sim.shared.domain.outbox;
 
 /**
  * Allocates monotonically increasing sequence numbers within an ordering key.

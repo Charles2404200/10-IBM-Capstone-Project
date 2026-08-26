@@ -1,6 +1,6 @@
-package com.ibm.consulting.sim.shared.application;
+package com.ibm.consulting.sim.shared.application.outbox;
 
-import com.ibm.consulting.sim.shared.domain.OutboxEventRepository;
+import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
