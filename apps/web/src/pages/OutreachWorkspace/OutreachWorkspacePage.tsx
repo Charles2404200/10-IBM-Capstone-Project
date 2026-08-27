@@ -343,7 +343,7 @@ export default function OutreachWorkspacePage() {
   }
 
   return (
-    <ObjectiveTourProvider tourId="outreach" objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
+    <ObjectiveTourProvider objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.makeContactHero}>
