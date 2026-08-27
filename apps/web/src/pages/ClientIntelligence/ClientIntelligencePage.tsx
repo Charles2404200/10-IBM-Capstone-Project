@@ -486,7 +486,7 @@ export default function ClientIntelligencePage() {
   const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
 
   return (
-    <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
+    <ObjectiveTourProvider objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
     <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
         <nav className={styles.breadcrumbs} aria-label="Workflow path">

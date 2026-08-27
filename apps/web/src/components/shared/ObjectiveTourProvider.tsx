@@ -10,12 +10,11 @@ interface Objective {
 }
 
 interface Props {
-  tourId: string
   objectives: Objective[]
   children: ReactNode
 }
 
-export default function ObjectiveTourProvider({ tourId: _tourId, objectives, children }: Props) {
+export default function ObjectiveTourProvider({ objectives, children }: Props) {
   // Converts each objective into a Reactour step
   const steps: StepType[] = objectives.map((objective) => ({
     selector: objective.targets[0],
