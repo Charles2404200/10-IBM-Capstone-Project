@@ -12,9 +12,22 @@ vi.mock('@/api/hooks/useAuth', () => ({ useCompleteOnboarding: vi.fn() }))
 vi.mock('@/store/authStore', () => ({ useAuthStore: vi.fn() }))
 
 const setIsOpen = vi.fn()
+const setSteps = vi.fn()
 const complete = vi.fn()
 
 const TOUR = 'client-intelligence'
+
+const STEP = { selector: '.present-target', content: 'Present' }
+const MISSING_STEP = { selector: '.absent-target', content: 'Absent' }
+
+/** Puts an element on the page so a step's selector resolves. */
+function renderTargets() {
+  document.body.innerHTML = '<div class="present-target">target</div>'
+}
+
+function tour(isOpen: boolean, steps = [STEP]) {
+  vi.mocked(useTour).mockReturnValue({ isOpen, setIsOpen, setSteps, steps } as unknown as ReturnType<typeof useTour>)
+}
 
 function signedInAs(userId: string | null, onboardingRequired: boolean) {
   vi.mocked(useAuthStore).mockImplementation((selector) =>
@@ -24,9 +37,9 @@ function signedInAs(userId: string | null, onboardingRequired: boolean) {
 
 /** Renders with the tour reported as open, then re-renders with it closed. */
 function openThenClose(tourId = TOUR) {
-  vi.mocked(useTour).mockReturnValue({ isOpen: true, setIsOpen } as unknown as ReturnType<typeof useTour>)
+  tour(true)
   const view = render(<ObjectiveGuide tourId={tourId} />)
-  vi.mocked(useTour).mockReturnValue({ isOpen: false, setIsOpen } as unknown as ReturnType<typeof useTour>)
+  tour(false)
   view.rerender(<ObjectiveGuide tourId={tourId} />)
   return view
 }
@@ -34,8 +47,10 @@ function openThenClose(tourId = TOUR) {
 describe('ObjectiveGuide', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    document.body.innerHTML = ''
+    renderTargets()
     useTourProgressStore.setState({ completedByUser: {} })
-    vi.mocked(useTour).mockReturnValue({ isOpen: false, setIsOpen } as unknown as ReturnType<typeof useTour>)
+    tour(false)
     vi.mocked(useCompleteOnboarding).mockReturnValue({ mutate: complete } as never)
     signedInAs('user-1', true)
   })
@@ -47,7 +62,7 @@ describe('ObjectiveGuide', () => {
   })
 
   it('does not record completion merely because the walkthrough opened', () => {
-    vi.mocked(useTour).mockReturnValue({ isOpen: true, setIsOpen } as unknown as ReturnType<typeof useTour>)
+    tour(true)
 
     render(<ObjectiveGuide tourId={TOUR} />)
 
@@ -78,7 +93,7 @@ describe('ObjectiveGuide', () => {
   })
 
   it('leaves an interrupted walkthrough available, since it never closed', () => {
-    vi.mocked(useTour).mockReturnValue({ isOpen: true, setIsOpen } as unknown as ReturnType<typeof useTour>)
+    tour(true)
 
     const { unmount } = render(<ObjectiveGuide tourId={TOUR} />)
     unmount()
@@ -114,5 +129,31 @@ describe('ObjectiveGuide', () => {
     render(<ObjectiveGuide tourId={TOUR} />)
 
     expect(setIsOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('drops steps whose target is not on the page this visit', () => {
+    tour(false, [STEP, MISSING_STEP])
+
+    render(<ObjectiveGuide tourId={TOUR} />)
+
+    expect(setSteps).toHaveBeenCalledWith([STEP])
+    expect(setIsOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('leaves the step list alone when every target is present', () => {
+    tour(false, [STEP])
+
+    render(<ObjectiveGuide tourId={TOUR} />)
+
+    expect(setSteps).not.toHaveBeenCalled()
+  })
+
+  it('stays closed, and available, when no target is on the page', () => {
+    tour(false, [MISSING_STEP])
+
+    render(<ObjectiveGuide tourId={TOUR} />)
+
+    expect(setIsOpen).not.toHaveBeenCalled()
+    expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(false)
   })
 })

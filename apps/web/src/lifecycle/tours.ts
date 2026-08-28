@@ -7,6 +7,7 @@
  * finished onboarding.
  */
 export const TOUR_IDS = [
+  'command-centre',
   'client-intelligence',
   'outreach-workspace',
   'meeting-preparation',

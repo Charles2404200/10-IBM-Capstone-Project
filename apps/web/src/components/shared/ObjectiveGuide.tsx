@@ -21,7 +21,7 @@ import { hasCompletedAllTours } from '@/lifecycle/tours'
  * losing it permanently.
  */
 export default function ObjectiveGuide({ tourId }: { tourId: string }) {
-  const { isOpen, setIsOpen } = useTour()
+  const { isOpen, setIsOpen, steps, setSteps } = useTour()
   const userId = useAuthStore((state) => state.userId)
   const onboardingRequired = useAuthStore((state) => state.onboardingRequired)
   const isComplete = useTourProgressStore((state) => state.isComplete)
@@ -40,9 +40,24 @@ export default function ObjectiveGuide({ tourId }: { tourId: string }) {
       return
     }
 
+    // Workspaces render different sections at different stages, so a step can
+    // point at something that is not on the page this time. Dropping those
+    // steps is better than opening on an anchor that does not exist; if every
+    // step is missing there is nothing to explain, and the walkthrough stays
+    // available for a visit where the page has more on it.
+    const present = steps.filter((step) =>
+      typeof step.selector === 'string' ? Boolean(document.querySelector(step.selector)) : true,
+    )
+    if (present.length === 0) {
+      return
+    }
+
     openedForCurrentVisit.current = true
+    if (present.length !== steps.length) {
+      setSteps?.(present)
+    }
     setIsOpen(true)
-  }, [isComplete, onboardingRequired, setIsOpen, tourId, userId])
+  }, [isComplete, onboardingRequired, setIsOpen, setSteps, steps, tourId, userId])
 
   // Finished, skipped and closed all arrive here as the same transition, and
   // all three mean the learner is done with this walkthrough.
