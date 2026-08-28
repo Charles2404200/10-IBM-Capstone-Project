@@ -213,7 +213,7 @@ export default function LiveMeetingPage() {
   }
 
   return (
-    <ObjectiveTourProvider objectives={LIVE_MEETING_OBJECTIVES}>
+    <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
     <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
