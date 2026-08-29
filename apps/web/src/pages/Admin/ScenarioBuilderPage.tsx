@@ -32,6 +32,7 @@ import {
   useUpdateGameplayDifficulty,
   useUploadKnowledgeDocument,
   useScenarioAuthoring,
+  useGetKnowledgeDocuments,
 } from '@/api/hooks/useAdminScenarios'
 import ScenarioBlueprintWorkspace from '@/components/admin/ScenarioBlueprintWorkspace'
 import LoadingState from '@/components/shared/LoadingState'
@@ -42,12 +43,19 @@ import type {
   KnowledgeDocumentUploadRequest,
   GameplayDifficultyProfile,
   ScenarioSummary,
+  KnowledgeDocumentSummary,
 } from '@/api/types'
 
 function defaultGameplayProfile(difficulty: number): GameplayDifficultyProfile {
   if (difficulty <= 2) return { level: 'EASY', researchArtifactsPerAction: 4, distractorArtifactsPerAction: 1, contradictionCount: 0, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 14, budgetVisible: true, timelinePressureDays: 30, requiredEvidenceCount: 2, requiredConfidencePercent: 40, outreachAcceptanceThreshold: 65, proposalEvidenceCoverageThreshold: 50, personaResistance: 20, scoringTolerance: 115 }
   if (difficulty >= 4) return { level: 'HARD', researchArtifactsPerAction: 6, distractorArtifactsPerAction: 3, contradictionCount: 2, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 12, budgetVisible: false, timelinePressureDays: 14, requiredEvidenceCount: 4, requiredConfidencePercent: 80, outreachAcceptanceThreshold: 82, proposalEvidenceCoverageThreshold: 75, personaResistance: 65, scoringTolerance: 85 }
   return { level: 'MEDIUM', researchArtifactsPerAction: 5, distractorArtifactsPerAction: 2, contradictionCount: 1, initialTrust: 40, initialInterest: 40, initialPatience: 40, meetingTurnLimit: 14, budgetVisible: false, timelinePressureDays: 18, requiredEvidenceCount: 3, requiredConfidencePercent: 60, outreachAcceptanceThreshold: 75, proposalEvidenceCoverageThreshold: 65, personaResistance: 50, scoringTolerance: 100 }
+}
+
+const KNOWLEDGE_COLLECTION_LABELS: Record<string, string> = {
+  SCENARIO_TRUTH: 'Scenario truth',
+  CONSULTING_PRACTICE: 'Consulting practice',
+  ASSESSMENT_RUBRIC: 'Assessment rubric',
 }
 
 function CreateScenarioModal({ open, onClose, onCreated }: {
@@ -422,11 +430,14 @@ function ScenarioCard({ scenario }: { scenario: ScenarioSummary }) {
             )}
           </AccordionItem>
           <AccordionItem title="Knowledge documents (RAG)">
-            {scenario.status === 'DRAFT' ? (
-              <KnowledgeDocumentForm scenario={scenario} />
-            ) : (
-              <p>Knowledge documents are locked in this published revision. Create a revision to make changes.</p>
-            )}
+            <Stack gap={5}>
+              {scenario.status === 'DRAFT' ? (
+                <KnowledgeDocumentForm scenario={scenario} />
+              ) : (
+                <p>Knowledge documents are locked in this published revision. Create a revision to make changes.</p>
+              )}
+              <KnowledgeDocumentList scenario={scenario} />
+            </Stack>
           </AccordionItem>
         </Accordion>
       </Stack>
@@ -480,6 +491,70 @@ function ScenarioEditor({ scenarioId, onBack }: { scenarioId: string; onBack: ()
         </Stack>
       </Column>
     </Grid>
+  )
+}
+
+function KnowledgeDocumentList({ scenario }: { scenario: ScenarioSummary }) {
+  const documents = useGetKnowledgeDocuments(scenario.id)
+
+  if (documents.isLoading) {
+    return <LoadingState description="Loading ingested documents…" />
+  }
+  if (documents.isError) {
+    return <ErrorState title="Could not load knowledge documents" />
+  }
+  if (!documents.data || documents.data.length === 0) {
+    return <p>No documents ingested yet for this scenario.</p>
+  }
+
+  const personaName = (personaId: string | null) =>
+    personaId ? scenario.personas.find((p) => p.id === personaId)?.name ?? 'Unknown persona' : 'Scenario-wide'
+
+  return (
+    <Stack gap={3}>
+      <p style={{ margin: 0, fontSize: '.8125rem', color: '#525252' }}>
+        {documents.data.length} document{documents.data.length === 1 ? '' : 's'} ingested
+      </p>
+      {documents.data.map((doc) => (
+        <KnowledgeDocumentRow key={doc.id} doc={doc} personaName={personaName(doc.personaId)} />
+      ))}
+    </Stack>
+  )
+}
+
+const PREVIEW_LENGTH = 200
+
+function KnowledgeDocumentRow({
+  doc,
+  personaName,
+}: {
+  doc: KnowledgeDocumentSummary
+  personaName: string
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const isLong = doc.sourceText.length > PREVIEW_LENGTH
+  const preview = isLong ? doc.sourceText.slice(0, PREVIEW_LENGTH).trimEnd() + '…' : doc.sourceText
+
+  return (
+    <div className={styles.personaRow}>
+      <div className={styles.scenarioHeader}>
+        <div>
+          <strong>{doc.title}</strong>
+          <p style={{ margin: '.25rem 0 0', fontSize: '.8125rem', color: '#525252' }}>
+            {personaName} · Ingested {new Date(doc.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+        <Tag type="blue">{KNOWLEDGE_COLLECTION_LABELS[doc.collection] ?? doc.collection}</Tag>
+      </div>
+      <p style={{ margin: '.5rem 0 0', fontSize: '.8125rem', whiteSpace: 'pre-wrap' }}>
+        {expanded ? doc.sourceText : preview}
+      </p>
+      {isLong && (
+        <Button kind="ghost" size="sm" onClick={() => setExpanded((v) => !v)} style={{ paddingLeft: 0 }}>
+          {expanded ? 'Show less' : 'Show more'}
+        </Button>
+      )}
+    </div>
   )
 }
 
