@@ -15,6 +15,7 @@ import type {
   ScenarioCatalogPage,
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
+  KnowledgeDocumentSummary,
 } from '@/api/types'
 
 const adminScenarioKeys = {
@@ -194,6 +195,7 @@ function invalidateScenarioAuthoring(queryClient: ReturnType<typeof useQueryClie
   queryClient.invalidateQueries({ queryKey: ['leads', scenarioId] })
   queryClient.invalidateQueries({ queryKey: [...adminScenarioKeys.all, scenarioId, 'leads'] })
   queryClient.invalidateQueries({ queryKey: adminPlatformKeys.overview })
+  queryClient.invalidateQueries({ queryKey: [...adminScenarioKeys.all, scenarioId, 'documents'] })
 }
 
 export function useUpdateScenarioBlueprint(scenarioId: string) {
@@ -270,5 +272,21 @@ export function useDeleteScenarioLead(scenarioId: string) {
   return useMutation({
     mutationFn: (leadId: string) => apiClient.delete(`/api/v1/admin/scenarios/${scenarioId}/leads/${leadId}`),
     onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+/*Get knowledge documents by scenarioID */
+export function useGetKnowledgeDocuments(scenarioId: string) {
+  return useQuery({
+    queryKey: [...adminScenarioKeys.all, scenarioId, 'documents'],
+    queryFn: async () => {
+      const res = await apiClient.get<KnowledgeDocumentSummary[]>(
+        `/api/v1/admin/scenarios/${scenarioId}/documents`,
+      )
+      return res.data
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(scenarioId),
   })
 }
