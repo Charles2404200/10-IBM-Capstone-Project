@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
 
 /**
  * Admin-only endpoint for ingesting scenario knowledge (truth documents,
@@ -45,6 +46,16 @@ public class KnowledgeController {
         UUID documentId = ingestionService.ingest(scenarioId, request.personaId(), request.collection(),
                 request.title(), request.content());
         return Map.of("documentId", documentId);
+    }
+
+
+
+    // add this method inside the class, after upload()
+    @GetMapping
+    List<KnowledgeDocumentSummary> list(@PathVariable UUID scenarioId) {
+        return ingestionService.list(scenarioId).stream()
+                .map(KnowledgeDocumentSummary::from)
+                .toList();
     }
 
     static class ScenarioContentLockedException extends DomainException {

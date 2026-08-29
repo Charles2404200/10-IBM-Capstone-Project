@@ -80,4 +80,10 @@ public class KnowledgeIngestionService {
         }
         return chunks.isEmpty() ? List.of(text.trim()) : chunks;
     }
+
+    /** Lists all knowledge documents ingested for a scenario, across all collections/personas. */
+    @Transactional(readOnly = true)
+    public List<KnowledgeDocument> list(UUID scenarioId) {
+        return documentRepository.findByScenarioId(scenarioId);
+    }
 }
