@@ -25,6 +25,7 @@ class OutboxClaimServiceTest {
     @Test
     void marksLockedEventsProcessingAndReturnsTheirIds() {
         UUID eventId = UUID.randomUUID();
+        UUID claimToken = UUID.randomUUID();
         OutboxEvent event = OutboxEvent.unordered(
                 eventId,
                 "notifications",
@@ -35,10 +36,11 @@ class OutboxClaimServiceTest {
         when(repository.findDispatchableForUpdate(25))
                 .thenReturn(List.of(event));
 
-        List<UUID> claimedIds = service.claimBatch(25);
+        List<UUID> claimedIds = service.claimBatch(25, claimToken);
 
         assertEquals(List.of(eventId), claimedIds);
         assertEquals(OutboxStatus.PROCESSING, event.getStatus());
+        assertEquals(claimToken, event.getClaimToken());
         assertNotNull(event.getProcessingStartedAt());
         verify(repository).findDispatchableForUpdate(25);
     }

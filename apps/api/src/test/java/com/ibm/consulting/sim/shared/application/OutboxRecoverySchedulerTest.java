@@ -16,7 +16,10 @@ class OutboxRecoverySchedulerTest {
     @Test
     void recoversClaimsThatHaveBeenProcessingForMoreThanOneMinute() {
         OutboxEventRepository repository = mock(OutboxEventRepository.class);
-        OutboxRecoveryScheduler scheduler = new OutboxRecoveryScheduler(repository);
+        OutboxRecoveryScheduler scheduler = new OutboxRecoveryScheduler(
+                repository,
+                55_000
+        );
         Instant earliestExpectedCutoff = Instant.now().minusSeconds(61);
 
         scheduler.recoverStaleClaims();

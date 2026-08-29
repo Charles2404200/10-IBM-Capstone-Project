@@ -20,13 +20,16 @@ public class OutboxRecoveryScheduler {
     private static final Duration RECOVERY_SAFETY_MARGIN =
             Duration.ofSeconds(5);
 
-    @Value("${app.kafka.producer.delivery-timeout-ms}")
-    private long deliveryTimeoutMs;
-
     private final OutboxEventRepository repository;
+    private final long deliveryTimeoutMs;
 
-    public OutboxRecoveryScheduler(OutboxEventRepository repository) {
+    public OutboxRecoveryScheduler(
+            OutboxEventRepository repository,
+            @Value("${app.kafka.producer.delivery-timeout-ms}")
+            long deliveryTimeoutMs
+    ) {
         this.repository = repository;
+        this.deliveryTimeoutMs = deliveryTimeoutMs;
     }
 
     @Scheduled(fixedDelayString = "${app.kafka.outbox.recovery-delay-ms:30000}")
