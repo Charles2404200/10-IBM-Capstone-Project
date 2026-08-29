@@ -12,6 +12,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.UUID;
 
+/**
+ * Stores consumer-side idempotency claims. The composite primary key of
+ * consumer group and event ID allows each group to process an event once.
+ */
 @Repository
 interface SpringDataKafkaInboxRepository
         extends JpaRepository<KafkaInboxEntity, KafkaInboxId> {
@@ -39,6 +43,7 @@ interface SpringDataKafkaInboxRepository
                     :offset,
                     NOW()
                 )
+                -- A conflict means this consumer group already claimed the event.
                 ON CONFLICT
                 (
                     consumer_group,

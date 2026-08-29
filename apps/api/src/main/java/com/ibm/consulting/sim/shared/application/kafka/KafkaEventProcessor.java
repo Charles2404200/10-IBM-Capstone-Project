@@ -49,7 +49,9 @@ public class KafkaEventProcessor {
         );
 
         /*
-         * Atomic idempotency claim.
+         * Claim this event by inserting its (consumerGroup, eventId) into the
+         * inbox. The database performs the insert atomically, so concurrent
+         * deliveries cannot both claim and dispatch the same event.
          */
         int inserted =
                 inboxRepository.insertIfAbsent(
@@ -63,6 +65,8 @@ public class KafkaEventProcessor {
 
         if (inserted == 0) {
 
+            // This consumer group committed the event previously; acknowledge
+            // this delivery without invoking the business handler again.
             log.debug(
                     "Duplicate Kafka event ignored: eventId={}, eventType={}, topic={}, partition={}, offset={}",
                     event.eventId(),
@@ -133,6 +137,8 @@ public class KafkaEventProcessor {
         if (event.orderingMode()
                 == OrderingMode.ORDERED) {
 
+            // Ordered events must declare the logical stream that Kafka uses
+            // to route related records to the same partition.
             if (event.orderingKey() == null ||
                     event.orderingKey().isBlank()) {
 
