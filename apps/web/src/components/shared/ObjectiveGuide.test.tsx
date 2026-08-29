@@ -156,4 +156,29 @@ describe('ObjectiveGuide', () => {
     expect(setIsOpen).not.toHaveBeenCalled()
     expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(false)
   })
+
+  it('records a walkthrough the learner skips part-way through', () => {
+    tour(true, [STEP, { selector: '.present-target', content: 'Second' }])
+    const view = render(<ObjectiveGuide tourId={TOUR} />)
+    tour(false, [STEP, { selector: '.present-target', content: 'Second' }])
+    view.rerender(<ObjectiveGuide tourId={TOUR} />)
+
+    expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(true)
+  })
+
+  it.each(TOUR_IDS)('runs and records %s independently of the others', (tourId) => {
+    openThenClose(tourId)
+
+    const completed = useTourProgressStore.getState().completedFor('user-1')
+    expect(completed).toEqual([tourId])
+  })
+
+  it('does not reopen once closed, so the workspace stays usable', () => {
+    const view = openThenClose()
+    setIsOpen.mockClear()
+
+    view.rerender(<ObjectiveGuide tourId={TOUR} />)
+
+    expect(setIsOpen).not.toHaveBeenCalled()
+  })
 })
