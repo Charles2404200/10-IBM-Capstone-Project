@@ -86,4 +86,14 @@ public class KnowledgeIngestionService {
     public List<KnowledgeDocument> list(UUID scenarioId) {
         return documentRepository.findByScenarioId(scenarioId);
     }
+
+    /** Removes a knowledge document and all chunks derived from it. */
+    @Transactional
+    public void delete(UUID documentId) {
+        if (!documentRepository.findById(documentId).isPresent()) {
+            throw new com.ibm.consulting.sim.shared.domain.NotFoundException("KnowledgeDocument", documentId);
+        }
+        chunkRepository.deleteByDocumentId(documentId);
+        documentRepository.deleteById(documentId);
+    }
 }

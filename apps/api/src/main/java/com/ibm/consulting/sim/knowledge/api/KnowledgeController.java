@@ -38,11 +38,7 @@ public class KnowledgeController {
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, UUID> upload(@PathVariable UUID scenarioId,
                              @Valid @RequestBody KnowledgeDocumentUploadRequest request) {
-        Scenario scenario = scenarioRepository.findById(scenarioId)
-                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
-        if (scenario.getStatus() != ScenarioStatus.DRAFT) {
-            throw new ScenarioContentLockedException(scenarioId);
-        }
+        requireDraft(scenarioId);
         UUID documentId = ingestionService.ingest(scenarioId, request.personaId(), request.collection(),
                 request.title(), request.content());
         return Map.of("documentId", documentId);
@@ -61,6 +57,22 @@ public class KnowledgeController {
     static class ScenarioContentLockedException extends DomainException {
         ScenarioContentLockedException(UUID scenarioId) {
             super("Scenario " + scenarioId + " is published. Create a draft revision before changing knowledge.");
+        }
+    }
+
+    @DeleteMapping("/{documentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void delete(@PathVariable UUID scenarioId, @PathVariable UUID documentId) {
+        requireDraft(scenarioId);
+        ingestionService.delete(documentId);
+    }
+
+    // Get this code from upload() and make it a shared method.
+    private void requireDraft(UUID scenarioId) {
+        Scenario scenario = scenarioRepository.findById(scenarioId)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        if (scenario.getStatus() != ScenarioStatus.DRAFT) {
+            throw new ScenarioContentLockedException(scenarioId);
         }
     }
 }

@@ -290,3 +290,13 @@ export function useGetKnowledgeDocuments(scenarioId: string) {
     enabled: Boolean(scenarioId),
   })
 }
+
+export function useDeleteKnowledgeDocument(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      await apiClient.delete(`/api/v1/admin/scenarios/${scenarioId}/documents/${documentId}`)
+    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}

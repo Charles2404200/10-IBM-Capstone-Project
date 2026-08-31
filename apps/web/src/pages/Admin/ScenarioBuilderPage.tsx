@@ -33,6 +33,7 @@ import {
   useUploadKnowledgeDocument,
   useScenarioAuthoring,
   useGetKnowledgeDocuments,
+  useDeleteKnowledgeDocument,
 } from '@/api/hooks/useAdminScenarios'
 import ScenarioBlueprintWorkspace from '@/components/admin/ScenarioBlueprintWorkspace'
 import LoadingState from '@/components/shared/LoadingState'
@@ -516,7 +517,7 @@ function KnowledgeDocumentList({ scenario }: { scenario: ScenarioSummary }) {
         {documents.data.length} document{documents.data.length === 1 ? '' : 's'} ingested
       </p>
       {documents.data.map((doc) => (
-        <KnowledgeDocumentRow key={doc.id} doc={doc} personaName={personaName(doc.personaId)} />
+        <KnowledgeDocumentRow key={doc.id} doc={doc} personaName={personaName(doc.personaId)} scenarioId={scenario.id} isDraft={scenario.status === 'DRAFT'} />
       ))}
     </Stack>
   )
@@ -527,11 +528,16 @@ const PREVIEW_LENGTH = 200
 function KnowledgeDocumentRow({
   doc,
   personaName,
+  scenarioId,
+  isDraft,
 }: {
   doc: KnowledgeDocumentSummary
   personaName: string
+  scenarioId: string
+  isDraft: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
+  const deleteDocument = useDeleteKnowledgeDocument(scenarioId)
   const isLong = doc.sourceText.length > PREVIEW_LENGTH
   const preview = isLong ? doc.sourceText.slice(0, PREVIEW_LENGTH).trimEnd() + '…' : doc.sourceText
 
@@ -544,7 +550,23 @@ function KnowledgeDocumentRow({
             {personaName} · Ingested {new Date(doc.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <Tag type="blue">{KNOWLEDGE_COLLECTION_LABELS[doc.collection] ?? doc.collection}</Tag>
+        <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+          <Tag type="blue">{KNOWLEDGE_COLLECTION_LABELS[doc.collection] ?? doc.collection}</Tag>
+          {isDraft && (
+            <Button
+              kind="danger--ghost"
+              size="sm"
+              disabled={deleteDocument.isPending}
+              onClick={() => {
+                if (confirm(`Delete "${doc.title}"? This can't be undone.`)) {
+                  deleteDocument.mutate(doc.id)
+                }
+              }}
+            >
+              Delete
+            </Button>
+          )}
+        </div>
       </div>
       <p style={{ margin: '.5rem 0 0', fontSize: '.8125rem', whiteSpace: 'pre-wrap' }}>
         {expanded ? doc.sourceText : preview}
