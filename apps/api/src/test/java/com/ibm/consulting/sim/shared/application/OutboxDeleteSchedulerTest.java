@@ -16,14 +16,14 @@ class OutboxDeleteSchedulerTest {
     @Test
     void deletesPublishedEventsOlderThanTwoDays() {
         OutboxEventRepository repository = mock(OutboxEventRepository.class);
-        OutboxDeleteScheduler scheduler = new OutboxDeleteScheduler(repository);
+        OutboxDeleteScheduler scheduler = new OutboxDeleteScheduler(repository, 2, 500);
         Instant earliestExpectedCutoff = Instant.now()
                 .minusSeconds((2 * 24 * 60 * 60) + 1);
 
         scheduler.deletePublishedEvents();
 
         ArgumentCaptor<Instant> cutoff = ArgumentCaptor.forClass(Instant.class);
-        verify(repository).deletePublishedBefore(cutoff.capture());
+        verify(repository).deletePublishedBefore(cutoff.capture(), org.mockito.ArgumentMatchers.eq(500));
         assertFalse(cutoff.getValue().isBefore(earliestExpectedCutoff));
         assertFalse(cutoff.getValue().isAfter(
                 Instant.now().minusSeconds((2 * 24 * 60 * 60) - 1)

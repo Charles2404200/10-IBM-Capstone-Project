@@ -10,12 +10,16 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
 import java.util.UUID;
 
 @Repository
 interface SpringDataNotificationReadRepository extends JpaRepository<NotificationRead, UUID> {
     List<NotificationRead> findByNotificationId(UUID notificationId);
-    List<NotificationRead> findByUserId(UUID userId);
+    List<NotificationRead> findByUserIdAndNotificationIdIn(
+            UUID userId,
+            Collection<UUID> notificationIds
+    );
     // 2 threads can insert in parallel
     // at the same time and it's hard to track
     // in the application level so we need to write
@@ -50,8 +54,13 @@ public class JpaNotificationReadRepository implements NotificationReadRepository
      * @return
      */
     @Override
-    public List<NotificationRead> findReadNotificationsByUserId(UUID userId) {
-        return readRepository.findByUserId(userId);
+    public List<NotificationRead> findReadNotificationsByUserId(
+            UUID userId,
+            Collection<UUID> notificationIds) {
+        if (notificationIds.isEmpty()) {
+            return List.of();
+        }
+        return readRepository.findByUserIdAndNotificationIdIn(userId, notificationIds);
     }
 
     @Override

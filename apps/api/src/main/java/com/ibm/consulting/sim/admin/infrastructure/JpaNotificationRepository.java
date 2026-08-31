@@ -6,6 +6,8 @@ import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,7 +16,7 @@ import java.util.UUID;
 
 @Repository
 interface SpringDataNotificationRepository extends JpaRepository<NotificationEvent, UUID> {
-    List<NotificationEvent> findByRoleOrderByCreatedAtDesc(UserRole role);
+    List<NotificationEvent> findByRoleOrderByCreatedAtDesc(UserRole role, Pageable pageable);
     Optional<NotificationEvent> findByEventId(UUID eventId);
     Optional<NotificationEvent> findByEventIdAndRole(UUID eventId, UserRole role);
     boolean existsByEventId(UUID eventId);
@@ -53,9 +55,14 @@ class JpaNotificationRepository implements NotificationRepository {
     }
 
     @Override
-    public List<NotificationEvent> findNotificationsByRole(UserRole role) {
-        List<NotificationEvent> events = notificationRepository.findByRoleOrderByCreatedAtDesc(role);
-        return events;
+    public List<NotificationEvent> findNotificationsByRole(UserRole role, int limit) {
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        return notificationRepository.findByRoleOrderByCreatedAtDesc(
+                role,
+                PageRequest.of(0, limit)
+        );
     }
 
 

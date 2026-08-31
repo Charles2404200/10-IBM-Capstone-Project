@@ -50,9 +50,11 @@ class NotificationQueryServiceTest {
                 "Maintenance Notice",
                 "The platform will restart tonight.",
                 UserRole.LEARNER);
-        when(notificationRepository.findNotificationsByRole(UserRole.LEARNER))
+        when(notificationRepository.findNotificationsByRole(UserRole.LEARNER, 50))
                 .thenReturn(List.of(notification));
-        when(notificationReadRepository.findReadNotificationsByUserId(userId))
+        when(notificationReadRepository.findReadNotificationsByUserId(
+                userId,
+                List.of(notification.getId())))
                 .thenReturn(List.of());
 
         List<NotificationResponse> response = service.listForUser(userId, UserRole.LEARNER);
@@ -61,6 +63,21 @@ class NotificationQueryServiceTest {
         assertEquals("Maintenance Notice", response.getFirst().topicName());
         assertFalse(response.getFirst().read());
         assertNull(response.getFirst().readAt());
+    }
+
+    @Test
+    void duplicateReadAcknowledgementIsIdempotent() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        NotificationEvent notification = NotificationEvent.create(
+                eventId, UUID.randomUUID(), "Update", "Message", UserRole.LEARNER);
+        when(notificationRepository.findByEventIdAndRole(eventId, UserRole.LEARNER))
+                .thenReturn(Optional.of(notification));
+        when(notificationReadRepository.createReadNotificationForUser(
+                notification.getId(), userId, UserRole.LEARNER))
+                .thenReturn(false);
+
+        service.markRead(eventId, userId, UserRole.LEARNER);
     }
 
     @Test

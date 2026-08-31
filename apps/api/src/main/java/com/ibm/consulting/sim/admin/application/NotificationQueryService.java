@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 public class NotificationQueryService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationQueryService.class);
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final NotificationRepository notificationRepository;
     private final NotificationReadRepository notificationReadRepository;
@@ -33,16 +35,29 @@ public class NotificationQueryService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> listForUser(UUID userId, UserRole role) {
+        return listForUser(userId, role, DEFAULT_PAGE_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> listForUser(UUID userId, UserRole role, int limit) {
+        if (limit < 1 || limit > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("limit must be between 1 and " + MAX_PAGE_SIZE);
+        }
         log.debug("Fetching notifications for user: userId={}, role={}", userId, role);
 
         List<NotificationEvent> notificationsRoleOnly =
-                notificationRepository.findNotificationsByRole(role);
+                notificationRepository.findNotificationsByRole(role, limit);
 
         log.debug("Found {} notifications for role={}",
                 notificationsRoleOnly.size(), role);
 
         Map<UUID, NotificationRead> reads = notificationReadRepository
-                .findReadNotificationsByUserId(userId)
+                .findReadNotificationsByUserId(
+                        userId,
+                        notificationsRoleOnly.stream()
+                                .map(NotificationEvent::getId)
+                                .toList()
+                )
                 .stream()
                 .collect(Collectors.toMap(
                         NotificationRead::getNotificationId,
@@ -111,15 +126,13 @@ public class NotificationQueryService {
                 );
 
         if (!added) {
-            log.error(
-                    "Failed to persist notification read acknowledgement: eventId={}, userId={}, role={}",
+            // PATCH is idempotent: a concurrent request may have inserted the
+            // same unique receipt first, which is already the desired state.
+            log.debug(
+                    "Notification was already marked read: eventId={}, userId={}, role={}",
                     eventId,
                     userId,
                     role
-            );
-
-            throw new NotificationReadException(
-                    "Failed to mark notification as read"
             );
         }
 

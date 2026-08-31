@@ -62,6 +62,22 @@ app:
     consumer:
       retry-backoff-ms: ${KAFKA_CONSUMER_RETRY_BACKOFF_MS:2000}
       max-retries: ${KAFKA_CONSUMER_MAX_RETRIES:3}
+    outbox:
+      poll-delay-ms: ${KAFKA_OUTBOX_POLL_DELAY_MS:200}
+      batch-size: ${KAFKA_OUTBOX_BATCH_SIZE:100}
+      recovery-delay-ms: ${KAFKA_OUTBOX_RECOVERY_DELAY_MS:30000}
+      cleanup-cron: ${KAFKA_OUTBOX_CLEANUP_CRON:0 */10 * * * *}
+      cleanup-retention-days: ${KAFKA_OUTBOX_RETENTION_DAYS:2}
+      cleanup-batch-size: ${KAFKA_OUTBOX_CLEANUP_BATCH_SIZE:10000}
+      retry:
+        initial-delay-ms: ${KAFKA_OUTBOX_RETRY_INITIAL_DELAY_MS:1000}
+        max-delay-ms: ${KAFKA_OUTBOX_RETRY_MAX_DELAY_MS:300000}
+        multiplier: ${KAFKA_OUTBOX_RETRY_MULTIPLIER:2.0}
+        jitter-ratio: ${KAFKA_OUTBOX_RETRY_JITTER_RATIO:0.2}
+    inbox:
+      retention-days: ${KAFKA_INBOX_RETENTION_DAYS:14}
+      cleanup-batch-size: ${KAFKA_INBOX_CLEANUP_BATCH_SIZE:10000}
+      cleanup-cron: ${KAFKA_INBOX_CLEANUP_CRON:0 15 * * * *}
     notifications:
       dlt:
         topic-name: ${KAFKA_NOTIFICATIONS_DLT_TOPIC_NAME:notifications.DLT}
@@ -85,6 +101,9 @@ app:
       service-name: ${LOKI_SERVICE_NAME:consulting-simulation-api}
       batch-size: ${LOKI_BATCH_SIZE:100}
       flush-interval-ms: ${LOKI_FLUSH_INTERVAL_MS:1000}
+  async:
+    outbox-completion-pool-size: ${OUTBOX_COMPLETION_POOL_SIZE:8}
+    outbox-completion-queue-capacity: ${OUTBOX_COMPLETION_QUEUE_CAPACITY:500}
   # Comma-separated list of origins allowed to call the API (CORS) and open the
   # STOMP/WebSocket handshake (see WebSocketConfig). Defaults cover local dev
   # (Vite on 3000/5173); production deployments (Railway, IBM Cloud, ...) set

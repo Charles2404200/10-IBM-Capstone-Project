@@ -9,7 +9,7 @@ import java.util.UUID;
 public interface NotificationRepository {
     void save(NotificationEvent notification);
 
-    List<NotificationEvent> findNotificationsByRole(UserRole role);
+    List<NotificationEvent> findNotificationsByRole(UserRole role, int limit);
 
     Optional<NotificationEvent> findByEventIdAndRole(UUID eventId , UserRole role);
 
