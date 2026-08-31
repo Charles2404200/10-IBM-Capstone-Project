@@ -35,6 +35,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+// we are having embedded kafka
+// only for kafka testing only
+// since it imported from
+// spring kafka test
+
 @SpringJUnitConfig(classes = {
         KafkaProducerConfig.class,
         KafkaConsumerConfig.class,

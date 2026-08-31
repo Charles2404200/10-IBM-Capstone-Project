@@ -24,6 +24,10 @@ import java.util.UUID;
 @Repository
 interface SpringDataScenarioRepository extends JpaRepository<Scenario, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Scenario> {
     List<Scenario> findByStatus(ScenarioStatus status);
+    Optional<Scenario> findByIdAndStatus(
+            UUID id,
+            ScenarioStatus status
+    );
     List<Scenario> findByScenarioLineageIdAndStatus(UUID scenarioLineageId, ScenarioStatus status);
 
     @Query("""
@@ -60,6 +64,17 @@ class JpaScenarioRepository implements ScenarioRepository {
         return repo.findByScenarioLineageIdAndStatus(lineageId, status);
     }
     @Override public Optional<Scenario> findById(UUID id) { return repo.findById(id); }
+
+    /**
+     * @param id
+     * @param status
+     * @return
+     */
+    @Override
+    public Optional<Scenario> findByIdAndStatus(UUID id, ScenarioStatus status) {
+        return repo.findByIdAndStatus(id,status);
+    }
+
     @Override public List<Scenario> findByIdIn(List<UUID> ids) { return ids.isEmpty() ? List.of() : repo.findAllById(ids); }
     @Override public Scenario save(Scenario scenario) { return repo.save(scenario); }
 
