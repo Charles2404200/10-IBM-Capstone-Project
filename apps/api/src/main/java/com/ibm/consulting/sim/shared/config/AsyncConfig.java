@@ -92,6 +92,40 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor.getThreadPoolExecutor();
     }
 
+    /** Keeps assessment coaching off the assessment/portfolio completion path. */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService assessmentFeedbackExecutor(
+            @Value("${app.async.assessment-feedback-core-pool-size:2}") int corePoolSize,
+            @Value("${app.async.assessment-feedback-max-pool-size:8}") int maxPoolSize,
+            @Value("${app.async.assessment-feedback-queue-capacity:100}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("assessment-feedback-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
+    /** Keeps SMTP/provider waits off registration and credential recovery requests. */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService transactionalEmailExecutor(
+            @Value("${app.async.transactional-email-core-pool-size:2}") int corePoolSize,
+            @Value("${app.async.transactional-email-max-pool-size:8}") int maxPoolSize,
+            @Value("${app.async.transactional-email-queue-capacity:200}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("transactional-email-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
     /** General-purpose pool for {@code @Async}-annotated application methods. */
     @Override
     public Executor getAsyncExecutor() {

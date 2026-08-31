@@ -14,6 +14,7 @@ import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 const SOURCES_PER_PAGE = 3
+const EDITOR_ITEMS_PER_PAGE = 4
 const PROPOSAL_OBJECTIVES = [
   {
     id: 'completion-steps',
@@ -58,7 +59,7 @@ export default function ProposalStudioPage() {
   if (studio.submitted && studio.proposal) return <ProposalOutcomeView proposal={studio.proposal} engagementId={engagementId} />
 
   return (
-    <ObjectiveTourProvider tourId="proposal" objectives={PROPOSAL_OBJECTIVES}>
+    <ObjectiveTourProvider objectives={PROPOSAL_OBJECTIVES}>
     <main className={styles.page}>
       <div className={styles.canvas}>
       <header className={styles.header}>
@@ -139,7 +140,40 @@ export default function ProposalStudioPage() {
 type DraftUpdate = (fn: (value: ProposalDraftRequest) => ProposalDraftRequest) => void
 
 function Foundation({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
-  return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><TextArea id="problem-statement" labelText="Problem statement" helperText="Describe observed operational, commercial or risk impacts." rows={3} value={draft.problemStatement} onChange={(event) => update((current) => ({ ...current, problemStatement: event.target.value }))} /><TextArea id="solution-strategy" labelText="Recommended solution" helperText="Explain why this approach addresses the problem." rows={3} value={draft.solutionStrategy} onChange={(event) => update((current) => ({ ...current, solutionStrategy: event.target.value }))} /><ListEditor label="Solution components" values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
+  return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><FoundationNarrativeEditor draft={draft} update={update} /><ListEditor label="Solution components" itemsPerPage={2} values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
+}
+
+type FoundationNarrative = 'problem' | 'solution'
+
+function FoundationNarrativeEditor({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
+  const [activeNarrative, setActiveNarrative] = useState<FoundationNarrative>('problem')
+  const isProblem = activeNarrative === 'problem'
+  const label = isProblem ? 'Problem statement' : 'Recommended solution'
+  const helperText = isProblem
+    ? 'Describe the observed operational, commercial or risk impact.'
+    : 'Explain how the recommendation addresses the client problem.'
+  const value = isProblem ? draft.problemStatement : draft.solutionStrategy
+
+  return <section className={styles.foundationNarrative} aria-label="Proposal foundation narrative">
+    <div className={styles.foundationTabs} role="tablist" aria-label="Proposal foundation sections">
+      <button className={isProblem ? styles.foundationTabActive : styles.foundationTab} role="tab" type="button" aria-selected={isProblem} onClick={() => setActiveNarrative('problem')}>
+        <span>1</span><div><strong>Problem framing</strong><small>What is happening and why it matters</small></div>
+      </button>
+      <button className={!isProblem ? styles.foundationTabActive : styles.foundationTab} role="tab" type="button" aria-selected={!isProblem} onClick={() => setActiveNarrative('solution')}>
+        <span>2</span><div><strong>Recommended solution</strong><small>How the approach creates value</small></div>
+      </button>
+    </div>
+    <div className={styles.foundationInput}>
+      <TextArea
+        id={isProblem ? 'problem-statement' : 'solution-strategy'}
+        labelText={label}
+        helperText={helperText}
+        rows={4}
+        value={value}
+        onChange={(event) => update((current) => isProblem ? { ...current, problemStatement: event.target.value } : { ...current, solutionStrategy: event.target.value })}
+      />
+    </div>
+  </section>
 }
 
 function Commercial({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
@@ -159,36 +193,36 @@ function EditorIntroduction({ title, description }: { title: string; description
   return <div className={styles.editorIntroduction}><p className={styles.eyebrow}>Proposal section</p><h2>{title}</h2><p>{description}</p></div>
 }
 
-function ListEditor({ label, values, placeholder, onChange }: { label: string; values: string[]; placeholder: string; onChange: (values: string[]) => void }) {
+function ListEditor({ label, values, placeholder, onChange, itemsPerPage = EDITOR_ITEMS_PER_PAGE }: { label: string; values: string[]; placeholder: string; onChange: (values: string[]) => void; itemsPerPage?: number }) {
   const [page, setPage] = useState(0)
-  const pageCount = Math.max(1, Math.ceil(values.length / 2))
-  const visibleValues = values.slice(page * 2, page * 2 + 2)
+  const pageCount = Math.max(1, Math.ceil(values.length / itemsPerPage))
+  const visibleValues = values.slice(page * itemsPerPage, page * itemsPerPage + itemsPerPage)
 
   useEffect(() => setPage((current) => Math.min(current, pageCount - 1)), [pageCount])
 
   const add = () => {
     const next = [...values, '']
     onChange(next)
-    setPage(Math.floor((next.length - 1) / 2))
+    setPage(Math.floor((next.length - 1) / itemsPerPage))
   }
 
-  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleValues.map((value, visibleIndex) => { const index = page * 2 + visibleIndex; return <div className={styles.row} key={`${label}-${index}`}><TextInput id={`${label}-${index}`} labelText="" hideLabel placeholder={placeholder} value={value} onChange={(event) => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} /><Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(values.length === 1 ? [''] : values.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>Add item</Button></Stack></section>
+  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleValues.map((value, visibleIndex) => { const index = page * itemsPerPage + visibleIndex; return <div className={styles.row} key={`${label}-${index}`}><TextInput id={`${label}-${index}`} labelText="" hideLabel placeholder={placeholder} value={value} onChange={(event) => onChange(values.map((entry, position) => position === index ? event.target.value : entry))} /><Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(values.length === 1 ? [''] : values.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>Add item</Button></Stack></section>
 }
 
 function StructuredEditor<T extends Record<string, string>>({ label, addLabel, rows, empty, fields, onChange }: { label: string; addLabel: string; rows: T[]; empty: T; fields: [keyof T, string][]; onChange: (rows: T[]) => void }) {
   const [page, setPage] = useState(0)
-  const pageCount = Math.max(1, Math.ceil(rows.length / 2))
-  const visibleRows = rows.slice(page * 2, page * 2 + 2)
+  const pageCount = Math.max(1, Math.ceil(rows.length / EDITOR_ITEMS_PER_PAGE))
+  const visibleRows = rows.slice(page * EDITOR_ITEMS_PER_PAGE, page * EDITOR_ITEMS_PER_PAGE + EDITOR_ITEMS_PER_PAGE)
 
   useEffect(() => setPage((current) => Math.min(current, pageCount - 1)), [pageCount])
 
   const add = () => {
     const next = [...rows, empty]
     onChange(next)
-    setPage(Math.floor((next.length - 1) / 2))
+    setPage(Math.floor((next.length - 1) / EDITOR_ITEMS_PER_PAGE))
   }
 
-  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleRows.map((row, visibleIndex) => { const index = page * 2 + visibleIndex; return <div className={styles.structuredRow} key={`${label}-${index}`}>{fields.map(([key, fieldLabel]) => key === 'severity' ? <Select key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select> : <TextInput key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))} />)}<Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(rows.length === 1 ? [empty] : rows.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>{addLabel}</Button></Stack></section>
+  return <section className={styles.editorGroup}><div className={styles.editorGroupHeading}><h3>{label}</h3>{pageCount > 1 && <Pager page={page} pageCount={pageCount} onPrevious={() => setPage((current) => current - 1)} onNext={() => setPage((current) => current + 1)} />}</div><Stack gap={3}>{visibleRows.map((row, visibleIndex) => { const index = page * EDITOR_ITEMS_PER_PAGE + visibleIndex; return <div className={styles.structuredRow} key={`${label}-${index}`}>{fields.map(([key, fieldLabel]) => key === 'severity' ? <Select key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select> : <TextInput key={String(key)} id={`${label}-${index}-${String(key)}`} labelText={fieldLabel} value={row[key]} onChange={(event) => onChange(rows.map((entry, position) => position === index ? { ...entry, [key]: event.target.value } : entry))} />)}<Button kind="ghost" hasIconOnly iconDescription="Remove item" renderIcon={TrashCan} onClick={() => onChange(rows.length === 1 ? [empty] : rows.filter((_, position) => position !== index))} /></div> })}<Button kind="tertiary" size="sm" renderIcon={Add} onClick={add}>{addLabel}</Button></Stack></section>
 }
 
 function Pager({ page, pageCount, onPrevious, onNext }: { page: number; pageCount: number; onPrevious: () => void; onNext: () => void }) {
@@ -196,7 +230,18 @@ function Pager({ page, pageCount, onPrevious, onNext }: { page: number; pageCoun
 }
 
 function EvidenceSummary({ draft }: { draft: ProposalDraftRequest }) {
-  return <section className={styles.evidenceSummary}><h3>Attached sources</h3>{draft.evidenceLinks.length ? <ul>{draft.evidenceLinks.map((link) => <li key={`${link.section}-${link.sourceId}`}>{link.section}: {link.sourceId.startsWith('meeting:') ? 'Meeting discovery' : 'Research evidence'}</li>)}</ul> : <p>No sources attached yet. Return to a proposal section and select a source from the context panel.</p>}</section>
+  const [page, setPage] = useState(0)
+  const pageSize = 3
+  const pageCount = Math.max(1, Math.ceil(draft.evidenceLinks.length / pageSize))
+  const safePage = Math.min(page, pageCount - 1)
+  const visibleLinks = draft.evidenceLinks.slice(safePage * pageSize, safePage * pageSize + pageSize)
+
+  return <section className={styles.evidenceSummary}>
+    <div className={styles.evidenceSummaryHeading}><h3>Attached sources</h3>{draft.evidenceLinks.length > pageSize && <Pager page={safePage} pageCount={pageCount} onPrevious={() => setPage((current) => Math.max(0, current - 1))} onNext={() => setPage((current) => Math.min(pageCount - 1, current + 1))} />}</div>
+    {draft.evidenceLinks.length
+      ? <ul>{visibleLinks.map((link) => <li key={`${link.section}-${link.sourceId}`}>{link.section}: {link.sourceId.startsWith('meeting:') ? 'Meeting discovery' : 'Research evidence'}</li>)}</ul>
+      : <p>No sources attached yet. Return to a proposal section and select a source from the context panel.</p>}
+  </section>
 }
 
 function ReviewPanel({ review }: { review: ProposalReview }) {

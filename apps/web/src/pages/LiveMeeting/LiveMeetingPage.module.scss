@@ -58,11 +58,212 @@
 .readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0 0 $spacing-03; }
 .readyToClosePanel p:last-child { margin: 0; color: $text-secondary; }
 
+.behaviourPanel { padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
+.behaviourPositive { border-left: 3px solid $support-success; }
+.behaviourRecovery { border-left: 3px solid $support-warning; }
+.behaviourHeading { display: flex; justify-content: space-between; gap: $spacing-03; align-items: flex-start; }
+.behaviourHeading h3 { @include type-style('heading-compact-02'); margin: 0; text-transform: capitalize; }
+.behaviourDeltas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $spacing-02; }
+.behaviourDeltas span { @include type-style('label-01'); color: $text-secondary; white-space: nowrap; }
+.behaviourPanel > p:not(.eyebrow) { margin: $spacing-03 0; color: $text-secondary; @include type-style('body-compact-01'); line-height: 1.45; }
+.behaviourTags { display: flex; flex-wrap: wrap; gap: $spacing-02; margin: $spacing-03 0; }
+.behaviourNextAction { display: grid; gap: $spacing-02; padding-top: $spacing-03; border-top: 1px solid $border-subtle; @include type-style('body-compact-01'); }
+.behaviourNextAction strong { @include type-style('label-01'); color: $text-primary; }
+.behaviourNextAction span { color: $text-secondary; }
+
 .passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
 .debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
 .terminationGuidance { margin: 0; padding-left: $spacing-05; }
 .terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; }
+
+/* On a desktop engagement workspace the browser must not become a second
+   conversation viewport. The transcript is the only unbounded content, so it
+   owns scrolling. Completed meetings reserve room for their debrief instead
+   of pushing the outcome and its CTA below the canvas. */
+@media (min-width: 82rem) and (min-height: 43.75rem) {
+  .page {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    padding: $spacing-03 clamp($spacing-05, 3vw, $spacing-07);
+  }
+
+  .headerGrid,
+  .workspaceGrid {
+    width: min(100%, 100rem);
+  }
+
+  .headerGrid {
+    flex: 0 0 auto;
+  }
+
+  .workspaceGrid {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: $spacing-03;
+    overflow: hidden;
+  }
+
+  .workspaceGrid :global(.cds--row),
+  .workspaceGrid :global([class*='cds--col']) {
+    min-height: 0;
+  }
+
+  .pageHeader h1 {
+    @include type-style('heading-04');
+  }
+
+  .conversationColumn {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .conversationPanel {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+
+  .transcriptViewport {
+    overflow-y: auto;
+    padding: $spacing-04;
+    scrollbar-gutter: stable;
+  }
+
+  .learnerTurn,
+  .personaTurn {
+    margin-bottom: $spacing-03;
+  }
+
+  .bubble {
+    max-width: 84%;
+    padding: $spacing-03;
+  }
+
+  .bubble p {
+    line-height: 1.4;
+  }
+
+  .guidedComposer {
+    padding: $spacing-03 $spacing-04;
+  }
+
+  .guidedDescription {
+    margin: $spacing-02 0 $spacing-03;
+  }
+
+  .responseChoices {
+    gap: $spacing-02;
+  }
+
+  .responseChoice {
+    gap: $spacing-03;
+    padding: $spacing-02 $spacing-03;
+  }
+
+  .choiceContent {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .composer {
+    padding: $spacing-03 $spacing-04;
+  }
+
+  .completedPage .conversationColumn {
+    gap: $spacing-03;
+  }
+
+  .completedPage .conversationPanel {
+    flex: 0 1 52%;
+    min-height: 12rem;
+  }
+
+  .passedDebrief,
+  .failedDebrief {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 0;
+    padding: $spacing-04;
+    overflow: hidden;
+  }
+
+  .passedDebrief :global(.cds--stack),
+  .failedDebrief :global(.cds--stack) {
+    height: 100%;
+    justify-content: center;
+  }
+
+  .debriefFeedback {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .debriefTips {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: $spacing-02 $spacing-05;
+    margin: $spacing-03 0 0;
+    padding-left: $spacing-04;
+  }
+
+  .debriefTips li {
+    margin: 0;
+  }
+
+  .decisionRail {
+    position: static;
+    min-height: 0;
+    overflow: hidden;
+    gap: $spacing-03;
+  }
+
+  .relationshipPanel,
+  .hintPanel,
+  .factsPanel,
+  .readyToClosePanel,
+  .behaviourPanel {
+    padding: $spacing-03 $spacing-04;
+  }
+
+  .railHeading {
+    margin-bottom: $spacing-04;
+  }
+
+  .relationshipMetric p {
+    margin-top: $spacing-01;
+  }
+
+  .behaviourPanel > p:not(.eyebrow) {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: $spacing-02 0;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .behaviourTags {
+    margin: $spacing-02 0;
+  }
+
+  .behaviourNextAction {
+    padding-top: $spacing-02;
+  }
+
+  .completedPage .factsPanel,
+  .completedPage .readyToClosePanel {
+    display: none;
+  }
+}
 
 @media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
 @media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.responseChoice { grid-template-columns: 1fr auto; }.choiceNumber { grid-column: 1 / -1; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }

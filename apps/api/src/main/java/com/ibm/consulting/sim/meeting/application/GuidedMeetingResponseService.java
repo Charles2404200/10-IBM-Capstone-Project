@@ -101,14 +101,15 @@ public class GuidedMeetingResponseService {
 
         GuidedResponseOptions generated = aiOrchestrationService.execute(
                 "guided_meeting_options", engagement.getId(),
-                GuidedResponsePromptAssembler.assemble(persona, state, evidence, knowledge, turns), PROMPT_VERSION,
+                GuidedResponsePromptAssembler.assemble(persona, state, evidence, knowledge, turns, profile), PROMPT_VERSION,
                 new GuidedResponseOptionsParser(objectMapper), () -> new GuidedResponseOptions(List.of()));
-        if (generated.options().size() != 3) {
+        List<String> balancedOptions = GuidedResponseBalancePolicy.balance(generated.options(), profile, sourceSequence);
+        if (!validOptions(balancedOptions)) {
             return MeetingResponseOptionsResponse.unavailable(sourceSequence,
                     "Guided responses are temporarily unavailable. Please try again.");
         }
         MeetingResponseOptionSet optionSet = optionSetRepository.save(
-                MeetingResponseOptionSet.generated(meeting.getId(), sourceSequence, generated.options()));
+                MeetingResponseOptionSet.generated(meeting.getId(), sourceSequence, balancedOptions));
         return MeetingResponseOptionsResponse.from(optionSet);
     }
 
@@ -122,14 +123,15 @@ public class GuidedMeetingResponseService {
         if (MeetingInteractionMode.forDifficulty(profile.level()) == MeetingInteractionMode.FREEFORM) {
             return MeetingResponseOptionsResponse.freeform();
         }
-        if (!validOptions(options)) {
+        List<String> balancedOptions = GuidedResponseBalancePolicy.balance(options, profile, sourceSequence);
+        if (!validOptions(balancedOptions)) {
             return MeetingResponseOptionsResponse.unavailable(sourceSequence,
                     "Guided responses are temporarily unavailable. Please try again.");
         }
         return optionSetRepository.findByMeetingIdAndSourceSequence(meetingId, sourceSequence)
                 .map(MeetingResponseOptionsResponse::from)
                 .orElseGet(() -> MeetingResponseOptionsResponse.from(optionSetRepository.save(
-                        MeetingResponseOptionSet.generated(meetingId, sourceSequence, options))));
+                        MeetingResponseOptionSet.generated(meetingId, sourceSequence, balancedOptions))));
     }
 
     private boolean validOptions(List<String> options) {

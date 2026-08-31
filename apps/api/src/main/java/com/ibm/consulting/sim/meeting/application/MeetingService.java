@@ -18,6 +18,8 @@ import com.ibm.consulting.sim.scenario.application.PersonaProfile;
 import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +35,8 @@ import java.util.UUID;
 @Service
 public class MeetingService {
 
-        private static final int PROMPT_TRANSCRIPT_WINDOW = 8;
+    private static final Logger log = LoggerFactory.getLogger(MeetingService.class);
+    private static final int PROMPT_TRANSCRIPT_WINDOW = 8;
     private static final int PROMPT_VERSION = 1;
     private static final java.time.Duration DUPLICATE_WINDOW = java.time.Duration.ofSeconds(20);
 
@@ -210,6 +213,7 @@ public class MeetingService {
         PersonaProfile persona = personaCatalogService.getPersona(meeting.getPersonaId());
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
                 .orElseGet(() -> PersonaState.initial(meeting.getEngagementId(), profile));
+        boolean conclusionRequired = MeetingClosingPolicy.requiresConclusionAfterReply(state, (int) learnerTurnCount);
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(meeting.getEngagementId());
         int transcriptStart = Math.max(0, existingTurns.size() - PROMPT_TRANSCRIPT_WINDOW);
         List<ConversationTurn> recentTurns = existingTurns.subList(transcriptStart, existingTurns.size());
@@ -240,7 +244,7 @@ public class MeetingService {
                 KnowledgeCollection.SCENARIO_TRUTH, engagement.getScenarioId(), persona.getId(), learnerMessage);
 
         String prompt = PersonaPromptAssembler.assemble(persona, state, evidence, retrievedKnowledge, recentTurns,
-                learnerMessage, profile);
+                learnerMessage, profile, conclusionRequired);
         PersonaTurnResponseParser parser = new PersonaTurnResponseParser(objectMapper, Set.of());
 
         PersonaTurnResponse aiResponse = aiOrchestrationService.execute(
@@ -252,21 +256,42 @@ public class MeetingService {
                 () -> PersonaTurnResponse.safeFallback(
                         "Sorry, could you repeat that? I want to make sure I understand you correctly."));
 
-        PersonaStateEngine.apply(state, aiResponse, profile, learnerMessage, (int) learnerTurnCount + 1);
+        List<String> priorLearnerMessages = existingTurns.stream()
+                .filter(turn -> turn.getActor() == ConversationActor.LEARNER)
+                .map(ConversationTurn::getContent)
+                .toList();
+        MeetingBehaviourAssessment assessment = PersonaStateEngine.assess(aiResponse, learnerMessage, priorLearnerMessages);
+        var appliedDelta = PersonaStateEngine.apply(state, aiResponse, profile, (int) learnerTurnCount + 1, assessment);
+        assessment = assessment.withRelationshipDelta(appliedDelta);
+        meeting.recordBehaviourAssessment(nextSequence, assessment);
         personaStateRepository.save(state);
+
+        // The simulation engine owns lifecycle truth. A provider cannot keep a
+        // passed meeting alive by asking another question or omitting a signal.
+        if (MeetingClosingPolicy.canConclude(state, conclusionRequired, (int) learnerTurnCount + 1)) {
+            aiResponse = MeetingClosingResponsePolicy.conclude(aiResponse);
+        }
 
         String signals = String.join(",", combineSignals(aiResponse));
         ConversationTurn personaTurn = ConversationTurn.personaTurn(
                 meeting.getId(), nextSequence + 1, aiResponse.spokenResponse(), signals);
         turnRepository.save(personaTurn);
-        MeetingResponseOptionsResponse nextResponseOptions = guidedResponseService.cachePreGenerated(
-                meeting.getId(), personaTurn.getSequence(), profile, aiResponse.guidedResponseOptions());
 
         var relationshipTermination = MeetingSafetyPolicy.evaluate(learnerMessage, state)
                 .filter(decision -> decision.reason() == MeetingTerminationReason.RELATIONSHIP_THRESHOLD_BREACH);
         MeetingRetryEligibility retryEligibility = relationshipTermination
                 .map(decision -> completeAutomatically(meeting, engagement, decision))
                 .orElse(null);
+
+        MeetingResponse completedMeeting = null;
+        if (relationshipTermination.isEmpty() && MeetingNaturalCompletionPolicy.shouldConclude(
+                state, aiResponse.meetingSignals(), (int) learnerTurnCount + 1)) {
+            completedMeeting = completeMeeting(meeting, engagement, state);
+        }
+        MeetingResponseOptionsResponse nextResponseOptions = completedMeeting == null && relationshipTermination.isEmpty()
+                ? guidedResponseService.cachePreGenerated(
+                        meeting.getId(), personaTurn.getSequence(), profile, aiResponse.guidedResponseOptions())
+                : null;
 
         return new MeetingTurnResult(
                 ConversationTurnResponse.from(learnerTurn),
@@ -275,7 +300,9 @@ public class MeetingService {
                 aiResponse.meetingSignals(),
                 relationshipTermination.map(decision -> MeetingTerminationResponse.from(
                         decision, retryEligibility == null ? MeetingRetryEligibility.unavailable() : retryEligibility)).orElse(null),
-                nextResponseOptions);
+                nextResponseOptions,
+                completedMeeting,
+                MeetingBehaviourFeedbackResponse.from(assessment));
     }
 
     /**
@@ -317,7 +344,10 @@ public class MeetingService {
                 ConversationTurnResponse.from(last),
                 PersonaStateResponse.from(state),
                 signals,
-                MeetingTerminationResponse.from(meeting));
+                MeetingTerminationResponse.from(meeting),
+                null,
+                null,
+                behaviourFeedbackFor(meeting, secondLast.getSequence()));
     }
 
     /**
@@ -349,7 +379,10 @@ public class MeetingService {
                             ConversationTurnResponse.from(existingPersonaTurn),
                             PersonaStateResponse.from(state),
                             signals,
-                            MeetingTerminationResponse.from(meeting));
+                            MeetingTerminationResponse.from(meeting),
+                            null,
+                            null,
+                            behaviourFeedbackFor(meeting, existingLearnerTurn.getSequence()));
                 })
                 .orElse(null);
     }
@@ -357,28 +390,20 @@ public class MeetingService {
     @Transactional
     public MeetingResponse complete(UUID meetingId, UUID userId) {
         Meeting meeting = loadOwnedMeeting(meetingId, userId);
-        Engagement engagement = engagementRepository.findByIdAndUserId(meeting.getEngagementId(), userId)
-                .orElseThrow(() -> new NotFoundException("Engagement", meeting.getEngagementId()));
-
         if (meeting.getStatus() == MeetingStatus.COMPLETED) {
             return responseFor(meeting);
         }
+        throw new InvalidMeetingStateException(
+                "Manual meeting completion is not supported. The meeting closes automatically after the client confirms a passed next step.");
+    }
 
-        PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
-                .orElseGet(() -> PersonaState.initial(meeting.getEngagementId()));
+    private MeetingResponse completeMeeting(Meeting meeting, Engagement engagement, PersonaState state) {
         MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
-        List<ConversationTurn> turns = turnRepository.findByMeetingIdOrderBySequenceAsc(meetingId);
-        MeetingDebriefNarrative debrief = aiOrchestrationService.execute(
-                "meeting_debrief",
-                meeting.getEngagementId(),
-                buildDebriefPrompt(state, decision, turns),
-                PROMPT_VERSION,
-                new MeetingDebriefParser(objectMapper),
-                () -> MeetingDebriefNarrative.fallback(decision.passed(), decision.unmetRequirements()));
+        List<ConversationTurn> turns = turnRepository.findByMeetingIdOrderBySequenceAsc(meeting.getId());
+        MeetingDebriefNarrative debrief = createDebrief(meeting, state, decision, turns);
 
         meeting.complete(decision.outcome(), debrief.feedback(), debrief.tips());
-        String storageReference = transcriptExportService.export(meeting);
-        meeting.recordTranscriptExport(storageReference);
+        exportTranscriptBestEffort(meeting);
         meetingRepository.save(meeting);
 
         if (decision.passed()) {
@@ -417,8 +442,7 @@ public class MeetingService {
     private MeetingRetryEligibility completeAutomatically(Meeting meeting, Engagement engagement,
                                                           MeetingTerminationDecision decision) {
         meeting.complete(MeetingCompletionOutcome.FAILED, decision.message(), decision.retryGuidance(), decision.reason());
-        String storageReference = transcriptExportService.export(meeting);
-        meeting.recordTranscriptExport(storageReference);
+        exportTranscriptBestEffort(meeting);
         meetingRepository.save(meeting);
 
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
@@ -433,9 +457,50 @@ public class MeetingService {
         return eligibility;
     }
 
+    /**
+     * Meeting state is durable in Postgres. Transcript object storage improves
+     * portability, but an unavailable bucket must never fail a learner turn or
+     * roll back an otherwise valid meeting result.
+     */
+    private void exportTranscriptBestEffort(Meeting meeting) {
+        try {
+            String storageReference = transcriptExportService.export(meeting);
+            if (storageReference != null && !storageReference.isBlank()) {
+                meeting.recordTranscriptExport(storageReference);
+            }
+        } catch (RuntimeException exception) {
+            log.error("Transcript export failed for completed meeting {}; retaining relational transcript", meeting.getId(), exception);
+        }
+    }
+
+    private MeetingDebriefNarrative createDebrief(Meeting meeting, PersonaState state,
+                                                   MeetingCompletionDecision decision,
+                                                   List<ConversationTurn> turns) {
+        try {
+            return aiOrchestrationService.execute(
+                    "meeting_debrief",
+                    meeting.getEngagementId(),
+                    buildDebriefPrompt(state, decision, turns),
+                    PROMPT_VERSION,
+                    new MeetingDebriefParser(objectMapper),
+                    () -> MeetingDebriefNarrative.fallback(decision.passed(), decision.unmetRequirements()));
+        } catch (RuntimeException exception) {
+            log.error("Meeting debrief generation failed for meeting {}; using deterministic coaching", meeting.getId(), exception);
+            return MeetingDebriefNarrative.fallback(decision.passed(), decision.unmetRequirements());
+        }
+    }
+
     private MeetingResponse responseFor(Meeting meeting) {
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
         return MeetingResponse.from(meeting, eligibility.available(), eligibility.retriesRemaining());
+    }
+
+    private MeetingBehaviourFeedbackResponse behaviourFeedbackFor(Meeting meeting, int learnerSequence) {
+        return meeting.getBehaviourLedger().stream()
+                .filter(entry -> entry.getLearnerSequence() == learnerSequence)
+                .reduce((first, second) -> second)
+                .map(MeetingBehaviourFeedbackResponse::from)
+                .orElse(null);
     }
 
     private MeetingRetryEligibility retryEligibilityFor(Meeting meeting) {

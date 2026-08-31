@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.ai.domain.PersonaStateDelta;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 /**
@@ -31,11 +32,26 @@ final class MeetingTurnProgressionPolicy {
             "what do you need to know", "what do you want to know", "tell me more",
             "can you explain", "please explain", "can you elaborate");
     private static final Pattern UNPREPARED_RESPONSE = Pattern.compile(
-            "\\b(i\\s+(do\\s+not|dont|don t|don't)\\s+know|no\\s+idea|i\\s+am\\s+not\\s+sure|not\\s+prepared)\\b");
+            "\\b(i\\s+(do\\s+not|dont|don t|don't)\\s+(know|have\\s+enough\\s+detail)|no\\s+idea|i\\s+am\\s+not\\s+sure|not\\s+prepared)\\b");
     private static final Pattern DISMISSIVE_RESPONSE = Pattern.compile(
             "\\b(what\\s+(are|r|ur)\\s+(you\\s+)?talking\\s+about|who\\s+cares|whatever|not\\s+my\\s+problem)\\b");
     private static final Pattern EVASIVE_RESPONSE = Pattern.compile(
             "\\b(i\\s+cannot\\s+help|i\\s+can\\s*not\\s+help|can\\s*not\\s+answer|can\\s*not\\s+say|we\\s+will\\s+get\\s+back\\s+to\\s+you)\\b");
+    private static final Pattern PREMATURE_RECOMMENDATION = Pattern.compile(
+            "\\b(less\\s+important|move\\s+straight\\s+to|broader\\s+recommendation|ignore\\s+(the|that)\\s+concern"
+                    + "|refine\\s+the\\s+remaining\\s+operational\\s+detail\\s+as\\s+the\\s+work\\s+begins"
+                    + "|leave\\s+the\\s+operating\\s+constraints\\s+for\\s+the\\s+implementation\\s+plan"
+                    + "|validate\\s+the\\s+client\\s+specific\\s+constraints\\s+once\\s+mobilisation\\s+begins)\\b");
+    private static final Set<String> SCOREABLE_BEHAVIOURS = Set.of(
+            "directly_addresses_concern", "addresses_client_concern", "acknowledges_constraint",
+            "uses_client_fact", "uses_disclosed_evidence", "quantifies_business_impact",
+            "uses_specific_metric", "asks_focused_question", "grounded_recommendation",
+            "evasive", "unprepared", "dismissive", "does_not_answer", "unsupported_claim");
+    private static final Set<String> REPETITION_STOP_WORDS = Set.of(
+            "the", "and", "that", "this", "with", "from", "your", "have", "will", "would",
+            "could", "should", "about", "into", "then", "than", "what", "when", "where",
+            "which", "their", "there", "they", "them", "been", "being", "for", "are", "was",
+            "were", "you", "our", "can", "not", "but", "how", "why", "who", "a", "an", "to", "of", "in", "on", "at", "is", "it", "we", "i");
 
     private MeetingTurnProgressionPolicy() {}
 
@@ -51,13 +67,37 @@ final class MeetingTurnProgressionPolicy {
     static PersonaStateDelta constrain(PersonaStateDelta proposed, String learnerMessage,
                                        List<String> detectedLearnerBehaviours,
                                        String clientResponse, List<String> meetingSignals) {
-        TurnQuality quality = classify(learnerMessage, detectedLearnerBehaviours);
-        if (quality.isPenalty()) return quality.enforcePenalty(proposed);
+        return assess(proposed, learnerMessage, detectedLearnerBehaviours, clientResponse, meetingSignals)
+                .relationshipDelta();
+    }
+
+    static MeetingBehaviourAssessment assess(PersonaStateDelta proposed, String learnerMessage,
+                                              List<String> detectedLearnerBehaviours,
+                                              String clientResponse, List<String> meetingSignals) {
+        return assess(proposed, learnerMessage, detectedLearnerBehaviours, clientResponse, meetingSignals, List.of());
+    }
+
+    static MeetingBehaviourAssessment assess(PersonaStateDelta proposed, String learnerMessage,
+                                              List<String> detectedLearnerBehaviours,
+                                              String clientResponse, List<String> meetingSignals,
+                                              List<String> previousLearnerMessages) {
+        TurnQuality quality = classify(learnerMessage, detectedLearnerBehaviours, previousLearnerMessages);
+        List<String> verifiedBehaviours = normalizedBehaviours(detectedLearnerBehaviours).stream()
+                .filter(SCOREABLE_BEHAVIOURS::contains)
+                .sorted()
+                .toList();
+        if (quality.isPenalty()) {
+            PersonaStateDelta penalty = quality.enforcePenalty(proposed);
+            return new MeetingBehaviourAssessment(quality.name(), penalty, verifiedBehaviours,
+                    penaltyExplanation(quality), recoveryAction(quality));
+        }
         PersonaStateDelta behaviourScore = scoreBehaviour(quality, detectedLearnerBehaviours);
         PersonaStateDelta assessment = applyCalibratedAiAssessment(
                 behaviourScore, proposed, quality, detectedLearnerBehaviours);
-        return applyClientOutcomeCredit(assessment, quality, detectedLearnerBehaviours,
+        PersonaStateDelta finalDelta = applyClientOutcomeCredit(assessment, quality, detectedLearnerBehaviours,
                 clientResponse, meetingSignals);
+        return new MeetingBehaviourAssessment(quality.name(), finalDelta, verifiedBehaviours,
+                positiveExplanation(quality, finalDelta, verifiedBehaviours), nextAction(quality, finalDelta));
     }
 
     static int maximumScore(int initialScore, int learnerTurnNumber) {
@@ -70,7 +110,8 @@ final class MeetingTurnProgressionPolicy {
         return Math.min(100, initialScore + PATIENCE_PROGRESSION_ALLOWANCE[index]);
     }
 
-    private static TurnQuality classify(String learnerMessage, List<String> detectedLearnerBehaviours) {
+    private static TurnQuality classify(String learnerMessage, List<String> detectedLearnerBehaviours,
+                                        List<String> previousLearnerMessages) {
         String normalized = learnerMessage == null ? "" : learnerMessage
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9? ]", " ")
@@ -78,9 +119,11 @@ final class MeetingTurnProgressionPolicy {
                 .trim();
         if (DISMISSIVE_RESPONSE.matcher(normalized).find()) return TurnQuality.DISMISSIVE;
         if (UNPREPARED_RESPONSE.matcher(normalized).find()) return TurnQuality.UNPREPARED;
+        if (PREMATURE_RECOMMENDATION.matcher(normalized).find()) return TurnQuality.PREMATURE_RECOMMENDATION;
         if (EVASIVE_RESPONSE.matcher(normalized).find() || hasNegativeBehaviour(detectedLearnerBehaviours)) {
             return TurnQuality.EVASIVE;
         }
+        if (isMeaningfullyRepeated(normalized, previousLearnerMessages)) return TurnQuality.REPETITIVE;
         if (DEFLECTING_PROMPTS.contains(normalized.replace("?", "").trim())) return TurnQuality.DEFLECTING;
         int wordCount = normalized.isBlank() ? 0 : normalized.split(" ").length;
         if (wordCount < 6 || GENERIC_PROMPTS.contains(normalized.replace("?", "").trim())) {
@@ -94,6 +137,44 @@ final class MeetingTurnProgressionPolicy {
             return TurnQuality.FOCUSED_DISCOVERY;
         }
         return TurnQuality.LOW_SIGNAL;
+    }
+
+    /**
+     * Prevents score farming through a paraphrased repeat while allowing a learner
+     * to return to a topic with genuinely new detail. We ignore common language and
+     * only flag substantial messages whose meaningful terms almost fully overlap.
+     */
+    private static boolean isMeaningfullyRepeated(String normalizedMessage, List<String> previousLearnerMessages) {
+        Set<String> currentTerms = meaningfulTerms(normalizedMessage);
+        if (currentTerms.size() < 5 || previousLearnerMessages == null) return false;
+
+        return previousLearnerMessages.stream()
+                .filter(previous -> previous != null)
+                .map(previous -> meaningfulTerms(normalizeForComparison(previous)))
+                .filter(previousTerms -> previousTerms.size() >= 5)
+                .anyMatch(previousTerms -> similarity(currentTerms, previousTerms) >= 0.85d);
+    }
+
+    private static Set<String> meaningfulTerms(String value) {
+        if (value == null || value.isBlank()) return Set.of();
+        return java.util.Arrays.stream(value.split(" "))
+                .filter(term -> term.length() > 2)
+                .filter(term -> !REPETITION_STOP_WORDS.contains(term))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static double similarity(Set<String> first, Set<String> second) {
+        Set<String> intersection = first.stream().filter(second::contains).collect(Collectors.toSet());
+        Set<String> union = new java.util.HashSet<>(first);
+        union.addAll(second);
+        return union.isEmpty() ? 0d : (double) intersection.size() / union.size();
+    }
+
+    private static String normalizeForComparison(String value) {
+        return value.toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9? ]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     private static PersonaStateDelta scoreBehaviour(TurnQuality quality, List<String> behaviours) {
@@ -208,6 +289,47 @@ final class MeetingTurnProgressionPolicy {
         });
     }
 
+    private static String positiveExplanation(TurnQuality quality, PersonaStateDelta delta, List<String> behaviours) {
+        if (quality == TurnQuality.LOW_SIGNAL) {
+            return "This response did not contain enough client-specific substance to change the relationship state.";
+        }
+        if (delta.trust() == 0 && delta.interest() == 0 && delta.patience() == 0) {
+            return "The response was neutral: no verified client-specific behaviour justified a relationship change.";
+        }
+        String evidence = behaviours.isEmpty() ? "the focused, client-relevant response" : String.join(", ", behaviours);
+        return "The Simulation Director credited " + evidence + "; the relationship change is capped by the turn-quality policy.";
+    }
+
+    private static String nextAction(TurnQuality quality, PersonaStateDelta delta) {
+        if (quality == TurnQuality.LOW_SIGNAL || delta.trust() <= 0 || delta.interest() <= 0) {
+            return "Address the latest client concern with one concrete fact, outcome or constraint before asking a focused question.";
+        }
+        return "Build on the client response: confirm the implication, then ask one focused question that advances a discovery objective.";
+    }
+
+    private static String penaltyExplanation(TurnQuality quality) {
+        return switch (quality) {
+            case DEFLECTING -> "The response deflected the client back to a broad question instead of advancing their stated concern.";
+            case EVASIVE -> "The response avoided a client concern without offering a grounded next step.";
+            case UNPREPARED -> "Saying you do not know without a constructive follow-up reduced confidence in your preparation.";
+            case PREMATURE_RECOMMENDATION -> "The recommendation moved ahead of the client concern and reduced confidence in the discovery process.";
+            case DISMISSIVE -> "The tone dismissed the client concern and damaged the working relationship.";
+            case REPETITIVE -> "The response repeated an earlier point without adding enough new information to move discovery forward.";
+            default -> "The response did not advance the client conversation.";
+        };
+    }
+
+    private static String recoveryAction(TurnQuality quality) {
+        return switch (quality) {
+            case UNPREPARED -> "Acknowledge the gap, state how you will validate it, and ask one precise question to continue discovery.";
+            case DEFLECTING, EVASIVE -> "Answer the latest concern directly using a fact already disclosed by the client.";
+            case PREMATURE_RECOMMENDATION -> "Return to the client concern and validate the constraint before recommending a solution.";
+            case DISMISSIVE -> "Use neutral, professional language and acknowledge the client concern before proceeding.";
+            case REPETITIVE -> "Build on the client's latest answer with one new fact, constraint or decision question instead of restating the prior point.";
+            default -> "Use a concrete client fact and ask one focused discovery question.";
+        };
+    }
+
     private static Set<String> normalizedBehaviours(List<String> behaviours) {
         if (behaviours == null) return Set.of();
         return behaviours.stream()
@@ -300,7 +422,9 @@ final class MeetingTurnProgressionPolicy {
         DEFLECTING(-6, -5, -4),
         EVASIVE(-7, -6, -5),
         UNPREPARED(-14, -12, -10),
-        DISMISSIVE(-16, -14, -12);
+        PREMATURE_RECOMMENDATION(-9, -8, -7),
+        DISMISSIVE(-16, -14, -12),
+        REPETITIVE(-6, -5, -7);
 
         private final int trustGainCap;
         private final int interestGainCap;

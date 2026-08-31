@@ -4,6 +4,8 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.meeting.domain.ConversationTurn;
 import com.ibm.consulting.sim.meeting.domain.PersonaState;
 import com.ibm.consulting.sim.scenario.application.PersonaProfile;
+import com.ibm.consulting.sim.scenario.domain.DifficultyLevel;
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,7 +16,8 @@ final class GuidedResponsePromptAssembler {
     private GuidedResponsePromptAssembler() {}
 
     static String assemble(PersonaProfile persona, PersonaState state, List<ResearchEvidence> evidence,
-                           List<String> retrievedKnowledge, List<ConversationTurn> recentTurns) {
+                           List<String> retrievedKnowledge, List<ConversationTurn> recentTurns,
+                           DifficultyProfile profile) {
         String transcript = recentTurns.stream()
                 .skip(Math.max(0, recentTurns.size() - 8))
                 .map(turn -> (turn.getActor().name().equals("LEARNER") ? "Consultant: " : persona.getName() + ": ")
@@ -48,11 +51,25 @@ final class GuidedResponsePromptAssembler {
                 Create exactly three distinct, concise responses the learner could genuinely say next.
                 Do not label, rank, explain, or reveal which option is best. Never invent facts, budgets, case studies,
                 commitments, or outcomes. Keep each option professional and grounded in the latest client concern.
-                Include meaningful trade-offs: at least one response should directly advance the client's concern, while
-                other options may be less complete but must remain plausible and professional. Do not produce greetings,
-                insults, filler, or meta-commentary.
+                %s
+                Do not produce greetings, insults, filler, or meta-commentary.
                 """.formatted(persona.getName(), persona.getJobTitle(), persona.getOrganisation(),
                 persona.getCommunicationStyle(), persona.getBusinessGoals(), persona.getVisibleConcerns(),
-                state.getTrust(), state.getInterest(), state.getPatience(), evidenceSummary, knowledgeSummary, transcript);
+                state.getTrust(), state.getInterest(), state.getPatience(), evidenceSummary, knowledgeSummary, transcript,
+                choiceMix(profile));
+    }
+
+    private static String choiceMix(DifficultyProfile profile) {
+        if (profile.level() == DifficultyLevel.MEDIUM) {
+            return "Create exactly one response that directly advances the latest client concern and exactly two "
+                    + "professional near-misses. A near-miss must sound credible, but fail in a different consulting "
+                    + "way: either recommend scope before validating the client's constraint, focus on an adjacent issue "
+                    + "instead of the stated concern, or treat an unconfirmed assumption as settled. Do not use obvious "
+                    + "phrases such as 'I do not know', 'we can revisit it later', or 'that is less important'.";
+        }
+        return "Create exactly two responses that would credibly advance the latest client concern and exactly one "
+                + "professional near-miss. The near-miss should be subtly premature, misaligned to the stated concern, "
+                + "or based on an unvalidated assumption. It must sound plausible and must not use obvious evasive wording "
+                + "such as 'I do not know' or 'we can revisit it later'.";
     }
 }

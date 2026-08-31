@@ -1,70 +1,41 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import { useTour } from '@reactour/tour'
+import { useCompleteOnboarding } from '@/api/hooks/useAuth'
+import { useAuthStore } from '@/store/authStore'
 import ObjectiveGuide from './ObjectiveGuide'
 
 vi.mock('@reactour/tour', () => ({ useTour: vi.fn() }))
+vi.mock('@/api/hooks/useAuth', () => ({ useCompleteOnboarding: vi.fn() }))
+vi.mock('@/store/authStore', () => ({ useAuthStore: vi.fn() }))
 
 const setIsOpen = vi.fn()
+const complete = vi.fn()
 
 describe('ObjectiveGuide', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
-
     vi.mocked(useTour).mockReturnValue({
       setIsOpen,
     } as unknown as ReturnType<typeof useTour>)
+    vi.mocked(useCompleteOnboarding).mockReturnValue({ mutate: complete } as never)
   })
 
-  it('opens tour for a first-time user', () => {
-    render(<ObjectiveGuide tourId="client-intelligence" />)
+  it('opens and persists the guide for a newly registered learner', () => {
+    vi.mocked(useAuthStore).mockImplementation((selector) => selector({ onboardingRequired: true } as never))
+
+    render(<ObjectiveGuide />)
+
     expect(setIsOpen).toHaveBeenCalledWith(true)
+    expect(complete).toHaveBeenCalledOnce()
   })
 
-  it('tour is set as viewed when first opened', () => {
-    render(<ObjectiveGuide tourId="client-intelligence" />)
-    expect(JSON.parse(localStorage.getItem('tour-viewed') ?? '{}')).toEqual({ 'client-intelligence': true })
-  })
+  it('does not reopen the guide for an existing learner', () => {
+    vi.mocked(useAuthStore).mockImplementation((selector) => selector({ onboardingRequired: false } as never))
 
-  it('does not open a tour that has already been viewed', () => {
-    // sets local storage key as viewed for client intelligence before test
-    localStorage.setItem(
-      'tour-viewed',
-      JSON.stringify({ 'client-intelligence': true })
-    )
+    render(<ObjectiveGuide />)
 
-    render(<ObjectiveGuide tourId="client-intelligence" />)
     expect(setIsOpen).not.toHaveBeenCalled()
-  })
-
-  it('tour does not reopen after it has been viewed even if it was closed halfway through', () => {
-    // render tour and ensure tour was opened
-    const { unmount } = render(<ObjectiveGuide tourId="live-meeting" />)
-    expect(setIsOpen).toHaveBeenCalledWith(true)
-
-    // remove component to simulate the user leaving the page
-    unmount()
-
-    setIsOpen.mockClear()
-
-    // render tour to indicate return to page and ensure tour is not opened
-    render(<ObjectiveGuide tourId="live-meeting" />)
-    expect(setIsOpen).not.toHaveBeenCalled()
-  })
-
-  it('keeps viewed state for different pages independently', () => {
-    localStorage.setItem(
-      'tour-viewed',
-      JSON.stringify({ 'client-intelligence': true }),
-    )
-
-    // checks a different page to ensure tour opens
-    render(<ObjectiveGuide tourId="live-meeting" />)
-    expect(setIsOpen).toHaveBeenCalledWith(true)
-    expect(JSON.parse(localStorage.getItem('tour-viewed') ?? '{}')).toEqual({
-      'client-intelligence': true,
-      'live-meeting': true,
-    })
+    expect(complete).not.toHaveBeenCalled()
   })
 })

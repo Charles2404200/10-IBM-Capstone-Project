@@ -33,7 +33,15 @@ export default function RegisterPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
   const onSubmit = (data: FormValues) => {
-    register_.mutate(data, { onSuccess: () => navigate('/dashboard') })
+    register_.mutate(data, {
+      onSuccess: (response) => {
+        sessionStorage.setItem('pendingVerificationEmail', response.email)
+        navigate('/verify-email', {
+          replace: true,
+          state: { accountCreated: true, email: response.email },
+        })
+      },
+    })
   }
 
   return (
@@ -80,7 +88,7 @@ export default function RegisterPage() {
                   <InlineNotification
                     kind="error"
                     title="Registration failed"
-                    subtitle="Email may already be in use."
+                    subtitle="We could not create your account. Check the details and try again."
                     hideCloseButton
                   />
                 )}

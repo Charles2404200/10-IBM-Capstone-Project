@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Client, type IMessage } from '@stomp/stompjs'
 import { useAuthStore } from '@/store/authStore'
 import { meetingKeys } from '@/api/hooks/useMeeting'
-import type { ConversationTurn, Meeting, MeetingResponseOptions, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
+import type { ConversationTurn, Meeting, MeetingBehaviourFeedback, MeetingResponseOptions, MeetingTermination, MeetingTurnResult, PersonaState } from '@/api/types'
 
 interface UsePersonaTurnStreamResult {
   streamingText: string
@@ -14,6 +14,7 @@ interface UsePersonaTurnStreamResult {
   termination: MeetingTermination | null
   guidedOptionsPending: boolean
   guidedOptionsError: string | null
+  behaviourFeedback: MeetingBehaviourFeedback | null
   sendMessage: (message: string) => Promise<void>
 }
 
@@ -52,6 +53,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const [termination, setTermination] = useState<MeetingTermination | null>(null)
   const [guidedOptionsPending, setGuidedOptionsPending] = useState(false)
   const [guidedOptionsError, setGuidedOptionsError] = useState<string | null>(null)
+  const [behaviourFeedback, setBehaviourFeedback] = useState<MeetingBehaviourFeedback | null>(null)
   const qc = useQueryClient()
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -64,6 +66,21 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
   const pendingResolversRef = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null)
 
   useEffect(() => {
+    // A retry navigates to a new meeting while this page component remains
+    // mounted. Reset every ephemeral stream value before connecting so the
+    // failed attempt cannot keep its termination modal or relationship state.
+    setStreamingText('')
+    setIsStreaming(false)
+    setError(null)
+    setPersonaState(null)
+    setLatestSignals([])
+    setTermination(null)
+    setGuidedOptionsPending(false)
+    setGuidedOptionsError(null)
+    setBehaviourFeedback(null)
+    sendingRef.current = false
+
+    let disposed = false
     const token = useAuthStore.getState().token
     const client = new Client({
       brokerURL: toWebSocketUrl(baseUrl),
@@ -76,6 +93,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     client.onConnect = () => {
       connectedRef.current = true
       client.subscribe(`/topic/meetings/${meetingId}`, (frame: IMessage) => {
+        if (disposed) return
         const event = JSON.parse(frame.body) as SocketEvent
         if (event.type === 'turn.thinking') {
           setStreamingText('Client is reading your message...')
@@ -90,6 +108,9 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
           })
           setPersonaState(result.personaState)
           qc.setQueryData(meetingKeys.personaState(meetingId), result.personaState)
+          if (result.completedMeeting) {
+            qc.setQueryData(meetingKeys.meeting(meetingId), result.completedMeeting)
+          }
           if (result.responseOptions?.available) {
             qc.setQueryData(meetingKeys.responseOptions(meetingId), result.responseOptions)
             setGuidedOptionsPending(false)
@@ -104,6 +125,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
             void qc.invalidateQueries({ queryKey: meetingKeys.responseOptions(meetingId) })
           }
           setLatestSignals(result.meetingSignals ?? [])
+          setBehaviourFeedback(result.behaviourFeedback ?? null)
           const termination = result.termination
           setTermination(termination ?? null)
           if (termination) {
@@ -155,6 +177,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     clientRef.current = client
 
     return () => {
+      disposed = true
       connectedRef.current = false
       client.deactivate()
       clientRef.current = null
@@ -198,5 +221,5 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
     [meetingId]
   )
 
-  return { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, sendMessage }
+  return { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage }
 }

@@ -160,6 +160,59 @@ class PersonaStateEngineTest {
     }
 
     @Test
+    void penalizesAPrematureRecommendationEvenWhenTheProviderSuggestsAPositiveDelta() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
+                "The exact constraint is less important, so I suggest moving straight to a broader recommendation.", 1);
+
+        assertThat(state.getTrust()).isLessThan(50);
+        assertThat(state.getInterest()).isLessThan(50);
+        assertThat(state.getPatience()).isLessThan(50);
+    }
+
+    @Test
+    void penalizesProfessionalNearMissesUsedByGuidedMeetings() {
+        DifficultyProfile profile = DifficultyProfile.defaults(3, 3, 3, 3);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        for (String nearMiss : List.of(
+                "Based on the direction so far, I would frame the next phase around a focused pilot and refine the remaining operational detail as the work begins.",
+                "To keep momentum, I would prioritise the technical workstream first and leave the operating constraints for the implementation plan.",
+                "We can use the standard pilot pattern from comparable programmes, then validate the client-specific constraints once mobilisation begins.")) {
+            PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+
+            PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile, nearMiss, 1);
+
+            assertThat(state.getTrust()).isLessThan(50);
+            assertThat(state.getInterest()).isLessThan(50);
+            assertThat(state.getPatience()).isLessThan(50);
+        }
+    }
+
+    @Test
+    void penalizesTheGuidedEvasiveChoiceEvenWhenTheProviderSuggestsAPositiveDelta() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        PersonaTurnResponse incorrectlyPositiveResponse = new PersonaTurnResponse(
+                "The client is frustrated.", List.of(), new PersonaStateDelta(10, 10, 10),
+                List.of(), null, List.of(), new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, incorrectlyPositiveResponse, profile,
+                "I do not have enough detail to address that concern today, so perhaps we should revisit it later.", 1);
+
+        assertThat(state.getTrust()).isLessThan(50);
+        assertThat(state.getInterest()).isLessThan(50);
+        assertThat(state.getPatience()).isLessThan(50);
+    }
+
+    @Test
     void rewardsGroundedBehaviourLabelsInsteadOfAnUnboundedModelDelta() {
         DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
         PersonaState scoredByBehaviour = PersonaState.initial(UUID.randomUUID(), profile);
@@ -277,5 +330,27 @@ class PersonaStateEngineTest {
         assertThat(state.getTrust()).isEqualTo(50);
         assertThat(state.getInterest()).isEqualTo(50);
         assertThat(state.getPatience()).isEqualTo(50);
+    }
+
+    @Test
+    void penalizesARepeatedDiscoveryPointInsteadOfLettingItFarmRelationshipScore() {
+        DifficultyProfile profile = DifficultyProfile.defaults(1, 1, 1, 1);
+        PersonaState state = PersonaState.initial(UUID.randomUUID(), profile);
+        String original = "Given the current outage risk and field-service data gap, which dispatch workflow should we validate first?";
+        String repetition = "Given the current outage risk and field service data gap, which dispatch workflow should we validate first?";
+        PersonaTurnResponse overlyPositiveResponse = new PersonaTurnResponse(
+                "That is useful.",
+                List.of("directly_addresses_concern", "uses_client_fact", "asks_focused_question"),
+                new PersonaStateDelta(10, 10, 10), List.of(), null, List.of(),
+                new PersonaTurnResponse.SafetyCheck(true, null));
+
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile, original, 1);
+        int trustAfterOriginal = state.getTrust();
+        MeetingBehaviourAssessment assessment = PersonaStateEngine.assess(overlyPositiveResponse, repetition, List.of(original));
+        PersonaStateEngine.apply(state, overlyPositiveResponse, profile, 2, assessment);
+
+        assertThat(assessment.quality()).isEqualTo("REPETITIVE");
+        assertThat(assessment.relationshipDelta().trust()).isNegative();
+        assertThat(state.getTrust()).isLessThan(trustAfterOriginal);
     }
 }

@@ -17,6 +17,7 @@ public record AssessmentResponse(
         String feedbackSummary,
         List<String> strengths,
         List<String> improvementAreas,
+        boolean coachingPending,
         Instant generatedAt) {
 
     public record CompetencyScoreView(String name, int score, String evidenceNote) {
@@ -29,7 +30,9 @@ public record AssessmentResponse(
         return new AssessmentResponse(a.getId(), a.getEngagementId(),
                 a.getCompetencyScores().stream().map(CompetencyScoreView::from).toList(),
                 a.getOverallScore(), a.getOutcome(), a.getFeedbackSummary(),
-                copiedStrings(a.getStrengths()), copiedStrings(a.getImprovementAreas()), a.getGeneratedAt());
+                copiedStrings(a.getStrengths()), copiedStrings(a.getImprovementAreas()),
+                a.getFeedbackStatus() == com.ibm.consulting.sim.assessment.domain.AssessmentFeedbackStatus.PENDING,
+                a.getGeneratedAt());
     }
 
     /**

@@ -18,7 +18,6 @@ describe('ObjectiveTourProvider', () => {
     expect(() => {
       render(
         <ObjectiveTourProvider
-          tourId="live-meeting"
           objectives={[
             {
               id: 'conditional',
@@ -37,7 +36,6 @@ describe('ObjectiveTourProvider', () => {
   it('renders the tour content normally when objective targets exist', () => {
     const { getByText } = render(
       <ObjectiveTourProvider
-        tourId="live-meeting"
         objectives={[
           {
             id: 'meeting',

@@ -486,9 +486,9 @@ export default function ClientIntelligencePage() {
   const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
 
   return (
-    <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
+    <ObjectiveTourProvider objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
     <Grid fullWidth className={styles.page}>
-      <Column lg={16} md={8} sm={4}>
+      <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
         <nav className={styles.breadcrumbs} aria-label="Workflow path">
           <span>Research workflow</span><ChevronRight size={16} />
           <span>Build evidence and test a hypothesis</span><ChevronRight size={16} />
@@ -541,7 +541,7 @@ export default function ClientIntelligencePage() {
             {activeResearchAction ? (
               <div className={styles.researchMethods}>
                 <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
-                <form onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Add external context</h3><p>AI correlates your input without changing canonical scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button></Tile></form>
+                <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Add external context</h3><p>AI correlates your input without changing canonical scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button></Tile></form>
               </div>
             ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
             {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}

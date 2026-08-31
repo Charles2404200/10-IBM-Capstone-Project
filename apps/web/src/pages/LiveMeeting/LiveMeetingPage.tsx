@@ -14,12 +14,12 @@ import {
   Tile,
 } from '@carbon/react'
 import { ArrowRight, Send } from '@carbon/icons-react'
-import { useCompleteMeeting, useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
+import { useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConversationTurn, MeetingTermination, PersonaState } from '@/api/types'
+import type { ConversationTurn, MeetingBehaviourFeedback, MeetingTermination, PersonaState } from '@/api/types'
 import styles from './LiveMeetingPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
@@ -57,6 +57,37 @@ function RelationshipMeter({ label, value }: { label: string; value: number }) {
       <div className={styles.meterTrack}><div className={tone} style={{ width: `${value}%` }} /></div>
       <p>{value >= MEETING_THRESHOLD ? 'Meeting threshold met' : `${MEETING_THRESHOLD - value} points to threshold`}</p>
     </div>
+  )
+}
+
+function scoreDelta(value: number) {
+  return value > 0 ? `+${value}` : `${value}`
+}
+
+function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback }) {
+  const positive = feedback.trustDelta >= 0 && feedback.interestDelta >= 0 && feedback.patienceDelta >= 0
+  return (
+    <Tile className={`${styles.behaviourPanel} ${positive ? styles.behaviourPositive : styles.behaviourRecovery}`}>
+      <p className={styles.eyebrow}>Simulation Director</p>
+      <div className={styles.behaviourHeading}>
+        <h3>{feedback.quality.replaceAll('_', ' ').toLowerCase()}</h3>
+        <div className={styles.behaviourDeltas} aria-label="Relationship impact">
+          <span>Trust {scoreDelta(feedback.trustDelta)}</span>
+          <span>Interest {scoreDelta(feedback.interestDelta)}</span>
+          <span>Patience {scoreDelta(feedback.patienceDelta)}</span>
+        </div>
+      </div>
+      <p>{feedback.explanation}</p>
+      {feedback.verifiedBehaviours.length > 0 && (
+        <div className={styles.behaviourTags}>
+          {feedback.verifiedBehaviours.map((behaviour) => <Tag key={behaviour} type="blue">{behaviour.replaceAll('_', ' ')}</Tag>)}
+        </div>
+      )}
+      <div className={styles.behaviourNextAction}>
+        <strong>Next best action</strong>
+        <span>{feedback.nextBestAction}</span>
+      </div>
+    </Tile>
   )
 }
 
@@ -101,25 +132,38 @@ export default function LiveMeetingPage() {
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
   const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
-  const completeMeeting = useCompleteMeeting(meetingId!, engagementId!)
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
-  const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, sendMessage } = useMeetingSocket(meetingId!)
+  const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [terminationDismissed, setTerminationDismissed] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const transcriptRef = useRef<HTMLDivElement>(null)
 
   const turns = useMemo(() => transcript ?? [], [transcript])
   const currentState = personaState ?? persistedPersonaState
+  const latestPersistedFeedback = meeting?.behaviourLedger?.[meeting.behaviourLedger.length - 1] ?? null
+  const currentBehaviourFeedback = behaviourFeedback ?? latestPersistedFeedback
   const hint = useMemo(
     () => currentState ? deriveHint(turns, latestSignals, currentState) : [],
     [turns, latestSignals, currentState]
   )
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    const transcriptViewport = transcriptRef.current
+    if (!transcriptViewport) return
+
+    transcriptViewport.scrollTo({
+      top: transcriptViewport.scrollHeight,
+      behavior: 'smooth',
+    })
   }, [turns.length, streamingText])
+
+  useEffect(() => {
+    setMessage('')
+    setPendingMessage(null)
+    setTerminationDismissed(false)
+  }, [meetingId])
 
   if (meetingLoading || transcriptLoading || personaStateLoading) return <LoadingState />
   if (meetingError || !meeting) return <ErrorState />
@@ -156,10 +200,6 @@ export default function LiveMeetingPage() {
 
   const handleSend = async () => sendResponse(message.trim())
 
-  const handleComplete = () => {
-    completeMeeting.mutate()
-  }
-
   const handleRetryLead = () => {
     retryEngagement.mutate(undefined, {
       onSuccess: (retry) => navigate(`/dashboard/engagements/${retry.id}/intelligence`),
@@ -173,8 +213,8 @@ export default function LiveMeetingPage() {
   }
 
   return (
-    <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
-    <div className={styles.page}>
+    <ObjectiveTourProvider objectives={LIVE_MEETING_OBJECTIVES}>
+    <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
       <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
@@ -182,19 +222,14 @@ export default function LiveMeetingPage() {
               <p className={styles.eyebrow}>Live discovery</p>
               <Heading>Live Client Meeting</Heading>
             </div>
-            {!isCompleted && (
-              <Button kind={meetingGateMet ? 'primary' : 'secondary'} disabled={isStreaming || completeMeeting.isPending} onClick={handleComplete}>
-                {completeMeeting.isPending ? 'Preparing debrief...' : meetingGateMet ? 'Complete Meeting' : 'End Meeting'}
-              </Button>
-            )}
           </div>
         </Column>
       </Grid>
 
       <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={11} md={8} sm={4}>
+        <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
           <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
-            <div className={styles.transcriptViewport}>
+            <div className={styles.transcriptViewport} ref={transcriptRef}>
               {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
@@ -203,7 +238,6 @@ export default function LiveMeetingPage() {
               {isStreaming && streamingText && (
                 <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
               )}
-              <div ref={scrollRef} />
             </div>
 
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
@@ -213,11 +247,15 @@ export default function LiveMeetingPage() {
                 <div className={styles.guidedHeading}>
                   <div>
                     <p className={styles.eyebrow}>Guided response</p>
-                    <h3>Choose your next response</h3>
+                    <h3>{meetingGateMet ? 'Confirm the agreed next step' : 'Choose your next response'}</h3>
                   </div>
                   <Tag type="blue">Three options</Tag>
                 </div>
-                <p className={styles.guidedDescription}>Choose the response you would use with this client. Its impact is evaluated from the actual conversation.</p>
+                <p className={styles.guidedDescription}>
+                  {meetingGateMet
+                    ? 'The client is ready to conclude. Confirm one concrete next step; the meeting will then close automatically.'
+                    : 'Choose carefully: not every professional-sounding response advances the conversation. Its impact is evaluated from the actual conversation.'}
+                </p>
                 {responseOptionsLoading && <InlineLoading description="Preparing response options..." />}
                 {(isStreaming || guidedOptionsPending) && <InlineLoading description={isStreaming ? 'Client is responding...' : 'Preparing next response options...'} />}
                 {!isStreaming && !guidedOptionsPending && !responseOptionsLoading && responseOptions?.available && (
@@ -340,11 +378,13 @@ export default function LiveMeetingPage() {
               </Tile>
             )}
 
+            {currentBehaviourFeedback && <BehaviourFeedback feedback={currentBehaviourFeedback} />}
+
             {!isCompleted && (meetingGateMet || clientReadyToClose) && (
               <Tile className={styles.readyToClosePanel}>
                 <p className={styles.eyebrow}>Client readiness</p>
                 <h3>Ready to conclude</h3>
-                <p>The client has enough confidence to move forward. Confirm the agreed next step, then complete the meeting.</p>
+                <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
               </Tile>
             )}
 

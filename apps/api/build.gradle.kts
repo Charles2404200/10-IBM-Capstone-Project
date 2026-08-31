@@ -27,6 +27,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     implementation("net.logstash.logback:logstash-logback-encoder:$logstashLogbackVersion")
@@ -80,6 +81,23 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.register<Test>("aiEvaluation") {
+    group = "verification"
+    description = "Runs the versioned AI behaviour regression corpus."
+    useJUnitPlatform()
+    include("**/AiEvaluationRegressionSuiteTest.class")
+    include("**/PersonaPromptContractRegressionTest.class")
+}
+
+tasks.named<Test>("test") {
+    exclude("**/AiEvaluationRegressionSuiteTest.class")
+    exclude("**/PersonaPromptContractRegressionTest.class")
+}
+
+tasks.named("check") {
+    dependsOn("aiEvaluation")
 }
 
 // Load variables from the repo-root .env file (if present) into the bootRun

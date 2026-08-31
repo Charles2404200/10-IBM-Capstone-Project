@@ -1,9 +1,6 @@
 package com.ibm.consulting.sim.assessment.application;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ibm.consulting.sim.ai.application.AiOrchestrationService;
 import com.ibm.consulting.sim.ai.domain.AssessmentFeedback;
-import com.ibm.consulting.sim.ai.infrastructure.AssessmentFeedbackParser;
 import com.ibm.consulting.sim.achievement.application.AchievementEvaluationService;
 import com.ibm.consulting.sim.assessment.domain.*;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
@@ -24,6 +21,7 @@ import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,8 +35,6 @@ import java.util.UUID;
 @Service
 public class AssessmentService {
 
-    private static final int PROMPT_VERSION = 1;
-
     private final AssessmentRepository assessmentRepository;
     private final EngagementRepository engagementRepository;
     private final ResearchEvidenceRepository evidenceRepository;
@@ -46,9 +42,8 @@ public class AssessmentService {
     private final PersonaStateRepository personaStateRepository;
     private final ProposalRepository proposalRepository;
     private final ScenarioRepository scenarioRepository;
-    private final AiOrchestrationService aiOrchestrationService;
-    private final AssessmentFeedbackParser feedbackParser;
     private final AchievementEvaluationService achievementEvaluationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AssessmentService(AssessmentRepository assessmentRepository,
                               EngagementRepository engagementRepository,
@@ -57,9 +52,8 @@ public class AssessmentService {
                               PersonaStateRepository personaStateRepository,
                               ProposalRepository proposalRepository,
                               ScenarioRepository scenarioRepository,
-                              AiOrchestrationService aiOrchestrationService,
-                              ObjectMapper objectMapper,
-                              AchievementEvaluationService achievementEvaluationService) {
+                              AchievementEvaluationService achievementEvaluationService,
+                              ApplicationEventPublisher eventPublisher) {
         this.assessmentRepository = assessmentRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -67,9 +61,8 @@ public class AssessmentService {
         this.personaStateRepository = personaStateRepository;
         this.proposalRepository = proposalRepository;
         this.scenarioRepository = scenarioRepository;
-        this.aiOrchestrationService = aiOrchestrationService;
-        this.feedbackParser = new AssessmentFeedbackParser(objectMapper);
         this.achievementEvaluationService = achievementEvaluationService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -78,16 +71,20 @@ public class AssessmentService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         return assessmentRepository.findByEngagementId(engagementId)
-                .map(AssessmentResponse::from)
+                .map(assessment -> {
+                    completeAssessmentLifecycle(engagement, "Recovered completed assessment lifecycle");
+                    return AssessmentResponse.from(assessment);
+                })
                 .orElseGet(() -> buildAndPersist(engagement));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AssessmentResponse get(UUID engagementId, UUID userId) {
-        engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         Assessment assessment = assessmentRepository.findByEngagementId(engagementId)
                 .orElseThrow(() -> new NotFoundException("Assessment for engagement", engagementId));
+        completeAssessmentLifecycle(engagement, "Completed assessment opened");
         return AssessmentResponse.from(assessment);
     }
 
@@ -129,26 +126,38 @@ public class AssessmentService {
         int overallScore = AssessmentEngine.overall(competencyScores, scenario.getRubricWeights());
         String outcome = proposalOutcome(proposal);
 
-        AssessmentFeedback feedback = aiOrchestrationService.execute(
-                "assessment_feedback",
-                engagementId,
-                buildFeedbackPrompt(competencyScores, overallScore, outcome),
-                PROMPT_VERSION,
-                feedbackParser,
-                () -> AssessmentFeedback.safeFallback(overallScore));
+        AssessmentFeedback feedback = AssessmentFeedback.pending(overallScore);
 
         Assessment assessment = Assessment.create(engagementId, competencyScores, overallScore, outcome,
-                feedback.feedbackSummary(), feedback.strengths(), feedback.improvementAreas());
+                feedback.feedbackSummary(), feedback.strengths(), feedback.improvementAreas(),
+                AssessmentFeedbackStatus.PENDING);
         assessmentRepository.save(assessment);
 
-        if (engagement.getState() == EngagementState.CLIENT_DECISION) {
-            engagement.transitionTo(EngagementState.REVIEW, "Assessment generated");
-            engagementRepository.save(engagement);
-        }
-
         achievementEvaluationService.evaluateForUser(engagement.getUserId());
+        completeAssessmentLifecycle(engagement, "Assessment generated and portfolio updated");
+        eventPublisher.publishEvent(new AssessmentGeneratedEvent(engagementId, competencyScores, overallScore, outcome));
 
         return AssessmentResponse.from(assessment);
+    }
+
+    /**
+     * Completes the final two lifecycle steps after a durable assessment exists.
+     * This is intentionally idempotent so engagements created before the
+     * completion transition was introduced are repaired on their next read.
+     */
+    private void completeAssessmentLifecycle(Engagement engagement, String reason) {
+        boolean changed = false;
+        if (engagement.getState() == EngagementState.CLIENT_DECISION) {
+            engagement.transitionTo(EngagementState.REVIEW, "Assessment available for review");
+            changed = true;
+        }
+        if (engagement.getState() == EngagementState.REVIEW) {
+            engagement.transitionTo(EngagementState.COMPLETED, reason);
+            changed = true;
+        }
+        if (changed) {
+            engagementRepository.save(engagement);
+        }
     }
 
     /**
@@ -174,24 +183,6 @@ public class AssessmentService {
                         + a.getScoreClarity() + a.getScoreCallToAction()) / 4)
                 .average()
                 .orElse(0));
-    }
-
-    private String buildFeedbackPrompt(List<CompetencyScore> scores, int overallScore, String outcome) {
-        StringBuilder scoreLines = new StringBuilder();
-        scores.forEach(s -> scoreLines.append("- %s: %d/100 (%s)%n"
-                .formatted(s.getCompetencyName(), s.getScore(), s.getEvidenceNote())));
-
-        return """
-                You are an IBM consulting coach writing evidence-based feedback for a trainee who just
-                completed a training engagement with outcome: %s (overall score %d/100).
-
-                Competency breakdown:
-                %s
-
-                Write a concise, encouraging but honest coaching summary citing these specific scores.
-                Return ONLY JSON matching:
-                {"feedbackSummary": string, "strengths": string[], "improvementAreas": string[]}
-                """.formatted(outcome, overallScore, scoreLines);
     }
 
     public static class AssessmentNotAvailableException extends DomainException {

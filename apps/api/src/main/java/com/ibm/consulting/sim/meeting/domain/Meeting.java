@@ -45,6 +45,11 @@ public class Meeting extends BaseEntity {
     @OrderColumn(name = "tip_order")
     private List<String> debriefTips = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "meeting_behaviour_ledger", joinColumns = @JoinColumn(name = "meeting_id"))
+    @OrderColumn(name = "ledger_order")
+    private List<MeetingBehaviourLedgerEntry> behaviourLedger = new ArrayList<>();
+
     protected Meeting() {}
 
     public static Meeting start(UUID engagementId, UUID personaId) {
@@ -75,6 +80,11 @@ public class Meeting extends BaseEntity {
         this.transcriptStorageReference = storageReference;
     }
 
+    /** Appends the already-determined learner-turn decision to the durable audit trail. */
+    public void recordBehaviourAssessment(int learnerSequence, MeetingBehaviourAssessment assessment) {
+        this.behaviourLedger.add(MeetingBehaviourLedgerEntry.from(learnerSequence, assessment));
+    }
+
     public UUID getEngagementId() { return engagementId; }
     public UUID getPersonaId() { return personaId; }
     public MeetingStatus getStatus() { return status; }
@@ -85,4 +95,5 @@ public class Meeting extends BaseEntity {
     public List<String> getDebriefTips() { return Collections.unmodifiableList(debriefTips); }
     public MeetingTerminationReason getTerminationReason() { return terminationReason; }
     public String getTerminationMessage() { return terminationMessage; }
+    public List<MeetingBehaviourLedgerEntry> getBehaviourLedger() { return Collections.unmodifiableList(behaviourLedger); }
 }

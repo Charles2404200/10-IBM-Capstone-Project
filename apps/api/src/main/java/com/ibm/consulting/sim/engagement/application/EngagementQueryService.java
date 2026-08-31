@@ -1,7 +1,9 @@
 package com.ibm.consulting.sim.engagement.application;
 
+import com.ibm.consulting.sim.assessment.domain.AssessmentRepository;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
+import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
@@ -18,7 +20,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static com.ibm.consulting.sim.shared.config.CacheConfig.ENGAGEMENT_DASHBOARD_CACHE;
 
@@ -33,17 +37,20 @@ import static com.ibm.consulting.sim.shared.config.CacheConfig.ENGAGEMENT_DASHBO
 public class EngagementQueryService {
 
     private final EngagementRepository engagementRepository;
+    private final AssessmentRepository assessmentRepository;
     private final ScenarioRepository scenarioRepository;
     private final LeadRepository leadRepository;
     private final ResearchEvidenceRepository evidenceRepository;
     private final MeetingRepository meetingRepository;
 
     public EngagementQueryService(EngagementRepository engagementRepository,
+                                  AssessmentRepository assessmentRepository,
                                   ScenarioRepository scenarioRepository,
                                   LeadRepository leadRepository,
                                   ResearchEvidenceRepository evidenceRepository,
                                   MeetingRepository meetingRepository) {
         this.engagementRepository = engagementRepository;
+        this.assessmentRepository = assessmentRepository;
         this.scenarioRepository = scenarioRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
@@ -62,11 +69,39 @@ public class EngagementQueryService {
      * it contains only the learner's own work and can be invalidated exactly
      * when a lifecycle command changes that work.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     @Cacheable(cacheNames = ENGAGEMENT_DASHBOARD_CACHE, key = "#userId")
     public List<EngagementResponse> listForUser(UUID userId) {
         List<Engagement> engagements = engagementRepository.findDashboardByUserId(userId);
+        reconcileCompletedAssessments(engagements);
         return enrichAll(engagements);
+    }
+
+    /**
+     * Repairs legacy runs whose assessment was persisted before the terminal
+     * REVIEW -> COMPLETED transition existed. Keeping this at the read-model
+     * boundary makes dashboards correct without requiring a data migration or
+     * forcing the learner to revisit the assessment screen.
+     */
+    private void reconcileCompletedAssessments(List<Engagement> engagements) {
+        List<Engagement> awaitingCompletion = engagements.stream()
+                .filter(engagement -> engagement.getState() == EngagementState.REVIEW)
+                .toList();
+        if (awaitingCompletion.isEmpty()) return;
+
+        Set<UUID> assessedEngagementIds = assessmentRepository.findAllByEngagementIdIn(
+                        awaitingCompletion.stream().map(Engagement::getId).toList())
+                .stream()
+                .map(assessment -> assessment.getEngagementId())
+                .collect(Collectors.toSet());
+
+        awaitingCompletion.stream()
+                .filter(engagement -> assessedEngagementIds.contains(engagement.getId()))
+                .forEach(engagement -> {
+                    engagement.transitionTo(EngagementState.COMPLETED,
+                            "Recovered completed assessment lifecycle from dashboard");
+                    engagementRepository.save(engagement);
+                });
     }
 
     private EngagementResponse enrich(Engagement engagement) {

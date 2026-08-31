@@ -343,7 +343,7 @@ export default function OutreachWorkspacePage() {
   }
 
   return (
-    <ObjectiveTourProvider tourId="outreach" objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
+    <ObjectiveTourProvider objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.makeContactHero}>
@@ -531,7 +531,9 @@ export default function OutreachWorkspacePage() {
             )}
 
             {!meetingSecured && !documentRequired && (
-              <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
+              <div className={styles.selfCheckPanel}>
+                <OutreachSelfCheck body={draftBody} context={rubricContext} explain={!latestAttempt} />
+              </div>
             )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}

@@ -5,6 +5,7 @@ export interface TokenResponse {
   userId: string
   displayName: string
   role: string
+  onboardingRequired?: boolean
 }
 
 // ─── Scenario ────────────────────────────────────────────────────────────────
@@ -22,6 +23,11 @@ export interface DifficultyProfile {
   informationAmbiguity: number
   stakeholderComplexity: number
   commercialPressure: number
+}
+
+export interface RegistrationResponse {
+  email: string
+  verificationRequired: boolean
 }
 
 export type UserRole = 'LEARNER' | 'SCENARIO_AUTHOR' | 'REVIEWER' | 'ADMINISTRATOR'
@@ -417,6 +423,7 @@ export interface Meeting {
   terminationMessage: string | null
   meetingRetryAvailable: boolean
   meetingRetriesRemaining: number
+  behaviourLedger?: MeetingBehaviourFeedback[]
 }
 
 export type ConversationActor = 'LEARNER' | 'PERSONA'
@@ -439,6 +446,16 @@ export interface PersonaState {
   disclosedFacts: string[]
 }
 
+export interface MeetingBehaviourFeedback {
+  quality: string
+  trustDelta: number
+  interestDelta: number
+  patienceDelta: number
+  verifiedBehaviours: string[]
+  explanation: string
+  nextBestAction: string
+}
+
 export interface MeetingTurnResult {
   learnerTurn: ConversationTurn
   personaTurn: ConversationTurn
@@ -446,6 +463,8 @@ export interface MeetingTurnResult {
   meetingSignals: string[]
   termination: MeetingTermination | null
   responseOptions: MeetingResponseOptions | null
+  completedMeeting: Meeting | null
+  behaviourFeedback?: MeetingBehaviourFeedback | null
 }
 
 export interface MeetingTermination {
@@ -613,6 +632,7 @@ export interface Assessment {
   feedbackSummary: string
   strengths: string[]
   improvementAreas: string[]
+  coachingPending: boolean
   generatedAt: string
 }
 
