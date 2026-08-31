@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -73,6 +75,25 @@ interface SpringDataKafkaInboxRepository
             @Param("offset")
             long offset
     );
+
+    @Modifying
+    @Query(value = """
+            WITH expired AS (
+                SELECT consumer_group, event_id
+                FROM kafka_inbox
+                WHERE processed_at < :cutoff
+                ORDER BY processed_at
+                LIMIT :limit
+            )
+            DELETE FROM kafka_inbox inbox
+            USING expired
+            WHERE inbox.consumer_group = expired.consumer_group
+              AND inbox.event_id = expired.event_id
+            """, nativeQuery = true)
+    int deleteProcessedBefore(
+            @Param("cutoff") Instant cutoff,
+            @Param("limit") int limit
+    );
 }
 
 @Repository
@@ -97,5 +118,14 @@ public class JPAKafkaInboxRepository implements KafkaInboxRepository {
     @Override
     public int insertIfAbsent(String consumerGroup, UUID eventId, String eventType, String topic, int partition, long offset) {
         return repo.insertIfAbsent(consumerGroup,eventId,eventType,topic,partition,offset);
+    }
+
+    @Override
+    public int deleteProcessedBefore(Instant cutoff, int limit) {
+        Objects.requireNonNull(cutoff, "cutoff must not be null");
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        return repo.deleteProcessedBefore(cutoff, limit);
     }
 }

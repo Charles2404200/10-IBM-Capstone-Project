@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.shared.domain.kafka;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public interface KafkaInboxRepository {
@@ -24,4 +25,6 @@ public interface KafkaInboxRepository {
 
             long offset
     );
+
+    int deleteProcessedBefore(Instant cutoff, int limit);
 }

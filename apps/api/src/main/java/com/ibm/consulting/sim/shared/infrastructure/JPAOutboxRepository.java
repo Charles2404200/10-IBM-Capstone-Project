@@ -149,14 +149,23 @@ interface SpringDataOutboxRepository
     );
 
     @Modifying
-    @Query("""
-            DELETE FROM OutboxEvent outbox
-            WHERE outbox.status = :status
-              AND outbox.publishedAt < :cutoff
-            """)
+    @Query(value = """
+            WITH expired AS (
+                SELECT id
+                FROM event_outbox
+                WHERE status = :status
+                  AND published_at < :cutoff
+                ORDER BY published_at
+                LIMIT :limit
+            )
+            DELETE FROM event_outbox outbox
+            USING expired
+            WHERE outbox.id = expired.id
+            """, nativeQuery = true)
     int deletePublishedBefore(
-            @Param("status") OutboxStatus status,
-            @Param("cutoff") Instant cutoff
+            @Param("status") String status,
+            @Param("cutoff") Instant cutoff,
+            @Param("limit") int limit
     );
 }
 
@@ -303,81 +312,20 @@ public class JPAOutboxRepository
 
     @Override
     @Transactional
-    public void deletePublishedBefore(
-            Instant cutoff
+    public int deletePublishedBefore(
+            Instant cutoff,
+            int limit
     ) {
-
-        repository.deletePublishedBefore(
-                OutboxStatus.PUBLISHED,
+        if (limit <= 0) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        return repository.deletePublishedBefore(
+                OutboxStatus.PUBLISHED.name(),
                 Objects.requireNonNull(
                         cutoff,
                         "cutoff must not be null"
-                )
+                ),
+                limit
         );
     }
 }
-
-//@Repository
-//public class JPAOutboxRepository implements OutboxEventRepository {
-//
-//    private final SpringDataOutboxRepository repository;
-//
-//    public JPAOutboxRepository(SpringDataOutboxRepository repository) {
-//        this.repository = repository;
-//    }
-//
-//    @Override
-//    public void save(OutboxEvent event) {
-//        repository.save(Objects.requireNonNull(event, "event must not be null"));
-//    }
-//
-//    @Override
-//    public Optional<OutboxEvent> findById(UUID eventId) {
-//        return repository.findById(
-//                Objects.requireNonNull(eventId, "eventId must not be null")
-//        );
-//    }
-//
-//    @Override
-//    @Transactional(propagation = Propagation.MANDATORY)
-//    public Optional<OutboxEvent> findByIdForUpdate(UUID eventId) {
-//        return repository.findByIdForUpdate(
-//                Objects.requireNonNull(eventId, "eventId must not be null")
-//        );
-//    }
-//
-//    @Override
-//    @Transactional(propagation = Propagation.MANDATORY)
-//    public List<OutboxEvent> findDispatchableForUpdate(int limit) {
-//        if (limit <= 0) {
-//            throw new IllegalArgumentException("limit must be positive");
-//        }
-//
-//        return repository.findDispatchableForUpdate(
-//                OutboxStatus.PENDING,
-//                OutboxStatus.PUBLISHED,
-//                OrderingMode.UNORDERED,
-//                Instant.now(),
-//                PageRequest.of(0, limit)
-//        );
-//    }
-//
-//    @Override
-//    @Transactional
-//    public int recoverStaleProcessing(Instant cutoff) {
-//        return repository.recoverStaleProcessing(
-//                OutboxStatus.PROCESSING,
-//                OutboxStatus.PENDING,
-//                Objects.requireNonNull(cutoff, "cutoff must not be null")
-//        );
-//    }
-//
-//    @Override
-//    @Transactional
-//    public void deletePublishedBefore(Instant cutoff) {
-//        repository.deletePublishedBefore(
-//                OutboxStatus.PUBLISHED,
-//                Objects.requireNonNull(cutoff, "cutoff must not be null")
-//        );
-//    }
-//}

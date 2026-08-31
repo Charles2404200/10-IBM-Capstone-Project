@@ -30,7 +30,8 @@ public interface OutboxEventRepository {
             Instant cutoff
     );
 
-    void deletePublishedBefore(
-            Instant cutoff
+    int deletePublishedBefore(
+            Instant cutoff,
+            int limit
     );
 }

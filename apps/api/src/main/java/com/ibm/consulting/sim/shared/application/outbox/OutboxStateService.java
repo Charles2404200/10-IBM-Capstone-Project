@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -17,15 +16,15 @@ public class OutboxStateService {
     private static final Logger log =
             LoggerFactory.getLogger(OutboxStateService.class);
 
-    private static final Duration RETRY_DELAY =
-            Duration.ofSeconds(1);
-
     private final OutboxEventRepository outboxRepository;
+    private final OutboxRetryPolicy retryPolicy;
 
     public OutboxStateService(
-            OutboxEventRepository outboxRepository
+            OutboxEventRepository outboxRepository,
+            OutboxRetryPolicy retryPolicy
     ) {
         this.outboxRepository = outboxRepository;
+        this.retryPolicy = retryPolicy;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -56,11 +55,14 @@ public class OutboxStateService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean markPendingAgain(
             UUID eventId,
-            UUID claimToken
+            UUID claimToken,
+            int previousFailureCount
     ) {
 
         Instant nextAttemptAt =
-                Instant.now().plus(RETRY_DELAY);
+                Instant.now().plus(
+                        retryPolicy.delayFor(eventId, previousFailureCount)
+                );
 
         int updatedRows =
                 outboxRepository.markPendingAgainIfOwned(

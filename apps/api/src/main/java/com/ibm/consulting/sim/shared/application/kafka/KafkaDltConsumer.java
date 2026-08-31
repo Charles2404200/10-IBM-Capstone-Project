@@ -1,5 +1,6 @@
 
-import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
+package com.ibm.consulting.sim.shared.application.kafka;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,41 +23,36 @@ public class KafkaDltConsumer {
             );
 
     @KafkaListener(
-            topicPattern =
-                    ".*\\.DLT",
+            topics =
+                    "${app.kafka.notifications.dlt.topic-name:notifications.DLT}",
 
             groupId =
-                    "${app.kafka.dlt.consumer.group-id}",
+                    "${app.kafka.notifications.dlt.consumer.group-id:notification-dlt-monitor}",
+
+            concurrency =
+                    "${app.kafka.notifications.dlt.consumer.concurrency:1}",
 
             containerFactory =
-                    "kafkaListenerContainerFactory"
+                    "kafkaDltListenerContainerFactory"
     )
     public void consume(
             ConsumerRecord<
                     String,
-                    EventEnvelope
+                    byte[]
                     > record
     ) {
-
-        EventEnvelope event =
-                record.value();
-
         /*
-         * Never log payload.
+         * Never log or deserialize the payload. Invalid serialized data is a
+         * valid DLT use case; metadata and Kafka headers remain available to
+         * operational tooling.
          */
         log.error(
-                "Kafka DLT event: eventId={}, eventType={}, topic={}, partition={}, offset={}",
-                event != null
-                        ? event.eventId()
-                        : null,
-
-                event != null
-                        ? event.eventType()
-                        : null,
-
+                "Kafka DLT record: topic={}, partition={}, offset={}, key={}, payloadBytes={}",
                 record.topic(),
                 record.partition(),
-                record.offset()
+                record.offset(),
+                record.key(),
+                record.value() == null ? 0 : record.value().length
         );
     }
 }

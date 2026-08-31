@@ -9,6 +9,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * Bounded, named, application-managed thread pools — replacing ad-hoc
@@ -122,6 +123,27 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setThreadNamePrefix("transactional-email-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
+    /**
+     * Completes outbox state transitions away from Kafka's network thread.
+     * Caller-runs provides bounded backpressure if the database is slower than
+     * broker acknowledgements instead of dropping completion work.
+     */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService outboxCompletionExecutor(
+            @Value("${app.async.outbox-completion-pool-size:8}") int poolSize,
+            @Value("${app.async.outbox-completion-queue-capacity:500}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(poolSize);
+        executor.setMaxPoolSize(poolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("outbox-completion-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(15);
         executor.initialize();
         return executor.getThreadPoolExecutor();
     }

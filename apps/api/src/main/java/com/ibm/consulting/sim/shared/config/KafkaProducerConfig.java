@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -35,15 +36,17 @@ public class KafkaProducerConfig {
 
     @Bean
     ProducerFactory<String, Object> producerFactory(
-            KafkaProperties properties) {
+            KafkaProperties properties,
+            SslBundles sslBundles) {
 
         log.info("Configuring shared Kafka JSON producer: bootstrapServerCount={}, typeHeaders=true",
                 properties.getBootstrapServers().size());
 
-        Map<String, Object> config = new HashMap<>();
-        config.put(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                properties.getBootstrapServers()
+        // Retain all Boot-provided SASL/SSL, client, and cloud-broker settings.
+        // Rebuilding this map from only bootstrap servers silently breaks
+        // authenticated production clusters.
+        Map<String, Object> config = new HashMap<>(
+                properties.buildProducerProperties(sslBundles)
         );
 
         // is mainly used to prevent duplicate Kafka records caused by producer retries.
@@ -55,6 +58,13 @@ public class KafkaProducerConfig {
         config.put(
                 ProducerConfig.ACKS_CONFIG,
                 "all"
+        );
+
+        // Required by idempotent producers and preserves partition ordering
+        // while still allowing multiple requests to be in flight.
+        config.put(
+                ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,
+                5
         );
 
         // kafka keeps retrying if failure is temporary

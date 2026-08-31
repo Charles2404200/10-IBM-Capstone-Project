@@ -5,105 +5,115 @@ import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Component
 public class OutboxDispatcher {
 
-    // the outbox pattern exists so that
-    // we do not need one atomic
-    // operation where
-    // i want both the kafka transaction
-    // and the database transaction to be
-    // successful together
-    // i should put every event
-    // which is ordered in the database
-    // and update whether it is processed
-    // so i know whether the event is processed
-    // or not and published and use it to see
-    // whether the order is proper or not
-    // and then if nothing is there before the
-    // sequence it means all of them are published
-    // and so i can remove all the published ones
-    // every day
-
-
-    private static final Logger log =
-            LoggerFactory.getLogger(
-                    OutboxDispatcher.class
-            );
+    private static final Logger log = LoggerFactory.getLogger(OutboxDispatcher.class);
 
     private final OutboxClaimService claimService;
-
     private final OutboxEventRepository repository;
-
     private final OutboxStateService stateService;
-
     private final KafkaEventPublisher publisher;
+    private final ExecutorService completionExecutor;
+    private final int batchSize;
 
-    public OutboxDispatcher(OutboxClaimService claimService, OutboxEventRepository repository, OutboxStateService stateService, KafkaEventPublisher publisher) {
+    public OutboxDispatcher(
+            OutboxClaimService claimService,
+            OutboxEventRepository repository,
+            OutboxStateService stateService,
+            KafkaEventPublisher publisher,
+            @Qualifier("outboxCompletionExecutor") ExecutorService completionExecutor,
+            @Value("${app.kafka.outbox.batch-size:100}") int batchSize) {
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("Outbox batch size must be positive");
+        }
         this.claimService = claimService;
         this.repository = repository;
         this.stateService = stateService;
         this.publisher = publisher;
+        this.completionExecutor = completionExecutor;
+        this.batchSize = batchSize;
     }
 
 
-    @Scheduled(
-            fixedDelayString =
-                    "${app.kafka.outbox.poll-delay-ms:200}"
-    )
+    @Scheduled(fixedDelayString = "${app.kafka.outbox.poll-delay-ms:200}")
     public void dispatch() {
 
         UUID claimToken = UUID.randomUUID();
         List<UUID> ids =
-                claimService.claimBatch(100 , claimToken);
+                claimService.claimBatch(batchSize, claimToken);
 
-        for (UUID id : ids) {
+        List<CompletableFuture<Void>> completions = ids.stream()
+                .map(id -> publishClaimed(id, claimToken))
+                .toList();
 
-            OutboxEvent event =
-                    repository.findById(id)
-                            .orElseThrow();
+        CompletableFuture.allOf(
+                completions.toArray(CompletableFuture[]::new)
+        ).join();
+    }
 
-            try {
+    private CompletableFuture<Void> publishClaimed(UUID id, UUID claimToken) {
+        OutboxEvent event = repository.findById(id).orElse(null);
+        if (event == null) {
+            log.error("Claimed outbox event disappeared: eventId={}", id);
+            return CompletableFuture.completedFuture(null);
+        }
 
-                /*
-                 * Same method handles
-                 *
-                 * ORDERED and UNORDERED.
-                 *
-                 * KafkaEventPublisher chooses
-                 * the correct Kafka key.
-                 */
-                publisher.publish(
-                        event.getTopic(),
-                        event.toEnvelope()
-                ).join();
+        try {
+            return publisher.publish(event.getTopic(), event.toEnvelope())
+                    .handleAsync((ignored, failure) -> {
+                        completePublication(event, claimToken, failure);
+                        return null;
+                    }, completionExecutor);
+        } catch (Exception failure) {
+            completePublication(event, claimToken, failure);
+            return CompletableFuture.completedFuture(null);
+        }
+    }
 
+    private void completePublication(
+            OutboxEvent event,
+            UUID claimToken,
+            Throwable failure) {
+        try {
+            if (failure == null) {
                 stateService.markPublished(
-                        id,
+                        event.getId(),
                         claimToken
                 );
-
-            } catch (Exception ex) {
-
+            } else {
                 stateService.markPendingAgain(
-                        id,
-                        claimToken
+                        event.getId(),
+                        claimToken,
+                        event.getAttemptCount()
                 );
-
                 log.warn(
                         "Outbox publication failed: eventId={}, eventType={}, topic={}",
                         event.getId(),
                         event.getEventType(),
                         event.getTopic(),
-                        ex
+                        failure
                 );
             }
+        } catch (Exception stateFailure) {
+            // Leave PROCESSING ownership intact. The lease-recovery scheduler
+            // will safely reclaim it if this database transition cannot commit.
+            log.error(
+                    "Outbox completion state update failed: eventId={}, claimToken={}",
+                    event.getId(),
+                    claimToken,
+                    stateFailure
+            );
         }
     }
 }

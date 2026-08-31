@@ -8,6 +8,7 @@ import com.ibm.consulting.sim.shared.domain.kafka.UnsupportedKafkaEventException
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.util.backoff.FixedBackOff;
@@ -44,6 +46,9 @@ public class KafkaConsumerConfig {
     @Value("${app.kafka.consumer.max-retries:3}")
     private long maxRetries;
 
+    @Value("${app.kafka.notifications.dlt.topic-name:notifications.DLT}")
+    private String notificationDltTopic;
+
 
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(
@@ -58,7 +63,7 @@ public class KafkaConsumerConfig {
                         // send the record to <original-topic>.DLT
                         (record, exception) ->
                                 new TopicPartition(
-                                        record.topic() + ".DLT",
+                                        notificationDltTopic,
                                         record.partition()
                                 )
                 );
@@ -205,6 +210,36 @@ public class KafkaConsumerConfig {
                 kafkaErrorHandler
         );
 
+        // Commit each successfully handled record. If the process stops after
+        // the database commit but before this acknowledgement, inbox
+        // idempotency makes the replay harmless.
+        factory.getContainerProperties().setAckMode(
+                ContainerProperties.AckMode.RECORD
+        );
+
+        return factory;
+    }
+
+    /**
+     * DLT records are consumed as opaque bytes. This lets operations observe
+     * records that failed JSON deserialization without feeding them through
+     * the primary error handler and producing recursive .DLT.DLT topics.
+     */
+    @Bean("kafkaDltListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, byte[]>
+    kafkaDltListenerContainerFactory(
+            KafkaProperties properties,
+            SslBundles sslBundles
+    ) {
+        Map<String, Object> config = new HashMap<>(
+                properties.buildConsumerProperties(sslBundles)
+        );
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
+
+        var factory = new ConcurrentKafkaListenerContainerFactory<String, byte[]>();
+        factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(config));
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         return factory;
     }
 }
