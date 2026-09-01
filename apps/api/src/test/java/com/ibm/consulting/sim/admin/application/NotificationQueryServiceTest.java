@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.admin.domain.NotificationEvent;
 import com.ibm.consulting.sim.admin.domain.NotificationRead;
 import com.ibm.consulting.sim.admin.domain.NotificationReadRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationRepository;
+import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
@@ -63,6 +64,23 @@ class NotificationQueryServiceTest {
         assertEquals("Maintenance Notice", response.getFirst().topicName());
         assertFalse(response.getFirst().read());
         assertNull(response.getFirst().readAt());
+    }
+
+    @Test
+    void notificationResponseIncludesCriticalPriority() {
+        UUID userId = UUID.randomUUID();
+        NotificationEvent notification = NotificationEvent.create(
+                UUID.randomUUID(), UUID.randomUUID(), "Security", "Reset now",
+                UserRole.LEARNER, NotificationPriority.CRITICAL);
+        when(notificationRepository.findNotificationsByRole(UserRole.LEARNER, 50))
+                .thenReturn(List.of(notification));
+        when(notificationReadRepository.findReadNotificationsByUserId(
+                userId, List.of(notification.getId())))
+                .thenReturn(List.of());
+
+        List<NotificationResponse> response = service.listForUser(userId, UserRole.LEARNER);
+
+        assertEquals(NotificationPriority.CRITICAL, response.getFirst().priority());
     }
 
     @Test

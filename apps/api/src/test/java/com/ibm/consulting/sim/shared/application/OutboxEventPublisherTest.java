@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.shared.application;
 
+import com.ibm.consulting.sim.shared.domain.outbox.EventPriority;
 import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ class OutboxEventPublisherTest {
         assertEquals("NOTIFICATION_PUBLISHED", event.getEventType());
         assertEquals(1, event.getSchemaVersion());
         assertEquals(OrderingMode.ORDERED, event.getOrderingMode());
+        assertEquals(EventPriority.NORMAL, event.getEventPriority());
         assertEquals("learner", event.getOrderingKey());
         assertEquals(Long.valueOf(1L), event.getSequenceNumber());
         assertEquals("notifications", event.getTopic());

@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.admin.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
+import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.config.KafkaConsumerProperties;
 import com.ibm.consulting.sim.shared.config.KafkaTopicProperties;
@@ -9,6 +10,7 @@ import com.ibm.consulting.sim.shared.domain.outbox.EventSequenceRepository;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxStatus;
+import com.ibm.consulting.sim.shared.domain.outbox.EventPriority;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -66,5 +68,45 @@ class AdminNotificationServiceTest {
         assertEquals(Long.valueOf(7L), outbox.getSequenceNumber());
         assertTrue(outbox.getPayload().contains("Maintenance"));
         assertEquals(OutboxStatus.PENDING, outbox.getStatus());
+        assertEquals(EventPriority.NORMAL, outbox.getEventPriority());
+        assertTrue(outbox.getPayload().contains("\"priority\":\"NORMAL\""));
+    }
+
+    @Test
+    void criticalNotificationPersistsDomainAndInfrastructurePriority() {
+        when(sequenceRepository.next("notifications:REVIEWER")).thenReturn(9L);
+
+        service.notifyRoles(
+                UUID.randomUUID(),
+                "Urgent security notice",
+                "Reset your password.",
+                List.of(UserRole.REVIEWER),
+                NotificationPriority.CRITICAL
+        );
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+        OutboxEvent outbox = captor.getValue();
+        assertEquals(EventPriority.CRITICAL, outbox.getEventPriority());
+        assertTrue(outbox.getPayload().contains("\"priority\":\"CRITICAL\""));
+    }
+
+    @Test
+    void importantNotificationMapsToHighInfrastructurePriority() {
+        when(sequenceRepository.next("notifications:LEARNER")).thenReturn(10L);
+
+        service.notifyRoles(
+                UUID.randomUUID(),
+                "New course published",
+                "A new production engineering course is available.",
+                List.of(UserRole.LEARNER),
+                NotificationPriority.IMPORTANT
+        );
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+        OutboxEvent outbox = captor.getValue();
+        assertEquals(EventPriority.HIGH, outbox.getEventPriority());
+        assertTrue(outbox.getPayload().contains("\"priority\":\"IMPORTANT\""));
     }
 }
