@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.admin.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.consulting.sim.admin.domain.NotificationObject;
+import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.admin.domain.NotifyUsersEvents;
 import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.identity.domain.UserRole;
@@ -55,10 +56,22 @@ public class AdminNotificationService {
             String message,
             List<UserRole> roles
     ) {
+        return notifyRoles(userId, topicName, message, roles, NotificationPriority.NORMAL);
+    }
+
+    @Transactional
+    public NotificationPublishResult notifyRoles(
+            UUID userId,
+            String topicName,
+            String message,
+            List<UserRole> roles,
+            NotificationPriority priority
+    ) {
         Objects.requireNonNull(userId, "userId must not be null");
         Objects.requireNonNull(topicName, "topicName must not be null");
         Objects.requireNonNull(message, "message must not be null");
         Objects.requireNonNull(roles, "roles must not be null");
+        NotificationPriority effectivePriority = NotificationPriority.normalize(priority);
 
         List<UserRole> distinctRoles = roles.stream()
                 .map(role -> Objects.requireNonNull(
@@ -85,7 +98,8 @@ public class AdminNotificationService {
                 userId,
                 topicName,
                 message,
-                role
+                role,
+                effectivePriority
         ));
 
         NotificationPublishResult result = new NotificationPublishResult(
@@ -106,7 +120,8 @@ public class AdminNotificationService {
             UUID userId,
             String topicName,
             String message,
-            UserRole role
+            UserRole role,
+            NotificationPriority priority
     ){
         UUID eventId = UUID.randomUUID();
         String kafkaTopic = properties.topic().name();
@@ -117,7 +132,8 @@ public class AdminNotificationService {
                 userId,
                 topicName,
                 message,
-                role
+                role,
+                priority
         );
         String payload = serialize(notification);
 
@@ -128,6 +144,7 @@ public class AdminNotificationService {
                 OrderingMode.UNORDERED,
                 null,
                 null,
+                priority.toEventPriority(),
                 Instant.now(),
                 payload
         );
@@ -145,6 +162,7 @@ public class AdminNotificationService {
                 kafkaTopic,
                 envelope.eventType(),
                 envelope.schemaVersion(),
+                envelope.priority(),
                 envelope.payload()
         );
         outboxRepository.save(outboxEvent);
@@ -162,7 +180,8 @@ public class AdminNotificationService {
             UUID userId,
             String topicName,
             String message,
-            UserRole role
+            UserRole role,
+            NotificationPriority priority
     ) {
         UUID eventId = UUID.randomUUID();
         String kafkaTopic = properties.topic().name();
@@ -175,7 +194,8 @@ public class AdminNotificationService {
                 userId,
                 topicName,
                 message,
-                role
+                role,
+                priority
         );
         String payload = serialize(notification);
 
@@ -186,6 +206,7 @@ public class AdminNotificationService {
                 OrderingMode.ORDERED,
                 orderingKey,
                 sequenceNumber,
+                priority.toEventPriority(),
                 Instant.now(),
                 payload
         );
@@ -206,6 +227,7 @@ public class AdminNotificationService {
                 envelope.schemaVersion(),
                 envelope.orderingKey(),
                 envelope.sequenceNumber(),
+                envelope.priority(),
                 envelope.payload()
         );
         outboxRepository.save(outboxEvent);

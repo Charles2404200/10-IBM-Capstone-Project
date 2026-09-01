@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.admin.application.NotificationQueryService;
 import com.ibm.consulting.sim.admin.application.NotificationReadStatus;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewResponse;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewService;
+import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import jakarta.validation.Valid;
@@ -45,7 +46,12 @@ public class AdminPlatformController {
     record PublishNotificationRequest(
             @NotBlank @Size(max = 160) String topicName,
             @NotBlank @Size(max = 4000) String message,
-            @NotEmpty List<@NotNull UserRole> roles) {
+            @NotEmpty List<@NotNull UserRole> roles,
+            NotificationPriority priority) {
+
+        NotificationPriority effectivePriority() {
+            return NotificationPriority.normalize(priority);
+        }
     }
 
     record PublishNotificationResponse(String status, int publishedCount, List<UserRole> roles) {
@@ -63,7 +69,8 @@ public class AdminPlatformController {
             @AuthenticationPrincipal User user) {
         var result = adminNotificationService.notifyRoles(
                 user.getId(),
-                request.topicName(), request.message(), request.roles());
+                request.topicName(), request.message(), request.roles(),
+                request.effectivePriority());
         return new PublishNotificationResponse(
                 "ACCEPTED", result.publishedCount(), result.roles());
     }

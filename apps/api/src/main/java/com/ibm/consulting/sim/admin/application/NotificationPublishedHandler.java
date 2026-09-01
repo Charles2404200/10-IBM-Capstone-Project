@@ -86,6 +86,12 @@ public class NotificationPublishedHandler
             );
         }
 
+        if (context.priority() != notification.getPriority().toEventPriority()) {
+            throw new InvalidKafkaEventException(
+                    "Envelope priority differs from notification priority"
+            );
+        }
+
         log.debug(
                 "Kafka event validated: eventId={}, userId={}, role={}",
                 context.eventId(),
@@ -99,7 +105,8 @@ public class NotificationPublishedHandler
                         notification.getUserId(),
                         notification.getTopicName(),
                         notification.getMessage(),
-                        notification.getRole()
+                        notification.getRole(),
+                        notification.getPriority()
                 );
 
         notificationRepository.save(entity);

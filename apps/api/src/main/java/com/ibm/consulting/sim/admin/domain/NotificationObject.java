@@ -13,6 +13,16 @@ public class NotificationObject {
     private final String topicName;
     private final String message;
     private final UserRole role;
+    private final NotificationPriority priority;
+
+    public NotificationObject(
+            UUID eventId,
+            UUID userId,
+            String topicName,
+            String message,
+            UserRole role) {
+        this(eventId, userId, topicName, message, role, NotificationPriority.NORMAL);
+    }
 
     @JsonCreator
     public NotificationObject(
@@ -20,12 +30,15 @@ public class NotificationObject {
             @JsonProperty("userId") UUID userId,
             @JsonProperty("topicName") String topicName,
             @JsonProperty("message") String message,
-            @JsonProperty("role") UserRole role) {
+            @JsonProperty("role") UserRole role,
+            @JsonProperty("priority") NotificationPriority priority) {
         this.eventId = eventId;
         this.userId = userId;
         this.topicName = topicName;
         this.message = message;
         this.role = role;
+        // Payloads already in Kafka before this field was introduced remain valid.
+        this.priority = NotificationPriority.normalize(priority);
     }
 
     public UUID getEventId() { return eventId; }
@@ -33,4 +46,5 @@ public class NotificationObject {
     public String getTopicName() { return topicName; }
     public String getMessage() { return message; }
     public UserRole getRole() { return role; }
+    public NotificationPriority getPriority() { return priority; }
 }

@@ -46,6 +46,10 @@ public class NotificationEvent extends BaseEntity {
     @Column(nullable = false, updatable = false, length = 30)
     private UserRole role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 20)
+    private NotificationPriority priority;
+
     public NotificationEvent() {}
 
     public static NotificationEvent create(
@@ -54,12 +58,23 @@ public class NotificationEvent extends BaseEntity {
             String topicName,
             String message,
             UserRole role) {
+        return create(eventId, userId, topicName, message, role, NotificationPriority.NORMAL);
+    }
+
+    public static NotificationEvent create(
+            UUID eventId,
+            UUID userId,
+            String topicName,
+            String message,
+            UserRole role,
+            NotificationPriority priority) {
         NotificationEvent event = new NotificationEvent();
         event.eventId = eventId;
         event.userId = userId;
         event.topicName = topicName;
         event.message = message;
         event.role = role;
+        event.priority = NotificationPriority.normalize(priority);
         return event;
     }
 
@@ -68,4 +83,5 @@ public class NotificationEvent extends BaseEntity {
     public String getTopicName() { return topicName; }
     public String getMessage() { return message; }
     public UserRole getRole() { return role; }
+    public NotificationPriority getPriority() { return priority; }
 }

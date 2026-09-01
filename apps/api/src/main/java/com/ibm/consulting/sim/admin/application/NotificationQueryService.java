@@ -77,6 +77,7 @@ public class NotificationQueryService {
                             notification.getTopicName(),
                             notification.getMessage(),
                             notification.getRole(),
+                            notification.getPriority(),
                             notification.getCreatedAt(),
                             read != null,
                             read == null ? null : read.getReadAt()
