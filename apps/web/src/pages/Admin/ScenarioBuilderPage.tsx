@@ -34,6 +34,7 @@ import {
   useScenarioAuthoring,
   useGetKnowledgeDocuments,
   useDeleteKnowledgeDocument,
+  useUpdateKnowledgeDocument,
 } from '@/api/hooks/useAdminScenarios'
 import ScenarioBlueprintWorkspace from '@/components/admin/ScenarioBlueprintWorkspace'
 import LoadingState from '@/components/shared/LoadingState'
@@ -45,6 +46,7 @@ import type {
   GameplayDifficultyProfile,
   ScenarioSummary,
   KnowledgeDocumentSummary,
+  KnowledgeDocumentUpdateRequest,
 } from '@/api/types'
 
 function defaultGameplayProfile(difficulty: number): GameplayDifficultyProfile {
@@ -58,6 +60,8 @@ const KNOWLEDGE_COLLECTION_LABELS: Record<string, string> = {
   CONSULTING_PRACTICE: 'Consulting practice',
   ASSESSMENT_RUBRIC: 'Assessment rubric',
 }
+
+const PREVIEW_LENGTH = 200
 
 function CreateScenarioModal({ open, onClose, onCreated }: {
   open: boolean
@@ -517,29 +521,109 @@ function KnowledgeDocumentList({ scenario }: { scenario: ScenarioSummary }) {
         {documents.data.length} document{documents.data.length === 1 ? '' : 's'} ingested
       </p>
       {documents.data.map((doc) => (
-        <KnowledgeDocumentRow key={doc.id} doc={doc} personaName={personaName(doc.personaId)} scenarioId={scenario.id} isDraft={scenario.status === 'DRAFT'} />
+        <KnowledgeDocumentRow key={doc.id} doc={doc} personaName={personaName(doc.personaId)} scenario={scenario} />
       ))}
     </Stack>
   )
 }
 
-const PREVIEW_LENGTH = 200
-
 function KnowledgeDocumentRow({
   doc,
   personaName,
-  scenarioId,
-  isDraft,
+  scenario,
 }: {
   doc: KnowledgeDocumentSummary
   personaName: string
-  scenarioId: string
-  isDraft: boolean
+  scenario: ScenarioSummary
 }) {
   const [expanded, setExpanded] = useState(false)
-  const deleteDocument = useDeleteKnowledgeDocument(scenarioId)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<KnowledgeDocumentUpdateRequest>({
+    personaId: doc.personaId,
+    collection: doc.collection,
+    title: doc.title,
+    content: doc.sourceText,
+  })
+
+  const deleteDocument = useDeleteKnowledgeDocument(scenario.id)
+  const updateDocument = useUpdateKnowledgeDocument(scenario.id)
+  const isDraftScenario = scenario.status === 'DRAFT'
+
   const isLong = doc.sourceText.length > PREVIEW_LENGTH
   const preview = isLong ? doc.sourceText.slice(0, PREVIEW_LENGTH).trimEnd() + '…' : doc.sourceText
+
+  const startEditing = () => {
+    setDraft({ personaId: doc.personaId, collection: doc.collection, title: doc.title, content: doc.sourceText })
+    setEditing(true)
+  }
+
+  const saveEdit = () => {
+    updateDocument.mutate({ documentId: doc.id, ...draft }, { onSuccess: () => setEditing(false) })
+  }
+
+  if (editing) {
+    return (
+      <div className={styles.personaRow}>
+        <Stack gap={4}>
+          <Grid narrow>
+            <Column lg={8} md={4} sm={4}>
+              <Select
+                id={`edit-collection-${doc.id}`}
+                labelText="Collection"
+                value={draft.collection}
+                onChange={(e) => setDraft({ ...draft, collection: e.target.value as KnowledgeDocumentUpdateRequest['collection'] })}
+              >
+                <SelectItem value="SCENARIO_TRUTH" text="Scenario truth (ground facts)" />
+                <SelectItem value="CONSULTING_PRACTICE" text="Consulting practice guidance" />
+                <SelectItem value="ASSESSMENT_RUBRIC" text="Assessment rubric reference" />
+              </Select>
+            </Column>
+            <Column lg={8} md={4} sm={4}>
+              <Select
+                id={`edit-persona-${doc.id}`}
+                labelText="Persona scope (optional)"
+                value={draft.personaId ?? ''}
+                onChange={(e) => setDraft({ ...draft, personaId: e.target.value || null })}
+              >
+                <SelectItem value="" text="Scenario-wide (no specific persona)" />
+                {scenario.personas.map((p) => (
+                  <SelectItem key={p.id} value={p.id} text={p.name} />
+                ))}
+              </Select>
+            </Column>
+            <Column lg={16} md={8} sm={4}>
+              <TextInput
+                id={`edit-title-${doc.id}`}
+                labelText="Document title"
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              />
+            </Column>
+            <Column lg={16} md={8} sm={4}>
+              <TextArea
+                id={`edit-content-${doc.id}`}
+                labelText="Content"
+                rows={6}
+                value={draft.content}
+                onChange={(e) => setDraft({ ...draft, content: e.target.value })}
+              />
+            </Column>
+          </Grid>
+          {updateDocument.isError && (
+            <InlineNotification kind="error" title="Could not update document" subtitle="Please check the fields and try again." />
+          )}
+          <div style={{ display: 'flex', gap: '.5rem' }}>
+            <Button size="sm" onClick={saveEdit} disabled={updateDocument.isPending || !draft.title.trim() || !draft.content.trim()}>
+              Save
+            </Button>
+            <Button kind="ghost" size="sm" onClick={() => setEditing(false)} disabled={updateDocument.isPending}>
+              Cancel
+            </Button>
+          </div>
+        </Stack>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.personaRow}>
@@ -552,19 +636,22 @@ function KnowledgeDocumentRow({
         </div>
         <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
           <Tag type="blue">{KNOWLEDGE_COLLECTION_LABELS[doc.collection] ?? doc.collection}</Tag>
-          {isDraft && (
-            <Button
-              kind="danger--ghost"
-              size="sm"
-              disabled={deleteDocument.isPending}
-              onClick={() => {
-                if (confirm(`Delete "${doc.title}"? This can't be undone.`)) {
-                  deleteDocument.mutate(doc.id)
-                }
-              }}
-            >
-              Delete
-            </Button>
+          {isDraftScenario && (
+            <>
+              <Button kind="ghost" size="sm" onClick={startEditing}>Edit</Button>
+              <Button
+                kind="danger--ghost"
+                size="sm"
+                disabled={deleteDocument.isPending}
+                onClick={() => {
+                  if (confirm(`Delete "${doc.title}"? This can't be undone.`)) {
+                    deleteDocument.mutate(doc.id)
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>

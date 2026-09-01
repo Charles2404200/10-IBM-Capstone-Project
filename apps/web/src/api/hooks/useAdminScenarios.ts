@@ -16,6 +16,7 @@ import type {
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
   KnowledgeDocumentSummary,
+  KnowledgeDocumentUpdateRequest,
 } from '@/api/types'
 
 const adminScenarioKeys = {
@@ -296,6 +297,16 @@ export function useDeleteKnowledgeDocument(scenarioId: string) {
   return useMutation({
     mutationFn: async (documentId: string) => {
       await apiClient.delete(`/api/v1/admin/scenarios/${scenarioId}/documents/${documentId}`)
+    },
+    onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+export function useUpdateKnowledgeDocument(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ documentId, ...request }: { documentId: string } & KnowledgeDocumentUpdateRequest) => {
+      await apiClient.put(`/api/v1/admin/scenarios/${scenarioId}/documents/${documentId}`, request)
     },
     onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
   })

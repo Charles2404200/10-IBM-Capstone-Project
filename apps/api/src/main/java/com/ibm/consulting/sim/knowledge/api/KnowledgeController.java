@@ -33,6 +33,7 @@ public class KnowledgeController {
         this.ingestionService = ingestionService;
         this.scenarioRepository = scenarioRepository;
     }
+    
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -65,6 +66,13 @@ public class KnowledgeController {
     void delete(@PathVariable UUID scenarioId, @PathVariable UUID documentId) {
         requireDraft(scenarioId);
         ingestionService.delete(documentId);
+    }
+
+    @PutMapping("/{documentId}")
+    void update(@PathVariable UUID scenarioId, @PathVariable UUID documentId,
+                @Valid @RequestBody KnowledgeDocumentUpdateRequest request) {
+        requireDraft(scenarioId);
+        ingestionService.update(documentId, request.personaId(), request.collection(), request.title(), request.content());
     }
 
     // Get this code from upload() and make it a shared method.

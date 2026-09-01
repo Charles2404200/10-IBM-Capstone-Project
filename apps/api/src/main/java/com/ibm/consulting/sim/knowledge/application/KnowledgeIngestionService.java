@@ -96,4 +96,27 @@ public class KnowledgeIngestionService {
         chunkRepository.deleteByDocumentId(documentId);
         documentRepository.deleteById(documentId);
     }
+
+    @Transactional
+    public void update(UUID documentId, UUID newPersonaId, KnowledgeCollection newCollection,
+                        String newTitle, String newSourceText) {
+        KnowledgeDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new com.ibm.consulting.sim.shared.domain.NotFoundException("KnowledgeDocument", documentId));
+
+        document.updateContent(newPersonaId, newCollection, newTitle, newSourceText);
+        documentRepository.save(document);
+
+        chunkRepository.deleteByDocumentId(documentId); // old chunks carry the OLD persona/collection scope too
+        reindex(documentId, document.getScenarioId(), newPersonaId, newCollection, newSourceText);
+    }
+
+    private void reindex(UUID documentId, UUID scenarioId, UUID personaId, KnowledgeCollection collection, String sourceText) {
+        List<String> chunks = chunk(sourceText);
+        List<DocumentChunk> entities = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            float[] embedding = embeddingGateway.embed(chunks.get(i));
+            entities.add(DocumentChunk.create(documentId, scenarioId, personaId, collection, i, chunks.get(i), embedding));
+        }
+        chunkRepository.saveAll(entities);
+    }
 }
