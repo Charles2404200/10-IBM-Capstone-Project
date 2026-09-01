@@ -12,6 +12,9 @@ clients can recover recent messages through `GET /api/v1/notifications?limit=50`
   concurrently without sharing an in-memory lock.
 - Only the first unpublished event in each ordering key is dispatchable. Kafka
   receives that ordering key as its record key, preserving order per role.
+- Priority is applied only after stream-head eligibility is established. An
+  older normal event therefore cannot be overtaken by a later critical event
+  on the same ordering key.
 - A dispatch batch starts Kafka sends concurrently. Durable completion updates
   run on a bounded executor and are guarded by a unique claim token, so a stale
   worker cannot complete a reclaimed lease.
@@ -55,3 +58,27 @@ Tune these controls together:
 
 Alert on DLT records, repeated stale-lease recovery, old pending outbox rows,
 and a sustained outbox backlog. Never log notification payloads from the DLT.
+
+## Priority scheduling
+
+The generic outbox supports `LOW`, `NORMAL`, `HIGH`, and `CRITICAL` scheduling
+weights. Application code selects this infrastructure priority through
+`OutboxOptions`; legacy callers default to `NORMAL`. Administrator-authored
+notifications expose the separate domain choices `NORMAL`, `IMPORTANT`, and
+`CRITICAL`. `IMPORTANT` maps to infrastructure `HIGH`, while `CRITICAL` remains
+reserved for emergencies. Clients never control raw infrastructure weights.
+
+The claim query ranks eligible rows by priority descending, then creation time
+and event id for deterministic FIFO behavior within a priority. Ordered events
+remain ineligible while any lower sequence in their ordering stream is not
+published, including when that predecessor is waiting to retry.
+
+Prometheus counters expose dispatch success, failure, and retry activity with a
+single bounded `priority` label. Event ids, users, and ordering keys are never
+metric labels.
+
+Weighted fairness is intentionally deferred. If sustained critical traffic can
+starve lower priorities in production, a P2 scheduler can reserve dispatch
+capacity using the documented target split: critical 50%, high 30%, normal
+15%, and low 5%. That future policy must continue operating only on eligible
+stream heads.
