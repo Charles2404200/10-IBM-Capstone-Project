@@ -6,6 +6,10 @@ import com.ibm.consulting.sim.knowledge.domain.DocumentChunkRepository;
 import com.ibm.consulting.sim.knowledge.domain.KnowledgeCollection;
 import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocument;
 import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
+import com.ibm.consulting.sim.scenario.domain.Persona;
+import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
+import com.ibm.consulting.sim.shared.domain.NotFoundException;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,17 +33,23 @@ public class KnowledgeIngestionService {
     private final DocumentChunkRepository chunkRepository;
     private final EmbeddingGateway embeddingGateway;
 
+    private final PersonaRepository personaRepository;
+
     public KnowledgeIngestionService(KnowledgeDocumentRepository documentRepository,
                                       DocumentChunkRepository chunkRepository,
-                                      EmbeddingGateway embeddingGateway) {
+                                      EmbeddingGateway embeddingGateway,
+                                    PersonaRepository personaRepository) {
         this.documentRepository = documentRepository;
         this.chunkRepository = chunkRepository;
         this.embeddingGateway = embeddingGateway;
+        this.personaRepository = personaRepository;
     }
 
     @Transactional
     public UUID ingest(UUID scenarioId, UUID personaId, KnowledgeCollection collection,
                         String title, String sourceText) {
+                            
+        requirePersonaInScenario(personaId, scenarioId);
         KnowledgeDocument document = KnowledgeDocument.create(scenarioId, personaId, collection, title, sourceText);
         documentRepository.save(document);
 
@@ -89,20 +99,24 @@ public class KnowledgeIngestionService {
 
     /** Removes a knowledge document and all chunks derived from it. */
     @Transactional
-    public void delete(UUID documentId) {
-        if (!documentRepository.findById(documentId).isPresent()) {
-            throw new com.ibm.consulting.sim.shared.domain.NotFoundException("KnowledgeDocument", documentId);
-        }
+    public void delete(UUID scenarioId, UUID documentId) {
+        KnowledgeDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new NotFoundException("KnowledgeDocument", documentId));
+
+        requireDocumentInScenario(document, scenarioId);
+
         chunkRepository.deleteByDocumentId(documentId);
         documentRepository.deleteById(documentId);
     }
 
     @Transactional
-    public void update(UUID documentId, UUID newPersonaId, KnowledgeCollection newCollection,
+    public void update(UUID scenarioId, UUID documentId, UUID newPersonaId, KnowledgeCollection newCollection,
                         String newTitle, String newSourceText) {
         KnowledgeDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new com.ibm.consulting.sim.shared.domain.NotFoundException("KnowledgeDocument", documentId));
 
+        requireDocumentInScenario(document, scenarioId);
+        requirePersonaInScenario(newPersonaId, scenarioId);
         document.updateContent(newPersonaId, newCollection, newTitle, newSourceText);
         documentRepository.save(document);
 
@@ -118,5 +132,21 @@ public class KnowledgeIngestionService {
             entities.add(DocumentChunk.create(documentId, scenarioId, personaId, collection, i, chunks.get(i), embedding));
         }
         chunkRepository.saveAll(entities);
+    }
+    private void requireDocumentInScenario(KnowledgeDocument document, UUID scenarioId) {
+        if (!document.getScenarioId().equals(scenarioId)) {
+            throw new NotFoundException("KnowledgeDocument", document.getId());
+        }
+    }
+
+    
+    private void requirePersonaInScenario(UUID personaId, UUID scenarioId) {
+        if (personaId == null) return;
+        Persona persona = personaRepository.findById(personaId)
+                .orElseThrow(() -> new NotFoundException("Persona", personaId));
+        if (!persona.getScenario().getId().equals(scenarioId)) {
+            throw new IllegalArgumentException(
+                    "Persona " + personaId + " does not belong to scenario " + scenarioId);
+        }
     }
 }

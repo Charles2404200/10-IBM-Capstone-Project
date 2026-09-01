@@ -61,18 +61,19 @@ public class KnowledgeController {
         }
     }
 
-    @DeleteMapping("/{documentId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    void delete(@PathVariable UUID scenarioId, @PathVariable UUID documentId) {
-        requireDraft(scenarioId);
-        ingestionService.delete(documentId);
-    }
-
     @PutMapping("/{documentId}")
     void update(@PathVariable UUID scenarioId, @PathVariable UUID documentId,
                 @Valid @RequestBody KnowledgeDocumentUpdateRequest request) {
         requireDraft(scenarioId);
-        ingestionService.update(documentId, request.personaId(), request.collection(), request.title(), request.content());
+        ingestionService.update(scenarioId, documentId, request.personaId(), request.collection(),
+                request.title(), request.content());
+    }
+
+    @DeleteMapping("/{documentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void delete(@PathVariable UUID scenarioId, @PathVariable UUID documentId) {
+        requireDraft(scenarioId);
+        ingestionService.delete(scenarioId, documentId);
     }
 
     // Get this code from upload() and make it a shared method.
