@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.shared.application.kafka;
 
+import com.ibm.consulting.sim.shared.domain.outbox.EventPriority;
 import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 
 import java.time.Instant;
@@ -26,6 +27,8 @@ public record KafkaEventContext(
         String orderingKey,
 
         Long sequenceNumber,
+
+        EventPriority priority,
 
         Instant occurredAt
 ) {

@@ -17,10 +17,36 @@ public record EventEnvelope(
 
         Long sequenceNumber,
 
+        EventPriority priority,
+
         Instant occurredAt,
 
         String payload
 ) {
+
+    /** Source-compatible constructor for callers created before priority support. */
+    public EventEnvelope(
+            UUID eventId,
+            String eventType,
+            int schemaVersion,
+            OrderingMode orderingMode,
+            String orderingKey,
+            Long sequenceNumber,
+            Instant occurredAt,
+            String payload
+    ) {
+        this(
+                eventId,
+                eventType,
+                schemaVersion,
+                orderingMode,
+                orderingKey,
+                sequenceNumber,
+                EventPriority.NORMAL,
+                occurredAt,
+                payload
+        );
+    }
 
     public EventEnvelope {
 
@@ -47,6 +73,10 @@ public record EventEnvelope(
                     "orderingMode is required"
             );
         }
+
+        // Kafka records produced before priority support omit this field.
+        // Treat them exactly like legacy outbox rows: NORMAL.
+        priority = priority == null ? EventPriority.NORMAL : priority;
 
         if (orderingMode == OrderingMode.ORDERED) {
 

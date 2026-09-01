@@ -91,6 +91,7 @@ public class KafkaEventProcessor {
                         event.orderingMode(),
                         event.orderingKey(),
                         event.sequenceNumber(),
+                        event.priority(),
                         event.occurredAt()
                 );
 

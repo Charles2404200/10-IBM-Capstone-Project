@@ -37,6 +37,19 @@ public class OutboxService {
             int schemaVersion,
             Object payload
     ) {
+        return enqueueUnordered(topic, eventType, schemaVersion, payload, OutboxOptions.defaults());
+    }
+
+    @Transactional
+    public UUID enqueueUnordered(
+            String topic,
+            String eventType,
+            int schemaVersion,
+            Object payload,
+            OutboxOptions options
+    ) {
+
+        OutboxOptions effectiveOptions = OutboxOptions.normalize(options);
 
         UUID eventId =
                 UUID.randomUUID();
@@ -50,6 +63,7 @@ public class OutboxService {
                         topic,
                         eventType,
                         schemaVersion,
+                        effectiveOptions.priority(),
                         json
                 );
 
@@ -66,6 +80,23 @@ public class OutboxService {
             String orderingKey,
             Object payload
     ) {
+        return enqueueOrdered(
+                topic, eventType, schemaVersion, orderingKey, payload,
+                OutboxOptions.defaults()
+        );
+    }
+
+    @Transactional
+    public UUID enqueueOrdered(
+            String topic,
+            String eventType,
+            int schemaVersion,
+            String orderingKey,
+            Object payload,
+            OutboxOptions options
+    ) {
+
+        OutboxOptions effectiveOptions = OutboxOptions.normalize(options);
 
         UUID eventId =
                 UUID.randomUUID();
@@ -86,6 +117,7 @@ public class OutboxService {
                         schemaVersion,
                         orderingKey,
                         sequence,
+                        effectiveOptions.priority(),
                         json
                 );
 

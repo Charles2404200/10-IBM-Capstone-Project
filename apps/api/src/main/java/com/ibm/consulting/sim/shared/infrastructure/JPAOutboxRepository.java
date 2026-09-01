@@ -54,7 +54,7 @@ interface SpringDataOutboxRepository
                           AND predecessor.status <> :publishedStatus
                     )
               )
-            ORDER BY candidate.createdAt
+            ORDER BY candidate.priority DESC, candidate.createdAt ASC, candidate.id ASC
             """)
     List<OutboxEvent> findDispatchableForUpdate(
             @Param("pendingStatus") OutboxStatus pendingStatus,

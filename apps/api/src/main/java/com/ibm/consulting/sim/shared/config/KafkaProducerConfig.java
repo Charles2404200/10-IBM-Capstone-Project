@@ -34,10 +34,20 @@ public class KafkaProducerConfig {
     @Value("${app.kafka.producer.retries}")
     private int retries;
 
+    @Value("${app.kafka.producer.parallel-requests:5}")
+    private int parallelRequests;
+
     @Bean
     ProducerFactory<String, Object> producerFactory(
             KafkaProperties properties,
             SslBundles sslBundles) {
+
+        if (parallelRequests < 1 || parallelRequests > 5) {
+            throw new IllegalArgumentException(
+                    "app.kafka.producer.parallel-requests must be between 1 and 5 "
+                            + "when Kafka producer idempotence is enabled"
+            );
+        }
 
         log.info("Configuring shared Kafka JSON producer: bootstrapServerCount={}, typeHeaders=true",
                 properties.getBootstrapServers().size());
@@ -64,7 +74,7 @@ public class KafkaProducerConfig {
         // while still allowing multiple requests to be in flight.
         config.put(
                 ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,
-                5
+                parallelRequests
         );
 
         // kafka keeps retrying if failure is temporary

@@ -24,6 +24,7 @@ public class OutboxDispatcher {
     private final OutboxEventRepository repository;
     private final OutboxStateService stateService;
     private final KafkaEventPublisher publisher;
+    private final OutboxMetrics metrics;
     private final ExecutorService completionExecutor;
     private final int batchSize;
 
@@ -32,6 +33,7 @@ public class OutboxDispatcher {
             OutboxEventRepository repository,
             OutboxStateService stateService,
             KafkaEventPublisher publisher,
+            OutboxMetrics metrics,
             @Qualifier("outboxCompletionExecutor") ExecutorService completionExecutor,
             @Value("${app.kafka.outbox.batch-size:100}") int batchSize) {
         if (batchSize <= 0) {
@@ -41,6 +43,7 @@ public class OutboxDispatcher {
         this.repository = repository;
         this.stateService = stateService;
         this.publisher = publisher;
+        this.metrics = metrics;
         this.completionExecutor = completionExecutor;
         this.batchSize = batchSize;
     }
@@ -87,21 +90,29 @@ public class OutboxDispatcher {
             Throwable failure) {
         try {
             if (failure == null) {
-                stateService.markPublished(
+                boolean completed = stateService.markPublished(
                         event.getId(),
                         claimToken
                 );
+                if (completed) {
+                    metrics.recordSuccess(event.getEventPriority());
+                }
             } else {
-                stateService.markPendingAgain(
+                metrics.recordFailure(event.getEventPriority());
+                boolean retryScheduled = stateService.markPendingAgain(
                         event.getId(),
                         claimToken,
                         event.getAttemptCount()
                 );
+                if (retryScheduled) {
+                    metrics.recordRetry(event.getEventPriority());
+                }
                 log.warn(
-                        "Outbox publication failed: eventId={}, eventType={}, topic={}",
+                        "Outbox publication failed: eventId={}, eventType={}, topic={}, priority={}",
                         event.getId(),
                         event.getEventType(),
                         event.getTopic(),
+                        event.getEventPriority(),
                         failure
                 );
             }

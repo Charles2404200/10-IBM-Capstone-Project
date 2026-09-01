@@ -41,6 +41,9 @@ public class OutboxEvent extends BaseEntity {
     @Column(nullable = false)
     private OrderingMode orderingMode;
 
+    @Column(name = "priority", nullable = false)
+    private short priority;
+
     /**
      * Identifies the current PROCESSING ownership attempt.
      *
@@ -91,6 +94,17 @@ public class OutboxEvent extends BaseEntity {
             int schemaVersion,
             String payload
     ) {
+        return unordered(id, topic, eventType, schemaVersion, EventPriority.NORMAL, payload);
+    }
+
+    public static OutboxEvent unordered(
+            UUID id,
+            String topic,
+            String eventType,
+            int schemaVersion,
+            EventPriority priority,
+            String payload
+    ) {
 
         OutboxEvent event =
                 new OutboxEvent(id);
@@ -101,6 +115,8 @@ public class OutboxEvent extends BaseEntity {
 
         event.orderingMode =
                 OrderingMode.UNORDERED;
+
+        event.setEventPriority(priority);
 
         event.payload = payload;
 
@@ -121,6 +137,22 @@ public class OutboxEvent extends BaseEntity {
             long sequence,
             String payload
     ) {
+        return ordered(
+                id, topic, eventType, schemaVersion, orderingKey, sequence,
+                EventPriority.NORMAL, payload
+        );
+    }
+
+    public static OutboxEvent ordered(
+            UUID id,
+            String topic,
+            String eventType,
+            int schemaVersion,
+            String orderingKey,
+            long sequence,
+            EventPriority priority,
+            String payload
+    ) {
 
         OutboxEvent event =
                 new OutboxEvent(id);
@@ -137,6 +169,8 @@ public class OutboxEvent extends BaseEntity {
 
         event.sequenceNumber =
                 sequence;
+
+        event.setEventPriority(priority);
 
         event.payload =
                 payload;
@@ -158,6 +192,7 @@ public class OutboxEvent extends BaseEntity {
                 orderingMode,
                 orderingKey,
                 sequenceNumber,
+                getEventPriority(),
                 getCreatedAt(),
                 payload
         );
@@ -277,6 +312,18 @@ public class OutboxEvent extends BaseEntity {
 
     public OrderingMode getOrderingMode() {
         return orderingMode;
+    }
+
+    public EventPriority getEventPriority() {
+        return EventPriority.fromWeight(priority);
+    }
+
+    public short getPriorityWeight() {
+        return priority;
+    }
+
+    public void setEventPriority(EventPriority priority) {
+        this.priority = Objects.requireNonNull(priority, "priority must not be null").weight();
     }
 
     public UUID getClaimToken() {
