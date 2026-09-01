@@ -86,10 +86,13 @@ export interface AdminNotificationResponse {
   roles : UserRole[]
 }
 
+export type NotificationPriority = 'NORMAL' | 'IMPORTANT' | 'CRITICAL'
+
 export interface AdminNotificationRequest {
   topicName: string,
   message: string
   roles : UserRole[]
+  priority: NotificationPriority
 }
 
 // Notification ------------------------------
@@ -99,6 +102,7 @@ export interface NotificationObject {
     topicName: string
     message: string
     role: UserRole
+    priority: NotificationPriority
 }
 //
 

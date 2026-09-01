@@ -15,13 +15,20 @@ export default function NotificationPopup() {
 
   if (!notification) return null
 
+  const critical = notification.priority === 'CRITICAL'
+  const important = notification.priority === 'IMPORTANT'
+  const titlePrefix = critical ? 'Critical: ' : important ? 'Important: ' : ''
+
   return (
-    <div className={styles.container} aria-live="polite">
+    <div
+      className={`${styles.container} ${critical ? styles.critical : important ? styles.important : ''}`}
+      aria-live={critical ? 'assertive' : 'polite'}
+    >
       <ToastNotification
         key={notification.eventId}
-        kind="info"
-        role="status"
-        title={notification.topicName}
+        kind={critical ? 'error' : important ? 'warning' : 'info'}
+        role={critical ? 'alert' : 'status'}
+        title={`${titlePrefix}${notification.topicName}`}
         subtitle={notification.message}
         onClose={dismissNotification}
       />

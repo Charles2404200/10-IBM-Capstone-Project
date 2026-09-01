@@ -122,3 +122,22 @@
     grid-template-columns: 1fr;
   }
 }
+
+.priorityNotice,
+.priorityWarning {
+  margin: -0.5rem 0 0;
+  padding: 0.75rem 1rem;
+  color: var(--cds-text-primary);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.priorityNotice {
+  border-inline-start: 0.25rem solid var(--cds-support-info);
+  background: var(--cds-notification-background-info);
+}
+
+.priorityWarning {
+  border-inline-start: 0.25rem solid var(--cds-support-warning);
+  background: var(--cds-notification-background-warning);
+}

@@ -1,5 +1,5 @@
 import { useAdminNotifyUsers } from "@/api/hooks/useAdminPlatformOverview";
-import type { UserRole } from "@/api/types";
+import type { NotificationPriority, UserRole } from "@/api/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
     Button,
@@ -7,6 +7,8 @@ import {
     Form,
     FormGroup,
     InlineLoading,
+    Select,
+    SelectItem,
     TextArea,
     TextInput,
     Tile,
@@ -45,7 +47,8 @@ const schema = z.object({
         "SCENARIO_AUTHOR",
         "REVIEWER",
         "ADMINISTRATOR"
-    ])).min(1, "Select at least one audience")
+    ])).min(1, "Select at least one audience"),
+    priority: z.enum(["NORMAL", "IMPORTANT", "CRITICAL"])
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -53,7 +56,8 @@ type FormValues = z.infer<typeof schema>;
 const DEFAULT_VALUES: FormValues = {
     topicName: "",
     message: "",
-    roles: []
+    roles: [],
+    priority: "NORMAL"
 };
 
 
@@ -76,6 +80,7 @@ export default function NotifyUsersPage() {
 
     const message = watch("message");
     const selectedRoles = watch("roles");
+    const priority = watch("priority") as NotificationPriority;
 
     const handleRoleChange = (
         role: UserRole,
@@ -182,6 +187,32 @@ export default function NotifyUsersPage() {
                                 rows={6}
                                 {...register("message")}
                             />
+
+                            <Select
+                                id="notification-priority"
+                                labelText="Priority"
+                                helperText="Choose the delivery urgency that matches the message"
+                                disabled={notifyUsers.isPending}
+                                {...register("priority")}
+                            >
+                                <SelectItem value="NORMAL" text="Normal" />
+                                <SelectItem value="IMPORTANT" text="Important" />
+                                <SelectItem value="CRITICAL" text="Critical" />
+                            </Select>
+
+                            {priority === "IMPORTANT" && (
+                                <p className={styles.priorityNotice} role="status">
+                                    Important notifications are expedited for major announcements,
+                                    deadlines, and newly published courses.
+                                </p>
+                            )}
+
+                            {priority === "CRITICAL" && (
+                                <p className={styles.priorityWarning} role="status">
+                                    Critical notifications are expedited across eligible event streams.
+                                    Use them only for urgent or time-sensitive messages.
+                                </p>
+                            )}
                         </div>
 
                         <div className={styles.divider} />
