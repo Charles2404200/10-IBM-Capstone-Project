@@ -1,52 +1,54 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import NotificationPopup from './NotificationPopup'
 
-const mocks = vi.hoisted(() => ({
-  useNotification: vi.fn(),
-}))
+const mocks = vi.hoisted(() => ({ useNotification: vi.fn() }))
 
-vi.mock('@/api/hooks/useNotification', () => ({
-  useNotification: mocks.useNotification,
-}))
+vi.mock('@/api/hooks/useNotification', () => ({ useNotification: mocks.useNotification }))
 
-describe('NotificationPopup priority', () => {
-  it('renders important domain priority as a visible non-emergency warning', () => {
+const notification = (priority: 'NORMAL' | 'IMPORTANT' | 'CRITICAL') => ({
+  eventId: crypto.randomUUID(),
+  topicName: `${priority} notice`,
+  messagePreview: 'A bounded preview.',
+  message: 'A bounded preview.',
+  role: 'LEARNER' as const,
+  priority,
+  createdAt: new Date().toISOString(),
+})
+describe('NotificationPopup priority and overflow', () => {
+  it('renders important politely and critical assertively', () => {
     mocks.useNotification.mockReturnValue({
-      notification: {
-        eventId: 'event-important',
-        userId: 'admin-1',
-        topicName: 'New course published',
-        message: 'A new course is available.',
-        role: 'LEARNER',
-        priority: 'IMPORTANT',
-      },
+      visible: [notification('IMPORTANT'), notification('CRITICAL')],
+      overflowCount: 0,
       dismissNotification: vi.fn(),
+      clearPopups: vi.fn(),
     })
+    render(<MemoryRouter><NotificationPopup /></MemoryRouter>)
 
-    render(<NotificationPopup />)
-
-    expect(screen.getByText('Important: New course published')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('A new course is available.')
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Important: IMPORTANT notice')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('CRITICAL notice')
   })
 
-  it('renders critical domain priority as an assertive alert', () => {
+  it('opens the durable Notification Centre from the aggregate', () => {
+    const clearPopups = vi.fn()
     mocks.useNotification.mockReturnValue({
-      notification: {
-        eventId: 'event-1',
-        userId: 'admin-1',
-        topicName: 'Security notice',
-        message: 'Reset your password.',
-        role: 'LEARNER',
-        priority: 'CRITICAL',
-      },
+      visible: [notification('NORMAL')],
+      overflowCount: 47,
       dismissNotification: vi.fn(),
+      clearPopups,
     })
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route path="/dashboard" element={<NotificationPopup />} />
+          <Route path="/dashboard/notifications" element={<h1>Notification Centre</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    )
 
-    render(<NotificationPopup />)
-
-    expect(screen.getByText('Critical: Security notice')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent('Reset your password.')
+    fireEvent.click(screen.getByRole('button', { name: /47 additional notifications/i }))
+    expect(screen.getByRole('heading', { name: 'Notification Centre' })).toBeInTheDocument()
+    expect(clearPopups).toHaveBeenCalled()
   })
 })
