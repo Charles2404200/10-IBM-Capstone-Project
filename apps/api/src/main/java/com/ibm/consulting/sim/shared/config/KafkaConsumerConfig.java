@@ -55,6 +55,19 @@ public class KafkaConsumerConfig {
             KafkaTemplate<String, Object> kafkaTemplate
     ) {
 
+        // Validate before constructing FixedBackOff so bad deployment values
+        // fail startup deterministically instead of changing retry semantics.
+        if (retryBackoffMs < 0) {
+            throw new IllegalArgumentException(
+                    "app.kafka.consumer.retry-backoff-ms must not be negative"
+            );
+        }
+        if (maxRetries < 0) {
+            throw new IllegalArgumentException(
+                    "app.kafka.consumer.max-retries must not be negative"
+            );
+        }
+
         DeadLetterPublishingRecoverer recoverer =
                 new DeadLetterPublishingRecoverer(
                         kafkaTemplate,

@@ -17,17 +17,20 @@ public class OutboxDeleteScheduler {
             LoggerFactory.getLogger(OutboxDeleteScheduler.class);
 
     private final OutboxEventRepository repository;
+    private final OutboxMetrics metrics;
     private final int retentionDays;
     private final int batchSize;
 
     public OutboxDeleteScheduler(
             OutboxEventRepository repository,
+            OutboxMetrics metrics,
             @Value("${app.kafka.outbox.cleanup-retention-days:2}") int retentionDays,
             @Value("${app.kafka.outbox.cleanup-batch-size:10000}") int batchSize) {
         if (retentionDays < 1 || batchSize < 1) {
             throw new IllegalArgumentException("Outbox cleanup settings must be positive");
         }
         this.repository = repository;
+        this.metrics = metrics;
         this.retentionDays = retentionDays;
         this.batchSize = batchSize;
     }
@@ -45,6 +48,10 @@ public class OutboxDeleteScheduler {
         Instant cutoff = Instant.now().minusSeconds(retentionDays * 86_400L);
 
         int deleted = repository.deletePublishedBefore(cutoff, batchSize);
+
+        // Record the affected-row count rather than one increment per scheduler
+        // execution so dashboards reflect actual cleanup throughput.
+        metrics.recordCleaned(deleted);
 
         log.debug(
                 "Completed published outbox cleanup: cutoff={}, deleted={}",

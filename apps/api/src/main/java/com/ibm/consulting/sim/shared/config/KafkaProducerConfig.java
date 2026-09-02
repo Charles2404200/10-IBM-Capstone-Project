@@ -42,6 +42,28 @@ public class KafkaProducerConfig {
             KafkaProperties properties,
             SslBundles sslBundles) {
 
+        // Fail during application startup rather than discovering an unsafe or
+        // nonsensical reliability configuration only after traffic arrives.
+        if (deliveryTimeoutMs <= 0) {
+            throw new IllegalArgumentException(
+                    "app.kafka.producer.delivery-timeout-ms must be positive"
+            );
+        }
+        if (requestTimeoutMs <= 0) {
+            throw new IllegalArgumentException(
+                    "app.kafka.producer.request-timeout-ms must be positive"
+            );
+        }
+        if (retryBackoffMs < 0) {
+            throw new IllegalArgumentException(
+                    "app.kafka.producer.retry-backoff-ms must not be negative"
+            );
+        }
+        if (retries < 0) {
+            throw new IllegalArgumentException(
+                    "app.kafka.producer.retries must not be negative"
+            );
+        }
         if (parallelRequests < 1 || parallelRequests > 5) {
             throw new IllegalArgumentException(
                     "app.kafka.producer.parallel-requests must be between 1 and 5 "
@@ -59,7 +81,8 @@ public class KafkaProducerConfig {
                 properties.buildProducerProperties(sslBundles)
         );
 
-        // is mainly used to prevent duplicate Kafka records caused by producer retries.
+        // Broker-side producer idempotence prevents Kafka retries from appending
+        // duplicate records within the lifetime of this producer session.
         config.put(
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,
                 true
@@ -77,27 +100,25 @@ public class KafkaProducerConfig {
                 parallelRequests
         );
 
-        // kafka keeps retrying if failure is temporary
+        // Retry transient broker failures until delivery.timeout.ms expires.
         config.put(
                 ProducerConfig.RETRIES_CONFIG,
                 retries
         );
 
-        // we set a max time for delivery
+        // Bound the complete send lifecycle, including all retries.
         config.put(
                 ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG,
                 deliveryTimeoutMs
         );
 
-        // we set a max time for kafka to respond to request
+        // Bound each individual broker request within the delivery window.
         config.put(
                 ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG,
                 requestTimeoutMs
         );
 
-        // we set a timer for how long the producer
-        // needs to wait before trying because we
-        // need to allow the kafka send the response
+        // Avoid a tight retry loop during temporary broker or network failures.
         config.put(
                 ProducerConfig.RETRY_BACKOFF_MS_CONFIG,
                 retryBackoffMs

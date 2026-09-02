@@ -67,6 +67,8 @@ app:
       poll-delay-ms: ${KAFKA_OUTBOX_POLL_DELAY_MS:200}
       batch-size: ${KAFKA_OUTBOX_BATCH_SIZE:100}
       recovery-delay-ms: ${KAFKA_OUTBOX_RECOVERY_DELAY_MS:30000}
+      # Added to producer delivery-timeout-ms before a PROCESSING lease is stale.
+      recovery-safety-margin-ms: ${KAFKA_OUTBOX_RECOVERY_SAFETY_MARGIN_MS:30000}
       cleanup-cron: ${KAFKA_OUTBOX_CLEANUP_CRON:0 */10 * * * *}
       cleanup-retention-days: ${KAFKA_OUTBOX_RETENTION_DAYS:2}
       cleanup-batch-size: ${KAFKA_OUTBOX_CLEANUP_BATCH_SIZE:10000}
@@ -76,6 +78,7 @@ app:
         multiplier: ${KAFKA_OUTBOX_RETRY_MULTIPLIER:2.0}
         jitter-ratio: ${KAFKA_OUTBOX_RETRY_JITTER_RATIO:0.2}
     inbox:
+      # Keep this longer than the maximum Kafka replay/redelivery horizon.
       retention-days: ${KAFKA_INBOX_RETENTION_DAYS:14}
       cleanup-batch-size: ${KAFKA_INBOX_CLEANUP_BATCH_SIZE:10000}
       cleanup-cron: ${KAFKA_INBOX_CLEANUP_CRON:0 15 * * * *}

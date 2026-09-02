@@ -18,7 +18,8 @@ repositories {
 }
 
 val jjwtVersion = "0.12.6"
-val testcontainersVersion = "1.20.1"
+// 1.21.4 retains the 1.x API while adding compatibility with Docker Engine 29.
+val testcontainersVersion = "1.21.4"
 val springdocVersion = "2.6.0"
 val logstashLogbackVersion = "8.0"
 

@@ -79,6 +79,8 @@ interface SpringDataOutboxRepository
      * is allowed to mark this event as published.
      *
      * A stale worker using an old token will update 0 rows.
+     * Bulk JPQL bypasses entity dirty checking, so audit time and optimistic
+     * version are advanced explicitly with the state transition.
      */
     @Modifying
     @Query("""
@@ -87,7 +89,9 @@ interface SpringDataOutboxRepository
                    outbox.publishedAt = :publishedAt,
                    outbox.processingStartedAt = NULL,
                    outbox.nextAttemptAt = NULL,
-                   outbox.claimToken = NULL
+                   outbox.claimToken = NULL,
+                   outbox.updatedAt = :publishedAt,
+                   outbox.version = outbox.version + 1
              WHERE outbox.id = :eventId
                AND outbox.status = :processing
                AND outbox.claimToken = :claimToken
@@ -106,6 +110,8 @@ interface SpringDataOutboxRepository
      *
      * This prevents an old worker from changing the state
      * after another worker has reclaimed the event.
+     * attemptCount, retry availability, audit time, and version are changed in
+     * the same atomic statement so observers never see a partial retry state.
      */
     @Modifying
     @Query("""
@@ -114,7 +120,9 @@ interface SpringDataOutboxRepository
                    outbox.processingStartedAt = NULL,
                    outbox.nextAttemptAt = :nextAttemptAt,
                    outbox.attemptCount = outbox.attemptCount + 1,
-                   outbox.claimToken = NULL
+                   outbox.claimToken = NULL,
+                   outbox.updatedAt = :transitionedAt,
+                   outbox.version = outbox.version + 1
              WHERE outbox.id = :eventId
                AND outbox.status = :processing
                AND outbox.claimToken = :claimToken
@@ -124,7 +132,8 @@ interface SpringDataOutboxRepository
             @Param("claimToken") UUID claimToken,
             @Param("processing") OutboxStatus processing,
             @Param("pending") OutboxStatus pending,
-            @Param("nextAttemptAt") Instant nextAttemptAt
+            @Param("nextAttemptAt") Instant nextAttemptAt,
+            @Param("transitionedAt") Instant transitionedAt
     );
 
     /*
@@ -132,24 +141,31 @@ interface SpringDataOutboxRepository
      *
      * The current claim has expired, therefore its token
      * must be removed before another worker can claim it.
+     * Recovery does not increment attemptCount because no confirmed Kafka
+     * failure occurred; the worker may have crashed before initiating the send.
      */
     @Modifying
     @Query("""
             UPDATE OutboxEvent outbox
                SET outbox.status = :pending,
                    outbox.processingStartedAt = NULL,
-                   outbox.claimToken = NULL
+                   outbox.claimToken = NULL,
+                   outbox.updatedAt = :recoveredAt,
+                   outbox.version = outbox.version + 1
              WHERE outbox.status = :processing
                AND outbox.processingStartedAt < :cutoff
             """)
     int recoverStaleProcessing(
             @Param("processing") OutboxStatus processing,
             @Param("pending") OutboxStatus pending,
-            @Param("cutoff") Instant cutoff
+            @Param("cutoff") Instant cutoff,
+            @Param("recoveredAt") Instant recoveredAt
     );
 
     @Modifying
     @Query(value = """
+            -- Select a bounded set first so every cleanup transaction has a
+            -- predictable maximum write and lock footprint.
             WITH expired AS (
                 SELECT id
                 FROM event_outbox
@@ -285,12 +301,14 @@ public class JPAOutboxRepository
                 "nextAttemptAt must not be null"
         );
 
+        Instant transitionedAt = Instant.now();
         return repository.markPendingAgainIfOwned(
                 eventId,
                 claimToken,
                 OutboxStatus.PROCESSING,
                 OutboxStatus.PENDING,
-                nextAttemptAt
+                nextAttemptAt,
+                transitionedAt
         );
     }
 
@@ -306,7 +324,8 @@ public class JPAOutboxRepository
                 Objects.requireNonNull(
                         cutoff,
                         "cutoff must not be null"
-                )
+                ),
+                Instant.now()
         );
     }
 

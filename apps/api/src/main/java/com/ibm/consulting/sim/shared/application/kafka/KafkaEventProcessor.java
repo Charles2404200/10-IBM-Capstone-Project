@@ -12,6 +12,10 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.util.Objects;
 
 @Service
 public class KafkaEventProcessor {
@@ -24,21 +28,36 @@ public class KafkaEventProcessor {
     private final KafkaInboxRepository inboxRepository;
 
     private final KafkaEventHandlerRegistry handlerRegistry;
+    private final KafkaInboxMetrics metrics;
 
     public KafkaEventProcessor(
             KafkaInboxRepository inboxRepository,
-            KafkaEventHandlerRegistry handlerRegistry
+            KafkaEventHandlerRegistry handlerRegistry,
+            KafkaInboxMetrics metrics
     ) {
 
         this.inboxRepository = inboxRepository;
         this.handlerRegistry = handlerRegistry;
+        this.metrics = metrics;
     }
 
+    // The inbox claim and business handler share this transaction. A handler
+    // failure therefore removes the claim on rollback, allowing Kafka retry to
+    // execute the business operation again instead of losing the event.
     @Transactional
     public void process(
             String consumerGroup,
             ConsumerRecord<String, EventEnvelope> record
     ) {
+
+        // The consumer group is part of the durable deduplication key; accepting
+        // an empty value would collapse independent consumers into one namespace.
+        if (consumerGroup == null || consumerGroup.isBlank()) {
+            throw new InvalidKafkaEventException(
+                    "consumerGroup required"
+            );
+        }
+        Objects.requireNonNull(record, "record must not be null");
 
         EventEnvelope event =
                 record.value();
@@ -67,6 +86,7 @@ public class KafkaEventProcessor {
 
             // This consumer group committed the event previously; acknowledge
             // this delivery without invoking the business handler again.
+            metrics.recordDuplicate();
             log.debug(
                     "Duplicate Kafka event ignored: eventId={}, eventType={}, topic={}, partition={}, offset={}",
                     event.eventId(),
@@ -107,6 +127,17 @@ public class KafkaEventProcessor {
         handlerRegistry.dispatch(
                 event,
                 context
+        );
+
+        // The metric represents committed business processing, not merely a
+        // handler invocation that may still roll back with the inbox insert.
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        metrics.recordProcessed();
+                    }
+                }
         );
     }
 
