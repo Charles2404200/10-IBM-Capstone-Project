@@ -68,6 +68,8 @@ public class CacheConfig {
     public static final String PROPOSAL_DECISION_NARRATIVE_CACHE = "proposalDecisionNarrative";
     /** Structured AI coaching keyed by a completed deterministic assessment snapshot. */
     public static final String ASSESSMENT_FEEDBACK_CACHE = "assessmentFeedback";
+    /** Immutable role-scoped notification bodies; user-specific read state is never cached here. */
+    public static final String NOTIFICATION_DETAIL_CACHE = "notificationDetail";
 
     @Bean
     @ConditionalOnProperty(name = "app.cache.provider", havingValue = "caffeine", matchIfMissing = true)
@@ -89,7 +91,8 @@ public class CacheConfig {
                 localCache(ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45)),
                 localCache(PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15)),
                 localCache(PROPOSAL_DECISION_NARRATIVE_CACHE, Duration.ofHours(1)),
-                localCache(ASSESSMENT_FEEDBACK_CACHE, Duration.ofHours(1))));
+                localCache(ASSESSMENT_FEEDBACK_CACHE, Duration.ofHours(1)),
+                localCache(NOTIFICATION_DETAIL_CACHE, Duration.ofMinutes(5))));
         manager.initializeCaches();
         return manager;
     }
@@ -119,7 +122,8 @@ public class CacheConfig {
                 ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45),
                 PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15),
                 PROPOSAL_DECISION_NARRATIVE_CACHE, Duration.ofHours(1),
-                ASSESSMENT_FEEDBACK_CACHE, Duration.ofHours(1));
+                ASSESSMENT_FEEDBACK_CACHE, Duration.ofHours(1),
+                NOTIFICATION_DETAIL_CACHE, Duration.ofMinutes(5));
         return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
     }
 }

@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.shared.api;
 
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.admin.application.InvalidNotificationQueryException;
 import com.ibm.consulting.sim.identity.domain.EmailVerificationRequiredException;
 import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
 import org.springframework.http.HttpStatus;
@@ -52,6 +53,11 @@ public class GlobalExceptionHandler {
     ProblemDetail handleUnreadableRequest(HttpMessageNotReadableException ex) {
         return problem(HttpStatus.BAD_REQUEST, "malformed-request",
                 "Request body must be valid JSON matching the expected format.");
+    }
+
+    @ExceptionHandler(InvalidNotificationQueryException.class)
+    ProblemDetail handleInvalidNotificationQuery(InvalidNotificationQueryException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-notification-query", ex.getMessage());
     }
 
     @ExceptionHandler(EmailVerificationRequiredException.class)

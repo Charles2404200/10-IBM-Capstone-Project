@@ -26,11 +26,12 @@ public class NotificationRealtimePublisher {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void publish(NotificationPersistedEvent event) {
         NotificationObject notification = event.notification();
+        NotificationRealtimeSummary summary = NotificationRealtimeSummary.from(notification);
         String destination = NotificationWebSocketDestinations
                 .subscriptionTopic(notification.getRole());
 
         try {
-            messagingTemplate.convertAndSend(destination, notification);
+            messagingTemplate.convertAndSend(destination, summary);
         } catch (Exception exception) {
             /*
              * The database remains the source of truth, and clients catch up

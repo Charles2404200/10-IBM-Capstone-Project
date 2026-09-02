@@ -24,13 +24,65 @@ public class NotificationQueryService {
     private final NotificationRepository notificationRepository;
     private final NotificationReadRepository notificationReadRepository;
     private final UserRepository userRepository;
+    private final NotificationCentreRepository notificationCentreRepository;
+    private final NotificationDetailCacheService detailCacheService;
+    private final NotificationCursorCodec cursorCodec;
 
     public NotificationQueryService(NotificationRepository notificationRepository,
                                     NotificationReadRepository notificationReadRepository,
-                                    UserRepository userRepository) {
+                                    UserRepository userRepository,
+                                    NotificationCentreRepository notificationCentreRepository,
+                                    NotificationDetailCacheService detailCacheService,
+                                    NotificationCursorCodec cursorCodec) {
         this.notificationRepository = notificationRepository;
         this.notificationReadRepository = notificationReadRepository;
         this.userRepository = userRepository;
+        this.notificationCentreRepository = notificationCentreRepository;
+        this.detailCacheService = detailCacheService;
+        this.cursorCodec = cursorCodec;
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationPageResponse pageForUser(
+            UUID userId,
+            UserRole role,
+            int limit,
+            String encodedCursor,
+            String requestedFields) {
+        validatePageSize(limit);
+        NotificationCursor cursor = cursorCodec.decode(encodedCursor);
+        Set<NotificationQueryField> fields = NotificationQueryField.parse(requestedFields);
+
+        List<ProjectedNotification> rows = notificationCentreRepository.findPage(
+                userId, role, cursor, limit + 1, fields);
+        boolean hasMore = rows.size() > limit;
+        List<ProjectedNotification> pageRows = hasMore ? rows.subList(0, limit) : rows;
+        String nextCursor = null;
+        if (hasMore && !pageRows.isEmpty()) {
+            ProjectedNotification last = pageRows.getLast();
+            nextCursor = cursorCodec.encode(new NotificationCursor(
+                    last.cursorCreatedAt(), last.cursorEventId()));
+        }
+        return new NotificationPageResponse(
+                pageRows.stream().map(ProjectedNotification::fields).toList(),
+                nextCursor,
+                hasMore);
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationDetailResponse detailForUser(UUID eventId, UUID userId, UserRole role) {
+        NotificationSharedDetail detail = detailCacheService.get(eventId, role);
+        Optional<java.time.Instant> readAt = notificationCentreRepository.findReadAt(
+                eventId, userId, role);
+        return new NotificationDetailResponse(
+                detail.eventId(), detail.topicName(), detail.message(), detail.priority(),
+                detail.createdAt(), readAt.isPresent(), readAt.orElse(null));
+    }
+
+    @Transactional(readOnly = true)
+    public UnreadNotificationCountResponse unreadCount(UUID userId, UserRole role) {
+        return new UnreadNotificationCountResponse(
+                notificationCentreRepository.countUnread(userId, role));
     }
 
     @Transactional(readOnly = true)
@@ -40,9 +92,7 @@ public class NotificationQueryService {
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> listForUser(UUID userId, UserRole role, int limit) {
-        if (limit < 1 || limit > MAX_PAGE_SIZE) {
-            throw new IllegalArgumentException("limit must be between 1 and " + MAX_PAGE_SIZE);
-        }
+        validatePageSize(limit);
         log.debug("Fetching notifications for user: userId={}, role={}", userId, role);
 
         List<NotificationEvent> notificationsRoleOnly =
@@ -95,6 +145,13 @@ public class NotificationQueryService {
         );
 
         return userNotifications;
+    }
+
+    private void validatePageSize(int limit) {
+        if (limit < 1 || limit > MAX_PAGE_SIZE) {
+            throw new InvalidNotificationQueryException(
+                    "limit must be between 1 and " + MAX_PAGE_SIZE);
+        }
     }
 
     @Transactional
