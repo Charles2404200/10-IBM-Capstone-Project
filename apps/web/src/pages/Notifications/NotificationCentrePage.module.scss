@@ -1,0 +1,80 @@
+.page {
+  width: 100%;
+  max-width: 96rem;
+  margin-inline: auto;
+  padding: 2rem;
+}
+
+.pageHeader {
+  margin-block-end: 1.5rem;
+
+  h1 { margin: 0; }
+  p { margin: 0.5rem 0 0; color: var(--cds-text-secondary); }
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(18rem, 26rem) minmax(0, 1fr);
+  min-height: 32rem;
+  border: 1px solid var(--cds-border-subtle-01);
+  background: var(--cds-layer-01);
+}
+
+.listPanel {
+  border-inline-end: 1px solid var(--cds-border-subtle-01);
+  overflow: auto;
+}
+
+.list { list-style: none; padding: 0; margin: 0; }
+
+.listItem {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 0;
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  background: transparent;
+  color: var(--cds-text-primary);
+  text-align: start;
+  cursor: pointer;
+
+  &:hover { background: var(--cds-layer-hover-01); }
+  &:focus-visible { outline: 2px solid var(--cds-focus); outline-offset: -2px; }
+}
+
+.selected { box-shadow: inset 0.25rem 0 0 var(--cds-focus); }
+.unread { font-weight: 500; }
+
+.itemHeading { display: flex; justify-content: space-between; gap: 1rem; }
+.unreadLabel { font-size: 0.75rem; font-weight: 600; }
+.unreadLabel::before { content: '●'; margin-inline-end: 0.35rem; }
+
+.preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--cds-text-secondary);
+  font-weight: 400;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.metadata { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 0.75rem; }
+.detailPanel { min-width: 0; padding: 2rem; overflow: auto; }
+.detailPlaceholder, .empty { color: var(--cds-text-secondary); }
+.detailArticle { max-width: 52rem; }
+.detailHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.detailHeader h2 { margin: 0; }
+.fullMessage { margin-block: 1.5rem; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+.detailMetadata { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1rem; }
+.detailMetadata dt { font-weight: 600; }
+.detailMetadata dd { margin: 0; }
+
+@media (max-width: 41.9375rem) {
+  .page { padding: 1rem; }
+  .layout { display: block; min-height: 0; }
+  .listPanel { border-inline-end: 0; }
+}
+

@@ -1,0 +1,22 @@
+.action {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  inset-block-start: 0.2rem;
+  inset-inline-end: 0.15rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding-inline: 0.25rem;
+  border: 2px solid #161616;
+  border-radius: 999px;
+  background: var(--cds-support-error);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 0.85rem;
+  text-align: center;
+  pointer-events: none;
+}
+

@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.admin.application;
 
 import com.ibm.consulting.sim.admin.domain.NotificationEvent;
+import com.ibm.consulting.sim.admin.domain.NotificationCentreRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationRead;
 import com.ibm.consulting.sim.admin.domain.NotificationReadRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationRepository;
@@ -38,6 +39,15 @@ class NotificationQueryServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private NotificationCentreRepository notificationCentreRepository;
+
+    @Mock
+    private NotificationDetailCacheService detailCacheService;
+
+    @Mock
+    private NotificationCursorCodec cursorCodec;
 
     @InjectMocks
     private NotificationQueryService service;
@@ -81,6 +91,61 @@ class NotificationQueryServiceTest {
         List<NotificationResponse> response = service.listForUser(userId, UserRole.LEARNER);
 
         assertEquals(NotificationPriority.CRITICAL, response.getFirst().priority());
+    }
+
+    @Test
+    void notificationPageUsesLimitPlusOneAndCreatesStableNextCursor() {
+        UUID userId = UUID.randomUUID();
+        UUID firstId = UUID.randomUUID();
+        UUID secondId = UUID.randomUUID();
+        Instant firstAt = Instant.parse("2026-09-02T01:00:00Z");
+        Instant secondAt = Instant.parse("2026-09-02T00:59:00Z");
+        var fields = NotificationQueryField.defaults();
+        var first = new ProjectedNotification(
+                java.util.Map.of("eventId", firstId), firstAt, firstId);
+        var second = new ProjectedNotification(
+                java.util.Map.of("eventId", secondId), secondAt, secondId);
+
+        when(notificationCentreRepository.findPage(
+                userId, UserRole.LEARNER, null, 2, fields))
+                .thenReturn(List.of(first, second));
+        when(cursorCodec.encode(new NotificationCursor(firstAt, firstId)))
+                .thenReturn("next-cursor");
+
+        NotificationPageResponse response = service.pageForUser(
+                userId, UserRole.LEARNER, 1, null, null);
+
+        assertEquals(1, response.items().size());
+        assertTrue(response.hasMore());
+        assertEquals("next-cursor", response.nextCursor());
+    }
+
+    @Test
+    void detailCombinesCachedSharedBodyWithUncachedPerUserReadState() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-09-02T01:00:00Z");
+        Instant readAt = Instant.parse("2026-09-02T01:05:00Z");
+        when(detailCacheService.get(eventId, UserRole.LEARNER)).thenReturn(
+                new NotificationSharedDetail(
+                        eventId, "Course", "Complete body", NotificationPriority.IMPORTANT, createdAt));
+        when(notificationCentreRepository.findReadAt(eventId, userId, UserRole.LEARNER))
+                .thenReturn(Optional.of(readAt));
+
+        NotificationDetailResponse response = service.detailForUser(
+                eventId, userId, UserRole.LEARNER);
+
+        assertEquals("Complete body", response.message());
+        assertTrue(response.read());
+        assertEquals(readAt, response.readAt());
+    }
+
+    @Test
+    void unreadCountIsScopedByAuthenticatedIdentityAndRole() {
+        UUID userId = UUID.randomUUID();
+        when(notificationCentreRepository.countUnread(userId, UserRole.REVIEWER)).thenReturn(17L);
+
+        assertEquals(17, service.unreadCount(userId, UserRole.REVIEWER).unreadCount());
     }
 
     @Test

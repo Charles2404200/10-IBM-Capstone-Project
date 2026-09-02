@@ -98,11 +98,42 @@ export interface AdminNotificationRequest {
 // Notification ------------------------------
 export interface NotificationObject {
     eventId: string
-    userId: string
     topicName: string
-    message: string
+    messagePreview: string
+    /** Backward-compatible preview alias from the realtime protocol. */
+    message?: string
     role: UserRole
     priority: NotificationPriority
+    createdAt: string
+}
+
+export interface NotificationSummary {
+  eventId: string
+  topicName: string
+  messagePreview: string
+  priority: NotificationPriority
+  createdAt: string
+  isRead: boolean
+}
+
+export interface NotificationPage {
+  items: NotificationSummary[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+export interface NotificationDetail {
+  eventId: string
+  topicName: string
+  message: string
+  priority: NotificationPriority
+  createdAt: string
+  read: boolean
+  readAt: string | null
+}
+
+export interface UnreadNotificationCount {
+  unreadCount: number
 }
 //
 
