@@ -17,33 +17,57 @@ public class OutboxRecoveryScheduler {
     private static final Logger log =
             LoggerFactory.getLogger(OutboxRecoveryScheduler.class);
 
-    private static final Duration RECOVERY_SAFETY_MARGIN =
-            Duration.ofSeconds(5);
-
     private final OutboxEventRepository repository;
-    private final long deliveryTimeoutMs;
+    private final OutboxMetrics metrics;
+
+    // Recovery must wait longer than Kafka is legally allowed to keep a send in
+    // flight. Recovering earlier could let two workers publish the same event
+    // concurrently while the original producer request is still unresolved.
+    private final Duration staleThreshold;
 
     public OutboxRecoveryScheduler(
             OutboxEventRepository repository,
+            OutboxMetrics metrics,
             @Value("${app.kafka.producer.delivery-timeout-ms}")
-            long deliveryTimeoutMs
+            long deliveryTimeoutMs,
+            @Value("${app.kafka.outbox.recovery-delay-ms:30000}")
+            long recoveryDelayMs,
+            @Value("${app.kafka.outbox.recovery-safety-margin-ms:30000}")
+            long recoverySafetyMarginMs
     ) {
+        if (deliveryTimeoutMs <= 0) {
+            throw new IllegalArgumentException(
+                    "Kafka producer delivery timeout must be positive"
+            );
+        }
+        if (recoveryDelayMs <= 0) {
+            throw new IllegalArgumentException(
+                    "Outbox recovery delay must be positive"
+            );
+        }
+        if (recoverySafetyMarginMs <= 0) {
+            throw new IllegalArgumentException(
+                    "Outbox recovery safety margin must be positive"
+            );
+        }
         this.repository = repository;
-        this.deliveryTimeoutMs = deliveryTimeoutMs;
+        this.metrics = metrics;
+        // The scheduled polling delay controls how often recovery runs; it is
+        // validated above but intentionally does not shorten the lease itself.
+        this.staleThreshold = Duration.ofMillis(deliveryTimeoutMs)
+                .plusMillis(recoverySafetyMarginMs);
     }
 
     @Scheduled(fixedDelayString = "${app.kafka.outbox.recovery-delay-ms:30000}")
     @Transactional
     public void recoverStaleClaims() {
 
-        Duration staleThreshold =
-                Duration.ofMillis(deliveryTimeoutMs)
-                        .plus(RECOVERY_SAFETY_MARGIN);
-
         Instant cutoff = Instant.now().minus(staleThreshold);
 
         int recoveredCount =
                 repository.recoverStaleProcessing(cutoff);
+
+        metrics.recordRecovered(recoveredCount);
 
         if (recoveredCount > 0) {
             log.warn(

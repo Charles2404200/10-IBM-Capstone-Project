@@ -119,31 +119,51 @@ class NotificationCentreRepositoryIntegrationTest {
                     UUID.randomUUID(), producer.getId(), "Concurrent", "Message", UserRole.LEARNER);
             entityManager.persist(notification);
             entityManager.flush();
-            return new ReadTarget(notification.getId(), recipient.getId());
+            return new ReadTarget(notification.getId(), producer.getId(), recipient.getId());
         });
 
-        try (var executor = Executors.newFixedThreadPool(8)) {
-            List<Callable<Boolean>> attempts = new ArrayList<>();
-            for (int index = 0; index < 20; index++) {
-                attempts.add(() -> transaction.execute(status ->
-                        readRepository.createReadNotificationForUser(
-                                target.notificationId(), target.userId(), UserRole.LEARNER)));
-            }
-            List<Future<Boolean>> results = executor.invokeAll(attempts);
-            assertEquals(1, results.stream().filter(future -> {
-                try {
-                    return future.get();
-                } catch (Exception exception) {
-                    throw new AssertionError(exception);
+        try {
+            try (var executor = Executors.newFixedThreadPool(8)) {
+                List<Callable<Boolean>> attempts = new ArrayList<>();
+                for (int index = 0; index < 20; index++) {
+                    attempts.add(() -> transaction.execute(status ->
+                            readRepository.createReadNotificationForUser(
+                                    target.notificationId(), target.recipientId(), UserRole.LEARNER)));
                 }
-            }).count());
-        }
+                List<Future<Boolean>> results = executor.invokeAll(attempts);
+                assertEquals(1, results.stream().filter(future -> {
+                    try {
+                        return future.get();
+                    } catch (Exception exception) {
+                        throw new AssertionError(exception);
+                    }
+                }).count());
+            }
 
-        List<NotificationRead> rows = transaction.execute(status ->
-                readRepository.findByNotificationId(target.notificationId()));
-        assertEquals(1, rows.size());
+            List<NotificationRead> rows = transaction.execute(status ->
+                    readRepository.findByNotificationId(target.notificationId()));
+            assertEquals(1, rows.size());
+        } finally {
+            // This test commits work from multiple threads and therefore cannot
+            // rely on DataJpaTest's usual rollback. Always remove its fixtures so
+            // randomized test order cannot pollute another projection test.
+            transaction.executeWithoutResult(status -> {
+                entityManager.createNativeQuery(
+                                "DELETE FROM notification_reads WHERE notification_id = :notificationId")
+                        .setParameter("notificationId", target.notificationId())
+                        .executeUpdate();
+                entityManager.createNativeQuery("DELETE FROM notification WHERE id = :notificationId")
+                        .setParameter("notificationId", target.notificationId())
+                        .executeUpdate();
+                entityManager.createNativeQuery(
+                                "DELETE FROM users WHERE id IN (:producerId, :recipientId)")
+                        .setParameter("producerId", target.producerId())
+                        .setParameter("recipientId", target.recipientId())
+                        .executeUpdate();
+            });
+        }
     }
 
-    private record ReadTarget(UUID notificationId, UUID userId) {
+    private record ReadTarget(UUID notificationId, UUID producerId, UUID recipientId) {
     }
 }

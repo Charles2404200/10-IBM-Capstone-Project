@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.shared.application;
 
 import com.ibm.consulting.sim.shared.application.outbox.OutboxRecoveryScheduler;
+import com.ibm.consulting.sim.shared.application.outbox.OutboxMetrics;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -16,9 +17,13 @@ class OutboxRecoverySchedulerTest {
     @Test
     void recoversClaimsThatHaveBeenProcessingForMoreThanOneMinute() {
         OutboxEventRepository repository = mock(OutboxEventRepository.class);
+        OutboxMetrics metrics = mock(OutboxMetrics.class);
         OutboxRecoveryScheduler scheduler = new OutboxRecoveryScheduler(
                 repository,
-                55_000
+                metrics,
+                55_000,
+                30_000,
+                5_000
         );
         Instant earliestExpectedCutoff = Instant.now().minusSeconds(61);
 
@@ -26,7 +31,27 @@ class OutboxRecoverySchedulerTest {
 
         ArgumentCaptor<Instant> cutoff = ArgumentCaptor.forClass(Instant.class);
         verify(repository).recoverStaleProcessing(cutoff.capture());
+        verify(metrics).recordRecovered(0);
         assertFalse(cutoff.getValue().isBefore(earliestExpectedCutoff));
         assertFalse(cutoff.getValue().isAfter(Instant.now().minusSeconds(59)));
+    }
+
+    @Test
+    void rejectsUnsafeRecoveryConfiguration() {
+        OutboxEventRepository repository = mock(OutboxEventRepository.class);
+        OutboxMetrics metrics = mock(OutboxMetrics.class);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new OutboxRecoveryScheduler(repository, metrics, 0, 30_000, 5_000)
+        );
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new OutboxRecoveryScheduler(repository, metrics, 120_000, 0, 5_000)
+        );
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new OutboxRecoveryScheduler(repository, metrics, 120_000, 30_000, 0)
+        );
     }
 }
