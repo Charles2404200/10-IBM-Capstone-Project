@@ -18,6 +18,7 @@ public class OutboxMetrics {
     private final Map<EventPriority, Counter> successes = new EnumMap<>(EventPriority.class);
     private final Map<EventPriority, Counter> failures = new EnumMap<>(EventPriority.class);
     private final Map<EventPriority, Counter> retries = new EnumMap<>(EventPriority.class);
+    private final Map<EventPriority, Counter> terminalFailures = new EnumMap<>(EventPriority.class);
 
     // Lifecycle counters expose throughput and maintenance activity without
     // tagging event IDs, claim tokens, topics, or other high-cardinality data.
@@ -46,6 +47,8 @@ public class OutboxMetrics {
             successes.put(priority, priorityCounter(registry, "consulting.outbox.dispatch.success", label));
             failures.put(priority, priorityCounter(registry, "consulting.outbox.dispatch.failure", label));
             retries.put(priority, priorityCounter(registry, "consulting.outbox.retry", label));
+            terminalFailures.put(priority,
+                    priorityCounter(registry, "consulting.outbox.terminal.failure", label));
         }
         claimed = counter(registry, "consulting.outbox.claimed",
                 "Outbox rows successfully claimed for dispatch");
@@ -84,6 +87,10 @@ public class OutboxMetrics {
 
     public void recordRetry(EventPriority priority) {
         retries.get(priority).increment();
+    }
+
+    public void recordTerminalFailure(EventPriority priority) {
+        terminalFailures.get(priority).increment();
     }
 
     public void recordClaimed(int count) {

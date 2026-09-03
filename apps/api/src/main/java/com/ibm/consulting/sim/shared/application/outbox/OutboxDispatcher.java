@@ -6,7 +6,8 @@ import com.ibm.consulting.sim.shared.domain.outbox.OutboxEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
+import com.ibm.consulting.sim.shared.config.OutboxProperties;
+import jakarta.annotation.PreDestroy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 public class OutboxDispatcher {
@@ -27,6 +29,7 @@ public class OutboxDispatcher {
     private final OutboxMetrics metrics;
     private final ExecutorService completionExecutor;
     private final int batchSize;
+    private final AtomicBoolean acceptingWork = new AtomicBoolean(true);
 
     public OutboxDispatcher(
             OutboxClaimService claimService,
@@ -35,22 +38,25 @@ public class OutboxDispatcher {
             KafkaEventPublisher publisher,
             OutboxMetrics metrics,
             @Qualifier("outboxCompletionExecutor") ExecutorService completionExecutor,
-            @Value("${app.kafka.outbox.batch-size:100}") int batchSize) {
-        if (batchSize <= 0) {
-            throw new IllegalArgumentException("Outbox batch size must be positive");
-        }
+            OutboxProperties properties) {
         this.claimService = claimService;
         this.repository = repository;
         this.stateService = stateService;
         this.publisher = publisher;
         this.metrics = metrics;
         this.completionExecutor = completionExecutor;
-        this.batchSize = batchSize;
+        this.batchSize = properties.batchSize();
     }
 
 
-    @Scheduled(fixedDelayString = "${app.kafka.outbox.poll-delay-ms:200}")
+    @Scheduled(fixedDelayString = "${app.kafka.outbox.poll-delay:200ms}")
     public void dispatch() {
+
+        // Scheduled invocations racing with context shutdown must not acquire
+        // new leases. Already claimed work is allowed to finish below.
+        if (!acceptingWork.get()) {
+            return;
+        }
 
         // One unguessable token owns this claimed batch. Every later state
         // transition also checks the token, preventing a recovered stale worker
@@ -75,6 +81,11 @@ public class OutboxDispatcher {
         CompletableFuture.allOf(
                 completions.toArray(CompletableFuture[]::new)
         ).join();
+    }
+
+    @PreDestroy
+    public void stopClaiming() {
+        acceptingWork.set(false);
     }
 
     private CompletableFuture<Void> publishClaimed(UUID id, UUID claimToken) {
@@ -141,24 +152,30 @@ public class OutboxDispatcher {
                 }
             } else {
                 metrics.recordFailure(event.getEventPriority());
-                boolean retryScheduled = stateService.markPendingAgain(
+                OutboxFailureOutcome outcome = stateService.recordFailure(
                         event.getId(),
                         claimToken,
-                        event.getAttemptCount()
+                        event.getAttemptCount(),
+                        failure
                 );
-                if (retryScheduled) {
-                    metrics.recordRetry(event.getEventPriority());
-                } else {
-                    // Recovery may have reassigned the event while Kafka was
-                    // failing; the current worker must treat that lease as lost.
-                    metrics.recordOwnershipConflict();
+                switch (outcome) {
+                    case RETRY_SCHEDULED -> metrics.recordRetry(event.getEventPriority());
+                    case TERMINALLY_FAILED -> metrics.recordTerminalFailure(event.getEventPriority());
+                    case OWNERSHIP_LOST -> {
+                        // Recovery may have reassigned the event while Kafka was
+                        // failing; the current worker must treat that lease as lost.
+                        metrics.recordOwnershipConflict();
+                    }
                 }
                 log.warn(
-                        "Outbox publication failed: eventId={}, eventType={}, topic={}, priority={}",
+                        "Outbox publication failed: eventId={}, eventType={}, topic={}, "
+                                + "priority={}, attempt={}, outcome={}",
                         event.getId(),
                         event.getEventType(),
                         event.getTopic(),
                         event.getEventPriority(),
+                        event.getAttemptCount() + 1,
+                        outcome,
                         failure
                 );
             }

@@ -77,6 +77,11 @@ public class OutboxEvent extends BaseEntity {
 
     private Instant publishedAt;
 
+    private Instant failedAt;
+
+    @Column(columnDefinition = "text")
+    private String lastError;
+
     /*
      * Required by JPA.
      */
@@ -283,6 +288,24 @@ public class OutboxEvent extends BaseEntity {
                 null;
     }
 
+    /** Moves a currently owned event to its terminal operational failure state. */
+    public void markFailed(String failureDescription) {
+        requireStatus(OutboxStatus.PROCESSING, "mark failed");
+        if (failureDescription == null || failureDescription.isBlank()) {
+            throw new IllegalArgumentException("failureDescription must not be blank");
+        }
+        if (failureDescription.length() > 1_000) {
+            throw new IllegalArgumentException("failureDescription must not exceed 1000 characters");
+        }
+        this.status = OutboxStatus.FAILED;
+        this.attemptCount++;
+        this.processingStartedAt = null;
+        this.nextAttemptAt = null;
+        this.claimToken = null;
+        this.failedAt = Instant.now();
+        this.lastError = failureDescription;
+    }
+
     private void requireStatus(
             OutboxStatus requiredStatus,
             String transition
@@ -360,5 +383,13 @@ public class OutboxEvent extends BaseEntity {
 
     public Instant getPublishedAt() {
         return publishedAt;
+    }
+
+    public Instant getFailedAt() {
+        return failedAt;
+    }
+
+    public String getLastError() {
+        return lastError;
     }
 }

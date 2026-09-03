@@ -34,4 +34,10 @@ public interface OutboxEventRepository {
             Instant cutoff,
             int limit
     );
+
+    int markFailedIfOwned(
+            UUID eventId,
+            UUID claimToken,
+            String lastError
+    );
 }

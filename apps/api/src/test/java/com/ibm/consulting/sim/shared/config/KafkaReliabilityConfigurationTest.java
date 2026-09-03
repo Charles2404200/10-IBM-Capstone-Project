@@ -1,65 +1,63 @@
 package com.ibm.consulting.sim.shared.config;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
-import org.springframework.boot.ssl.SslBundles;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Configuration;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class KafkaReliabilityConfigurationTest {
 
-    // Configuration bean tests intentionally bypass a Spring context so each
-    // invalid deployment value can be verified as a deterministic startup error.
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withUserConfiguration(ReliabilityPropertiesConfiguration.class);
 
     @Test
     void producerRejectsNonPositiveDeliveryTimeoutAtStartup() {
-        KafkaProducerConfig config = validProducerConfig();
-        ReflectionTestUtils.setField(config, "deliveryTimeoutMs", 0);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> config.producerFactory(
-                        new KafkaProperties(),
-                        mock(SslBundles.class))
-        );
+        contextRunner
+                .withPropertyValues("app.kafka.producer.delivery-timeout=0ms")
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @Test
-    void producerRejectsNegativeRetryConfigurationAtStartup() {
-        KafkaProducerConfig config = validProducerConfig();
-        ReflectionTestUtils.setField(config, "retryBackoffMs", -1L);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> config.producerFactory(
-                        new KafkaProperties(),
-                        mock(SslBundles.class))
-        );
+    void producerRejectsUnsafeParallelRequestCountAtStartup() {
+        contextRunner
+                .withPropertyValues("app.kafka.producer.parallel-requests=6")
+                .run(context -> assertThat(context).hasFailed());
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void consumerRejectsNegativeRetryConfigurationAtStartup() {
-        KafkaConsumerConfig config = new KafkaConsumerConfig();
-        ReflectionTestUtils.setField(config, "retryBackoffMs", -1L);
-        ReflectionTestUtils.setField(config, "maxRetries", 3L);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> config.kafkaErrorHandler(mock(KafkaTemplate.class))
-        );
+        contextRunner
+                .withPropertyValues("app.kafka.consumer.max-retries=-1")
+                .run(context -> assertThat(context).hasFailed());
     }
 
-    private KafkaProducerConfig validProducerConfig() {
-        KafkaProducerConfig config = new KafkaProducerConfig();
-        ReflectionTestUtils.setField(config, "deliveryTimeoutMs", 120_000);
-        ReflectionTestUtils.setField(config, "requestTimeoutMs", 30_000);
-        ReflectionTestUtils.setField(config, "retryBackoffMs", 500L);
-        ReflectionTestUtils.setField(config, "retries", Integer.MAX_VALUE);
-        ReflectionTestUtils.setField(config, "parallelRequests", 5);
-        return config;
+    @Test
+    void outboxRejectsNonPositiveMaximumAttemptsAtStartup() {
+        contextRunner
+                .withPropertyValues("app.kafka.outbox.max-attempts=0")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void validDefaultsBindAsDurations() {
+        contextRunner.run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(KafkaProducerProperties.class).deliveryTimeout())
+                    .hasSeconds(120);
+            assertThat(context.getBean(OutboxProperties.class).retention())
+                    .isEqualTo(java.time.Duration.ofDays(2));
+        });
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @EnableConfigurationProperties({
+            KafkaProducerProperties.class,
+            KafkaConsumerReliabilityProperties.class,
+            OutboxProperties.class,
+            KafkaInboxProperties.class
+    })
+    static class ReliabilityPropertiesConfiguration {
     }
 }

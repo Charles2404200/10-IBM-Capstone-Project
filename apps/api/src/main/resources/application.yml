@@ -3,6 +3,15 @@ spring:
     name: consulting-simulation-api
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      # Finish the current record during graceful shutdown; durable inbox
+      # idempotency makes a replay safe if the process is forcibly terminated.
+      immediate-stop: false
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: ${SCHEDULER_SHUTDOWN_TIMEOUT:30s}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://db.xkeneljgytgrrcsrbbqv.supabase.co:5432/postgres?sslmode=require&prepareThreshold=0}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -55,31 +64,32 @@ springdoc:
 app:
   kafka:
     producer:
-      delivery-timeout-ms: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:120000}
-      request-timeout-ms: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:30000}
-      retry-backoff-ms: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS:500}
+      delivery-timeout: ${KAFKA_PRODUCER_DELIVERY_TIMEOUT_MS:120000}ms
+      request-timeout: ${KAFKA_PRODUCER_REQUEST_TIMEOUT_MS:30000}ms
+      retry-backoff: ${KAFKA_PRODUCER_RETRY_BACKOFF_MS:500}ms
       retries: ${KAFKA_PRODUCER_RETRIES:2147483647}
       parallel-requests: ${KAFKA_PRODUCER_PARALLEL_REQUESTS:5}
     consumer:
-      retry-backoff-ms: ${KAFKA_CONSUMER_RETRY_BACKOFF_MS:2000}
+      retry-backoff: ${KAFKA_CONSUMER_RETRY_BACKOFF_MS:2000}ms
       max-retries: ${KAFKA_CONSUMER_MAX_RETRIES:3}
     outbox:
-      poll-delay-ms: ${KAFKA_OUTBOX_POLL_DELAY_MS:200}
+      poll-delay: ${KAFKA_OUTBOX_POLL_DELAY_MS:200}ms
       batch-size: ${KAFKA_OUTBOX_BATCH_SIZE:100}
-      recovery-delay-ms: ${KAFKA_OUTBOX_RECOVERY_DELAY_MS:30000}
-      # Added to producer delivery-timeout-ms before a PROCESSING lease is stale.
-      recovery-safety-margin-ms: ${KAFKA_OUTBOX_RECOVERY_SAFETY_MARGIN_MS:30000}
+      recovery-delay: ${KAFKA_OUTBOX_RECOVERY_DELAY_MS:30000}ms
+      # Added to producer delivery-timeout before a PROCESSING lease is stale.
+      recovery-safety-margin: ${KAFKA_OUTBOX_RECOVERY_SAFETY_MARGIN_MS:30000}ms
+      max-attempts: ${KAFKA_OUTBOX_MAX_ATTEMPTS:10}
       cleanup-cron: ${KAFKA_OUTBOX_CLEANUP_CRON:0 */10 * * * *}
-      cleanup-retention-days: ${KAFKA_OUTBOX_RETENTION_DAYS:2}
+      retention: ${KAFKA_OUTBOX_RETENTION_DAYS:2}d
       cleanup-batch-size: ${KAFKA_OUTBOX_CLEANUP_BATCH_SIZE:10000}
       retry:
-        initial-delay-ms: ${KAFKA_OUTBOX_RETRY_INITIAL_DELAY_MS:1000}
-        max-delay-ms: ${KAFKA_OUTBOX_RETRY_MAX_DELAY_MS:300000}
+        initial-delay: ${KAFKA_OUTBOX_RETRY_INITIAL_DELAY_MS:1000}ms
+        max-delay: ${KAFKA_OUTBOX_RETRY_MAX_DELAY_MS:300000}ms
         multiplier: ${KAFKA_OUTBOX_RETRY_MULTIPLIER:2.0}
         jitter-ratio: ${KAFKA_OUTBOX_RETRY_JITTER_RATIO:0.2}
     inbox:
       # Keep this longer than the maximum Kafka replay/redelivery horizon.
-      retention-days: ${KAFKA_INBOX_RETENTION_DAYS:14}
+      retention: ${KAFKA_INBOX_RETENTION_DAYS:14}d
       cleanup-batch-size: ${KAFKA_INBOX_CLEANUP_BATCH_SIZE:10000}
       cleanup-cron: ${KAFKA_INBOX_CLEANUP_CRON:0 15 * * * *}
     notifications:
@@ -106,8 +116,10 @@ app:
       batch-size: ${LOKI_BATCH_SIZE:100}
       flush-interval-ms: ${LOKI_FLUSH_INTERVAL_MS:1000}
   async:
-    outbox-completion-pool-size: ${OUTBOX_COMPLETION_POOL_SIZE:8}
-    outbox-completion-queue-capacity: ${OUTBOX_COMPLETION_QUEUE_CAPACITY:500}
+    outbox-completion:
+      pool-size: ${OUTBOX_COMPLETION_POOL_SIZE:8}
+      queue-capacity: ${OUTBOX_COMPLETION_QUEUE_CAPACITY:500}
+      shutdown-timeout: ${OUTBOX_COMPLETION_SHUTDOWN_TIMEOUT:15s}
   # Comma-separated list of origins allowed to call the API (CORS) and open the
   # STOMP/WebSocket handshake (see WebSocketConfig). Defaults cover local dev
   # (Vite on 3000/5173); production deployments (Railway, IBM Cloud, ...) set

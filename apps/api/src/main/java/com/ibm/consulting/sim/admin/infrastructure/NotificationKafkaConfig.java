@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
@@ -14,13 +13,9 @@ public class NotificationKafkaConfig {
     private static final Logger log = LoggerFactory.getLogger(NotificationKafkaConfig.class);
 
     private final NotificationKafkaProperties properties;
-    private final String dltTopicName;
 
-    public NotificationKafkaConfig(
-            NotificationKafkaProperties properties,
-            @Value("${app.kafka.notifications.dlt.topic-name:notifications.DLT}") String dltTopicName) {
+    public NotificationKafkaConfig(NotificationKafkaProperties properties) {
         this.properties = properties;
-        this.dltTopicName = dltTopicName;
     }
 
     @Bean
@@ -37,7 +32,7 @@ public class NotificationKafkaConfig {
     @Bean
     public NewTopic notificationDeadLetterTopic() {
         return TopicBuilder
-                .name(dltTopicName)
+                .name(properties.dlt().topicName())
                 .partitions(properties.topic().partitions())
                 .replicas(properties.topic().replicas())
                 .build();

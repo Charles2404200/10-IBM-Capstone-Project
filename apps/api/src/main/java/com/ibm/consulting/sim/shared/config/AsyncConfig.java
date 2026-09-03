@@ -28,13 +28,16 @@ public class AsyncConfig implements AsyncConfigurer {
     private final int corePoolSize;
     private final int maxPoolSize;
     private final int queueCapacity;
+    private final OutboxCompletionProperties outboxCompletionProperties;
 
     public AsyncConfig(@Value("${app.async.core-pool-size:8}") int corePoolSize,
                         @Value("${app.async.max-pool-size:32}") int maxPoolSize,
-                        @Value("${app.async.queue-capacity:200}") int queueCapacity) {
+                        @Value("${app.async.queue-capacity:200}") int queueCapacity,
+                        OutboxCompletionProperties outboxCompletionProperties) {
         this.corePoolSize = corePoolSize;
         this.maxPoolSize = maxPoolSize;
         this.queueCapacity = queueCapacity;
+        this.outboxCompletionProperties = outboxCompletionProperties;
     }
 
     /** Bounded pool dedicated to outbound AI gateway calls (watsonx.ai). */
@@ -133,17 +136,16 @@ public class AsyncConfig implements AsyncConfigurer {
      * broker acknowledgements instead of dropping completion work.
      */
     @Bean(destroyMethod = "shutdown")
-    public ExecutorService outboxCompletionExecutor(
-            @Value("${app.async.outbox-completion-pool-size:8}") int poolSize,
-            @Value("${app.async.outbox-completion-queue-capacity:500}") int queueCapacity) {
+    public ExecutorService outboxCompletionExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(poolSize);
-        executor.setMaxPoolSize(poolSize);
-        executor.setQueueCapacity(queueCapacity);
+        executor.setCorePoolSize(outboxCompletionProperties.poolSize());
+        executor.setMaxPoolSize(outboxCompletionProperties.poolSize());
+        executor.setQueueCapacity(outboxCompletionProperties.queueCapacity());
         executor.setThreadNamePrefix("outbox-completion-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(15);
+        executor.setAwaitTerminationSeconds(
+                Math.toIntExact(outboxCompletionProperties.shutdownTimeout().toSeconds()));
         executor.initialize();
         return executor.getThreadPoolExecutor();
     }

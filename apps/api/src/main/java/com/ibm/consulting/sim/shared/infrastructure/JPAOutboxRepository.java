@@ -136,6 +136,32 @@ interface SpringDataOutboxRepository
             @Param("transitionedAt") Instant transitionedAt
     );
 
+    /** Atomically exhausts a currently owned lease; stale workers update zero rows. */
+    @Modifying
+    @Query("""
+            UPDATE OutboxEvent outbox
+               SET outbox.status = :failed,
+                   outbox.processingStartedAt = NULL,
+                   outbox.nextAttemptAt = NULL,
+                   outbox.claimToken = NULL,
+                   outbox.attemptCount = outbox.attemptCount + 1,
+                   outbox.failedAt = :failedAt,
+                   outbox.lastError = :lastError,
+                   outbox.updatedAt = :failedAt,
+                   outbox.version = outbox.version + 1
+             WHERE outbox.id = :eventId
+               AND outbox.status = :processing
+               AND outbox.claimToken = :claimToken
+            """)
+    int markFailedIfOwned(
+            @Param("eventId") UUID eventId,
+            @Param("claimToken") UUID claimToken,
+            @Param("processing") OutboxStatus processing,
+            @Param("failed") OutboxStatus failed,
+            @Param("failedAt") Instant failedAt,
+            @Param("lastError") String lastError
+    );
+
     /*
      * Recovery is different from a normal retry.
      *
@@ -173,6 +199,7 @@ interface SpringDataOutboxRepository
                   AND published_at < :cutoff
                 ORDER BY published_at
                 LIMIT :limit
+                FOR UPDATE SKIP LOCKED
             )
             DELETE FROM event_outbox outbox
             USING expired
@@ -345,6 +372,28 @@ public class JPAOutboxRepository
                         "cutoff must not be null"
                 ),
                 limit
+        );
+    }
+
+    @Override
+    @Transactional
+    public int markFailedIfOwned(UUID eventId, UUID claimToken, String lastError) {
+        Objects.requireNonNull(eventId, "eventId must not be null");
+        Objects.requireNonNull(claimToken, "claimToken must not be null");
+        if (lastError == null || lastError.isBlank()) {
+            throw new IllegalArgumentException("lastError must not be blank");
+        }
+        if (lastError.length() > 1_000) {
+            throw new IllegalArgumentException("lastError must not exceed 1000 characters");
+        }
+        Instant failedAt = Instant.now();
+        return repository.markFailedIfOwned(
+                eventId,
+                claimToken,
+                OutboxStatus.PROCESSING,
+                OutboxStatus.FAILED,
+                failedAt,
+                lastError
         );
     }
 }

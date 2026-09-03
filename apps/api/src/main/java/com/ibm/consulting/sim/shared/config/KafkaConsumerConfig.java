@@ -4,6 +4,8 @@ import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
 import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaEventException;
 import com.ibm.consulting.sim.shared.domain.kafka.InvalidKafkaPayloadException;
 import com.ibm.consulting.sim.shared.domain.kafka.UnsupportedKafkaEventException;
+import com.ibm.consulting.sim.shared.application.kafka.KafkaDltMetrics;
+import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -13,7 +15,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
@@ -40,51 +42,37 @@ public class KafkaConsumerConfig {
     private static final Logger log =
             LoggerFactory.getLogger(KafkaConsumerConfig.class);
 
-    @Value("${app.kafka.consumer.retry-backoff-ms:2000}")
-    private long retryBackoffMs;
+    private final KafkaConsumerReliabilityProperties consumerProperties;
+    private final NotificationKafkaProperties notificationProperties;
 
-    @Value("${app.kafka.consumer.max-retries:3}")
-    private long maxRetries;
+    public KafkaConsumerConfig(
+            KafkaConsumerReliabilityProperties consumerProperties,
+            NotificationKafkaProperties notificationProperties) {
+        this.consumerProperties = consumerProperties;
+        this.notificationProperties = notificationProperties;
+    }
 
-    @Value("${app.kafka.notifications.dlt.topic-name:notifications.DLT}")
-    private String notificationDltTopic;
-
+    @Bean
+    public DeadLetterPublishingRecoverer deadLetterPublishingRecoverer(
+            KafkaTemplate<String, Object> kafkaTemplate
+    ) {
+        return new DeadLetterPublishingRecoverer(
+                kafkaTemplate,
+                (record, exception) -> new TopicPartition(
+                        notificationProperties.dlt().topicName(),
+                        record.partition()
+                )
+        );
+    }
 
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(
-            KafkaTemplate<String, Object> kafkaTemplate
+            DeadLetterPublishingRecoverer recoverer
     ) {
-
-        // Validate before constructing FixedBackOff so bad deployment values
-        // fail startup deterministically instead of changing retry semantics.
-        if (retryBackoffMs < 0) {
-            throw new IllegalArgumentException(
-                    "app.kafka.consumer.retry-backoff-ms must not be negative"
-            );
-        }
-        if (maxRetries < 0) {
-            throw new IllegalArgumentException(
-                    "app.kafka.consumer.max-retries must not be negative"
-            );
-        }
-
-        DeadLetterPublishingRecoverer recoverer =
-                new DeadLetterPublishingRecoverer(
-                        kafkaTemplate,
-
-                        // If processing permanently fails,
-                        // send the record to <original-topic>.DLT
-                        (record, exception) ->
-                                new TopicPartition(
-                                        notificationDltTopic,
-                                        record.partition()
-                                )
-                );
-
         FixedBackOff backOff =
                 new FixedBackOff(
-                        retryBackoffMs,
-                        maxRetries
+                        consumerProperties.retryBackoff().toMillis(),
+                        consumerProperties.maxRetries()
                 );
 
         DefaultErrorHandler errorHandler =
@@ -107,9 +95,30 @@ public class KafkaConsumerConfig {
         return errorHandler;
     }
 
+    /**
+     * DLT failures are logged once and acknowledged; they are never passed to a
+     * DeadLetterPublishingRecoverer, preventing recursive .DLT.DLT topics.
+     */
+    @Bean
+    public DefaultErrorHandler kafkaDltErrorHandler(KafkaDltMetrics metrics) {
+        return new DefaultErrorHandler(
+                (record, failure) -> {
+                    metrics.recordHandlingFailure();
+                    log.error(
+                            "Kafka DLT handler failed: topic={}, partition={}, offset={}",
+                            record.topic(),
+                            record.partition(),
+                            record.offset(),
+                            failure
+                    );
+                },
+                new FixedBackOff(0L, 0L)
+        );
+    }
+
 
     @Bean
-    public ConsumerFactory<String, Object> consumerFactory(
+    public ConsumerFactory<String, EventEnvelope> eventEnvelopeConsumerFactory(
             KafkaProperties properties,
             SslBundles sslBundles
     ) {
@@ -205,18 +214,18 @@ public class KafkaConsumerConfig {
     }
 
 
-    @Bean("kafkaListenerContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, Object>
-    kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> consumerFactory,
-            DefaultErrorHandler kafkaErrorHandler
+    @Bean("eventEnvelopeKafkaListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, EventEnvelope>
+    eventEnvelopeKafkaListenerContainerFactory(
+            ConsumerFactory<String, EventEnvelope> eventEnvelopeConsumerFactory,
+            @Qualifier("kafkaErrorHandler") DefaultErrorHandler kafkaErrorHandler
     ) {
 
         var factory =
-                new ConcurrentKafkaListenerContainerFactory<String, Object>();
+                new ConcurrentKafkaListenerContainerFactory<String, EventEnvelope>();
 
         factory.setConsumerFactory(
-                consumerFactory
+                eventEnvelopeConsumerFactory
         );
 
         factory.setCommonErrorHandler(
@@ -242,7 +251,8 @@ public class KafkaConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, byte[]>
     kafkaDltListenerContainerFactory(
             KafkaProperties properties,
-            SslBundles sslBundles
+            SslBundles sslBundles,
+            @Qualifier("kafkaDltErrorHandler") DefaultErrorHandler kafkaDltErrorHandler
     ) {
         Map<String, Object> config = new HashMap<>(
                 properties.buildConsumerProperties(sslBundles)
@@ -252,6 +262,7 @@ public class KafkaConsumerConfig {
 
         var factory = new ConcurrentKafkaListenerContainerFactory<String, byte[]>();
         factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(config));
+        factory.setCommonErrorHandler(kafkaDltErrorHandler);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         return factory;
     }

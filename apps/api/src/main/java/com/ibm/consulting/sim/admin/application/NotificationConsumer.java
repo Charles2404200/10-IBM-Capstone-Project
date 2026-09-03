@@ -23,7 +23,7 @@ public class NotificationConsumer {
             topics = "${app.kafka.notifications.topic.name}",
             groupId = "${app.kafka.notifications.consumer.group-id}",
             concurrency = "${app.kafka.notifications.consumer.concurrency}",
-            containerFactory = "kafkaListenerContainerFactory"
+            containerFactory = "eventEnvelopeKafkaListenerContainerFactory"
     )
     public void consume(
             ConsumerRecord<String, EventEnvelope> record,
