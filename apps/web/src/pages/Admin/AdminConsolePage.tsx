@@ -7,6 +7,7 @@ import {
   Group,
   Idea,
   Launch,
+  NotificationNew,
   Renew,
   Settings,
   WarningAlt,
@@ -126,6 +127,7 @@ export default function AdminConsolePage() {
           <div className={styles.actionGrid}>
             {canAuthorScenarios && <ActionCard to="/dashboard/admin/scenarios" icon={Settings} title="Learning journeys" detail="Create scenarios, define people, facts and learning rules." action="Open scenarios" tone="blue" />}
             {canAdminister && <ActionCard to="/dashboard/admin/users" icon={Group} title="People and access" detail="Give learners, reviewers and authors the right level of access." action="Manage people" tone="green" />}
+            {canAdminister && <ActionCard to="/dashboard/admin/notify" icon={NotificationNew} title="Send notifications" detail="Publish targeted updates to learners, authors, reviewers or administrators." action="Create notification" tone="blue" />}
             {canAdminister && <ActionCard to="/dashboard/admin/achievements" icon={Idea} title="Progression and badges" detail="Recognise strong consulting behaviours across scenarios." action="Manage progression" tone="purple" />}
             {canViewAiOperations && <ActionCard to="/dashboard/admin/ai-operations" icon={ChartLine} title="AI delivery" detail="Review provider availability, capacity and approved routing." action="View AI health" tone="orange" />}
           </div>
