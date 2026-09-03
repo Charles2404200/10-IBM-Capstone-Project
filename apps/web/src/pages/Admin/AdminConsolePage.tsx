@@ -94,7 +94,18 @@ export default function AdminConsolePage() {
   const completionRate = platform.isLoading ? '...' : `${platform.data?.completionRatePercent ?? 0}%`
 
   const isError = (canAuthorScenarios && scenarios.isError) || (canViewAiOperations && aiOperations.isError) || (canAdminister && platform.isError)
-  if (isError) return <ErrorState />
+  if (isError) {
+    return (
+      <ErrorState
+        actionLabel="Retry"
+        onAction={() => {
+          if (canAuthorScenarios) void scenarios.refetch()
+          if (canViewAiOperations) void aiOperations.refetch()
+          if (canAdminister) void platform.refetch()
+        }}
+      />
+    )
+  }
 
   const isLoading = (canAuthorScenarios && scenarios.isLoading) || (canViewAiOperations && aiOperations.isLoading) || (canAdminister && platform.isLoading)
   if (isLoading) return <LoadingState />
