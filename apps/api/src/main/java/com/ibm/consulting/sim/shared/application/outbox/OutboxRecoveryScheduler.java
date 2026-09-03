@@ -40,7 +40,7 @@ public class OutboxRecoveryScheduler {
                 .plus(outboxProperties.recoverySafetyMargin());
     }
 
-    @Scheduled(fixedDelayString = "${app.kafka.outbox.recovery-delay:30s}")
+    @Scheduled(fixedDelayString = "#{@outboxScheduleIntervals.recoveryDelayMillis()}")
     @Transactional
     public void recoverStaleClaims() {
 

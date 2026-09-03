@@ -49,7 +49,7 @@ public class OutboxDispatcher {
     }
 
 
-    @Scheduled(fixedDelayString = "${app.kafka.outbox.poll-delay:200ms}")
+    @Scheduled(fixedDelayString = "#{@outboxScheduleIntervals.pollDelayMillis()}")
     public void dispatch() {
 
         // Scheduled invocations racing with context shutdown must not acquire
