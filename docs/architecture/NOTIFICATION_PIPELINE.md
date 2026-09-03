@@ -27,7 +27,11 @@ clients can recover recent messages through `GET /api/v1/notifications?limit=50`
 
 ## Failure handling
 
-Transient producer failures use capped exponential backoff with jitter. A
+Transient producer failures use capped exponential backoff with jitter. After
+`KAFKA_OUTBOX_MAX_ATTEMPTS`, an event becomes terminally `FAILED`, retains a
+bounded diagnostic description, and is not reclaimed or deleted by published
+cleanup. For ordered streams, that terminal predecessor remains visible and
+blocks successors until an operator deliberately resolves it. A
 processing lease older than the producer delivery timeout plus a safety margin
 is reclaimed. Consumer failures retry a bounded number of times and then go to
 the configured DLT. The DLT monitor reads opaque bytes through its own listener
@@ -51,6 +55,7 @@ Tune these controls together:
 | Variable | Default | Purpose |
 |---|---:|---|
 | `KAFKA_OUTBOX_BATCH_SIZE` | 100 | Concurrent sends claimed per poll |
+| `KAFKA_OUTBOX_MAX_ATTEMPTS` | 10 | Confirmed publication failures before terminal `FAILED` |
 | `OUTBOX_COMPLETION_POOL_SIZE` | 8 | Concurrent durable acknowledgement updates |
 | `OUTBOX_COMPLETION_QUEUE_CAPACITY` | 500 | Bounded completion burst absorption |
 | `KAFKA_OUTBOX_RETRY_MAX_DELAY_MS` | 300000 | Maximum broker-outage retry delay |
@@ -73,9 +78,10 @@ and event id for deterministic FIFO behavior within a priority. Ordered events
 remain ineligible while any lower sequence in their ordering stream is not
 published, including when that predecessor is waiting to retry.
 
-Prometheus counters expose dispatch success, failure, and retry activity with a
-single bounded `priority` label. Event ids, users, and ordering keys are never
-metric labels.
+Prometheus counters expose dispatch success, retry, terminal failure, stale
+recovery, DLT receipt, and DLT-handler failure activity. Only controlled
+priority values are used as tags; event ids, users, ordering keys, offsets, and
+exception messages are never metric labels.
 
 Weighted fairness is intentionally deferred. If sustained critical traffic can
 starve lower priorities in production, a P2 scheduler can reserve dispatch

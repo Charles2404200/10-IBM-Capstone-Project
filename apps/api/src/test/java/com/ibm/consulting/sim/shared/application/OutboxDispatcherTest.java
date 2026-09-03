@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.shared.application;
 import com.ibm.consulting.sim.shared.application.kafka.KafkaEventPublisher;
 import com.ibm.consulting.sim.shared.application.outbox.OutboxClaimService;
 import com.ibm.consulting.sim.shared.application.outbox.OutboxDispatcher;
+import com.ibm.consulting.sim.shared.application.outbox.OutboxFailureOutcome;
 import com.ibm.consulting.sim.shared.application.outbox.OutboxMetrics;
 import com.ibm.consulting.sim.shared.application.outbox.OutboxStateService;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
@@ -19,29 +20,34 @@ import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static com.ibm.consulting.sim.shared.config.TestKafkaProperties.outbox;
 
 class OutboxDispatcherTest {
 
     @Test
-    void rejectsNonPositiveDispatchBatchSize() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new OutboxDispatcher(
-                        mock(OutboxClaimService.class),
-                        mock(OutboxEventRepository.class),
-                        mock(OutboxStateService.class),
-                        mock(KafkaEventPublisher.class),
-                        mock(OutboxMetrics.class),
-                        mock(ExecutorService.class),
-                        0
-                )
+    void stopsClaimingNewRowsDuringShutdown() {
+        OutboxClaimService claimService = mock(OutboxClaimService.class);
+        OutboxDispatcher dispatcher = new OutboxDispatcher(
+                claimService,
+                mock(OutboxEventRepository.class),
+                mock(OutboxStateService.class),
+                mock(KafkaEventPublisher.class),
+                mock(OutboxMetrics.class),
+                mock(ExecutorService.class),
+                outbox(10)
         );
+
+        dispatcher.stopClaiming();
+        dispatcher.dispatch();
+
+        verify(claimService, never()).claimBatch(anyInt(), any());
     }
 
     @Test
@@ -68,7 +74,7 @@ class OutboxDispatcherTest {
                 .when(publisher).publish(eq("notifications"), any());
 
         OutboxDispatcher dispatcher = new OutboxDispatcher(
-                claimService, repository, stateService, publisher, metrics, completionExecutor, 10);
+                claimService, repository, stateService, publisher, metrics, completionExecutor, outbox(10));
 
         try {
             CompletableFuture<Void> dispatch = CompletableFuture.runAsync(dispatcher::dispatch);
@@ -106,18 +112,53 @@ class OutboxDispatcherTest {
         when(publisher.publish(eq("notifications"), any()))
                 .thenReturn(CompletableFuture.failedFuture(
                         new IllegalStateException("broker unavailable")));
-        when(stateService.markPendingAgain(eq(eventId), any(), eq(0))).thenReturn(true);
+        when(stateService.recordFailure(eq(eventId), any(), eq(0), any()))
+                .thenReturn(OutboxFailureOutcome.RETRY_SCHEDULED);
 
         try {
             new OutboxDispatcher(
                     claimService, repository, stateService, publisher,
-                    metrics, completionExecutor, 10
+                    metrics, completionExecutor, outbox(10)
             ).dispatch();
 
-            verify(stateService).markPendingAgain(eq(eventId), any(), eq(0));
+            verify(stateService).recordFailure(eq(eventId), any(), eq(0), any());
             verify(metrics).recordFailure(event.getEventPriority());
             verify(metrics).recordRetry(event.getEventPriority());
             verify(stateService, org.mockito.Mockito.never()).markPublished(any(), any());
+        } finally {
+            completionExecutor.shutdownNow();
+        }
+    }
+
+    @Test
+    void exhaustedKafkaFailureIsRecordedAsTerminal() {
+        OutboxClaimService claimService = mock(OutboxClaimService.class);
+        OutboxEventRepository repository = mock(OutboxEventRepository.class);
+        OutboxStateService stateService = mock(OutboxStateService.class);
+        KafkaEventPublisher publisher = mock(KafkaEventPublisher.class);
+        OutboxMetrics metrics = mock(OutboxMetrics.class);
+        ExecutorService completionExecutor = Executors.newSingleThreadExecutor();
+        UUID eventId = UUID.randomUUID();
+        OutboxEvent event = OutboxEvent.unordered(
+                eventId, "notifications", "TEST", 1, "{}"
+        );
+
+        when(claimService.claimBatch(eq(10), any())).thenReturn(List.of(eventId));
+        when(repository.findById(eventId)).thenReturn(Optional.of(event));
+        when(publisher.publish(eq("notifications"), any()))
+                .thenReturn(CompletableFuture.failedFuture(
+                        new IllegalStateException("permanent broker rejection")));
+        when(stateService.recordFailure(eq(eventId), any(), eq(0), any()))
+                .thenReturn(OutboxFailureOutcome.TERMINALLY_FAILED);
+
+        try {
+            new OutboxDispatcher(
+                    claimService, repository, stateService, publisher,
+                    metrics, completionExecutor, outbox(10)
+            ).dispatch();
+
+            verify(metrics).recordTerminalFailure(event.getEventPriority());
+            verify(metrics, never()).recordRetry(event.getEventPriority());
         } finally {
             completionExecutor.shutdownNow();
         }
@@ -145,7 +186,7 @@ class OutboxDispatcherTest {
         try {
             new OutboxDispatcher(
                     claimService, repository, stateService, publisher,
-                    metrics, completionExecutor, 10
+                    metrics, completionExecutor, outbox(10)
             ).dispatch();
 
             verify(metrics).recordOwnershipConflict();
@@ -182,7 +223,7 @@ class OutboxDispatcherTest {
         try {
             new OutboxDispatcher(
                     claimService, repository, stateService, publisher,
-                    metrics, completionExecutor, 10
+                    metrics, completionExecutor, outbox(10)
             ).dispatch();
 
             verify(metrics).recordClaimedEventLoadFailure();

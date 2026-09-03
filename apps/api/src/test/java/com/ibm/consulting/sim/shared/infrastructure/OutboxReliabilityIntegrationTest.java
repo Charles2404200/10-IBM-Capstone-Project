@@ -168,6 +168,34 @@ class OutboxReliabilityIntegrationTest {
     }
 
     @Test
+    void terminalFailureCannotBeReclaimedOrDeletedByPublishedCleanup() {
+        String orderingKey = "failed-order:" + UUID.randomUUID();
+        OutboxEvent event = OutboxEvent.ordered(
+                UUID.randomUUID(), "events", "FIRST", 1, orderingKey, 1, "{}");
+        OutboxEvent successor = OutboxEvent.ordered(
+                UUID.randomUUID(), "events", "SECOND", 1, orderingKey, 2, "{}");
+        UUID claimToken = UUID.randomUUID();
+        save(event, successor);
+        assertEquals(List.of(event.getId()), claimService.claimBatch(10, claimToken));
+
+        assertEquals(1, repository.markFailedIfOwned(
+                event.getId(), claimToken, "org.apache.kafka.common.KafkaException"));
+
+        OutboxSnapshot failed = snapshot(event.getId());
+        assertEquals(OutboxStatus.FAILED, failed.status());
+        assertEquals(1, failed.attemptCount());
+        assertNull(failed.claimToken());
+        assertNull(failed.processingStartedAt());
+        assertNull(failed.nextAttemptAt());
+        assertNotNull(failed.failedAt());
+        assertEquals("org.apache.kafka.common.KafkaException", failed.lastError());
+        assertTrue(claimService.claimBatch(10, UUID.randomUUID()).isEmpty());
+        assertEquals(0, repository.deletePublishedBefore(Instant.now().plus(Duration.ofDays(1)), 10));
+        assertTrue(repository.findById(event.getId()).isPresent());
+        assertEquals(OutboxStatus.PENDING, snapshot(successor.getId()).status());
+    }
+
+    @Test
     void concurrentDispatchersClaimDisjointRowsUsingDatabaseLocks() throws Exception {
         OutboxEvent[] events = new OutboxEvent[20];
         for (int index = 0; index < events.length; index++) {
@@ -228,6 +256,32 @@ class OutboxReliabilityIntegrationTest {
     }
 
     @Test
+    void concurrentCleanupWorkersDeleteDisjointBatches() throws Exception {
+        OutboxEvent[] expired = new OutboxEvent[20];
+        Instant old = Instant.now().minus(Duration.ofDays(30));
+        for (int index = 0; index < expired.length; index++) {
+            expired[index] = publishedEvent();
+        }
+        save(expired);
+        for (OutboxEvent event : expired) {
+            setPublishedAt(event.getId(), old);
+        }
+        Instant cutoff = Instant.now().minus(Duration.ofDays(2));
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> cleanupConcurrently(ready, start, cutoff));
+            var second = executor.submit(() -> cleanupConcurrently(ready, start, cutoff));
+            ready.await();
+            start.countDown();
+
+            assertEquals(20, first.get() + second.get());
+            assertEquals(0, countExpiredPublished(cutoff));
+        }
+    }
+
+    @Test
     void databaseRejectsProcessingStateWithoutLeaseMetadata() {
         OutboxEvent event = unordered();
         save(event);
@@ -251,6 +305,15 @@ class OutboxReliabilityIntegrationTest {
         ready.countDown();
         start.await();
         return claimService.claimBatch(10, UUID.randomUUID());
+    }
+
+    private int cleanupConcurrently(
+            CountDownLatch ready,
+            CountDownLatch start,
+            Instant cutoff) throws InterruptedException {
+        ready.countDown();
+        start.await();
+        return repository.deletePublishedBefore(cutoff, 10);
     }
 
     private void save(OutboxEvent... events) {
@@ -289,6 +352,8 @@ class OutboxReliabilityIntegrationTest {
                         event.getProcessingStartedAt(),
                         event.getNextAttemptAt(),
                         event.getPublishedAt(),
+                        event.getFailedAt(),
+                        event.getLastError(),
                         event.getAttemptCount(),
                         event.getEventPriority(),
                         event.getOrderingMode(),
@@ -334,6 +399,8 @@ class OutboxReliabilityIntegrationTest {
             Instant processingStartedAt,
             Instant nextAttemptAt,
             Instant publishedAt,
+            Instant failedAt,
+            String lastError,
             int attemptCount,
             EventPriority priority,
             OrderingMode orderingMode,

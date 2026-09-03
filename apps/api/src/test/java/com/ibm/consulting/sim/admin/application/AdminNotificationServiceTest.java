@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.config.KafkaConsumerProperties;
+import com.ibm.consulting.sim.shared.config.KafkaDltProperties;
 import com.ibm.consulting.sim.shared.config.KafkaTopicProperties;
 import com.ibm.consulting.sim.shared.domain.outbox.EventSequenceRepository;
 import com.ibm.consulting.sim.shared.domain.outbox.OutboxEvent;
@@ -32,7 +33,11 @@ class AdminNotificationServiceTest {
     private final NotificationKafkaProperties properties =
             new NotificationKafkaProperties(
                     new KafkaTopicProperties("notifications", 1, 1),
-                    new KafkaConsumerProperties("notification-consumer", 1)
+                    new KafkaConsumerProperties("notification-consumer", 1),
+                    new KafkaDltProperties(
+                            "notifications.DLT",
+                            new KafkaConsumerProperties("notification-dlt-monitor", 1)
+                    )
             );
     private final AdminNotificationService service =
             new AdminNotificationService(

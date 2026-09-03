@@ -8,12 +8,16 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static com.ibm.consulting.sim.shared.config.TestKafkaProperties.outbox;
+import static com.ibm.consulting.sim.shared.config.TestKafkaProperties.retry;
 
 class OutboxRetryPolicyTest {
 
     @Test
     void growsExponentiallyAndCapsRetries() {
-        OutboxRetryPolicy policy = new OutboxRetryPolicy(1_000, 10_000, 2.0, 0.0);
+        OutboxRetryPolicy policy = new OutboxRetryPolicy(outbox(
+                100, 10, Duration.ofDays(2), 1_000,
+                retry(Duration.ofSeconds(1), Duration.ofSeconds(10), 2.0, 0.0)));
         UUID eventId = UUID.randomUUID();
 
         assertEquals(Duration.ofSeconds(1), policy.delayFor(eventId, 0));
@@ -23,7 +27,9 @@ class OutboxRetryPolicyTest {
 
     @Test
     void jitterStaysWithinConfiguredBounds() {
-        OutboxRetryPolicy policy = new OutboxRetryPolicy(1_000, 10_000, 2.0, 0.2);
+        OutboxRetryPolicy policy = new OutboxRetryPolicy(outbox(
+                100, 10, Duration.ofDays(2), 1_000,
+                retry(Duration.ofSeconds(1), Duration.ofSeconds(10), 2.0, 0.2)));
         long delay = policy.delayFor(UUID.randomUUID(), 1).toMillis();
 
         assertTrue(delay >= 1_600 && delay <= 2_400);

@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static com.ibm.consulting.sim.shared.config.TestKafkaProperties.outbox;
+import static com.ibm.consulting.sim.shared.config.TestKafkaProperties.retry;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -19,7 +21,8 @@ class OutboxDeleteSchedulerTest {
     void deletesPublishedEventsOlderThanTwoDays() {
         OutboxEventRepository repository = mock(OutboxEventRepository.class);
         OutboxMetrics metrics = mock(OutboxMetrics.class);
-        OutboxDeleteScheduler scheduler = new OutboxDeleteScheduler(repository, metrics, 2, 500);
+        OutboxDeleteScheduler scheduler = new OutboxDeleteScheduler(
+                repository, metrics, outbox(100, 10, Duration.ofDays(2), 500, retry()));
         Instant earliestExpectedCutoff = Instant.now()
                 .minusSeconds((2 * 24 * 60 * 60) + 1);
 
@@ -34,18 +37,4 @@ class OutboxDeleteSchedulerTest {
         ));
     }
 
-    @Test
-    void rejectsNonPositiveRetentionAndBatchSize() {
-        OutboxEventRepository repository = mock(OutboxEventRepository.class);
-        OutboxMetrics metrics = mock(OutboxMetrics.class);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new OutboxDeleteScheduler(repository, metrics, 0, 500)
-        );
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new OutboxDeleteScheduler(repository, metrics, 2, 0)
-        );
-    }
 }

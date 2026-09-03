@@ -4,6 +4,10 @@ import com.ibm.consulting.sim.shared.application.kafka.KafkaEventProcessor;
 import com.ibm.consulting.sim.shared.application.kafka.KafkaEventPublisher;
 import com.ibm.consulting.sim.shared.config.KafkaConsumerConfig;
 import com.ibm.consulting.sim.shared.config.KafkaProducerConfig;
+import com.ibm.consulting.sim.shared.config.KafkaProducerProperties;
+import com.ibm.consulting.sim.shared.config.KafkaConsumerReliabilityProperties;
+import com.ibm.consulting.sim.shared.application.kafka.KafkaDltMetrics;
+import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
 import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -57,12 +61,17 @@ import static org.mockito.Mockito.verify;
         "app.kafka.notifications.topic.name=notification-retry-integration-test",
         "app.kafka.notifications.consumer.group-id=notification-retry-integration-test-group",
         "app.kafka.notifications.consumer.concurrency=1",
-        "app.kafka.producer.delivery-timeout-ms=120000",
-        "app.kafka.producer.request-timeout-ms=30000",
-        "app.kafka.producer.retry-backoff-ms=100",
+        "app.kafka.producer.delivery-timeout=120s",
+        "app.kafka.producer.request-timeout=30s",
+        "app.kafka.producer.retry-backoff=100ms",
         "app.kafka.producer.retries=3",
-        "app.kafka.consumer.retry-backoff-ms=100",
-        "app.kafka.consumer.max-retries=2"
+        "app.kafka.consumer.retry-backoff=100ms",
+        "app.kafka.consumer.max-retries=2",
+        "app.kafka.notifications.topic.partitions=1",
+        "app.kafka.notifications.topic.replicas=1",
+        "app.kafka.notifications.dlt.topic-name=notification-retry-integration-test.DLT",
+        "app.kafka.notifications.dlt.consumer.group-id=notification-dlt-monitor",
+        "app.kafka.notifications.dlt.consumer.concurrency=1"
 })
 class NotificationConsumerRetryIntegrationTest {
 
@@ -130,7 +139,12 @@ class NotificationConsumerRetryIntegrationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties(KafkaProperties.class)
+    @EnableConfigurationProperties({
+            KafkaProperties.class,
+            KafkaProducerProperties.class,
+            KafkaConsumerReliabilityProperties.class,
+            NotificationKafkaProperties.class
+    })
     static class TestConfiguration {
 
         @Bean
@@ -141,6 +155,11 @@ class NotificationConsumerRetryIntegrationTest {
         @Bean
         KafkaEventProcessor kafkaEventProcessor() {
             return mock(KafkaEventProcessor.class);
+        }
+
+        @Bean
+        KafkaDltMetrics kafkaDltMetrics() {
+            return mock(KafkaDltMetrics.class);
         }
     }
 }

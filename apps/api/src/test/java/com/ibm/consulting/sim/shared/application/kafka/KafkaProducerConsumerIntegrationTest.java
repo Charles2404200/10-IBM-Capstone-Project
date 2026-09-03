@@ -2,6 +2,10 @@ package com.ibm.consulting.sim.shared.application.kafka;
 
 import com.ibm.consulting.sim.shared.config.KafkaConsumerConfig;
 import com.ibm.consulting.sim.shared.config.KafkaProducerConfig;
+import com.ibm.consulting.sim.shared.config.KafkaProducerProperties;
+import com.ibm.consulting.sim.shared.config.KafkaConsumerReliabilityProperties;
+import com.ibm.consulting.sim.shared.application.kafka.KafkaDltMetrics;
+import com.ibm.consulting.sim.admin.infrastructure.NotificationKafkaProperties;
 import com.ibm.consulting.sim.shared.domain.outbox.EventEnvelope;
 import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -40,12 +44,20 @@ import static org.mockito.Mockito.mock;
 )
 @TestPropertySource(properties = {
         "spring.kafka.consumer.auto-offset-reset=earliest",
-        "app.kafka.producer.delivery-timeout-ms=120000",
-        "app.kafka.producer.request-timeout-ms=30000",
-        "app.kafka.producer.retry-backoff-ms=100",
+        "app.kafka.producer.delivery-timeout=120s",
+        "app.kafka.producer.request-timeout=30s",
+        "app.kafka.producer.retry-backoff=100ms",
         "app.kafka.producer.retries=3",
-        "app.kafka.consumer.retry-backoff-ms=100",
-        "app.kafka.consumer.max-retries=1"
+        "app.kafka.consumer.retry-backoff=100ms",
+        "app.kafka.consumer.max-retries=1",
+        "app.kafka.notifications.topic.name=notifications",
+        "app.kafka.notifications.topic.partitions=1",
+        "app.kafka.notifications.topic.replicas=1",
+        "app.kafka.notifications.consumer.group-id=notification-listener",
+        "app.kafka.notifications.consumer.concurrency=1",
+        "app.kafka.notifications.dlt.topic-name=notifications.DLT",
+        "app.kafka.notifications.dlt.consumer.group-id=notification-dlt-monitor",
+        "app.kafka.notifications.dlt.consumer.concurrency=1"
 })
 class KafkaProducerConsumerIntegrationTest {
 
@@ -95,12 +107,22 @@ class KafkaProducerConsumerIntegrationTest {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @EnableConfigurationProperties(KafkaProperties.class)
+    @EnableConfigurationProperties({
+            KafkaProperties.class,
+            KafkaProducerProperties.class,
+            KafkaConsumerReliabilityProperties.class,
+            NotificationKafkaProperties.class
+    })
     static class TestConfiguration {
 
         @Bean
         SslBundles sslBundles() {
             return mock(SslBundles.class);
+        }
+
+        @Bean
+        KafkaDltMetrics kafkaDltMetrics() {
+            return mock(KafkaDltMetrics.class);
         }
 
         @Bean
@@ -117,7 +139,7 @@ class KafkaProducerConsumerIntegrationTest {
         @KafkaListener(
                 topics = TOPIC,
                 groupId = CONSUMER_GROUP,
-                containerFactory = "kafkaListenerContainerFactory"
+                containerFactory = "eventEnvelopeKafkaListenerContainerFactory"
         )
         void consume(ConsumerRecord<String, EventEnvelope> record) {
             records.add(record);
