@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import NotificationBell from './NotificationBell'
@@ -9,12 +9,33 @@ vi.mock('@/api/hooks/useNotifications', () => ({
 }))
 
 describe('NotificationBell', () => {
+  it.each([
+    [0, null],
+    [1, '1'],
+    [17, '17'],
+    [99, '99'],
+  ])('renders an accessible badge for %i unread notifications', (count, visibleBadge) => {
+    mocks.useUnreadNotificationCount.mockReturnValue({ data: { unreadCount: count }, isError: false })
+    render(<MemoryRouter><NotificationBell /></MemoryRouter>)
+
+    expect(screen.getByRole('button', { name: `Notifications, ${count} unread` })).toBeInTheDocument()
+    if (visibleBadge === null) {
+      expect(screen.queryByText('0')).not.toBeInTheDocument()
+    } else {
+      const badge = screen.getByText(visibleBadge)
+      expect(badge).toHaveAttribute('aria-hidden', 'true')
+      expect(badge.className).toContain('badge')
+    }
+  })
+
   it('caps the visible badge at 99+ and exposes the exact accessible count', () => {
-    mocks.useUnreadNotificationCount.mockReturnValue({ data: { unreadCount: 145 }, isError: false })
+    mocks.useUnreadNotificationCount.mockReturnValue({ data: { unreadCount: 100 }, isError: false })
     render(<MemoryRouter><NotificationBell /></MemoryRouter>)
 
     expect(screen.getByText('99+')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Notifications, 145 unread' })).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Notifications, 100 unread' })
+    act(() => button.focus())
+    expect(button).toHaveFocus()
   })
 
   it('uses client-side navigation to open the centre', () => {
