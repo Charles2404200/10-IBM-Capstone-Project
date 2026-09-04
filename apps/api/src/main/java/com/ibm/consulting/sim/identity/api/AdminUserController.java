@@ -4,8 +4,12 @@ import com.ibm.consulting.sim.identity.application.AdminUserService;
 import com.ibm.consulting.sim.identity.application.UserSummary;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,6 +32,8 @@ public class AdminUserController {
 
     record ChangeRoleRequest(@NotNull UserRole role) {}
 
+    record CreateUserRequest(@NotNull @Email String email, @NotNull @Size(min = 2, max = 80) String displayName, @NotNull UserRole role) {}
+
     @GetMapping
     List<UserSummary> listUsers() {
         return adminUserService.listUsers();
@@ -46,5 +52,11 @@ public class AdminUserController {
     @PatchMapping("/{userId}/reactivate")
     UserSummary reactivate(@PathVariable UUID userId) {
         return adminUserService.reactivate(userId);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    UserSummary createUser(@Valid @RequestBody CreateUserRequest req) {
+        return adminUserService.createUser(req.email(), req.displayName(), req.role());
     }
 }

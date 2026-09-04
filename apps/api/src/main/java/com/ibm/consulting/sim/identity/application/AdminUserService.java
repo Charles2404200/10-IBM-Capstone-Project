@@ -3,10 +3,13 @@ package com.ibm.consulting.sim.identity.application;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
+import com.ibm.consulting.sim.identity.domain.UserAlreadyExistsException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Locale;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,9 +22,13 @@ import java.util.UUID;
 public class AdminUserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final PasswordResetService passwordResetService;
 
-    public AdminUserService(UserRepository userRepository) {
+    public AdminUserService(UserRepository userRepository, PasswordEncoder passwordEncoder, PasswordResetService passwordResetService) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.passwordResetService = passwordResetService;
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +57,25 @@ public class AdminUserService {
         User user = findUser(userId);
         user.reactivate();
         userRepository.save(user);
+        return UserSummary.from(user);
+    }
+
+    @Transactional
+    public UserSummary createUser(String email, String displayName, UserRole role) {
+        String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(normalisedEmail)) {
+            throw new UserAlreadyExistsException(normalisedEmail);
+        }
+
+        // placeholder password unknown to both admin and user
+        // user must reset it via email before first login
+        String placeholderPassword = passwordEncoder.encode(UUID.randomUUID().toString());
+
+        User user = User.create(normalisedEmail, placeholderPassword, displayName.trim(), role);
+        userRepository.save(user);
+
+        passwordResetService.issueSetUpLink(user);
+
         return UserSummary.from(user);
     }
 
