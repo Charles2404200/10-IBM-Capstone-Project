@@ -13,8 +13,8 @@ import axios from 'axios'
 
 const ROLES: UserRole[] = ['LEARNER', 'SCENARIO_AUTHOR', 'REVIEWER', 'ADMINISTRATOR']
 const createUserSchema = z.object({
-  displayName: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Enter a valid email'),
+  displayName: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().email('Enter a valid email'),
   role: z.enum([
     'LEARNER',
     'SCENARIO_AUTHOR',
