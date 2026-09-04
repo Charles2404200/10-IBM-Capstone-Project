@@ -17,7 +17,7 @@ public class IdentityEmailProperties {
 
     public String verificationUrl(String token) { return publicWebUrl() + "/verify-email?token=" + encode(token); }
     public String passwordResetUrl(String token) { return publicWebUrl() + "/reset-password?token=" + encode(token); }
-    public String accountSetupUrl(String token) { return publicWebUrl() + "/setup-account?token=" + encode(token); }
+    public String accountSetupUrl(String token) { return publicWebUrl() + "/reset-password?token=" + encode(token); }
     private String publicWebUrl() { return publicWebUrl.replaceAll("/+$", ""); }
     private String encode(String token) { return URLEncoder.encode(token, StandardCharsets.UTF_8); }
 
