@@ -68,6 +68,7 @@ public class PasswordResetService {
     // issues password setup link when a user is created by the admin
     @Transactional
     public void issueSetUpLink(User user) {
+        Instant now = Instant.now();
         tokens.revokeActiveForUser(user.getId(), now);
         CredentialTokenService.IssuedCredential credential = credentialTokenService.issue();
         tokens.save(PasswordResetToken.issue(user.getId(), credential.selector(), credential.hash(),

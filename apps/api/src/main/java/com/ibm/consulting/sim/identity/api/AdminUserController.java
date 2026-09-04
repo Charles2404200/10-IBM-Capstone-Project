@@ -4,8 +4,12 @@ import com.ibm.consulting.sim.identity.application.AdminUserService;
 import com.ibm.consulting.sim.identity.application.UserSummary;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 import java.util.UUID;

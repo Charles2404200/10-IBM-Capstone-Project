@@ -3,11 +3,13 @@ package com.ibm.consulting.sim.identity.application;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
+import com.ibm.consulting.sim.identity.domain.UserAlreadyExistsException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Locale;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,8 +25,10 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetService passwordResetService;
 
-    public AdminUserService(UserRepository userRepository) {
+    public AdminUserService(UserRepository userRepository, PasswordEncoder passwordEncoder, PasswordResetService passwordResetService) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.passwordResetService = passwordResetService;
     }
 
     @Transactional(readOnly = true)
