@@ -1,12 +1,18 @@
 import { Client, type IMessage } from '@stomp/stompjs'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { z } from 'zod'
-import type { NotificationObject, UserRole } from '@/api/types'
+import type {
+  NotificationObject,
+  NotificationPage,
+  UnreadNotificationCount,
+  UserRole,
+} from '@/api/types'
 import { notificationKeys } from '@/api/hooks/useNotifications'
 import {
   NOTIFICATION_BURST_WINDOW_MS,
   NOTIFICATION_DEDUPLICATION_CAPACITY,
+  NOTIFICATION_PAGE_SIZE,
   NOTIFICATION_REFRESH_DEBOUNCE_MS,
 } from '@/features/notifications/config'
 import { addNotificationToPopupState, type NotificationPopupState } from '@/features/notifications/aggregation'
@@ -88,6 +94,47 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
     return deduplicator.current.remember(eventId)
   }, [])
 
+  const applyRealtimeHint = useCallback((notification: NotificationObject) => {
+    // Realtime is an at-least-once hint. Update already-loaded bounded caches
+    // immediately, then reconcile with REST because PostgreSQL is authoritative.
+    let alreadyInLoadedPages = false
+    queryClient.setQueryData<InfiniteData<NotificationPage, string | null>>(
+      notificationKeys.pages,
+      (current) => {
+        if (!current) return current
+        if (current.pages.some((page) =>
+          page.items.some((item) => item.eventId === notification.eventId))) {
+          alreadyInLoadedPages = true
+          return current
+        }
+        const [first, ...remaining] = current.pages
+        // if the page is empty then first element is empty
+        if (!first) return current
+
+        // only updating the first page
+        return {
+          ...current,
+          pages: [{
+            ...first,
+            items: [{
+              eventId: notification.eventId,
+              topicName: notification.topicName,
+              messagePreview: notification.messagePreview,
+              priority: notification.priority,
+              createdAt: notification.createdAt,
+              isRead: false,
+            }, ...first.items].slice(0, NOTIFICATION_PAGE_SIZE),
+          }, ...remaining],
+        }
+      },
+    )
+    if (!alreadyInLoadedPages) {
+      queryClient.setQueryData<UnreadNotificationCount>(notificationKeys.unreadCount, (current) =>
+        current ? { unreadCount: current.unreadCount + 1 } : current,
+      )
+    }
+  }, [queryClient])
+
   useEffect(() => {
     if (!token || !role) return
     const roleSlug = toRoleSlug(role)
@@ -114,17 +161,35 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
           startsNewBurst ? { visible: [], overflowCount: 0 } : current,
           notification,
         ))
+        applyRealtimeHint(notification)
         scheduleRefresh()
       })
     }
 
+    const reconcileWhenActive = () => {
+      if (document.visibilityState !== 'hidden') refreshDurableState()
+    }
+    // suppose when we select or come back to the browser
+    // not a tab but browser then the application
+    // invalidates react query cache memory and pulls the latest
+    // data from the database and if the tab is not
+    // the tab where this application is running
+    // then do not refetch the data
+    window.addEventListener('focus', reconcileWhenActive)
+    // suppose when the tab changes and then if the tab is not current visible
+    // to the user then do not refetch the data and if the tab is visible
+    // to the user then invalidate the cache memory of react query and
+    // refetch it from the database
+    document.addEventListener('visibilitychange', reconcileWhenActive)
     client.activate()
     return () => {
+      window.removeEventListener('focus', reconcileWhenActive)
+      document.removeEventListener('visibilitychange', reconcileWhenActive)
       void client.deactivate()
       if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current)
       refreshTimer.current = null
     }
-  }, [baseUrl, refreshDurableState, rememberEvent, role, scheduleRefresh, token])
+  }, [applyRealtimeHint, baseUrl, refreshDurableState, rememberEvent, role, scheduleRefresh, token])
 
   const dismissNotification = useCallback((eventId: string) => {
     setPopups((current) => ({

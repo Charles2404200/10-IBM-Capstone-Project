@@ -22,7 +22,13 @@ function useMobileLayout() {
 
 function priorityTag(priority: NotificationPriority) {
   const type = priority === 'CRITICAL' ? 'red' : priority === 'IMPORTANT' ? 'warm-gray' : 'cool-gray'
-  return <Tag type={type} size="sm">{priority}</Tag>
+  const symbol = priority === 'CRITICAL' ? '●' : priority === 'IMPORTANT' ? '!' : '–'
+  return (
+    <Tag type={type} size="sm">
+      <span className={styles.priorityIcon} aria-hidden="true">{symbol}</span>
+      {priority}
+    </Tag>
+  )
 }
 
 function NotificationListItem({ item, selected, onSelect }: {
@@ -35,6 +41,7 @@ function NotificationListItem({ item, selected, onSelect }: {
       <button
         type="button"
         className={`${styles.listItem} ${selected ? styles.selected : ''} ${!item.isRead ? styles.unread : ''}`}
+        data-priority={item.priority}
         onClick={() => onSelect(item)}
         aria-current={selected ? 'true' : undefined}
       >
