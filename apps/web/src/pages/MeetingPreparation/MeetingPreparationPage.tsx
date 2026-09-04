@@ -59,6 +59,12 @@ const MEETING_PREP_OBJECTIVES = [
     description: 'This is where you prepare for your meeting by adding agenda items and discovery questions.',
     targets: ['.objective-preparation'],
   },
+  {
+    id: 'start',
+    objective: 'Opening the meeting',
+    description: 'Save keeps your plan without leaving. Start meeting stays locked until the readiness preview reaches its threshold, and once the meeting opens you go in with the plan as it stands \u2014 so finish the parts you still want.',
+    targets: ['.objective-start'],
+  },
 ]
 
 let generatedItemId = 0
@@ -130,7 +136,7 @@ function EditableList({
   }
 
   return (
-    <section className={`${styles.listWorkspace} objective-preparation`} aria-label={label}>
+    <section className={styles.listWorkspace} aria-label={label}>
       <div className={styles.listHeading}>
         <div>
           <p className={styles.listEyebrow}>Meeting plan</p>
@@ -285,7 +291,7 @@ export default function MeetingPreparationPage() {
   const isSaving = updatePreparation.isPending || launchingMeeting
 
   return (
-    <ObjectiveTourProvider objectives={MEETING_PREP_OBJECTIVES}>
+    <ObjectiveTourProvider tourId="meeting-preparation" objectives={MEETING_PREP_OBJECTIVES}>
     <div className={styles.page}>
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
@@ -294,7 +300,7 @@ export default function MeetingPreparationPage() {
             <Heading>{PHASE_LABEL.MEETING_PREPARATION}</Heading>
             <p className={styles.pageDescription}>Turn your research into a focused client conversation with a clear purpose, flow and questions.</p>
           </div>
-          <div className={styles.headerActions}>
+          <div className={`${styles.headerActions} objective-start`}>
             <Button kind="tertiary" disabled={isSaving} onClick={handleSave}>
               {updatePreparation.isPending && !launchingMeeting ? 'Saving...' : 'Save plan'}
             </Button>

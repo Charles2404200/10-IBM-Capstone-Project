@@ -27,6 +27,7 @@ import type { Engagement, ScenarioSummary } from '@/api/types'
 import styles from './CommandCentrePage.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
 import { useExperience } from '@/lifecycle/useExperience'
+import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
 type EngagementStatus = 'ACTION_REQUIRED' | 'AWAITING_RESPONSE' | 'READY_FOR_REVIEW' | 'COMPLETED'
 type StatusFilter = 'ALL' | EngagementStatus
@@ -38,6 +39,41 @@ const STATUS_META: Record<EngagementStatus, { label: string; tag: 'blue' | 'cyan
   READY_FOR_REVIEW: { label: 'Ready for review', tag: 'purple' },
   COMPLETED: { label: 'Completed', tag: 'gray' },
 }
+
+/**
+ * The Command Centre walkthrough. Deliberately about where things are rather
+ * than what to decide — the decisions are the thing being assessed.
+ */
+const COMMAND_CENTRE_OBJECTIVES = [
+  {
+    id: 'orientation',
+    objective: 'This is your Command Centre',
+    description:
+      'Every engagement starts and finishes here. Whatever you have in flight, this page is where you pick it back up.',
+    targets: ['.objective-command-centre'],
+  },
+  {
+    id: 'arc',
+    objective: 'How an engagement runs',
+    description:
+      'Research the client, earn a meeting and run it, then put a proposal to them. Each stage feeds the next, and the client reacts to what you actually write.',
+    targets: ['.objective-engagement-arc'],
+  },
+  {
+    id: 'start',
+    objective: 'Start your first engagement',
+    description:
+      'One client to begin with. You can change who you work with, but you do not have to decide that yet.',
+    targets: ['.objective-start-engagement'],
+  },
+  {
+    id: 'catalogue',
+    objective: 'Every other client lives here',
+    description:
+      'Browse the full catalogue when you want a different industry or difficulty. It is always at the bottom of this page.',
+    targets: ['.objective-scenario-catalogue'],
+  },
+]
 
 function statusOf(engagement: Engagement): EngagementStatus {
   if (engagement.state === 'COMPLETED') return 'COMPLETED'
@@ -351,7 +387,7 @@ function FirstRunPanel({
       <h2 id="first-run-heading" className={styles.firstRunHeading}>
         You are a consultant. Win the work.
       </h2>
-      <ol className={styles.firstRunArc}>
+      <ol className={`${styles.firstRunArc} objective-engagement-arc`}>
         <li>
           <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence before you say anything.
         </li>
@@ -368,7 +404,7 @@ function FirstRunPanel({
       </p>
 
       {scenario ? (
-        <div className={styles.firstRunStarter}>
+        <div className={`${styles.firstRunStarter} objective-start-engagement`}>
           <div>
             <div className={styles.sectionEyebrow}>Your first client</div>
             <h3>{scenario.title}</h3>
@@ -516,281 +552,283 @@ export default function CommandCentrePage() {
   if (engError || scenarioError) return <ErrorState />
 
   return (
-    <main className={styles.page}>
-      <Stack gap={7}>
-        <header className={styles.header}>
-          <div>
-            <Heading>Command Centre</Heading>
-            <p className={styles.subheading}>
-              {stage === 'FIRST_VISIT'
-                ? `Welcome, ${displayName}. This is where every client engagement starts and finishes.`
-                : `Welcome back, ${displayName}. Continue your current engagement or start a new scenario.`}
-            </p>
-          </div>
-          {stage !== 'FIRST_VISIT' && (
-            <Button renderIcon={Add} onClick={() => document.getElementById('scenario-catalogue')?.scrollIntoView({ behavior: 'smooth' })}>
-              Start new scenario
-            </Button>
+    <ObjectiveTourProvider tourId="command-centre" objectives={COMMAND_CENTRE_OBJECTIVES}>
+      <main className={styles.page}>
+        <Stack gap={7}>
+          <header className={`${styles.header} objective-command-centre`}>
+            <div>
+              <Heading>Command Centre</Heading>
+              <p className={styles.subheading}>
+                {stage === 'FIRST_VISIT'
+                  ? `Welcome, ${displayName}. This is where every client engagement starts and finishes.`
+                  : `Welcome back, ${displayName}. Continue your current engagement or start a new scenario.`}
+              </p>
+            </div>
+            {stage !== 'FIRST_VISIT' && (
+              <Button renderIcon={Add} onClick={() => document.getElementById('scenario-catalogue')?.scrollIntoView({ behavior: 'smooth' })}>
+                Start new scenario
+              </Button>
+            )}
+          </header>
+
+          {/* Four zeros say nothing and read as a report card of failures the
+              person has not had the chance to earn yet. */}
+          {portfolio && portfolio.totalEngagements > 0 && (
+            <div className={styles.performanceStrip}>
+              <div className={styles.performanceStat}>
+                <span className={styles.performanceStatLabel}>Active</span>
+                <span className={styles.performanceStatValue}>{activeCount}</span>
+              </div>
+              <div className={styles.performanceStat}>
+                <span className={styles.performanceStatLabel}>Completed</span>
+                <span className={styles.performanceStatValue}>{portfolio.completedEngagements}</span>
+              </div>
+              <div className={styles.performanceStat}>
+                <span className={styles.performanceStatLabel}>Successful outcomes</span>
+                <span className={styles.performanceStatValue}>{successfulOutcomes} / {portfolio.completedEngagements}</span>
+              </div>
+              <div className={styles.performanceStat}>
+                <span className={styles.performanceStatLabel}>Avg. score</span>
+                <span className={styles.performanceStatValue}>{Math.round(portfolio.averageOverallScore)} / 100</span>
+              </div>
+            </div>
           )}
-        </header>
 
-        {/* Four zeros say nothing and read as a report card of failures the
-            person has not had the chance to earn yet. */}
-        {portfolio && portfolio.totalEngagements > 0 && (
-          <div className={styles.performanceStrip}>
-            <div className={styles.performanceStat}>
-              <span className={styles.performanceStatLabel}>Active</span>
-              <span className={styles.performanceStatValue}>{activeCount}</span>
-            </div>
-            <div className={styles.performanceStat}>
-              <span className={styles.performanceStatLabel}>Completed</span>
-              <span className={styles.performanceStatValue}>{portfolio.completedEngagements}</span>
-            </div>
-            <div className={styles.performanceStat}>
-              <span className={styles.performanceStatLabel}>Successful outcomes</span>
-              <span className={styles.performanceStatValue}>{successfulOutcomes} / {portfolio.completedEngagements}</span>
-            </div>
-            <div className={styles.performanceStat}>
-              <span className={styles.performanceStatLabel}>Avg. score</span>
-              <span className={styles.performanceStatValue}>{Math.round(portfolio.averageOverallScore)} / 100</span>
-            </div>
+          {featuredEngagement && (
+            <FeaturedEngagement
+              engagement={featuredEngagement}
+              attemptLabel={labelsByEngagement.get(featuredEngagement.id)}
+            />
+          )}
+
+          <div className={styles.browseBody}>
+          {stage === 'FIRST_VISIT' && (
+            <FirstRunPanel
+              scenario={starterScenario}
+              onStart={() => starterScenario && handleStart(starterScenario)}
+              isPending={startEngagement.isPending}
+            />
+          )}
+
+          {/* An empty dashboard is a heading, a description, a search box and a
+              sentence saying there is nothing there -- chrome between a newcomer
+              and the one button they need. */}
+          {stage !== 'FIRST_VISIT' && (
+          <div className={styles.dashboardGrid}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <div>
+                  <h3>Active Engagements</h3>
+                  <p>Compact view of everything still in flight.</p>
+                </div>
+                <div className={styles.controls}>
+                  <TextInput
+                    id="engagement-search"
+                    labelText="Search engagements"
+                    hideLabel
+                    placeholder="Search engagements"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                  />
+                  <Select
+                    id="status-filter"
+                    labelText="Filter"
+                    hideLabel
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                  >
+                    <SelectItem value="ALL" text="All active" />
+                    <SelectItem value="ACTION_REQUIRED" text="Action required" />
+                    <SelectItem value="AWAITING_RESPONSE" text="Awaiting response" />
+                    <SelectItem value="READY_FOR_REVIEW" text="Ready for review" />
+                  </Select>
+                  <Select
+                    id="sort-mode"
+                    labelText="Sort"
+                    hideLabel
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.target.value as SortMode)}
+                  >
+                    <SelectItem value="RECENT" text="Recently active" />
+                    <SelectItem value="PROGRESS" text="Progress" />
+                    <SelectItem value="SCENARIO" text="Scenario" />
+                  </Select>
+                </div>
+              </div>
+
+              <div className={styles.compactList}>
+                {filteredActiveEngagements.length > 0 ? (
+                  filteredActiveEngagements.map((engagement) => (
+                    <CompactEngagementRow
+                      key={engagement.id}
+                      engagement={engagement}
+                      attemptLabel={labelsByEngagement.get(engagement.id)}
+                    />
+                  ))
+                ) : (
+                  <div className={styles.emptyState}>
+                    <Search size={20} />
+                    <span>{emptyListMessage}</span>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <aside className={styles.dashboardAside}>
+              <section className={styles.sidePanel}>
+                <div className={styles.sidePanelHeader}>
+                  <div>
+                    <h3>Recently completed</h3>
+                    <p>Review outcomes from your last runs.</p>
+                  </div>
+                  <button type="button" className={styles.textAction} onClick={() => navigate('/dashboard/portfolio')}>View all</button>
+                </div>
+                {completedHistory.length > 0 ? (
+                  <div className={styles.recentlyCompletedList}>
+                    {completedHistory.slice(0, 2).map((item) => <RecentlyCompletedRow key={item.engagementId} item={item} />)}
+                  </div>
+                ) : (
+                  <p className={styles.sideEmpty}>Completed scenarios will appear here.</p>
+                )}
+              </section>
+
+              {scenarioCatalogue?.items[0] && (
+                <section className={styles.recommendationPanel}>
+                  <div>
+                    <div className={styles.sectionEyebrow}>Recommended for you</div>
+                    <h3>{scenarioCatalogue.items[0].title}</h3>
+                    <p>Practise stakeholder discovery and commercial evidence gathering in a fresh industry context.</p>
+                  </div>
+                  <Button kind="secondary" size="sm" renderIcon={Renew} onClick={() => handleStart(scenarioCatalogue.items[0])}>
+                    Start scenario
+                  </Button>
+                </section>
+              )}
+            </aside>
           </div>
-        )}
+          )}
 
-        {featuredEngagement && (
-          <FeaturedEngagement
-            engagement={featuredEngagement}
-            attemptLabel={labelsByEngagement.get(featuredEngagement.id)}
-          />
-        )}
-
-        <div className={styles.browseBody}>
-        {stage === 'FIRST_VISIT' && (
-          <FirstRunPanel
-            scenario={starterScenario}
-            onStart={() => starterScenario && handleStart(starterScenario)}
-            isPending={startEngagement.isPending}
-          />
-        )}
-
-        {/* An empty dashboard is a heading, a description, a search box and a
-            sentence saying there is nothing there -- chrome between a newcomer
-            and the one button they need. */}
-        {stage !== 'FIRST_VISIT' && (
-        <div className={styles.dashboardGrid}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <h3>Active Engagements</h3>
-                <p>Compact view of everything still in flight.</p>
+          {failedMeetingEngagements.length > 0 && (
+            <section className={styles.failedMeetingsSection}>
+              <div className={styles.sectionHeader}>
+                <div>
+                  <h3>Meeting attempts requiring retry</h3>
+                  <p>These attempts are closed. Review the debrief before restarting the same lead.</p>
+                </div>
               </div>
-              <div className={styles.controls}>
-                <TextInput
-                  id="engagement-search"
-                  labelText="Search engagements"
-                  hideLabel
-                  placeholder="Search engagements"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                />
-                <Select
-                  id="status-filter"
-                  labelText="Filter"
-                  hideLabel
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                >
-                  <SelectItem value="ALL" text="All active" />
-                  <SelectItem value="ACTION_REQUIRED" text="Action required" />
-                  <SelectItem value="AWAITING_RESPONSE" text="Awaiting response" />
-                  <SelectItem value="READY_FOR_REVIEW" text="Ready for review" />
-                </Select>
-                <Select
-                  id="sort-mode"
-                  labelText="Sort"
-                  hideLabel
-                  value={sortMode}
-                  onChange={(event) => setSortMode(event.target.value as SortMode)}
-                >
-                  <SelectItem value="RECENT" text="Recently active" />
-                  <SelectItem value="PROGRESS" text="Progress" />
-                  <SelectItem value="SCENARIO" text="Scenario" />
-                </Select>
-              </div>
-            </div>
-
-            <div className={styles.compactList}>
-              {filteredActiveEngagements.length > 0 ? (
-                filteredActiveEngagements.map((engagement) => (
-                  <CompactEngagementRow
+              <div className={styles.compactList}>
+                {failedMeetingEngagements.map((engagement) => (
+                  <FailedMeetingRow
                     key={engagement.id}
                     engagement={engagement}
                     attemptLabel={labelsByEngagement.get(engagement.id)}
                   />
-                ))
-              ) : (
-                <div className={styles.emptyState}>
-                  <Search size={20} />
-                  <span>{emptyListMessage}</span>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <aside className={styles.dashboardAside}>
-            <section className={styles.sidePanel}>
-              <div className={styles.sidePanelHeader}>
-                <div>
-                  <h3>Recently completed</h3>
-                  <p>Review outcomes from your last runs.</p>
-                </div>
-                <button type="button" className={styles.textAction} onClick={() => navigate('/dashboard/portfolio')}>View all</button>
-              </div>
-              {completedHistory.length > 0 ? (
-                <div className={styles.recentlyCompletedList}>
-                  {completedHistory.slice(0, 2).map((item) => <RecentlyCompletedRow key={item.engagementId} item={item} />)}
-                </div>
-              ) : (
-                <p className={styles.sideEmpty}>Completed scenarios will appear here.</p>
-              )}
-            </section>
-
-            {scenarioCatalogue?.items[0] && (
-              <section className={styles.recommendationPanel}>
-                <div>
-                  <div className={styles.sectionEyebrow}>Recommended for you</div>
-                  <h3>{scenarioCatalogue.items[0].title}</h3>
-                  <p>Practise stakeholder discovery and commercial evidence gathering in a fresh industry context.</p>
-                </div>
-                <Button kind="secondary" size="sm" renderIcon={Renew} onClick={() => handleStart(scenarioCatalogue.items[0])}>
-                  Start scenario
-                </Button>
-              </section>
-            )}
-          </aside>
-        </div>
-        )}
-
-        {failedMeetingEngagements.length > 0 && (
-          <section className={styles.failedMeetingsSection}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <h3>Meeting attempts requiring retry</h3>
-                <p>These attempts are closed. Review the debrief before restarting the same lead.</p>
-              </div>
-            </div>
-            <div className={styles.compactList}>
-              {failedMeetingEngagements.map((engagement) => (
-                <FailedMeetingRow
-                  key={engagement.id}
-                  engagement={engagement}
-                  attemptLabel={labelsByEngagement.get(engagement.id)}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        <section id="scenario-catalogue" className={styles.catalogueSection} aria-labelledby="scenario-catalogue-heading">
-          <div className={styles.sectionHeader}>
-            <div>
-              <div className={styles.sectionEyebrow}>Scenario catalogue</div>
-              <h3 id="scenario-catalogue-heading">
-                {stage === 'FIRST_VISIT' ? 'Other clients' : 'Find your next client'}
-              </h3>
-              <p>
-                {stage === 'FIRST_VISIT'
-                  ? 'Any of these works as a first engagement. They differ in industry and difficulty, not in what you have to do.'
-                  : `Explore ${scenarioCatalogue?.totalElements.toLocaleString() ?? '...'} distinct, scenario-ready consulting engagements.`}
-              </p>
-            </div>
-            <span className={styles.catalogueCount}>{scenarioCatalogue?.totalElements.toLocaleString() ?? 0} scenarios</span>
-          </div>
-          <div className={styles.catalogueControls}>
-            <TextInput
-              id="scenario-catalogue-search"
-              labelText="Search scenarios"
-              hideLabel
-              placeholder="Search client, industry or opportunity"
-              value={catalogueSearch}
-              onChange={(event) => setCatalogueSearch(event.target.value)}
-            />
-            <Select id="scenario-catalogue-industry" labelText="Industry" hideLabel value={catalogueIndustry} onChange={(event) => setCatalogueIndustry(event.target.value)}>
-              <SelectItem value="" text="All industries" />
-              {catalogIndustries.map((industry) => <SelectItem key={industry} value={industry} text={industry} />)}
-            </Select>
-            <Select id="scenario-catalogue-difficulty" labelText="Difficulty" hideLabel value={String(catalogueDifficulty)} onChange={(event) => setCatalogueDifficulty(event.target.value ? Number(event.target.value) : '')}>
-              <SelectItem value="" text="All difficulty" />
-              <SelectItem value="2" text="Guided" />
-              <SelectItem value="3" text="Standard" />
-              <SelectItem value="4" text="Advanced" />
-            </Select>
-            <span className={styles.catalogueLoading}>{catalogueLoading ? 'Updating results...' : 'Cached catalogue'}</span>
-          </div>
-          {scenarioCatalogue?.items.length ? (
-            <>
-              <div className={styles.scenarioGrid}>
-                {scenarioCatalogue.items.map((scenario) => (
-                  <ScenarioCard key={scenario.id} scenario={scenario} onStart={() => handleStart(scenario)} isPending={startEngagement.isPending} />
                 ))}
               </div>
-              <Pagination
-                className={styles.cataloguePagination}
-                page={cataloguePage}
-                pageSize={scenarioCatalogue.size}
-                pageSizes={[9]}
-                totalItems={scenarioCatalogue.totalElements}
-                onChange={({ page }) => setCataloguePage(page)}
-              />
-            </>
-          ) : (
-            <div className={styles.emptyState}><Search size={20} /><span>No scenarios match these filters.</span></div>
+            </section>
           )}
-        </section>
-        </div>
 
-      </Stack>
-
-      {briefingScenario && (
-        <ScenarioBriefingModal
-          scenario={briefingScenario}
-          onCancel={() => setBriefingScenario(null)}
-          onConfirm={confirmBriefing}
-          isPending={startEngagement.isPending}
-        />
-      )}
-
-      {personaPickerScenario && (
-        <Modal
-          open
-          modalHeading="Choose a stakeholder persona"
-          modalLabel={personaPickerScenario.title}
-          primaryButtonText="Start Engagement"
-          secondaryButtonText="Cancel"
-          onRequestClose={() => setPersonaPickerScenario(null)}
-          onRequestSubmit={confirmPersonaSelection}
-          primaryButtonDisabled={!selectedPersonaId || startEngagement.isPending}
-        >
-          <p className={styles.modalHelp}>
-            This scenario has multiple stakeholder personalities. Pick who you will be engaging with.
-          </p>
-          <RadioButtonGroup
-            name="persona-picker"
-            orientation="vertical"
-            valueSelected={selectedPersonaId}
-            onChange={(value) => setSelectedPersonaId(String(value))}
-          >
-            {(personaPickerScenario.personas ?? []).map((persona) => (
-              <RadioButton
-                key={persona.id}
-                id={`persona-${persona.id}`}
-                value={persona.id}
-                labelText={`${persona.name} - ${persona.jobTitle}`}
+          <section id="scenario-catalogue" className={`${styles.catalogueSection} objective-scenario-catalogue`} aria-labelledby="scenario-catalogue-heading">
+            <div className={styles.sectionHeader}>
+              <div>
+                <div className={styles.sectionEyebrow}>Scenario catalogue</div>
+                <h3 id="scenario-catalogue-heading">
+                  {stage === 'FIRST_VISIT' ? 'Other clients' : 'Find your next client'}
+                </h3>
+                <p>
+                  {stage === 'FIRST_VISIT'
+                    ? 'Any of these works as a first engagement. They differ in industry and difficulty, not in what you have to do.'
+                    : `Explore ${scenarioCatalogue?.totalElements.toLocaleString() ?? '...'} distinct, scenario-ready consulting engagements.`}
+                </p>
+              </div>
+              <span className={styles.catalogueCount}>{scenarioCatalogue?.totalElements.toLocaleString() ?? 0} scenarios</span>
+            </div>
+            <div className={styles.catalogueControls}>
+              <TextInput
+                id="scenario-catalogue-search"
+                labelText="Search scenarios"
+                hideLabel
+                placeholder="Search client, industry or opportunity"
+                value={catalogueSearch}
+                onChange={(event) => setCatalogueSearch(event.target.value)}
               />
-            ))}
-          </RadioButtonGroup>
-        </Modal>
-      )}
-    </main>
+              <Select id="scenario-catalogue-industry" labelText="Industry" hideLabel value={catalogueIndustry} onChange={(event) => setCatalogueIndustry(event.target.value)}>
+                <SelectItem value="" text="All industries" />
+                {catalogIndustries.map((industry) => <SelectItem key={industry} value={industry} text={industry} />)}
+              </Select>
+              <Select id="scenario-catalogue-difficulty" labelText="Difficulty" hideLabel value={String(catalogueDifficulty)} onChange={(event) => setCatalogueDifficulty(event.target.value ? Number(event.target.value) : '')}>
+                <SelectItem value="" text="All difficulty" />
+                <SelectItem value="2" text="Guided" />
+                <SelectItem value="3" text="Standard" />
+                <SelectItem value="4" text="Advanced" />
+              </Select>
+              <span className={styles.catalogueLoading}>{catalogueLoading ? 'Updating results...' : 'Cached catalogue'}</span>
+            </div>
+            {scenarioCatalogue?.items.length ? (
+              <>
+                <div className={styles.scenarioGrid}>
+                  {scenarioCatalogue.items.map((scenario) => (
+                    <ScenarioCard key={scenario.id} scenario={scenario} onStart={() => handleStart(scenario)} isPending={startEngagement.isPending} />
+                  ))}
+                </div>
+                <Pagination
+                  className={styles.cataloguePagination}
+                  page={cataloguePage}
+                  pageSize={scenarioCatalogue.size}
+                  pageSizes={[9]}
+                  totalItems={scenarioCatalogue.totalElements}
+                  onChange={({ page }) => setCataloguePage(page)}
+                />
+              </>
+            ) : (
+              <div className={styles.emptyState}><Search size={20} /><span>No scenarios match these filters.</span></div>
+            )}
+          </section>
+          </div>
+
+        </Stack>
+
+        {briefingScenario && (
+          <ScenarioBriefingModal
+            scenario={briefingScenario}
+            onCancel={() => setBriefingScenario(null)}
+            onConfirm={confirmBriefing}
+            isPending={startEngagement.isPending}
+          />
+        )}
+
+        {personaPickerScenario && (
+          <Modal
+            open
+            modalHeading="Choose a stakeholder persona"
+            modalLabel={personaPickerScenario.title}
+            primaryButtonText="Start Engagement"
+            secondaryButtonText="Cancel"
+            onRequestClose={() => setPersonaPickerScenario(null)}
+            onRequestSubmit={confirmPersonaSelection}
+            primaryButtonDisabled={!selectedPersonaId || startEngagement.isPending}
+          >
+            <p className={styles.modalHelp}>
+              This scenario has multiple stakeholder personalities. Pick who you will be engaging with.
+            </p>
+            <RadioButtonGroup
+              name="persona-picker"
+              orientation="vertical"
+              valueSelected={selectedPersonaId}
+              onChange={(value) => setSelectedPersonaId(String(value))}
+            >
+              {(personaPickerScenario.personas ?? []).map((persona) => (
+                <RadioButton
+                  key={persona.id}
+                  id={`persona-${persona.id}`}
+                  value={persona.id}
+                  labelText={`${persona.name} - ${persona.jobTitle}`}
+                />
+              ))}
+            </RadioButtonGroup>
+          </Modal>
+        )}
+      </main>
+    </ObjectiveTourProvider>
   )
 }
