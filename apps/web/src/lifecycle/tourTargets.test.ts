@@ -77,6 +77,10 @@ describe('walkthrough targets', () => {
     // Client context before the first outreach, and the client's reply after
     // it; the learner is on one side of that line or the other.
     'objective-client',
+    // The research gate collapses to a single line once every requirement is
+    // met, so the unmet checklist and the ready state are two forms of one
+    // panel.
+    'objective-gate',
   ])
 
   it.each(declared.filter((target) => !MUTUALLY_EXCLUSIVE.has(target.className)))(

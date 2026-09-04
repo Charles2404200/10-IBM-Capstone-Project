@@ -190,4 +190,29 @@ describe('guided tour, running the real library', () => {
     expect(screen.getByText('Who you are writing to')).toBeInTheDocument()
     expect(screen.getByText(label)).toBeInTheDocument()
   })
+
+  /**
+   * A first engagement is the emptiest the research screen ever gets: no
+   * evidence gathered, nothing on the board, the gate unmet. That is also the
+   * only time the walkthrough runs, so the anchors have to survive it.
+   */
+  it('anchors to a section that is present but empty', () => {
+    render(
+      <ObjectiveTourProvider
+        tourId="client-intelligence"
+        objectives={[
+          { id: 'board', objective: 'Build your evidence base', description: 'It collects here.', targets: ['.step-one'] },
+          { id: 'gate', objective: 'Moving on', description: 'A floor, not a target.', targets: ['.step-two'] },
+        ]}
+      >
+        <section className="step-one">Generate or add a source to begin building your evidence board.</section>
+        <div className="step-two">Ready for Outreach?</div>
+      </ObjectiveTourProvider>,
+    )
+
+    expect(screen.getByText('Build your evidence base')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Go to next step'))
+    expect(screen.getByText('Moving on')).toBeInTheDocument()
+  })
 })

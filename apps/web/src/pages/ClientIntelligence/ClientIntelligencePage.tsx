@@ -38,10 +38,22 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
     targets: ['.objective-readiness'],
   },
   {
-    id: 'evidence',
+    id: 'actions',
+    objective: 'Where research comes from',
+    description: 'Each button runs one line of research on this client. Nothing is gathered until you ask for it, and what comes back depends on which area you choose.',
+    targets: ['.objective-evidence'],
+  },
+  {
+    id: 'evidence-board',
     objective: 'Build your evidence base',
-    description: 'Collect enough evidence and add your findings to the evidence board. The evidence requirement and evidence board are highlighted together.',
-    targets: ['.objective-evidence', '.objective-evidence-board'],
+    description: 'Everything you gather or add by hand collects here. This is the base your outreach and your proposal are later judged against, so it is worth reading rather than skimming.',
+    targets: ['.objective-evidence-board'],
+  },
+  {
+    id: 'evidence-card',
+    objective: 'Where a finding came from',
+    description: 'Each card carries a reference code, the source it came from, how reliable that source is, and how closely it relates to this client. Those tell you what a finding is worth citing for \u2014 they are not marks, and a low one is still yours to use if it fits.',
+    targets: ['.objective-evidence-board'],
   },
   {
     id: 'stakeholder',
@@ -52,10 +64,17 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'hypothesis',
     objective: 'Form a grounded hypothesis',
-    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
+    description: 'Use the evidence you collected to explain the client\u2019s underlying problem and likely business impact.',
     targets: ['.objective-hypothesis'],
   },
+  {
+    id: 'gate',
+    objective: 'Moving on',
+    description: 'Outreach opens once every requirement above is met. You can keep researching after that if you want more to work with \u2014 the gate is a floor, not a target.',
+    targets: ['.objective-gate'],
+  },
 ]
+
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -201,7 +220,7 @@ function ResearchGateChecklist({
      whole point and stays. */
   if (gate.ready) {
     return (
-      <div className={styles.researchGate}>
+      <div className={`${styles.researchGate} objective-gate`}>
         <p className={styles.gateReady}>
           <CheckmarkFilled size={16} /> Ready — all {GATE_REQUIREMENT_COUNT} requirements met
         </p>
@@ -218,7 +237,7 @@ function ResearchGateChecklist({
   }
 
   return (
-    <div className={styles.researchGate}>
+    <div className={`${styles.researchGate} objective-gate`}>
       <h4 className={styles.researchGateTitle}>Ready for Outreach?</h4>
       <Stack gap={2}>
         <GateRequirement
