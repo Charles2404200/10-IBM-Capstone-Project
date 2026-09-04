@@ -33,7 +33,7 @@ const basePlatform = {
 
 // sets up the mocked hooks for a given role
 function setupAsRole(role: 'ADMINISTRATOR' | 'SCENARIO_AUTHOR' | 'REVIEWER') {
-  mockedAuth.mockImplementation((selector: (state: { role: string }) => unknown) => selector({ role }))
+  mockedAuth.mockImplementation((selector) => selector({ role } as ReturnType<typeof useAuthStore.getState>),)
   mockedScenarios.mockReturnValue({ data: [], isLoading: false, isError: false, isFetching: false, refetch: vi.fn() } as unknown as ReturnType<typeof useAllScenariosForAdmin>)
   mockedAiOps.mockReturnValue({ data: { mockMode: false, parallelEnabled: true, parallelMaxCandidates: 3, providers: [], routing: {} }, isLoading: false, isError: false, isFetching: false, refetch: vi.fn() } as unknown as ReturnType<typeof useAdminAiOperations>)
   mockedPlatform.mockReturnValue({ data: basePlatform, isLoading: false, isError: false, isFetching: false, refetch: vi.fn() } as unknown as ReturnType<typeof useAdminPlatformOverview>)

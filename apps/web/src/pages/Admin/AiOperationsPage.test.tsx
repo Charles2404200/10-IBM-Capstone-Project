@@ -67,6 +67,7 @@ describe('AiOperationsPage states', () => {
             circuitState: 'CLOSED', 
             avgLatencyMs: 300, 
             requestsToday: 12, 
+            successCount: 12,
             failureCount: 0, 
             fallbackRatePercent: 0, 
             quotaUsed: 10, 
