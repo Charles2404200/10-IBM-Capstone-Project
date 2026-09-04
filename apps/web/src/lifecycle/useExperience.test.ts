@@ -107,4 +107,30 @@ describe('useExperience', () => {
 
     expect(result.current.stage).toBe('FIRST_VISIT')
   })
+
+  /**
+   * The three states are a sequence a learner passes through once, so the card
+   * they belong to asks for the whole walk rather than one hop.
+   */
+  it('walks the whole lifecycle in order', () => {
+    given({ portfolioData: portfolio(0), engagementData: [] })
+    const { result, rerender } = renderHook(() => useExperience())
+    expect(result.current.stage).toBe('FIRST_VISIT')
+
+    given({ portfolioData: portfolio(0), engagementData: [engagement('OUTREACHING')] })
+    rerender()
+    expect(result.current.stage).toBe('FIRST_ENGAGEMENT')
+
+    given({ portfolioData: portfolio(1), engagementData: [engagement('COMPLETED')] })
+    rerender()
+    expect(result.current.stage).toBe('RETURNING')
+
+    // And does not fall back, however many new runs are opened afterwards.
+    given({
+      portfolioData: portfolio(1),
+      engagementData: [engagement('COMPLETED'), engagement('QUALIFYING')],
+    })
+    rerender()
+    expect(result.current.stage).toBe('RETURNING')
+  })
 })
