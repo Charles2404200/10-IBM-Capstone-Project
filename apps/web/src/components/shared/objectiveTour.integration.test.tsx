@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useAuthStore } from '@/store/authStore'
 import { useTourProgressStore } from '@/store/tourProgressStore'
@@ -113,5 +114,32 @@ describe('guided tour, running the real library', () => {
 
     expect(screen.queryByText('First stop')).not.toBeInTheDocument()
     expect(document.querySelector('.reactour__mask')).not.toBeInTheDocument()
+  })
+
+  /**
+   * The live meeting streams the client's reply in while the walkthrough may be
+   * open over the top of it. The tour must not freeze that panel or swallow the
+   * controls beside it, so this drives both while the mask is up.
+   */
+  it('lets the workspace keep updating and stay clickable while the tour is open', () => {
+    function Streaming() {
+      const [text, setText] = useState('Client is responding')
+      return (
+        <ObjectiveTourProvider tourId="live-meeting" objectives={OBJECTIVES}>
+          <div className="step-one">{text}</div>
+          <div className="step-two">Relationship</div>
+          <button type="button" onClick={() => setText('Client has replied')}>Advance turn</button>
+        </ObjectiveTourProvider>
+      )
+    }
+
+    render(<Streaming />)
+    expect(screen.getByText('First stop')).toBeInTheDocument()
+    expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Advance turn'))
+
+    expect(screen.getByText('Client has replied')).toBeInTheDocument()
+    expect(screen.getByText('First stop')).toBeInTheDocument()
   })
 })

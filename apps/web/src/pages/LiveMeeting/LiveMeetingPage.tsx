@@ -27,29 +27,54 @@ const MEETING_THRESHOLD = 70
 
 const LIVE_MEETING_OBJECTIVES = [
   {
+    id: 'transcript',
+    objective: 'The conversation so far',
+    description: 'Everything you and the client have said appears here, newest at the bottom. The client replies to what you actually wrote, so the transcript is the record the rest of the engagement is judged against.',
+    targets: ['.objective-transcript'],
+  },
+  {
+    id: 'compose',
+    objective: 'Your turn',
+    description: 'This is where you reply. Depending on the difficulty of this engagement you will either write freely or choose from prepared options. Either way the reply is yours to decide.',
+    targets: ['.objective-compose'],
+  },
+  {
+    id: 'trust',
+    objective: 'Trust',
+    description: 'How far the client believes what you tell them.',
+    targets: ['.objective-trust'],
+  },
+  {
+    id: 'interest',
+    objective: 'Interest',
+    description: 'How engaged the client is in what you are proposing.',
+    targets: ['.objective-interest'],
+  },
+  {
+    id: 'patience',
+    objective: 'Patience',
+    description: 'How much more of the conversation the client is willing to give you.',
+    targets: ['.objective-patience'],
+  },
+  {
     id: 'relationship',
-    objective: 'Understand relationship state',
-    description: 'This shows your current relationship state with the client and your goal metrics before you can move to the debrief and proposal stage.',
+    objective: 'How these move',
+    description: 'All three respond to what you say during the meeting, and the meeting can only close once each reaches the threshold shown here. They are not a score of your answers; they are the client reacting.',
     targets: ['.objective-relationship'],
   },
   {
-    id: 'meeting-options',
-    objective: 'Determine your responses',
-    description: 'This is the area where your meeting will take place. You will either have the choice to choose a generated response or type in your response here, depending on the difficulty of this engagement.',
-    targets: ['.objective-meeting-view'],
-  },
-  {
     id: 'hints',
-    objective: 'Meeting hints',
-    description: 'Pay attention to this whole section, as it may provide useful hints to guide an appropriate response to the client.',
+    objective: 'Observations from the conversation',
+    description: 'When this appears it points out something in the client\u2019s last message that you may not have picked up. It reports what was said; it does not tell you what to reply.',
     targets: ['.objective-hints'],
   },
 ]
 
-function RelationshipMeter({ label, value }: { label: string; value: number }) {
+
+function RelationshipMeter({ label, value, targetClass }: { label: string; value: number; targetClass?: string }) {
   const tone = value >= MEETING_THRESHOLD ? styles.meterPass : value >= 50 ? styles.meterWatch : styles.meterRisk
   return (
-    <div className={styles.relationshipMetric}>
+    <div className={`${styles.relationshipMetric} ${targetClass ?? ''}`}>
       <div>
         <span>{label}</span>
         <strong>{value}<small>/100</small></strong>
@@ -228,8 +253,8 @@ export default function LiveMeetingPage() {
 
       <Grid fullWidth className={styles.workspaceGrid}>
         <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
-          <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
-            <div className={styles.transcriptViewport} ref={transcriptRef}>
+          <section className={styles.conversationPanel} aria-label="Live client conversation">
+            <div className={`${styles.transcriptViewport} objective-transcript`} ref={transcriptRef}>
               {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
@@ -243,7 +268,7 @@ export default function LiveMeetingPage() {
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
             {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
-              <section className={styles.guidedComposer} aria-label="Guided response choices">
+              <section className={`${styles.guidedComposer} objective-compose`} aria-label="Guided response choices">
                 <div className={styles.guidedHeading}>
                   <div>
                     <p className={styles.eyebrow}>Guided response</p>
@@ -291,7 +316,7 @@ export default function LiveMeetingPage() {
             )}
 
             {!isCompleted && responseOptions?.interactionMode === 'FREEFORM' && (
-              <div className={styles.composer}>
+              <div className={`${styles.composer} objective-compose`}>
                 <TextArea
                   id="message"
                   labelText="Response"
@@ -352,7 +377,7 @@ export default function LiveMeetingPage() {
         </Column>
 
         <Column lg={5} md={8} sm={4}>
-          <aside className={`${styles.decisionRail} objective-hints`}>
+          <aside className={styles.decisionRail}>
             <section className={`${styles.relationshipPanel} objective-relationship`}>
               <div className={styles.railHeading}>
                 <div>
@@ -364,14 +389,14 @@ export default function LiveMeetingPage() {
                 </Tag>
               </div>
               <Stack gap={5}>
-                <RelationshipMeter label="Trust" value={currentState.trust} />
-                <RelationshipMeter label="Interest" value={currentState.interest} />
-                <RelationshipMeter label="Patience" value={currentState.patience} />
+                <RelationshipMeter label="Trust" value={currentState.trust} targetClass="objective-trust" />
+                <RelationshipMeter label="Interest" value={currentState.interest} targetClass="objective-interest" />
+                <RelationshipMeter label="Patience" value={currentState.patience} targetClass="objective-patience" />
               </Stack>
             </section>
 
             {!isCompleted && hint.length > 0 && (
-              <Tile className={styles.hintPanel}>
+              <Tile className={`${styles.hintPanel} objective-hints`}>
                 <p className={styles.eyebrow}>Response-based hint</p>
                 <h3>Focus your next turn</h3>
                 <ul>{hint.map((item) => <li key={item}>{item}</li>)}</ul>
