@@ -821,3 +821,8 @@ export interface UserSummary {
   active: boolean
 }
 
+export interface CreateAdminUserRequest {
+  email: string
+  displayName: string
+  role: UserRole
+}

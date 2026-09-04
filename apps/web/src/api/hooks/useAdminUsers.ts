@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { AdminUserSummary, UserRole } from '@/api/types'
+import type { AdminUserSummary, UserRole, CreateAdminUserRequest } from '@/api/types'
 
 const adminUserKeys = { all: ['admin', 'users'] as const }
 
@@ -27,6 +27,15 @@ export function useSetUserActive() {
   return useMutation({
     mutationFn: async ({ userId, active }: { userId: string; active: boolean }) =>
       (await apiClient.patch<AdminUserSummary>(`/api/v1/admin/users/${userId}/${active ? 'reactivate' : 'deactivate'}`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminUserKeys.all }),
+  })
+}
+
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (request: CreateAdminUserRequest) =>
+      (await apiClient.post<AdminUserSummary>('/api/v1/admin/users', request)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: adminUserKeys.all }),
   })
 }
