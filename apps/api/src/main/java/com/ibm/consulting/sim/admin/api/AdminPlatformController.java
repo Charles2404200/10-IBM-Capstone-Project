@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.admin.api;
 import com.ibm.consulting.sim.admin.application.AdminNotificationService;
 import com.ibm.consulting.sim.admin.application.NotificationQueryService;
 import com.ibm.consulting.sim.admin.application.NotificationReadStatus;
+import com.ibm.consulting.sim.admin.application.NotificationReadStatusPage;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewResponse;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewService;
 import com.ibm.consulting.sim.admin.domain.NotificationPriority;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 import java.util.UUID;
@@ -78,5 +80,13 @@ public class AdminPlatformController {
     @GetMapping("/notifications/{eventId}/read-status")
     NotificationReadStatus notificationReadStatus(@PathVariable UUID eventId) {
         return notificationQueryService.getReadStatus(eventId);
+    }
+
+    @GetMapping("/notifications/{eventId}/read-status/users")
+    NotificationReadStatusPage notificationReadStatusUsers(
+            @PathVariable UUID eventId,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(required = false) String cursor) {
+        return notificationQueryService.getReadStatusUsers(eventId, limit, cursor);
     }
 }

@@ -1,14 +1,14 @@
 package com.ibm.consulting.sim.admin.application;
 
 import com.ibm.consulting.sim.admin.domain.*;
-import com.ibm.consulting.sim.identity.domain.User;
-import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.function.Function;
@@ -23,23 +23,26 @@ public class NotificationQueryService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationReadRepository notificationReadRepository;
-    private final UserRepository userRepository;
     private final NotificationCentreRepository notificationCentreRepository;
     private final NotificationDetailCacheService detailCacheService;
     private final NotificationCursorCodec cursorCodec;
+    private final NotificationMetrics metrics;
+    private final NotificationReadStatusCursorCodec readStatusCursorCodec;
 
     public NotificationQueryService(NotificationRepository notificationRepository,
                                     NotificationReadRepository notificationReadRepository,
-                                    UserRepository userRepository,
                                     NotificationCentreRepository notificationCentreRepository,
                                     NotificationDetailCacheService detailCacheService,
-                                    NotificationCursorCodec cursorCodec) {
+                                    NotificationCursorCodec cursorCodec,
+                                    NotificationMetrics metrics,
+                                    NotificationReadStatusCursorCodec readStatusCursorCodec) {
         this.notificationRepository = notificationRepository;
         this.notificationReadRepository = notificationReadRepository;
-        this.userRepository = userRepository;
         this.notificationCentreRepository = notificationCentreRepository;
         this.detailCacheService = detailCacheService;
         this.cursorCodec = cursorCodec;
+        this.metrics = metrics;
+        this.readStatusCursorCodec = readStatusCursorCodec;
     }
 
     @Transactional(readOnly = true)
@@ -182,6 +185,7 @@ public class NotificationQueryService {
                         userId,
                         role
                 );
+        recordReadMetricAfterCommit(added);
 
         if (!added) {
             // PATCH is idempotent: a concurrent request may have inserted the
@@ -232,64 +236,65 @@ public class NotificationQueryService {
                 notification.getRole()
         );
 
-        Map<UUID, NotificationReadReceipt> receipts = notificationReadRepository
-                .findByNotificationId(notification.getId())
-                .stream()
-                .collect(Collectors.toMap(
-                        NotificationRead::getUserId,
-                        notificationRead -> new NotificationReadReceipt(
-                                notificationRead.getUserId(),
-                                notificationRead.getReadAt()
-                        )
-                ));
-
-        log.debug(
-                "Loaded notification read receipts: eventId={}, receiptCount={}",
-                eventId,
-                receipts.size()
-        );
-
-        List<NotificationReadStatus.UserReadStatus> users = userRepository
-                .findAllActiveByRole(notification.getRole())
-                .stream()
-                .sorted(Comparator.comparing(
-                        User::getDisplayName,
-                        String.CASE_INSENSITIVE_ORDER
-                ))
-                .map(user -> {
-                    NotificationReadReceipt receipt = receipts.get(user.getId());
-
-                    return new NotificationReadStatus.UserReadStatus(
-                            user.getId(),
-                            user.getDisplayName(),
-                            receipt != null,
-                            receipt == null ? null : receipt.readAt()
-                    );
-                })
-                .toList();
-
-        int readCount = (int) users.stream()
-                .filter(NotificationReadStatus.UserReadStatus::read)
-                .count();
-
-        int unreadCount = users.size() - readCount;
+        NotificationReadStatusCounts counts = notificationCentreRepository
+                .countAudienceReadStatus(notification.getId(), notification.getRole());
 
         log.info(
                 "Notification read status fetched: eventId={}, role={}, totalUsers={}, readCount={}, unreadCount={}",
                 eventId,
                 notification.getRole(),
-                users.size(),
-                readCount,
-                unreadCount
+                counts.recipientCount(),
+                counts.readCount(),
+                counts.unreadCount()
         );
 
         return new NotificationReadStatus(
                 eventId,
                 notification.getRole(),
-                users.size(),
-                readCount,
-                unreadCount,
-                users
+                counts.recipientCount(),
+                counts.readCount(),
+                counts.unreadCount()
         );
+    }
+
+    private void recordReadMetricAfterCommit(boolean created) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            // Direct unit-test invocation has no proxy-created transaction.
+            metrics.recordReadMarked(created);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                metrics.recordReadMarked(created);
+            }
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationReadStatusPage getReadStatusUsers(
+            UUID eventId, int limit, String encodedCursor) {
+        validatePageSize(limit);
+        NotificationEvent notification = notificationRepository.findByEventId(eventId)
+                .orElseThrow(() -> new NotFoundException("Notification", eventId));
+        NotificationReadStatusCursor cursor = readStatusCursorCodec.decode(encodedCursor);
+        List<NotificationUserReadStatus> rows = notificationCentreRepository
+                .findAudienceReadStatusPage(
+                        notification.getId(), notification.getRole(), cursor, limit + 1);
+        boolean hasMore = rows.size() > limit;
+        List<NotificationUserReadStatus> pageRows = hasMore ? rows.subList(0, limit) : rows;
+        String nextCursor = null;
+        if (hasMore && !pageRows.isEmpty()) {
+            NotificationUserReadStatus last = pageRows.getLast();
+            nextCursor = readStatusCursorCodec.encode(new NotificationReadStatusCursor(
+                    last.cursorDisplayName(), last.userId()));
+        }
+        return new NotificationReadStatusPage(
+                pageRows.stream()
+                        .map(row -> new NotificationReadStatusPage.UserReadStatus(
+                                row.userId(), row.displayName(), row.read(), row.readAt()))
+                        .toList(),
+                nextCursor,
+                hasMore);
     }
 }

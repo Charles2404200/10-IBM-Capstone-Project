@@ -36,3 +36,5 @@ docs/*
 !docs/architecture/
 docs/architecture/*
 !docs/architecture/NOTIFICATION_PIPELINE.md
+# Local diagnostic output; keep the rule intentionally narrower than *.txt.
+/output.txt

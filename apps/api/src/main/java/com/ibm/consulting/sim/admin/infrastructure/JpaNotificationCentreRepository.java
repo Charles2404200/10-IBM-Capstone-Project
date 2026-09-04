@@ -3,6 +3,9 @@ package com.ibm.consulting.sim.admin.infrastructure;
 import com.ibm.consulting.sim.admin.application.NotificationCursor;
 import com.ibm.consulting.sim.admin.application.NotificationQueryField;
 import com.ibm.consulting.sim.admin.application.NotificationSharedDetail;
+import com.ibm.consulting.sim.admin.application.NotificationReadStatusCounts;
+import com.ibm.consulting.sim.admin.application.NotificationReadStatusCursor;
+import com.ibm.consulting.sim.admin.application.NotificationUserReadStatus;
 import com.ibm.consulting.sim.admin.application.ProjectedNotification;
 import com.ibm.consulting.sim.admin.domain.NotificationCentreRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationEvent;
@@ -36,6 +39,19 @@ interface NotificationListJpaProjection {
     String getMessagePreview();
     NotificationPriority getPriority();
     Instant getCreatedAt();
+}
+
+interface NotificationReadStatusCountsJpaProjection {
+    long getRecipientCount();
+    long getReadCount();
+}
+
+interface NotificationUserReadStatusJpaProjection {
+    UUID getUserId();
+    String getDisplayName();
+    Boolean getReadFlag();
+    Instant getReadAt();
+    String getCursorDisplayName();
 }
 
 /** Spring Data query API kept separate from the domain repository adapter. */
@@ -91,6 +107,63 @@ interface SpringDataNotificationCentreRepository extends JpaRepository<Notificat
     long countUnread(
             @Param("userId") UUID userId,
             @Param("role") UserRole role);
+
+    @Query("""
+            SELECT COUNT(recipient.id) AS recipientCount,
+                   COUNT(receipt.id) AS readCount
+              FROM User recipient
+              LEFT JOIN NotificationRead receipt
+                ON receipt.userId = recipient.id
+               AND receipt.notificationId = :notificationId
+             WHERE recipient.active = true
+               AND recipient.role = :role
+            """)
+    NotificationReadStatusCountsJpaProjection countAudienceReadStatus(
+            @Param("notificationId") UUID notificationId,
+            @Param("role") UserRole role);
+
+    @Query("""
+            SELECT recipient.id AS userId,
+                   recipient.displayName AS displayName,
+                   CASE WHEN receipt.id IS NULL THEN false ELSE true END AS readFlag,
+                   receipt.readAt AS readAt,
+                   LOWER(recipient.displayName) AS cursorDisplayName
+              FROM User recipient
+              LEFT JOIN NotificationRead receipt
+                ON receipt.userId = recipient.id
+               AND receipt.notificationId = :notificationId
+             WHERE recipient.active = true
+               AND recipient.role = :role
+             ORDER BY LOWER(recipient.displayName) ASC, recipient.id ASC
+            """)
+    List<NotificationUserReadStatusJpaProjection> findFirstAudienceReadStatusPage(
+            @Param("notificationId") UUID notificationId,
+            @Param("role") UserRole role,
+            Pageable pageable);
+
+    @Query("""
+            SELECT recipient.id AS userId,
+                   recipient.displayName AS displayName,
+                   CASE WHEN receipt.id IS NULL THEN false ELSE true END AS readFlag,
+                   receipt.readAt AS readAt,
+                   LOWER(recipient.displayName) AS cursorDisplayName
+              FROM User recipient
+              LEFT JOIN NotificationRead receipt
+                ON receipt.userId = recipient.id
+               AND receipt.notificationId = :notificationId
+             WHERE recipient.active = true
+               AND recipient.role = :role
+               AND (LOWER(recipient.displayName) > :cursorDisplayName
+                    OR (LOWER(recipient.displayName) = :cursorDisplayName
+                        AND recipient.id > :cursorUserId))
+             ORDER BY LOWER(recipient.displayName) ASC, recipient.id ASC
+            """)
+    List<NotificationUserReadStatusJpaProjection> findAudienceReadStatusPageAfter(
+            @Param("notificationId") UUID notificationId,
+            @Param("role") UserRole role,
+            @Param("cursorDisplayName") String cursorDisplayName,
+            @Param("cursorUserId") UUID cursorUserId,
+            Pageable pageable);
 }
 
 @Repository
@@ -161,6 +234,37 @@ public class JpaNotificationCentreRepository implements NotificationCentreReposi
     @Override
     public long countUnread(UUID userId, UserRole role) {
         return notifications.countUnread(userId, role);
+    }
+
+    @Override
+    public NotificationReadStatusCounts countAudienceReadStatus(
+            UUID notificationId, UserRole role) {
+        NotificationReadStatusCountsJpaProjection counts =
+                notifications.countAudienceReadStatus(notificationId, role);
+        return new NotificationReadStatusCounts(
+                counts.getRecipientCount(), counts.getReadCount());
+    }
+
+    @Override
+    public List<NotificationUserReadStatus> findAudienceReadStatusPage(
+            UUID notificationId,
+            UserRole role,
+            NotificationReadStatusCursor cursor,
+            int limit) {
+        Pageable page = Pageable.ofSize(limit);
+        List<NotificationUserReadStatusJpaProjection> rows = cursor == null
+                ? notifications.findFirstAudienceReadStatusPage(notificationId, role, page)
+                : notifications.findAudienceReadStatusPageAfter(
+                        notificationId, role, cursor.displayName(), cursor.userId(), page);
+        return rows.stream()
+                .map(row -> new NotificationUserReadStatus(
+                        row.getUserId(), row.getDisplayName(),
+                        // this Boolean.TRUE.equals is used so if it is
+                        // null then make it as false instead of putting
+                        // null which might give error
+                        Boolean.TRUE.equals(row.getReadFlag()), row.getReadAt(),
+                        row.getCursorDisplayName()))
+                .toList();
     }
 
     private ProjectedNotification project(
