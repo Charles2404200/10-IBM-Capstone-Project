@@ -40,7 +40,17 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
  *  redirecting non-privileged learners back to the Command Centre. */
 function RequireRole({ roles, children }: { roles: string[]; children: React.ReactNode }) {
   const role = useAuthStore((s) => s.role)
-  return role && roles.includes(role) ? <>{children}</> : <Navigate to="/dashboard" replace />
+  
+  // enforces permission
+  if (role && roles.includes(role)) return <>{children}</>
+
+  // provides permission-state UI feedback
+  return (
+    <Navigate to="/dashboard" 
+    replace 
+    state={{ deniedReason: 'You did not have sufficient permissions to access that page.' }} 
+    />
+  )
 }
 
 export default function App() {
