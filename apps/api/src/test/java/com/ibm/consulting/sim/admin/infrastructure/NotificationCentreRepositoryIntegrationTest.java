@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.admin.infrastructure;
 
 import com.ibm.consulting.sim.admin.application.NotificationQueryField;
+import com.ibm.consulting.sim.admin.application.NotificationCursor;
 import com.ibm.consulting.sim.admin.domain.NotificationCentreRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationEvent;
 import com.ibm.consulting.sim.admin.domain.NotificationPriority;
@@ -32,6 +33,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.UUID;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -84,7 +86,11 @@ class NotificationCentreRepositoryIntegrationTest {
 
         User recipient = User.create(
                 "recipient@example.com", "hash", "Recipient", UserRole.LEARNER);
+        User inactiveRecipient = User.create(
+                "inactive-recipient@example.com", "hash", "Inactive", UserRole.LEARNER);
+        inactiveRecipient.deactivate();
         entityManager.persist(recipient);
+        entityManager.persist(inactiveRecipient);
         entityManager.flush();
         UUID recipientId = recipient.getId();
         var page = centreRepository.findPage(
@@ -97,11 +103,25 @@ class NotificationCentreRepositoryIntegrationTest {
         assertTrue(centreRepository.findDetail(learner.getEventId(), UserRole.LEARNER).isPresent());
         assertTrue(centreRepository.findDetail(reviewer.getEventId(), UserRole.LEARNER).isEmpty());
         assertEquals(1, centreRepository.countUnread(recipientId, UserRole.LEARNER));
+        var unreadAudience = centreRepository.countAudienceReadStatus(
+                learner.getId(), UserRole.LEARNER);
+        assertEquals(1, unreadAudience.recipientCount());
+        assertEquals(0, unreadAudience.readCount());
+        var audiencePage = centreRepository.findAudienceReadStatusPage(
+                learner.getId(), UserRole.LEARNER, null, 10);
+        assertEquals(1, audiencePage.size());
+        assertEquals(recipientId, audiencePage.getFirst().userId());
+        assertFalse(audiencePage.getFirst().read());
 
         assertTrue(readRepository.createReadNotificationForUser(
                 learner.getId(), recipientId, UserRole.LEARNER));
         entityManager.flush();
         assertEquals(0, centreRepository.countUnread(recipientId, UserRole.LEARNER));
+        var readAudience = centreRepository.countAudienceReadStatus(
+                learner.getId(), UserRole.LEARNER);
+        assertEquals(1, readAudience.readCount());
+        assertTrue(centreRepository.findAudienceReadStatusPage(
+                learner.getId(), UserRole.LEARNER, null, 10).getFirst().read());
     }
 
     @Test
@@ -162,6 +182,84 @@ class NotificationCentreRepositoryIntegrationTest {
                         .executeUpdate();
             });
         }
+    }
+
+    @Test
+    void differentUsersCanIndependentlyReadTheSameRoleNotification() {
+        User producer = User.create(
+                "multi-producer@example.com", "hash", "Producer", UserRole.ADMINISTRATOR);
+        User first = User.create(
+                "multi-first@example.com", "hash", "First", UserRole.LEARNER);
+        User second = User.create(
+                "multi-second@example.com", "hash", "Second", UserRole.LEARNER);
+        entityManager.persist(producer);
+        entityManager.persist(first);
+        entityManager.persist(second);
+        NotificationEvent notification = NotificationEvent.create(
+                UUID.randomUUID(), producer.getId(), "Shared", "Message", UserRole.LEARNER);
+        entityManager.persist(notification);
+        entityManager.flush();
+
+        assertTrue(readRepository.createReadNotificationForUser(
+                notification.getId(), first.getId(), UserRole.LEARNER));
+        assertTrue(readRepository.createReadNotificationForUser(
+                notification.getId(), second.getId(), UserRole.LEARNER));
+        entityManager.flush();
+
+        assertEquals(2, readRepository.findByNotificationId(notification.getId()).size());
+    }
+
+    @Test
+    void keysetPaginationHandlesEqualTimestampsAndConcurrentNewerInsertWithoutDuplicates() {
+        User producer = User.create(
+                "paging-producer@example.com", "hash", "Producer", UserRole.ADMINISTRATOR);
+        User recipient = User.create(
+                "paging-recipient@example.com", "hash", "Recipient", UserRole.REVIEWER);
+        entityManager.persist(producer);
+        entityManager.persist(recipient);
+        List<NotificationEvent> original = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            NotificationEvent notification = NotificationEvent.create(
+                    UUID.randomUUID(), producer.getId(), "Page " + index, "Message",
+                    UserRole.REVIEWER);
+            original.add(notification);
+            entityManager.persist(notification);
+        }
+        entityManager.flush();
+        Instant sameCreatedAt = Instant.parse("2026-09-01T00:00:00Z");
+        entityManager.createQuery("""
+                        UPDATE NotificationEvent notification
+                           SET notification.createdAt = :createdAt
+                         WHERE notification.role = :role
+                        """)
+                .setParameter("createdAt", sameCreatedAt)
+                .setParameter("role", UserRole.REVIEWER)
+                .executeUpdate();
+        entityManager.clear();
+
+        var first = centreRepository.findPage(
+                recipient.getId(), UserRole.REVIEWER, null, 2,
+                NotificationQueryField.defaults());
+        assertEquals(2, first.size());
+        var last = first.getLast();
+
+        NotificationEvent newer = NotificationEvent.create(
+                UUID.randomUUID(), producer.getId(), "New while paging", "Message",
+                UserRole.REVIEWER);
+        entityManager.persist(newer);
+        entityManager.flush();
+
+        var remaining = centreRepository.findPage(
+                recipient.getId(), UserRole.REVIEWER,
+                new NotificationCursor(last.cursorCreatedAt(), last.cursorEventId()),
+                10, NotificationQueryField.defaults());
+        Set<UUID> combined = new java.util.HashSet<>();
+        first.forEach(item -> assertTrue(combined.add(item.cursorEventId())));
+        remaining.forEach(item -> assertTrue(combined.add(item.cursorEventId())));
+
+        assertEquals(original.stream().map(NotificationEvent::getEventId).collect(java.util.stream.Collectors.toSet()),
+                combined);
+        assertFalse(combined.contains(newer.getEventId()));
     }
 
     private record ReadTarget(UUID notificationId, UUID producerId, UUID recipientId) {

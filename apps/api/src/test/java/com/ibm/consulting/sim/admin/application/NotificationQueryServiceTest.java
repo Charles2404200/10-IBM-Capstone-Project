@@ -2,12 +2,9 @@ package com.ibm.consulting.sim.admin.application;
 
 import com.ibm.consulting.sim.admin.domain.NotificationEvent;
 import com.ibm.consulting.sim.admin.domain.NotificationCentreRepository;
-import com.ibm.consulting.sim.admin.domain.NotificationRead;
 import com.ibm.consulting.sim.admin.domain.NotificationReadRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationPriority;
-import com.ibm.consulting.sim.identity.domain.User;
-import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.junit.jupiter.api.Test;
@@ -26,7 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationQueryServiceTest {
@@ -38,9 +38,6 @@ class NotificationQueryServiceTest {
     private NotificationReadRepository notificationReadRepository;
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
     private NotificationCentreRepository notificationCentreRepository;
 
     @Mock
@@ -49,8 +46,23 @@ class NotificationQueryServiceTest {
     @Mock
     private NotificationCursorCodec cursorCodec;
 
+    @Mock
+    private NotificationMetrics metrics;
+
+    @Mock
+    private NotificationReadStatusCursorCodec readStatusCursorCodec;
+
     @InjectMocks
     private NotificationQueryService service;
+
+    @Test
+    void rejectsUnboundedNotificationAndReadStatusPageSizes() {
+        assertThrows(InvalidNotificationQueryException.class,
+                () -> service.pageForUser(
+                        UUID.randomUUID(), UserRole.LEARNER, 101, null, null));
+        assertThrows(InvalidNotificationQueryException.class,
+                () -> service.getReadStatusUsers(UUID.randomUUID(), 101, null));
+    }
 
     @Test
     void inboxIncludesTheNotificationTopicName() {
@@ -164,6 +176,27 @@ class NotificationQueryServiceTest {
     }
 
     @Test
+    void sequentialReadAcknowledgementsBothReachTheDesiredState() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        NotificationEvent notification = NotificationEvent.create(
+                eventId, UUID.randomUUID(), "Update", "Message", UserRole.LEARNER);
+        when(notificationRepository.findByEventIdAndRole(eventId, UserRole.LEARNER))
+                .thenReturn(Optional.of(notification));
+        when(notificationReadRepository.createReadNotificationForUser(
+                notification.getId(), userId, UserRole.LEARNER))
+                .thenReturn(true, false);
+
+        service.markRead(eventId, userId, UserRole.LEARNER);
+        service.markRead(eventId, userId, UserRole.LEARNER);
+
+        verify(notificationReadRepository, times(2)).createReadNotificationForUser(
+                notification.getId(), userId, UserRole.LEARNER);
+        verify(metrics).recordReadMarked(true);
+        verify(metrics).recordReadMarked(false);
+    }
+
+    @Test
     void roleMismatchIsReportedAsNotFoundWhenMarkingRead() {
         UUID eventId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -175,40 +208,44 @@ class NotificationQueryServiceTest {
     }
 
     @Test
-    void readStatusIncludesOnlyCurrentActiveUsersInTargetRole() {
+    void readStatusUsesBoundedDatabaseAggregation() {
         UUID eventId = UUID.randomUUID();
-        User readLearner = User.create("read@example.com", "hash", "Read Learner", UserRole.LEARNER);
-        User unreadLearner = User.create("unread@example.com", "hash", "Unread Learner", UserRole.LEARNER);
-        Instant readAt = Instant.parse("2026-08-20T01:15:00Z");
-
         NotificationEvent notification = NotificationEvent.create(
                 eventId, UUID.randomUUID(), "Scenario Update", "Message", UserRole.LEARNER);
-        NotificationRead readReceipt = NotificationRead.create(
-                notification.getId(), readLearner.getId(), readAt);
 
         when(notificationRepository.findByEventId(eventId))
                 .thenReturn(Optional.of(notification));
-        when(notificationReadRepository.findByNotificationId(notification.getId()))
-                .thenReturn(List.of(readReceipt));
-        when(userRepository.findAllActiveByRole(UserRole.LEARNER))
-                .thenReturn(List.of(readLearner, unreadLearner));
+        when(notificationCentreRepository.countAudienceReadStatus(
+                notification.getId(), UserRole.LEARNER))
+                .thenReturn(new NotificationReadStatusCounts(2, 1));
 
         NotificationReadStatus status = service.getReadStatus(eventId);
 
         assertEquals(2, status.recipientCount());
         assertEquals(1, status.readCount());
         assertEquals(1, status.unreadCount());
-        assertEquals(2, status.users().size());
-        NotificationReadStatus.UserReadStatus readStatus = status.users().stream()
-                .filter(user -> user.userId().equals(readLearner.getId()))
-                .findFirst()
-                .orElseThrow();
-        NotificationReadStatus.UserReadStatus unreadStatus = status.users().stream()
-                .filter(user -> user.userId().equals(unreadLearner.getId()))
-                .findFirst()
-                .orElseThrow();
-        assertTrue(readStatus.read());
-        assertEquals(readAt, readStatus.readAt());
-        assertFalse(unreadStatus.read());
+    }
+
+    @Test
+    void readStatusUsersUsesBoundedKeysetPagination() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        NotificationEvent notification = NotificationEvent.create(
+                eventId, UUID.randomUUID(), "Scenario Update", "Message", UserRole.LEARNER);
+        when(notificationRepository.findByEventId(eventId)).thenReturn(Optional.of(notification));
+        when(notificationCentreRepository.findAudienceReadStatusPage(
+                notification.getId(), UserRole.LEARNER, null, 2))
+                .thenReturn(List.of(
+                        new NotificationUserReadStatus(
+                                userId, "Alice", true, Instant.now(), "alice"),
+                        new NotificationUserReadStatus(
+                                UUID.randomUUID(), "Bob", false, null, "bob")));
+        when(readStatusCursorCodec.encode(any())).thenReturn("next");
+
+        NotificationReadStatusPage page = service.getReadStatusUsers(eventId, 1, null);
+
+        assertEquals(1, page.items().size());
+        assertTrue(page.hasMore());
+        assertEquals("next", page.nextCursor());
     }
 }

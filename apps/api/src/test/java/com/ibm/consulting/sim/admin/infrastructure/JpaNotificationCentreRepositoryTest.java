@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.admin.infrastructure;
 
 import com.ibm.consulting.sim.admin.application.NotificationQueryField;
+import com.ibm.consulting.sim.admin.application.NotificationReadStatusCursor;
 import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.admin.domain.NotificationRead;
 import com.ibm.consulting.sim.identity.domain.UserRole;
@@ -24,6 +25,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class JpaNotificationCentreRepositoryTest {
@@ -96,5 +98,38 @@ class JpaNotificationCentreRepositoryTest {
                         NotificationQueryField.defaults()));
 
         verify(reads, never()).findByUserIdAndNotificationIdIn(any(), any());
+    }
+
+    @Test
+    void administratorAudienceStatusUsesAggregateAndBoundedCursorProjection() {
+        UUID notificationId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        NotificationReadStatusCountsJpaProjection counts =
+                mock(NotificationReadStatusCountsJpaProjection.class);
+        NotificationUserReadStatusJpaProjection user =
+                mock(NotificationUserReadStatusJpaProjection.class);
+        when(counts.getRecipientCount()).thenReturn(10L);
+        when(counts.getReadCount()).thenReturn(4L);
+        when(notifications.countAudienceReadStatus(notificationId, UserRole.LEARNER))
+                .thenReturn(counts);
+        when(user.getUserId()).thenReturn(userId);
+        when(user.getDisplayName()).thenReturn("Alice");
+        when(user.getCursorDisplayName()).thenReturn("alice");
+        when(user.getReadFlag()).thenReturn(true);
+        when(notifications.findAudienceReadStatusPageAfter(
+                eq(notificationId), eq(UserRole.LEARNER), eq("alice"), eq(userId),
+                any(Pageable.class)))
+                .thenReturn(List.of(user));
+
+        var aggregate = repository.countAudienceReadStatus(notificationId, UserRole.LEARNER);
+        var page = repository.findAudienceReadStatusPage(
+                notificationId, UserRole.LEARNER,
+                new NotificationReadStatusCursor("alice", userId), 51);
+
+        assertEquals(10, aggregate.recipientCount());
+        assertEquals(4, aggregate.readCount());
+        assertEquals(1, page.size());
+        assertEquals(userId, page.getFirst().userId());
+        assertEquals(true, page.getFirst().read());
     }
 }

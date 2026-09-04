@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.admin.api;
 
 import com.ibm.consulting.sim.admin.application.AdminNotificationService;
 import com.ibm.consulting.sim.admin.application.NotificationQueryService;
+import com.ibm.consulting.sim.admin.application.NotificationReadStatusPage;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewService;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
@@ -14,6 +15,11 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -85,5 +91,25 @@ class AdminPlatformControllerSecurityTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(roles = "LEARNER")
+    void learnerCannotEnumerateNotificationRecipients() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/platform/notifications/{eventId}/read-status/users",
+                        UUID.randomUUID()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCanRequestABoundedRecipientPage() throws Exception {
+        UUID eventId = UUID.randomUUID();
+        when(notificationQueryService.getReadStatusUsers(eventId, 50, null))
+                .thenReturn(new NotificationReadStatusPage(List.of(), null, false));
+
+        mockMvc.perform(get("/api/v1/admin/platform/notifications/{eventId}/read-status/users",
+                        eventId))
+                .andExpect(status().isOk());
     }
 }

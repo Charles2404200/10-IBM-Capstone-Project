@@ -13,6 +13,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 class NotificationRealtimePublisherTest {
@@ -20,7 +21,8 @@ class NotificationRealtimePublisherTest {
     @Test
     void publishesLightweightPreviewWithStableIdentityAndPriority() {
         SimpMessagingTemplate messaging = mock(SimpMessagingTemplate.class);
-        NotificationRealtimePublisher publisher = new NotificationRealtimePublisher(messaging);
+        NotificationMetrics metrics = mock(NotificationMetrics.class);
+        NotificationRealtimePublisher publisher = new NotificationRealtimePublisher(messaging, metrics);
         String fullMessage = "x".repeat(1_000);
         UUID eventId = UUID.randomUUID();
         NotificationObject notification = new NotificationObject(
@@ -39,6 +41,25 @@ class NotificationRealtimePublisherTest {
         assertEquals(NotificationPreview.MAX_CODE_POINTS,
                 summary.messagePreview().codePointCount(0, summary.messagePreview().length()));
         assertNotEquals(fullMessage, summary.message());
+        verify(metrics).recordWebSocketSent(NotificationPriority.IMPORTANT);
+    }
+
+    @Test
+    void recordsAndContainsWebSocketFailureBecauseRestIsTheRecoveryPath() {
+        SimpMessagingTemplate messaging = mock(SimpMessagingTemplate.class);
+        NotificationMetrics metrics = mock(NotificationMetrics.class);
+        NotificationRealtimePublisher publisher = new NotificationRealtimePublisher(messaging, metrics);
+        NotificationObject notification = new NotificationObject(
+                UUID.randomUUID(), UUID.randomUUID(), "Course", "Message",
+                UserRole.LEARNER, NotificationPriority.NORMAL);
+        doThrow(new IllegalStateException("socket unavailable"))
+                .when(messaging).convertAndSend(
+                        org.mockito.ArgumentMatchers.eq("/topic/notifications/learner"),
+                        org.mockito.ArgumentMatchers.any(Object.class));
+
+        publisher.publish(new NotificationPersistedEvent(notification));
+
+        verify(metrics).recordWebSocketFailure(NotificationPriority.NORMAL);
     }
 }
 
