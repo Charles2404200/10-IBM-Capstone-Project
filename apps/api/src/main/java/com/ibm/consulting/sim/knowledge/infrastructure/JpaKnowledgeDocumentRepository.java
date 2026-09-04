@@ -5,6 +5,7 @@ import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -23,4 +24,6 @@ class JpaKnowledgeDocumentRepository implements KnowledgeDocumentRepository {
 
     @Override public KnowledgeDocument save(KnowledgeDocument document) { return repo.save(document); }
     @Override public java.util.List<KnowledgeDocument> findByScenarioId(UUID scenarioId) { return repo.findByScenarioId(scenarioId); }
+    @Override public Optional<KnowledgeDocument> findById(UUID id) { return repo.findById(id); }
+    @Override public void deleteById(UUID id) { repo.deleteById(id); }
 }

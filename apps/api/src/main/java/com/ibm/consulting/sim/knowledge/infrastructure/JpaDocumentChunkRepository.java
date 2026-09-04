@@ -23,6 +23,7 @@ interface SpringDataDocumentChunkRepository extends JpaRepository<DocumentChunk,
     List<DocumentChunk> findInScope(@Param("collection") KnowledgeCollection collection,
                                      @Param("scenarioId") UUID scenarioId,
                                      @Param("personaId") UUID personaId);
+    void deleteByDocumentId(UUID documentId);
 }
 
 @Repository
@@ -40,5 +41,9 @@ class JpaDocumentChunkRepository implements DocumentChunkRepository {
     @Override
     public List<DocumentChunk> findByCollectionAndScope(KnowledgeCollection collection, UUID scenarioId, UUID personaId) {
         return repo.findInScope(collection, scenarioId, personaId);
+    }
+    
+    @Override public void deleteByDocumentId(UUID documentId) { 
+        repo.deleteByDocumentId(documentId); 
     }
 }
