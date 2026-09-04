@@ -65,6 +65,17 @@ public class PasswordResetService {
         tokens.revokeActiveForUser(user.getId(), now);
     }
 
+    // issues password setup link when a user is created by the admin
+    @Transactional
+    public void issueSetUpLink(User user) {
+        tokens.revokeActiveForUser(user.getId(), now);
+        CredentialTokenService.IssuedCredential credential = credentialTokenService.issue();
+        tokens.save(PasswordResetToken.issue(user.getId(), credential.selector(), credential.hash(),
+                credentialTokenService.expiresAt(properties.getAccountSetupTtlMinutes())));
+        emailPublisher.publish(emailTemplates.accountProvisioned(user.getEmail(), user.getDisplayName(),
+                properties.accountSetupUrl(credential.compactToken())));
+    }
+
     private void issueAndDeliverUnlessCoolingDown(User user) {
         Instant now = Instant.now();
         if (tokens.findLatestByUserId(user.getId())

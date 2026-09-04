@@ -13,9 +13,11 @@ public class IdentityEmailProperties {
     private long verificationTtlMinutes = 1_440;
     private long passwordResetTtlMinutes = 15;
     private long resendCooldownSeconds = 60;
+    private long accountSetupTtlMinutes = 1_440;
 
     public String verificationUrl(String token) { return publicWebUrl() + "/verify-email?token=" + encode(token); }
     public String passwordResetUrl(String token) { return publicWebUrl() + "/reset-password?token=" + encode(token); }
+    public String accountSetupUrl(String token) { return publicWebUrl() + "/setup-account?token=" + encode(token); }
     private String publicWebUrl() { return publicWebUrl.replaceAll("/+$", ""); }
     private String encode(String token) { return URLEncoder.encode(token, StandardCharsets.UTF_8); }
 
@@ -25,6 +27,8 @@ public class IdentityEmailProperties {
     public void setVerificationTtlMinutes(long verificationTtlMinutes) { this.verificationTtlMinutes = verificationTtlMinutes; }
     public long getPasswordResetTtlMinutes() { return passwordResetTtlMinutes; }
     public void setPasswordResetTtlMinutes(long passwordResetTtlMinutes) { this.passwordResetTtlMinutes = passwordResetTtlMinutes; }
+    public long getAccountSetupTtlMinutes() { return accountSetupTtlMinutes; }
+    public void setAccountSetupTtlMinutes(long accountSetupTtlMinutes) { this.accountSetupTtlMinutes = accountSetupTtlMinutes; }
     public long getResendCooldownSeconds() { return resendCooldownSeconds; }
     public void setResendCooldownSeconds(long resendCooldownSeconds) { this.resendCooldownSeconds = resendCooldownSeconds; }
 }

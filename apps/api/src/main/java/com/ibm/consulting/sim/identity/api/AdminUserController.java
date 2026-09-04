@@ -28,6 +28,8 @@ public class AdminUserController {
 
     record ChangeRoleRequest(@NotNull UserRole role) {}
 
+    record CreateUserRequest(@NotNull @Email String email, @NotNull @Size(min = 2, max = 80) String displayName, @NotNull UserRole role) {}
+
     @GetMapping
     List<UserSummary> listUsers() {
         return adminUserService.listUsers();
@@ -46,5 +48,11 @@ public class AdminUserController {
     @PatchMapping("/{userId}/reactivate")
     UserSummary reactivate(@PathVariable UUID userId) {
         return adminUserService.reactivate(userId);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    UserSummary createUser(@Valid @RequestBody CreateUserRequest req) {
+        return adminUserService.createUser(req.email(), req.displayName(), req.role());
     }
 }
