@@ -74,6 +74,9 @@ describe('walkthrough targets', () => {
   const MUTUALLY_EXCLUSIVE = new Set([
     // Guided and freeform composers; the engagement's difficulty picks one.
     'objective-compose',
+    // Client context before the first outreach, and the client's reply after
+    // it; the learner is on one side of that line or the other.
+    'objective-client',
   ])
 
   it.each(declared.filter((target) => !MUTUALLY_EXCLUSIVE.has(target.className)))(

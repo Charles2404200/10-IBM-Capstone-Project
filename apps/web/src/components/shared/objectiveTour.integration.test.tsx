@@ -168,4 +168,26 @@ describe('guided tour, running the real library', () => {
       window.dispatchEvent(new Event('resize'))
     }
   })
+
+  /**
+   * Some anchors sit on two forms of the same thing, one before an action and
+   * one after — the outreach client panel becomes the client's reply once a
+   * message has been sent. The step has to land on whichever is on the page.
+   */
+  it.each([
+    ['before the attempt', 'Client signal'],
+    ['after the attempt', 'What the client said'],
+  ])('anchors to the client panel %s', (_when, label) => {
+    render(
+      <ObjectiveTourProvider
+        tourId="outreach-workspace"
+        objectives={[{ id: 'client', objective: 'Who you are writing to', description: 'One reader.', targets: ['.step-one'] }]}
+      >
+        <div className="step-one">{label}</div>
+      </ObjectiveTourProvider>,
+    )
+
+    expect(screen.getByText('Who you are writing to')).toBeInTheDocument()
+    expect(screen.getByText(label)).toBeInTheDocument()
+  })
 })
