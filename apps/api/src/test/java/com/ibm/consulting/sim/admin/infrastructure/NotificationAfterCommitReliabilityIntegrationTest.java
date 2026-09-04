@@ -8,10 +8,12 @@ import com.ibm.consulting.sim.admin.domain.NotificationCentreRepository;
 import com.ibm.consulting.sim.admin.domain.NotificationObject;
 import com.ibm.consulting.sim.admin.domain.NotificationPriority;
 import com.ibm.consulting.sim.admin.domain.NotificationRepository;
+import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.application.kafka.KafkaEventContext;
 import com.ibm.consulting.sim.shared.domain.outbox.EventPriority;
 import com.ibm.consulting.sim.shared.domain.outbox.OrderingMode;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -22,6 +24,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -48,6 +52,7 @@ import static org.mockito.Mockito.verify;
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class NotificationAfterCommitReliabilityIntegrationTest {
 
     @Container
@@ -70,6 +75,8 @@ class NotificationAfterCommitReliabilityIntegrationTest {
     private NotificationCentreRepository centreRepository;
     @Autowired
     private PlatformTransactionManager transactionManager;
+    @Autowired
+    private EntityManager entityManager;
 
     @MockBean
     private SimpMessagingTemplate messagingTemplate;
@@ -79,15 +86,22 @@ class NotificationAfterCommitReliabilityIntegrationTest {
     @Test
     void websocketFailureAfterCommitCannotUndoNotificationAndRestReadModelCanRecoverIt() {
         UUID eventId = UUID.randomUUID();
-        UUID producerId = UUID.randomUUID();
+        User producer = User.create(
+                "notification-producer-" + UUID.randomUUID() + "@example.com",
+                "not-used-by-this-test",
+                "Notification producer",
+                UserRole.ADMINISTRATOR);
         NotificationObject payload = new NotificationObject(
-                eventId, producerId, "Course published", "A new course is available.",
+                eventId, producer.getId(), "Course published", "A new course is available.",
                 UserRole.LEARNER, NotificationPriority.IMPORTANT);
         doThrow(new IllegalStateException("simulated socket outage"))
                 .when(messagingTemplate).convertAndSend(anyString(), any(Object.class));
 
-        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
-                handler.handle(payload, context(eventId)));
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            // notification.user_id is a foreign key and must identify a real producer.
+            entityManager.persist(producer);
+            handler.handle(payload, context(eventId));
+        });
 
         assertTrue(notificationRepository.existsByEventId(eventId));
         var page = centreRepository.findPage(
