@@ -61,4 +61,45 @@ describe('walkthrough targets', () => {
       })
     })
   })
+
+  /**
+   * Two elements sharing a target class is not a compile error and not a
+   * runtime one either: the tour silently anchors to whichever the browser
+   * finds first, so reordering the markup moves the step somewhere else.
+   *
+   * The exception is a class deliberately placed on variants that never render
+   * together. Those must be listed here, so the next duplicate has to be a
+   * decision rather than an accident.
+   */
+  const MUTUALLY_EXCLUSIVE = new Set([
+    // Guided and freeform composers; the engagement's difficulty picks one.
+    'objective-compose',
+  ])
+
+  it.each(declared.filter((target) => !MUTUALLY_EXCLUSIVE.has(target.className)))(
+    '$className anchors exactly one element',
+    ({ path, className }) => {
+      const source = pages.find((page) => page.path === path)!.source
+      // The class as written on an element, never the '.selector' in the step.
+      const onElements = source.match(new RegExp(`(?<![.\\w-])${className}(?![\\w-])`, 'g')) ?? []
+
+      expect(
+        onElements.length,
+        `${className} is on ${onElements.length} elements in ${path}; a step can only anchor to one`,
+      ).toBe(1)
+    },
+  )
+
+  it('keeps every mutually exclusive target still present in the page', () => {
+    MUTUALLY_EXCLUSIVE.forEach((className) => {
+      const declaredHere = declared.filter((target) => target.className === className)
+      expect(declaredHere.length, `${className} is listed as an exception but no step uses it`).toBeGreaterThan(0)
+
+      declaredHere.forEach(({ path }) => {
+        const source = pages.find((page) => page.path === path)!.source
+        const onElements = source.match(new RegExp(`(?<![.\\w-])${className}(?![\\w-])`, 'g')) ?? []
+        expect(onElements.length, `${className} no longer has variants in ${path}`).toBeGreaterThan(1)
+      })
+    })
+  })
 })

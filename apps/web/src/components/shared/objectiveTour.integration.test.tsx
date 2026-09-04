@@ -142,4 +142,30 @@ describe('guided tour, running the real library', () => {
     expect(screen.getByText('Client has replied')).toBeInTheDocument()
     expect(screen.getByText('First stop')).toBeInTheDocument()
   })
+
+  /**
+   * These workspaces are read on laptops and on half a screen, and the tour is
+   * positioned by the library against the element it anchors to. A narrow
+   * viewport must still find the anchors and must not push the page sideways.
+   */
+  it('still finds its anchors on a narrow viewport', () => {
+    const original = window.innerWidth
+    Object.defineProperty(window, 'innerWidth', { value: 480, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+
+    try {
+      renderWorkspace()
+
+      expect(screen.getByText('First stop')).toBeInTheDocument()
+      expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
+
+      fireEvent.click(screen.getByLabelText('Go to next step'))
+      expect(screen.getByText('Second stop')).toBeInTheDocument()
+
+      expect(document.body.scrollWidth).toBeLessThanOrEqual(document.body.clientWidth || 480)
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { value: original, configurable: true })
+      window.dispatchEvent(new Event('resize'))
+    }
+  })
 })
