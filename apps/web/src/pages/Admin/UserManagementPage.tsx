@@ -36,7 +36,7 @@ function UserRow({ user }: { user: AdminUserSummary }) {
     <td><Tag type={user.active ? 'green' : 'gray'}>{user.active ? 'Active' : 'Inactive'}</Tag></td>
     <td>
       <Select id={`role-${user.id}`} aria-label={`Role for ${user.displayName}`} value={role} size="sm" onChange={(event) => setRole(event.target.value as UserRole)}>
-        {ROLES.map((option) => <SelectItem key={option} value={option} text={option.replace('_', ' ')} />)}
+        {ROLES.map((option) => <SelectItem key={option} value={option} text={option.toLowerCase().replace('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())} />)}
       </Select>
     </td>
     <td><div className={styles.actions}>
@@ -131,7 +131,7 @@ export default function UserManagementPage() {
     <Grid condensed><Column lg={16} md={8} sm={4}>
       <header className={styles.header}><div><p className={styles.eyebrow}>Access control</p><Heading>People and access</Heading><p>Assign the least privilege needed to author content, review work or administer the platform.</p></div>
         <div className={styles.actions}>
-          <Button kind="primary" renderIcon={Add} onClick={() => setShowCreateModal(true)}>Create admin</Button>
+          <Button kind="primary" renderIcon={Add} onClick={() => setShowCreateModal(true)}>Create User</Button>
           <Button kind="tertiary" renderIcon={Renew} disabled={users.isFetching} onClick={() => users.refetch()}>Refresh</Button>
         </div>
       </header>
