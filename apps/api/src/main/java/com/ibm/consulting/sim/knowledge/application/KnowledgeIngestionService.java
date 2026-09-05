@@ -9,6 +9,8 @@ import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,21 +34,33 @@ public class KnowledgeIngestionService {
     private final KnowledgeDocumentRepository documentRepository;
     private final DocumentChunkRepository chunkRepository;
     private final EmbeddingGateway embeddingGateway;
-
     private final PersonaRepository personaRepository;
+    private final AuditLogger auditLogger;
 
     public KnowledgeIngestionService(KnowledgeDocumentRepository documentRepository,
                                       DocumentChunkRepository chunkRepository,
                                       EmbeddingGateway embeddingGateway,
-                                    PersonaRepository personaRepository) {
+                                    PersonaRepository personaRepository, 
+                                    AuditLogger auditLogger) {
         this.documentRepository = documentRepository;
         this.chunkRepository = chunkRepository;
         this.embeddingGateway = embeddingGateway;
         this.personaRepository = personaRepository;
+        this.auditLogger = auditLogger;
     }
 
     @Transactional
     public UUID ingest(UUID scenarioId, UUID personaId, KnowledgeCollection collection,
+                        String title, String sourceText) {
+        // calls to create document
+        UUID documentId = ingestDocument(scenarioId, personaId, collection, title, sourceText);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + title);
+        return documentId;
+    }
+
+    // separated from ingest() to prevent multiple audit events from copying documents into the new scenario revision
+    @Transactional
+    private UUID ingestDocument(UUID scenarioId, UUID personaId, KnowledgeCollection collection,
                         String title, String sourceText) {
                             
         requirePersonaInScenario(personaId, scenarioId);
@@ -69,7 +83,7 @@ public class KnowledgeIngestionService {
     public void copyScenarioDocuments(UUID sourceScenarioId, UUID targetScenarioId, Map<UUID, UUID> personaIdMap) {
         for (KnowledgeDocument document : documentRepository.findByScenarioId(sourceScenarioId)) {
             UUID targetPersonaId = document.getPersonaId() == null ? null : personaIdMap.get(document.getPersonaId());
-            ingest(targetScenarioId, targetPersonaId, document.getCollection(), document.getTitle(), document.getSourceText());
+            ingestDocument(targetScenarioId, targetPersonaId, document.getCollection(), document.getTitle(), document.getSourceText());
         }
     }
 
@@ -107,6 +121,8 @@ public class KnowledgeIngestionService {
 
         chunkRepository.deleteByDocumentId(documentId);
         documentRepository.deleteById(documentId);
+
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_DELETED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + document.getTitle());
     }
 
     @Transactional
@@ -122,6 +138,8 @@ public class KnowledgeIngestionService {
 
         chunkRepository.deleteByDocumentId(documentId); // old chunks carry the OLD persona/collection scope too
         reindex(documentId, document.getScenarioId(), newPersonaId, newCollection, newSourceText);
+
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_UPDATED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + newTitle);
     }
 
     private void reindex(UUID documentId, UUID scenarioId, UUID personaId, KnowledgeCollection collection, String sourceText) {

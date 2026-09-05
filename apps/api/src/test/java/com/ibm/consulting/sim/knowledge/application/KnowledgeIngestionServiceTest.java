@@ -15,15 +15,21 @@ import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
 class KnowledgeIngestionServiceTest {
@@ -32,6 +38,7 @@ class KnowledgeIngestionServiceTest {
     @Mock DocumentChunkRepository chunkRepository;
     @Mock EmbeddingGateway embeddingGateway;
     @Mock PersonaRepository personaRepository;
+    @Mock AuditLogger auditLogger;
     @InjectMocks KnowledgeIngestionService service;
 
     @Test
@@ -89,5 +96,91 @@ class KnowledgeIngestionServiceTest {
 
         verify(documentRepository, never()).deleteById(any());
         verify(chunkRepository, never()).deleteByDocumentId(any());
+    }
+
+    // audit logging - add document
+    @Test
+    void logsDocumentAdded() {
+        UUID scenarioId = UUID.randomUUID();
+
+        // mock document save and embedding
+        when(documentRepository.save(any(KnowledgeDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(embeddingGateway.embed(any())).thenReturn(new float[] {1.0f, 2.0f});
+
+        // create document
+        UUID documentId = service.ingest(scenarioId, null, KnowledgeCollection.SCENARIO_TRUTH, "Test document", "Test content");
+        verify(auditLogger).recordAdmin(
+            eq(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED),
+            eq("KNOWLEDGE_DOCUMENT"),
+            eq(documentId.toString()),
+            contains("scenario " + scenarioId));
+    }
+
+    // audit logging - update document
+    @Test
+    void logsDocumentUpdated() {
+        UUID scenarioId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        // mock existing document
+        KnowledgeDocument document = org.mockito.Mockito.mock(KnowledgeDocument.class);
+        when(document.getScenarioId()).thenReturn(scenarioId);
+        when(documentRepository.findById(documentId)).thenReturn(Optional.of(document));
+        when(embeddingGateway.embed(any())).thenReturn(new float[] {1.0f, 2.0f});
+
+        // update document
+        service.update(scenarioId, documentId, null, KnowledgeCollection.SCENARIO_TRUTH, "Updated title", "Updated content");
+
+        verify(auditLogger).recordAdmin(
+            eq(AuditAction.ADMIN_SCENARIO_DOCUMENT_UPDATED),
+            eq("KNOWLEDGE_DOCUMENT"),
+            eq(documentId.toString()),
+            contains("Updated title"));
+    }
+
+    // audit logging - delete document
+    @Test
+    void logsDocumentDeleted() {
+        UUID scenarioId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+
+        // mock existing document
+        KnowledgeDocument document = org.mockito.Mockito.mock(KnowledgeDocument.class);
+        when(document.getScenarioId()).thenReturn(scenarioId);
+        when(document.getTitle()).thenReturn("Test document");
+        when(documentRepository.findById(documentId)).thenReturn(Optional.of(document));
+
+        // deletes document
+        service.delete(scenarioId, documentId);
+
+        verify(auditLogger).recordAdmin(
+            eq(AuditAction.ADMIN_SCENARIO_DOCUMENT_DELETED),
+            eq("KNOWLEDGE_DOCUMENT"),
+            eq(documentId.toString()),
+            contains("Test document"));
+    }
+
+    // ensures copying documents doesn't repeat audit
+    @Test
+    void skipsAuditWhenCopying() {
+        UUID sourceScenarioId = UUID.randomUUID();
+        UUID targetScenarioId = UUID.randomUUID();
+
+        // mock existing document
+        KnowledgeDocument document = org.mockito.Mockito.mock(KnowledgeDocument.class);
+        when(document.getPersonaId()).thenReturn(null);
+        when(document.getCollection()).thenReturn(KnowledgeCollection.SCENARIO_TRUTH);
+        when(document.getTitle()).thenReturn("Copied document");
+        when(document.getSourceText()).thenReturn("Copied content");
+        when(documentRepository.findByScenarioId(sourceScenarioId)).thenReturn(List.of(document));
+        when(embeddingGateway.embed(any())).thenReturn(new float[] {1.0f, 2.0f});
+
+        // calls to copy scenarios
+        service.copyScenarioDocuments(sourceScenarioId, targetScenarioId, Map.of());
+        
+        // should return no logs
+        verify(auditLogger, never()).recordAdmin(
+            eq(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED),
+            any(), any(), any());
     }
 }
