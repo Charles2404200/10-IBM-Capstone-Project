@@ -52,6 +52,16 @@ public class KnowledgeIngestionService {
     @Transactional
     public UUID ingest(UUID scenarioId, UUID personaId, KnowledgeCollection collection,
                         String title, String sourceText) {
+        // calls to create document
+        UUID documentId = ingestDocument(scenarioId, personaId, collection, title, sourceText);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + title);
+        return documentId;
+    }
+
+    // separated from ingest() to prevent multiple audit events from copying documents into the new scenario revision
+    @Transactional
+    private UUID ingestDocument(UUID scenarioId, UUID personaId, KnowledgeCollection collection,
+                        String title, String sourceText) {
                             
         requirePersonaInScenario(personaId, scenarioId);
         KnowledgeDocument document = KnowledgeDocument.create(scenarioId, personaId, collection, title, sourceText);
@@ -65,7 +75,6 @@ public class KnowledgeIngestionService {
                     chunks.get(i), embedding));
         }
         chunkRepository.saveAll(entities);
-        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED, "KNOWLEDGE_DOCUMENT", document.getId().toString(), "scenario " + scenarioId + ", title: " + title);
         return document.getId();
     }
 
@@ -74,7 +83,7 @@ public class KnowledgeIngestionService {
     public void copyScenarioDocuments(UUID sourceScenarioId, UUID targetScenarioId, Map<UUID, UUID> personaIdMap) {
         for (KnowledgeDocument document : documentRepository.findByScenarioId(sourceScenarioId)) {
             UUID targetPersonaId = document.getPersonaId() == null ? null : personaIdMap.get(document.getPersonaId());
-            ingest(targetScenarioId, targetPersonaId, document.getCollection(), document.getTitle(), document.getSourceText());
+            ingestDocument(targetScenarioId, targetPersonaId, document.getCollection(), document.getTitle(), document.getSourceText());
         }
     }
 
