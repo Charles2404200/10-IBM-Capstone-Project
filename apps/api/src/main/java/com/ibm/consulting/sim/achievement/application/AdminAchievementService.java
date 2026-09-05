@@ -69,12 +69,11 @@ public class AdminAchievementService {
         Achievement achievement = findAchievement(id);
         if (active) {
             achievement.activate();
-            auditLogger.recordAdmin(AuditAction.ADMIN_ACHIEVEMENT_REACTIVATED, "ACHIEVEMENT", achievement.getId().toString());
         } else {
             achievement.deactivate();
-            auditLogger.recordAdmin(AuditAction.ADMIN_ACHIEVEMENT_DEACTIVATED, "ACHIEVEMENT", achievement.getId().toString());
         }
         achievementRepository.save(achievement);
+        auditLogger.recordAdmin(active ? AuditAction.ADMIN_ACHIEVEMENT_REACTIVATED : AuditAction.ADMIN_ACHIEVEMENT_DEACTIVATED, "ACHIEVEMENT", achievement.getId().toString());
         return toAdminView(achievement);
     }
 

@@ -106,8 +106,9 @@ public class ScenarioService {
     public ScenarioSummary create(CreateScenarioRequest request) {
         Scenario scenario = Scenario.create(
                 request.title(), request.industry(), request.description(), request.difficulty());
+        ScenarioSummary saved = summary(scenarioRepository.save(scenario));
         auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_CREATED, "SCENARIO", scenario.getId().toString());
-        return summary(scenarioRepository.save(scenario));
+        return saved;
     }
 
     /** Author/admin capability: attach a persona to an existing scenario. */
@@ -146,8 +147,9 @@ public class ScenarioService {
         scenarioRepository.findByLineageIdAndStatus(scenario.getScenarioLineageId(), ScenarioStatus.ACTIVE)
                 .stream().filter(active -> !active.getId().equals(scenarioId)).forEach(Scenario::archive);
         scenario.publish();
+        ScenarioSummary saved = summary(scenarioRepository.save(scenario));
         auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_PUBLISHED, "SCENARIO", scenarioId.toString());
-        return summary(scenarioRepository.save(scenario));
+        return saved;
     }
 
     /** Author/admin capability: retire a scenario so it no longer appears for new engagements. */
