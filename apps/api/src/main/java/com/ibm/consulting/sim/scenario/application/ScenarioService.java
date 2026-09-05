@@ -1,38 +1,40 @@
 package com.ibm.consulting.sim.scenario.application;
 
-import com.ibm.consulting.sim.scenario.domain.Persona;
-import com.ibm.consulting.sim.scenario.domain.Scenario;
-import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogQuery;
-import com.ibm.consulting.sim.scenario.domain.AdminScenarioCatalogQuery;
-import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
-import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
-import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
-import com.ibm.consulting.sim.lead.application.LeadSummary;
-import com.ibm.consulting.sim.lead.domain.Lead;
-import com.ibm.consulting.sim.lead.domain.LeadRepository;
-import com.ibm.consulting.sim.knowledge.application.KnowledgeIngestionService;
-import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-
+import com.ibm.consulting.sim.knowledge.application.KnowledgeIngestionService;
+import com.ibm.consulting.sim.lead.application.LeadSummary;
+import com.ibm.consulting.sim.lead.domain.Lead;
+import com.ibm.consulting.sim.lead.domain.LeadRepository;
+import com.ibm.consulting.sim.scenario.domain.AdminScenarioCatalogQuery;
+import com.ibm.consulting.sim.scenario.domain.Persona;
+import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
+import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogQuery;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
+import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_PLATFORM_OVERVIEW_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_SCENARIO_CATALOG_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.LEADS_BY_SCENARIO_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_FACETS_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIOS_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CATALOG_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.SCENARIO_CATALOG_FACETS_CACHE;
-import static com.ibm.consulting.sim.shared.config.CacheConfig.LEADS_BY_SCENARIO_CACHE;
-import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_CACHE;
-import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_FACETS_CACHE;
-import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_PLATFORM_OVERVIEW_CACHE;
-import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_SCENARIO_CATALOG_CACHE;
+import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
 
 @Service
 public class ScenarioService {
@@ -42,15 +44,17 @@ public class ScenarioService {
     private final ScenarioAuthoringConfigService authoringConfigService;
     private final LeadRepository leadRepository;
     private final KnowledgeIngestionService knowledgeIngestionService;
+    private final AuditLogger auditLogger;
 
     public ScenarioService(ScenarioRepository scenarioRepository, DifficultyProfileService difficultyProfileService,
                            ScenarioAuthoringConfigService authoringConfigService, LeadRepository leadRepository,
-                           KnowledgeIngestionService knowledgeIngestionService) {
+                           KnowledgeIngestionService knowledgeIngestionService, AuditLogger auditLogger) {
         this.scenarioRepository = scenarioRepository;
         this.difficultyProfileService = difficultyProfileService;
         this.authoringConfigService = authoringConfigService;
         this.leadRepository = leadRepository;
         this.knowledgeIngestionService = knowledgeIngestionService;
+        this.auditLogger = auditLogger;
     }
 
     @Transactional(readOnly = true)
@@ -102,6 +106,7 @@ public class ScenarioService {
     public ScenarioSummary create(CreateScenarioRequest request) {
         Scenario scenario = Scenario.create(
                 request.title(), request.industry(), request.description(), request.difficulty());
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_CREATED, "SCENARIO", scenario.getId().toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -118,6 +123,7 @@ public class ScenarioService {
                 request.name(), request.jobTitle(), request.organisation(), request.communicationStyle(),
                 request.visibleConcerns(), request.hiddenConcerns(), request.businessGoals());
         scenarioRepository.save(scenario);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_PERSONA_ADDED, "SCENARIO", scenarioId.toString(), persona.getId().toString());
         return summary(scenario);
     }
 
@@ -140,6 +146,7 @@ public class ScenarioService {
         scenarioRepository.findByLineageIdAndStatus(scenario.getScenarioLineageId(), ScenarioStatus.ACTIVE)
                 .stream().filter(active -> !active.getId().equals(scenarioId)).forEach(Scenario::archive);
         scenario.publish();
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_PUBLISHED, "SCENARIO", scenarioId.toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -156,6 +163,7 @@ public class ScenarioService {
     public ScenarioSummary archive(UUID scenarioId) {
         Scenario scenario = findScenario(scenarioId);
         scenario.archive();
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_ARCHIVED, "SCENARIO", scenarioId.toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -169,6 +177,7 @@ public class ScenarioService {
     public ScenarioSummary updateRubricWeights(UUID scenarioId, Map<String, Integer> weights) {
         Scenario scenario = findScenario(scenarioId);
         scenario.updateRubricWeights(weights);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_RUBRIC_CHANGED, "SCENARIO", scenarioId.toString(), weights.toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -186,6 +195,7 @@ public class ScenarioService {
     public ScenarioSummary updateDifficultyProfile(UUID scenarioId, UpdateDifficultyProfileRequest request) {
         Scenario scenario = findScenario(scenarioId);
         difficultyProfileService.updateScenarioProfile(scenario, request.profile());
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DIFFICULTY_CHANGED, "SCENARIO", scenarioId.toString(), request.profile().toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -210,6 +220,7 @@ public class ScenarioService {
         scenario.updateBriefing(request.consultantRole(), request.objective(), request.successCriteria(), request.simulatedDays());
         scenario.updateDifficultyDimensions(request.informationAmbiguity(), request.stakeholderComplexity(), request.commercialPressure());
         scenarioRepository.save(scenario);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_BLUEPRINT_UPDATED, "SCENARIO", scenarioId.toString());
         return authoringView(scenarioId);
     }
 
@@ -225,6 +236,7 @@ public class ScenarioService {
         Scenario scenario = findScenario(scenarioId);
         authoringConfigService.update(scenario, config);
         scenarioRepository.save(scenario);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_AUTHORING_CONFIG_CHANGED, "SCENARIO", scenarioId.toString());
         return authoringView(scenarioId);
     }
 
@@ -252,6 +264,7 @@ public class ScenarioService {
 
         leadRepository.findByScenarioId(source.getId()).forEach(lead -> leadRepository.save(Lead.copyForScenario(lead, revision.getId())));
         knowledgeIngestionService.copyScenarioDocuments(source.getId(), revision.getId(), personaIdMap);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_REVISION_CREATED, "SCENARIO", revision.getId().toString(), "forked from " + scenarioId);
         return authoringView(revision.getId());
     }
 
@@ -306,6 +319,7 @@ public class ScenarioService {
         Lead lead = leadRepository.findById(leadId).orElseThrow(() -> new NotFoundException("Lead", leadId));
         if (!lead.getScenarioId().equals(scenarioId)) throw new IllegalArgumentException("Lead does not belong to this scenario");
         leadRepository.delete(lead);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_LEAD_DELETED, "LEAD", leadId.toString(), "scenario " + scenarioId);
     }
 
     private Scenario findScenario(UUID scenarioId) {
