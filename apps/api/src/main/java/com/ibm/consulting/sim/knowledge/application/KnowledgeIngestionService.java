@@ -9,6 +9,8 @@ import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,17 +34,19 @@ public class KnowledgeIngestionService {
     private final KnowledgeDocumentRepository documentRepository;
     private final DocumentChunkRepository chunkRepository;
     private final EmbeddingGateway embeddingGateway;
-
     private final PersonaRepository personaRepository;
+    private final AuditLogger auditLogger;
 
     public KnowledgeIngestionService(KnowledgeDocumentRepository documentRepository,
                                       DocumentChunkRepository chunkRepository,
                                       EmbeddingGateway embeddingGateway,
-                                    PersonaRepository personaRepository) {
+                                    PersonaRepository personaRepository, 
+                                    AuditLogger auditLogger) {
         this.documentRepository = documentRepository;
         this.chunkRepository = chunkRepository;
         this.embeddingGateway = embeddingGateway;
         this.personaRepository = personaRepository;
+        this.auditLogger = auditLogger;
     }
 
     @Transactional
@@ -61,6 +65,7 @@ public class KnowledgeIngestionService {
                     chunks.get(i), embedding));
         }
         chunkRepository.saveAll(entities);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED, "KNOWLEDGE_DOCUMENT", document.getId().toString(), "scenario " + scenarioId + ", title: " + title);
         return document.getId();
     }
 
@@ -107,6 +112,8 @@ public class KnowledgeIngestionService {
 
         chunkRepository.deleteByDocumentId(documentId);
         documentRepository.deleteById(documentId);
+
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_DELETED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + document.getTitle());
     }
 
     @Transactional
@@ -122,6 +129,8 @@ public class KnowledgeIngestionService {
 
         chunkRepository.deleteByDocumentId(documentId); // old chunks carry the OLD persona/collection scope too
         reindex(documentId, document.getScenarioId(), newPersonaId, newCollection, newSourceText);
+
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_UPDATED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + newTitle);
     }
 
     private void reindex(UUID documentId, UUID scenarioId, UUID personaId, KnowledgeCollection collection, String sourceText) {
