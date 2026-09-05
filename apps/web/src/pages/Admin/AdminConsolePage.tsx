@@ -16,6 +16,8 @@ import { useAdminAiOperations } from '@/api/hooks/useAdminAiOperations'
 import { useAdminPlatformOverview } from '@/api/hooks/useAdminPlatformOverview'
 import { useAllScenariosForAdmin } from '@/api/hooks/useAdminScenarios'
 import { useAuthStore } from '@/store/authStore'
+import ErrorState from '@/components/shared/ErrorState'
+import LoadingState from '@/components/shared/LoadingState'
 import styles from './AdminConsolePage.module.css'
 
 type ConsoleIcon = typeof Settings
@@ -90,6 +92,23 @@ export default function AdminConsolePage() {
   const activeScenarios = canAuthorScenarios && scenarios.isLoading ? '...' : activeScenarioCount
   const activeRuns = platform.isLoading ? '...' : platform.data?.activeEngagements ?? 0
   const completionRate = platform.isLoading ? '...' : `${platform.data?.completionRatePercent ?? 0}%`
+
+  const isError = (canAuthorScenarios && scenarios.isError) || (canViewAiOperations && aiOperations.isError) || (canAdminister && platform.isError)
+  if (isError) {
+    return (
+      <ErrorState
+        actionLabel="Retry"
+        onAction={() => {
+          if (canAuthorScenarios) void scenarios.refetch()
+          if (canViewAiOperations) void aiOperations.refetch()
+          if (canAdminister) void platform.refetch()
+        }}
+      />
+    )
+  }
+
+  const isLoading = (canAuthorScenarios && scenarios.isLoading) || (canViewAiOperations && aiOperations.isLoading) || (canAdminister && platform.isLoading)
+  if (isLoading) return <LoadingState />
 
   return (
     <main className={styles.console}>

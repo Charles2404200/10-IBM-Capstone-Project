@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Button,
   Heading,
@@ -28,6 +28,7 @@ import styles from './CommandCentrePage.module.scss'
 import { PHASE_COUNT, PHASE_LABEL } from '@/lifecycle/phases'
 import { useExperience } from '@/lifecycle/useExperience'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
+import { InlineNotification } from '@carbon/react'
 
 type EngagementStatus = 'ACTION_REQUIRED' | 'AWAITING_RESPONSE' | 'READY_FOR_REVIEW' | 'COMPLETED'
 type StatusFilter = 'ALL' | EngagementStatus
@@ -548,13 +549,32 @@ export default function CommandCentrePage() {
     setPersonaPickerScenario(null)
   }
 
+  // shows notification when user was redirected from a protected route
+  const location = useLocation()
+  const [deniedReason, setDeniedReason] = useState<string | undefined>(
+    (location.state as { deniedReason?: string } | null)?.deniedReason,
+  )
+
+  useEffect(() => {
+    if (!deniedReason) return
+
+    // clears router state to prevent re-showing the notification after refresh
+    navigate(location.pathname, {
+      replace: true,
+      state: {},
+    })
+  }, [deniedReason, location.pathname, navigate])
+
   if (engLoading || scenLoading) return <LoadingState />
   if (engError || scenarioError) return <ErrorState />
 
   return (
     <ObjectiveTourProvider tourId="command-centre" objectives={COMMAND_CENTRE_OBJECTIVES}>
       <main className={styles.page}>
-        <Stack gap={7}>
+        {deniedReason && (
+        <InlineNotification kind="warning" title="Access restricted" subtitle={deniedReason} onCloseButtonClick={() => setDeniedReason(undefined)} />
+      )}
+      <Stack gap={7}>
           <header className={`${styles.header} objective-command-centre`}>
             <div>
               <Heading>Command Centre</Heading>
