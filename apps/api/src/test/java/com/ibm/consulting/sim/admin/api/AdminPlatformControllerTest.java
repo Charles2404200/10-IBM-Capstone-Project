@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ibm.consulting.sim.admin.application.AdminNotificationService;
+import com.ibm.consulting.sim.admin.application.NotificationQueryService;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewResponse;
 import com.ibm.consulting.sim.admin.application.PlatformOverviewService;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
@@ -29,6 +31,12 @@ class AdminPlatformControllerTest {
 
     @MockBean
     private PlatformOverviewService overviewService;
+
+    @MockBean
+    private AdminNotificationService adminNotificationService;
+
+    @MockBean
+    private NotificationQueryService notificationQueryService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
