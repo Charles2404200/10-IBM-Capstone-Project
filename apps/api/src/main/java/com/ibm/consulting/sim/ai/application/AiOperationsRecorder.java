@@ -1,15 +1,16 @@
 package com.ibm.consulting.sim.ai.application;
 
-import com.ibm.consulting.sim.ai.domain.AiTaskType;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.LongAdder;
+
+import com.ibm.consulting.sim.ai.domain.AiTaskType;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 /**
  * In-memory rolling counters for the AI Operations admin view (§21/22 of the
@@ -73,10 +74,10 @@ public class AiOperationsRecorder {
                                           Map<String, Long> quotaLimitByProvider,
                                           Map<String, String> circuitStateByProvider,
                                           Map<String, Boolean> availabilityByProvider) {
-        return byProvider.entrySet().stream()
-                .map(entry -> {
-                    String providerId = entry.getKey();
-                    ProviderCounters c = entry.getValue();
+        return availabilityByProvider.keySet().stream()
+            .map(providerId -> {
+                ProviderCounters c =
+                    byProvider.getOrDefault(providerId, new ProviderCounters());
                     long requests = c.requests.sum();
                     double avgLatency = requests == 0 ? 0 : (double) c.totalLatencyMs.sum() / requests;
                     double fallbackRate = requests == 0 ? 0 : (double) c.fallbacks.sum() / requests;

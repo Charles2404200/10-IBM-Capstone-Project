@@ -9,4 +9,5 @@ public interface DocumentChunkRepository {
 
     /** Chunks visible to a given scenario/persona scope for a specific collection. */
     List<DocumentChunk> findByCollectionAndScope(KnowledgeCollection collection, UUID scenarioId, UUID personaId);
+    void deleteByDocumentId(UUID documentId); 
 }

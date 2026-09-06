@@ -42,6 +42,13 @@ public class KnowledgeDocument extends BaseEntity {
         return d;
     }
 
+    public void updateContent(UUID personaId, KnowledgeCollection collection, String title, String sourceText) {
+        this.personaId = personaId;
+        this.collection = collection;
+        this.title = title;
+        this.sourceText = sourceText;
+    }
+
     public UUID getScenarioId() { return scenarioId; }
     public UUID getPersonaId() { return personaId; }
     public KnowledgeCollection getCollection() { return collection; }

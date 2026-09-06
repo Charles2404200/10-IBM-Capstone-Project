@@ -41,10 +41,10 @@ const briefSchema = z.object({
 
 const OUTREACH_WORKSPACE_OBJECTIVES = [
   {
-    id: 'checklist',
-    objective: 'Complete the outreach checklist',
-    description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
-    targets: ['.objective-checklist'],
+    id: 'client',
+    objective: 'Who you are writing to',
+    description: 'The client you researched, and once you have written to them, what they wrote back. Everything on this screen is aimed at this one reader.',
+    targets: ['.objective-client'],
   },
   {
     id: 'evidence',
@@ -53,18 +53,37 @@ const OUTREACH_WORKSPACE_OBJECTIVES = [
     targets: ['.objective-evidence'],
   },
   {
+    id: 'email',
+    objective: 'Compose your outreach email',
+    description: 'This is where you will compose your outreach email to the client.',
+    targets: ['.objective-email'],
+  },
+  {
+    id: 'fields',
+    objective: 'Subject and message',
+    description: 'The subject is the only part the client sees before deciding whether to open it. The message is where the evidence goes \u2014 both are counted as you type.',
+    targets: ['.objective-subject', '.objective-message'],
+  },
+  {
+    id: 'checklist',
+    objective: 'Complete the outreach checklist',
+    description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
+    targets: ['.objective-checklist'],
+  },
+  {
     id: 'assistance',
     objective: 'Possible assistance',
     description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
     targets: ['.objective-assistance'],
   },
   {
-    id: 'email',
-    objective: 'Compose your outreach email',
-    description: 'This is where you will compose your outreach email to the client.',
-    targets: ['.objective-email'],
+    id: 'send',
+    objective: 'Sending it',
+    description: 'Nothing is sent until you press it. Evidence and tone are checked on the way out, and the client answers the message you actually wrote \u2014 so a weak attempt is a real attempt.',
+    targets: ['.objective-send'],
   },
 ]
+
 
 type EmailFormValues = z.infer<typeof emailSchema>
 type BriefFormValues = z.infer<typeof briefSchema>
@@ -343,7 +362,7 @@ export default function OutreachWorkspacePage() {
   }
 
   return (
-    <ObjectiveTourProvider objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
+    <ObjectiveTourProvider tourId="outreach-workspace" objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
     <div className={styles.page}>
       <header className={styles.pageHeader}>
         <div className={styles.makeContactHero}>
@@ -406,7 +425,7 @@ export default function OutreachWorkspacePage() {
                     </div>
                     <div className={styles.mailMeta}><span>From</span><strong>Consulting Simulation learner</strong></div>
                     <div className={styles.mailMeta}><span>To</span><strong>{rubricContext.personaName ?? 'Client stakeholder'}</strong><small>{rubricContext.companyName ?? 'Client organisation'}</small></div>
-                    <TextInput id="subject" labelText="Subject" helperText={`${draftSubject.length} characters`} invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
+                    <TextInput id="subject" className="objective-subject" labelText="Subject" helperText={`${draftSubject.length} characters`} invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
                     <div className={styles.checkPills} aria-label="Email requirements">
                       {draftReview.checks.map((check) => (
                         <span key={check.dimension} className={check.met ? styles.met : undefined}>
@@ -416,7 +435,7 @@ export default function OutreachWorkspacePage() {
                     </div>
                     <TextArea
                       id="body"
-                      className={styles.messageField}
+                      className={`${styles.messageField} objective-message`}
                       labelText="Message"
                       rows={6}
                       helperText={`${draftBody.trim() ? draftBody.trim().split(/\s+/).length : 0} words / ${draftBody.length} characters`}
@@ -428,7 +447,7 @@ export default function OutreachWorkspacePage() {
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
-                    <div className={styles.composerFooter}>
+                    <div className={`${styles.composerFooter} objective-send`}>
                       <small>Evidence and tone are checked when you send. Your message is never sent automatically.</small>
                       <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending || draftSafety.risk === 'blocking'}>{sendOutreach.isPending ? 'Sending...' : 'Send outreach'}</Button>
                     </div>
@@ -475,7 +494,7 @@ export default function OutreachWorkspacePage() {
 
         <aside className={styles.decisionRail}>
             {latestAttempt?.clientReply ? (
-              <section className={styles.clientResponse} aria-label="Latest client response" aria-live="polite">
+              <section className={`${styles.clientResponse} objective-client`} aria-label="Latest client response" aria-live="polite">
                 <div className={styles.responseClientIdentity}>
                   <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
                   <div>
@@ -502,7 +521,7 @@ export default function OutreachWorkspacePage() {
                 )}
               </section>
             ) : (
-              <Tile className={`${styles.clientOverview} ${styles.latestReply}`}>
+              <Tile className={`${styles.clientOverview} ${styles.latestReply} objective-client`}>
                 <div className={styles.replyHeading}>
                   <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
                 </div>

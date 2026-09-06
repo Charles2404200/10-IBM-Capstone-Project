@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
 
 /**
  * Admin-only endpoint for ingesting scenario knowledge (truth documents,
@@ -32,24 +33,55 @@ public class KnowledgeController {
         this.ingestionService = ingestionService;
         this.scenarioRepository = scenarioRepository;
     }
+    
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, UUID> upload(@PathVariable UUID scenarioId,
                              @Valid @RequestBody KnowledgeDocumentUploadRequest request) {
-        Scenario scenario = scenarioRepository.findById(scenarioId)
-                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
-        if (scenario.getStatus() != ScenarioStatus.DRAFT) {
-            throw new ScenarioContentLockedException(scenarioId);
-        }
+        requireDraft(scenarioId);
         UUID documentId = ingestionService.ingest(scenarioId, request.personaId(), request.collection(),
                 request.title(), request.content());
         return Map.of("documentId", documentId);
     }
 
+
+
+    // add this method inside the class, after upload()
+    @GetMapping
+    List<KnowledgeDocumentSummary> list(@PathVariable UUID scenarioId) {
+        return ingestionService.list(scenarioId).stream()
+                .map(KnowledgeDocumentSummary::from)
+                .toList();
+    }
+
     static class ScenarioContentLockedException extends DomainException {
         ScenarioContentLockedException(UUID scenarioId) {
             super("Scenario " + scenarioId + " is published. Create a draft revision before changing knowledge.");
+        }
+    }
+
+    @PutMapping("/{documentId}")
+    void update(@PathVariable UUID scenarioId, @PathVariable UUID documentId,
+                @Valid @RequestBody KnowledgeDocumentUpdateRequest request) {
+        requireDraft(scenarioId);
+        ingestionService.update(scenarioId, documentId, request.personaId(), request.collection(),
+                request.title(), request.content());
+    }
+
+    @DeleteMapping("/{documentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void delete(@PathVariable UUID scenarioId, @PathVariable UUID documentId) {
+        requireDraft(scenarioId);
+        ingestionService.delete(scenarioId, documentId);
+    }
+
+    // Get this code from upload() and make it a shared method.
+    private void requireDraft(UUID scenarioId) {
+        Scenario scenario = scenarioRepository.findById(scenarioId)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        if (scenario.getStatus() != ScenarioStatus.DRAFT) {
+            throw new ScenarioContentLockedException(scenarioId);
         }
     }
 }

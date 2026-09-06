@@ -800,6 +800,22 @@ export interface KnowledgeDocumentUploadRequest {
   content: string
 }
 
+export interface KnowledgeDocumentSummary {
+  id: string
+  title: string
+  collection: 'SCENARIO_TRUTH' | 'CONSULTING_PRACTICE' | 'ASSESSMENT_RUBRIC'
+  personaId: string | null
+  createdAt: string
+  sourceText: string
+}
+
+export interface KnowledgeDocumentUpdateRequest {
+  personaId: string | null
+  collection: 'SCENARIO_TRUTH' | 'CONSULTING_PRACTICE' | 'ASSESSMENT_RUBRIC'
+  title: string
+  content: string
+}
+
 export type RevealTarget = 'DECISION_MAKER' | 'PAIN_SEVERITY' | 'TECHNOLOGY_STACK' | 'BUDGET_SIGNAL' | 'POTENTIAL_VALUE'
 
 export interface CanonicalFact {
@@ -878,3 +894,8 @@ export interface UserSummary {
   active: boolean
 }
 
+export interface CreateAdminUserRequest {
+  email: string
+  displayName: string
+  role: UserRole
+}
