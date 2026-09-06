@@ -1,6 +1,7 @@
 .action {
   position: relative;
   overflow: visible;
+  color: var(--cds-icon-primary, #161616);
 }
 
 .action:focus-visible {
@@ -19,10 +20,11 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border: 2px solid var(--cds-background-inverse, #161616);
+  border: 2px solid #ffffff;
   border-radius: 999px;
-  background: var(--cds-support-error);
-  color: var(--cds-text-on-color, #fff);
+  background: #da1e28;
+  box-shadow: 0 0.125rem 0.3rem rgb(22 22 22 / 28%);
+  color: #ffffff;
   font-size: 0.625rem;
   font-weight: 600;
   line-height: 1;

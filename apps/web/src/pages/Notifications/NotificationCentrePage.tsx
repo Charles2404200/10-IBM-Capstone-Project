@@ -1,4 +1,5 @@
 import { Button, InlineLoading, InlineNotification, Modal, Tag } from '@carbon/react'
+import { CheckmarkOutline, NotificationFilled, Time } from '@carbon/icons-react'
 import { useEffect, useMemo, useState } from 'react'
 import type { NotificationPriority, NotificationSummary } from '@/api/types'
 import {
@@ -66,17 +67,34 @@ function NotificationDetail({ eventId }: { eventId: string }) {
     return <InlineNotification kind="error" lowContrast hideCloseButton title="Unable to load notification" />
   }
   return (
-    <article className={styles.detailArticle}>
+    <article className={styles.detailArticle} data-priority={detail.data.priority}>
       <div className={styles.detailHeader}>
-        <h2>{detail.data.topicName}</h2>
+        <div className={styles.detailTitleGroup}>
+          <span className={styles.detailIcon} aria-hidden="true">
+            <NotificationFilled size={24} />
+          </span>
+          <div>
+            <span className={styles.detailEyebrow}>Notification</span>
+            <h2>{detail.data.topicName}</h2>
+          </div>
+        </div>
         {priorityTag(detail.data.priority)}
       </div>
-      <p className={styles.fullMessage}>{detail.data.message}</p>
+
+      <section className={styles.messageCard} aria-label="Notification message">
+        <h3>Message</h3>
+        <p className={styles.fullMessage}>{detail.data.message}</p>
+      </section>
+
       <dl className={styles.detailMetadata}>
-        <dt>Received</dt>
-        <dd><time dateTime={detail.data.createdAt}>{new Date(detail.data.createdAt).toLocaleString()}</time></dd>
-        <dt>Status</dt>
-        <dd>{detail.data.read ? 'Read' : 'Unread'}</dd>
+        <div className={styles.metadataCard}>
+          <dt><Time size={18} aria-hidden="true" />Received</dt>
+          <dd><time dateTime={detail.data.createdAt}>{new Date(detail.data.createdAt).toLocaleString()}</time></dd>
+        </div>
+        <div className={styles.metadataCard}>
+          <dt><CheckmarkOutline size={18} aria-hidden="true" />Status</dt>
+          <dd>{detail.data.read ? 'Read' : 'Unread'}</dd>
+        </div>
       </dl>
     </article>
   )
