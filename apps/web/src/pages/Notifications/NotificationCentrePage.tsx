@@ -141,7 +141,16 @@ export default function NotificationCentrePage() {
       )}
 
       {!notifications.isPending && !notifications.isError && items.length === 0 && (
-        <p className={styles.empty}>You have no notifications.</p>
+        <section className={styles.empty} aria-labelledby="empty-notifications-title">
+          <div className={styles.emptyStateContent}>
+            <span className={styles.emptyStateIcon} aria-hidden="true">
+              <NotificationFilled size={32} />
+            </span>
+            <span className={styles.emptyStateEyebrow}>Notification centre</span>
+            <h2 id="empty-notifications-title">You have no notifications.</h2>
+            <p>Important updates and announcements will appear here when they arrive.</p>
+          </div>
+        </section>
       )}
 
       {items.length > 0 && (
@@ -172,7 +181,18 @@ export default function NotificationCentrePage() {
             <section className={styles.detailPanel} aria-label="Notification details">
               {selectedId
                 ? <NotificationDetail eventId={selectedId} />
-                : <p className={styles.detailPlaceholder}>Select a notification to read the complete message.</p>}
+                : (
+                  <div className={styles.detailPlaceholder}>
+                    <div className={styles.emptyStateContent}>
+                      <span className={styles.emptyStateIcon} aria-hidden="true">
+                        <NotificationFilled size={32} />
+                      </span>
+                      <span className={styles.emptyStateEyebrow}>Message preview</span>
+                      <h2>No notification selected</h2>
+                      <p>Select a notification from the list to read the complete message and delivery details.</p>
+                    </div>
+                  </div>
+                )}
             </section>
           )}
         </div>

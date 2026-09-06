@@ -90,7 +90,7 @@ describe('NotificationCentrePage', () => {
       isError: false,
     })
     rerender(<NotificationCentrePage />)
-    expect(screen.getByText('You have no notifications.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'You have no notifications.' })).toBeInTheDocument()
 
     const refetch = vi.fn()
     mocks.useNotifications.mockReturnValue({ isPending: false, isError: true, refetch })
@@ -105,6 +105,7 @@ describe('NotificationCentrePage', () => {
 
     render(<NotificationCentrePage />)
 
+    expect(screen.getByRole('heading', { name: 'No notification selected' })).toBeInTheDocument()
     expect(screen.getByText('A short preview\u2026')).toBeInTheDocument()
     expect(screen.queryByText(fullMessage)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Course published/ }))
