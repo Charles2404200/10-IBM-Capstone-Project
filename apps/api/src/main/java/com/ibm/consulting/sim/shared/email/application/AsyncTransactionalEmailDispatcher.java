@@ -43,8 +43,9 @@ public class AsyncTransactionalEmailDispatcher {
                 return;
             } catch (RuntimeException deliveryFailure) {
                 lastFailure = deliveryFailure;
-                log.warn("Transactional email delivery attempt {}/{} failed for recipient={}",
-                        attempt, maxAttempts, mask(event.email().recipient()));
+                log.warn("Transactional email delivery attempt {}/{} failed for recipient={}; cause={} ({})",
+                        attempt, maxAttempts, mask(event.email().recipient()),
+                        diagnosticMessage(deliveryFailure), rootCause(deliveryFailure).getClass().getSimpleName());
                 waitBeforeRetry(attempt);
             }
         }
@@ -65,5 +66,21 @@ public class AsyncTransactionalEmailDispatcher {
         int at = email.indexOf('@');
         if (at <= 1) return "***";
         return email.charAt(0) + "***" + email.substring(at);
+    }
+
+    private Throwable rootCause(Throwable failure) {
+        Throwable current = failure;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private String diagnosticMessage(Throwable failure) {
+        String message = rootCause(failure).getMessage();
+        if (message == null || message.isBlank()) return "no provider message";
+        // SMTP replies can include envelope addresses. Keep deployed logs useful without
+        // retaining a recipient's full address in the central log stream.
+        return message.replaceAll("(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", "***@***");
     }
 }

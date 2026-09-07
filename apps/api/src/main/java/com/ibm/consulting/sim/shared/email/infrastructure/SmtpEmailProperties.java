@@ -21,6 +21,12 @@ public class SmtpEmailProperties {
     public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    /** Gmail displays app passwords in groups of four; whitespace is not part of the secret. */
+    String getTransportPassword() {
+        return "smtp.gmail.com".equalsIgnoreCase(host) ? password.replaceAll("\\s", "") : password;
+    }
+    /** Port 465 is SMTP over implicit TLS; 587 uses STARTTLS after connection. */
+    boolean usesImplicitTls() { return port == 465; }
     public String getFrom() { return from; }
     public void setFrom(String from) { this.from = from; }
     public String getReplyTo() { return replyTo; }

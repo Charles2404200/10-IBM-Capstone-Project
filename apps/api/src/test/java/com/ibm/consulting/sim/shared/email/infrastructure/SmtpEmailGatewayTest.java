@@ -6,6 +6,7 @@ import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.util.Properties;
 
@@ -15,6 +16,47 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SmtpEmailGatewayTest {
+
+    @Test
+    void removesDisplayWhitespaceFromGmailAppPasswords() {
+        SmtpEmailProperties properties = new SmtpEmailProperties();
+        properties.setPassword("abcd efgh ijkl mnop");
+
+        assertThat(properties.getTransportPassword()).isEqualTo("abcdefghijklmnop");
+    }
+
+    @Test
+    void preservesPasswordsForOtherSmtpProviders() {
+        SmtpEmailProperties properties = new SmtpEmailProperties();
+        properties.setHost("smtp.example.test");
+        properties.setPassword("token with spaces");
+
+        assertThat(properties.getTransportPassword()).isEqualTo("token with spaces");
+    }
+
+    @Test
+    void configuresImplicitTlsForPort465() {
+        SmtpEmailProperties properties = new SmtpEmailProperties();
+        properties.setPort(465);
+
+        JavaMailSenderImpl sender = SmtpEmailGateway.createSender(properties);
+
+        assertThat(sender.getJavaMailProperties())
+                .containsEntry("mail.smtp.ssl.enable", "true")
+                .containsEntry("mail.smtp.starttls.enable", "false");
+    }
+
+    @Test
+    void configuresStartTlsForPort587() {
+        SmtpEmailProperties properties = new SmtpEmailProperties();
+        properties.setPort(587);
+
+        JavaMailSenderImpl sender = SmtpEmailGateway.createSender(properties);
+
+        assertThat(sender.getJavaMailProperties())
+                .containsEntry("mail.smtp.ssl.enable", "false")
+                .containsEntry("mail.smtp.starttls.enable", "true");
+    }
 
     @Test
     void sendsMultipartMessageWithPlainTextHtmlAndReplyTo() throws Exception {
