@@ -17,6 +17,23 @@ import static org.mockito.Mockito.when;
 class SmtpEmailGatewayTest {
 
     @Test
+    void removesDisplayWhitespaceFromGmailAppPasswords() {
+        SmtpEmailProperties properties = new SmtpEmailProperties();
+        properties.setPassword("abcd efgh ijkl mnop");
+
+        assertThat(properties.getTransportPassword()).isEqualTo("abcdefghijklmnop");
+    }
+
+    @Test
+    void preservesPasswordsForOtherSmtpProviders() {
+        SmtpEmailProperties properties = new SmtpEmailProperties();
+        properties.setHost("smtp.example.test");
+        properties.setPassword("token with spaces");
+
+        assertThat(properties.getTransportPassword()).isEqualTo("token with spaces");
+    }
+
+    @Test
     void sendsMultipartMessageWithPlainTextHtmlAndReplyTo() throws Exception {
         SmtpEmailProperties properties = new SmtpEmailProperties();
         properties.setUsername("sender@example.test");

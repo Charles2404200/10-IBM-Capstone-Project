@@ -67,7 +67,7 @@ public class SmtpEmailGateway implements EmailDeliveryGateway {
         sender.setHost(properties.getHost());
         sender.setPort(properties.getPort());
         sender.setUsername(properties.getUsername());
-        sender.setPassword(properties.getPassword());
+        sender.setPassword(properties.getTransportPassword());
         sender.setDefaultEncoding(StandardCharsets.UTF_8.name());
 
         Properties sessionProperties = sender.getJavaMailProperties();
