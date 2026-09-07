@@ -114,6 +114,15 @@ app:
       reply-to: ${BREVO_REPLY_TO:}
       connect-timeout-ms: ${BREVO_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${BREVO_READ_TIMEOUT_MS:8000}
+    mailjet:
+      api-key: ${MAILJET_API_KEY:}
+      secret-key: ${MAILJET_SECRET_KEY:}
+      base-url: ${MAILJET_BASE_URL:https://api.mailjet.com/v3.1}
+      from: ${MAILJET_FROM:}
+      from-name: ${MAILJET_FROM_NAME:IBM Consulting Simulation}
+      reply-to: ${MAILJET_REPLY_TO:}
+      connect-timeout-ms: ${MAILJET_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${MAILJET_READ_TIMEOUT_MS:8000}
   watsonx:
     api-key: ${WATSONX_API_KEY:mock}
     project-id: ${WATSONX_PROJECT_ID:mock}
