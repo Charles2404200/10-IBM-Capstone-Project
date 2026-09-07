@@ -22,7 +22,10 @@ import java.util.List;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(NotificationController.class)
@@ -71,6 +74,29 @@ class NotificationControllerSecurityTest {
                         .queryParam("fields", fields)
                         .with(authentication(authenticationFor(learner))))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void malformedNotificationIdReturnsBadRequest() throws Exception {
+        User learner = User.create("learner3@example.com", "hash", "Learner", UserRole.LEARNER);
+
+        mockMvc.perform(get("/api/v1/notifications/{eventId}", "not-a-uuid")
+                        .with(authentication(authenticationFor(learner))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type").value(
+                        "https://consulting-sim.ibm.com/problems/malformed-request"));
+    }
+
+    @Test
+    void unsupportedNotificationMethodReturnsMethodNotAllowed() throws Exception {
+        User learner = User.create("learner4@example.com", "hash", "Learner", UserRole.LEARNER);
+
+        mockMvc.perform(delete("/api/v1/notifications")
+                        .with(authentication(authenticationFor(learner))))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists("Allow"))
+                .andExpect(jsonPath("$.type").value(
+                        "https://consulting-sim.ibm.com/problems/method-not-allowed"));
     }
 
     private UsernamePasswordAuthenticationToken authenticationFor(User user) {
