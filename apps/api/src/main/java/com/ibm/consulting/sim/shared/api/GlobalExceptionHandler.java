@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -41,7 +42,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> violations = ex.getBindingResult().getFieldErrors().stream()
-                .collect(Collectors.toMap(FieldError::getField, f -> f.getDefaultMessage() != null ? f.getDefaultMessage() : "invalid"));
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        error -> error.getDefaultMessage() != null ? error.getDefaultMessage() : "invalid",
+                        (first, second) -> first.compareTo(second) <= 0 ? first : second,
+                        LinkedHashMap::new));
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "validation-error", "Request validation failed");
         pd.setProperty("violations", violations);
         return pd;

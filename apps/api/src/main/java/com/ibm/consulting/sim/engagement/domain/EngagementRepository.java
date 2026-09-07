@@ -12,4 +12,6 @@ public interface EngagementRepository {
     /** Dashboard projection with the small lifecycle event collection loaded in one query. */
     List<Engagement> findDashboardByUserId(UUID userId);
     Optional<Engagement> findByIdAndUserId(UUID id, UUID userId);
+    /** Serializes commands whose invariants are scoped to one owned engagement. */
+    Optional<Engagement> findByIdAndUserIdForUpdate(UUID id, UUID userId);
 }

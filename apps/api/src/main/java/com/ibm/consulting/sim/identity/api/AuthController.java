@@ -34,7 +34,11 @@ public class AuthController {
     record RegisterRequest(
             @NotBlank @Email String email,
             @NotBlank @Size(min = 8, max = 128) String password,
-            @NotBlank @Size(min = 2, max = 80) String displayName) {}
+            @NotBlank @Size(min = 2, max = 80) String displayName) {
+        RegisterRequest {
+            displayName = displayName == null ? null : displayName.trim();
+        }
+    }
 
     record LoginRequest(
             @NotBlank @Email String email,

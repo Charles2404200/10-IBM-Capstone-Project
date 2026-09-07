@@ -178,7 +178,7 @@ public class MeetingService {
      */
     @Transactional
     public MeetingTurnResult sendMessage(UUID meetingId, UUID userId, String learnerMessage, String clientMessageId) {
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
         // Single ownership-validating fetch — the resulting Engagement is reused
         // below for scenarioId, instead of re-querying it a second time later in

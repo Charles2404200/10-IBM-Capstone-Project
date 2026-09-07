@@ -60,6 +60,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             UUID userId = jwtTokenProvider.extractUserId(token);
             User user = userRepository.findById(userId)
                     .filter(User::isActive)
+                    .filter(candidate -> jwtTokenProvider.isValidForUser(token, candidate))
                     .orElseThrow(() -> new org.springframework.messaging.MessagingException("Unknown or inactive user"));
             var authentication = new UsernamePasswordAuthenticationToken(
                     user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
