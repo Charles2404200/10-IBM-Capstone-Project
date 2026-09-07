@@ -62,7 +62,7 @@ public class SmtpEmailGateway implements EmailDeliveryGateway {
         }
     }
 
-    private static JavaMailSenderImpl createSender(SmtpEmailProperties properties) {
+    static JavaMailSenderImpl createSender(SmtpEmailProperties properties) {
         JavaMailSenderImpl sender = new JavaMailSenderImpl();
         sender.setHost(properties.getHost());
         sender.setPort(properties.getPort());
@@ -71,10 +71,14 @@ public class SmtpEmailGateway implements EmailDeliveryGateway {
         sender.setDefaultEncoding(StandardCharsets.UTF_8.name());
 
         Properties sessionProperties = sender.getJavaMailProperties();
+        boolean implicitTls = properties.usesImplicitTls();
         sessionProperties.put("mail.transport.protocol", "smtp");
         sessionProperties.put("mail.smtp.auth", "true");
-        sessionProperties.put("mail.smtp.starttls.enable", "true");
-        sessionProperties.put("mail.smtp.starttls.required", "true");
+        sessionProperties.put("mail.smtp.starttls.enable", Boolean.toString(!implicitTls));
+        sessionProperties.put("mail.smtp.starttls.required", Boolean.toString(!implicitTls));
+        sessionProperties.put("mail.smtp.ssl.enable", Boolean.toString(implicitTls));
+        sessionProperties.put("mail.smtp.ssl.checkserveridentity", "true");
+        sessionProperties.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
         sessionProperties.put("mail.smtp.connectiontimeout", properties.getConnectionTimeoutMs());
         sessionProperties.put("mail.smtp.timeout", properties.getTimeoutMs());
         sessionProperties.put("mail.smtp.writetimeout", properties.getTimeoutMs());
