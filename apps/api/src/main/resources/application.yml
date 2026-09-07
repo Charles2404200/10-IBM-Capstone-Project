@@ -103,9 +103,9 @@ app:
       username: ${SMTP_USERNAME:}
       password: ${SMTP_PASSWORD:}
       from: ${SMTP_FROM:}
-     reply-to: ${SMTP_REPLY_TO:}
-     connection-timeout-ms: ${SMTP_CONNECTION_TIMEOUT_MS:5000}
-     timeout-ms: ${SMTP_TIMEOUT_MS:10000}
+      reply-to: ${SMTP_REPLY_TO:}
+      connection-timeout-ms: ${SMTP_CONNECTION_TIMEOUT_MS:5000}
+      timeout-ms: ${SMTP_TIMEOUT_MS:10000}
     brevo:
       api-key: ${BREVO_API_KEY:}
       base-url: ${BREVO_BASE_URL:https://api.brevo.com}
