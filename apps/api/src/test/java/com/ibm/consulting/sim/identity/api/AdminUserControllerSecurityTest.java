@@ -18,8 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -77,5 +80,78 @@ class AdminUserControllerSecurityTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCannotChangeUserToNullRole() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/users/{id}/role", UUID.randomUUID())
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.role").exists());
+
+        verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCanChangeUserToAValidRole() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(adminUserService.changeRole(userId, UserRole.REVIEWER)).thenReturn(
+                new UserSummary(userId, "reviewer@example.com", "Reviewer", UserRole.REVIEWER, true));
+
+        mockMvc.perform(patch("/api/v1/admin/users/{id}/role", userId)
+                        .contentType("application/json")
+                        .content("{\"role\":\"REVIEWER\"}"))
+                .andExpect(status().isOk());
+
+        verify(adminUserService).changeRole(userId, UserRole.REVIEWER);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCannotCreateUserWithAWhitespaceOnlyDisplayName() throws Exception {
+        assertInvalidDisplayName("  ");
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCannotCreateUserWithATooShortNormalisedDisplayName() throws Exception {
+        assertInvalidDisplayName(" A ");
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCreatesUserWithTheNormalisedDisplayName() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(adminUserService.createUser("new.learner@example.com", "Alice Example", UserRole.LEARNER))
+                .thenReturn(new UserSummary(userId, "new.learner@example.com", "Alice Example",
+                        UserRole.LEARNER, true));
+
+        mockMvc.perform(post("/api/v1/admin/users")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": "new.learner@example.com",
+                                  "displayName": "  Alice Example  ",
+                                  "role": "LEARNER"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        verify(adminUserService).createUser("new.learner@example.com", "Alice Example", UserRole.LEARNER);
+    }
+
+    private void assertInvalidDisplayName(String displayName) throws Exception {
+        mockMvc.perform(post("/api/v1/admin/users")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(new CreateUserBody(
+                                "new.learner@example.com", displayName, UserRole.LEARNER))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.displayName").exists());
+
+        verifyNoInteractions(adminUserService);
+    }
+
     private record RoleBody(UserRole role) {}
+    private record CreateUserBody(String email, String displayName, UserRole role) {}
 }
