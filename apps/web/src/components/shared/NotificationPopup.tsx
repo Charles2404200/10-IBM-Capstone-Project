@@ -36,7 +36,7 @@ function Popup({ notification, dismiss }: {
 }
 
 export default function NotificationPopup() {
-  const { visible, overflowCount, dismissNotification, clearPopups } = useNotification()
+  const { connectionState, visible, overflowCount, dismissNotification, clearPopups } = useNotification()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -45,7 +45,8 @@ export default function NotificationPopup() {
     return () => window.clearTimeout(timeoutId)
   }, [clearPopups, overflowCount])
 
-  if (visible.length === 0 && overflowCount === 0) return null
+  const isReconnecting = connectionState === 'reconnecting'
+  if (!isReconnecting && visible.length === 0 && overflowCount === 0) return null
 
   const openNotificationCentre = () => {
     clearPopups()
@@ -54,6 +55,16 @@ export default function NotificationPopup() {
 
   return (
     <section className={styles.container} aria-label="Recent notifications">
+      {isReconnecting && (
+        <ToastNotification
+          kind="info"
+          lowContrast
+          role="status"
+          title="Notification connection interrupted"
+          subtitle="Reconnecting…"
+          hideCloseButton
+        />
+      )}
       {visible.map((notification) => (
         <Popup
           key={notification.eventId}

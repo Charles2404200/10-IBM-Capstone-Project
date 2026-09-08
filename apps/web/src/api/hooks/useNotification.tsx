@@ -1,4 +1,4 @@
-import { Client, type IMessage } from '@stomp/stompjs'
+import { Client, ReconnectionTimeMode, type IFrame, type IMessage } from '@stomp/stompjs'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { z } from 'zod'
@@ -8,6 +8,7 @@ import type {
   UnreadNotificationCount,
   UserRole,
 } from '@/api/types'
+import { invalidateCurrentSession } from '@/api/authSession'
 import { notificationKeys } from '@/api/hooks/useNotifications'
 import {
   NOTIFICATION_BURST_WINDOW_MS,
@@ -31,9 +32,21 @@ const realtimeSchema = z.object({
 })
 
 interface NotificationRealtimeContextValue extends NotificationPopupState {
+  connectionState: NotificationConnectionState
   dismissNotification: (eventId: string) => void
   clearPopups: () => void
 }
+
+export type NotificationConnectionState = 'connecting' | 'connected' | 'reconnecting'
+
+const INITIAL_RECONNECT_DELAY_MS = 1_000
+const MAX_RECONNECT_DELAY_MS = 30_000
+const AUTHENTICATION_FAILURE_MESSAGES = [
+  'invalid or missing authentication token',
+  'unknown or inactive user',
+  'unauthenticated notification connection',
+  'not authorized for this notification endpoint',
+]
 
 const NotificationRealtimeContext = createContext<NotificationRealtimeContextValue | null>(null)
 
@@ -67,11 +80,25 @@ function parseRealtimeNotification(message: IMessage): NotificationObject | null
   }
 }
 
+function isAuthenticationFailure(frame: IFrame): boolean {
+  const details = `${frame.headers.message ?? ''} ${frame.body ?? ''}`.toLowerCase()
+  return AUTHENTICATION_FAILURE_MESSAGES.some((message) => details.includes(message))
+}
+
+function deactivateClient(client: Client): Promise<void> {
+  // Graceful shutdown is preferred. Force-close only if STOMP.js cannot finish
+  // it, so a failed teardown cannot block all future notification connections.
+  return client.deactivate().catch(() => client.deactivate({ force: true }))
+}
+
 export function NotificationRealtimeProvider({ children }: { children: ReactNode }) {
   const [popups, setPopups] = useState<NotificationPopupState>({ visible: [], overflowCount: 0 })
+  const [connectionState, setConnectionState] = useState<NotificationConnectionState>('connecting')
   const deduplicator = useRef(new BoundedEventDeduplicator(NOTIFICATION_DEDUPLICATION_CAPACITY))
   const refreshTimer = useRef<number | null>(null)
   const burstStartedAt = useRef(0)
+  const activeClient = useRef<Client | null>(null)
+  const previousDeactivation = useRef<Promise<void>>(Promise.resolve())
   const queryClient = useQueryClient()
   const token = useAuthStore((state) => state.token)
   const role = useAuthStore((state) => state.role)
@@ -137,18 +164,34 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
 
   useEffect(() => {
     if (!token || !role) return
+    setConnectionState('connecting')
     const roleSlug = toRoleSlug(role)
     const client = new Client({
       brokerURL: toWebSocketUrl(baseUrl, roleSlug),
       connectHeaders: { Authorization: `Bearer ${token}` },
-      reconnectDelay: 3000,
+      reconnectDelay: INITIAL_RECONNECT_DELAY_MS,
+      reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+      maxReconnectDelay: MAX_RECONNECT_DELAY_MS,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
     })
+    let disposed = false
+    let terminalAuthenticationFailure = false
+    activeClient.current = client
+
+    const isCurrentClient = () => !disposed && activeClient.current === client
+    const markReconnecting = () => {
+      if (isCurrentClient() && !terminalAuthenticationFailure) {
+        setConnectionState('reconnecting')
+      }
+    }
 
     client.onConnect = () => {
+      if (!isCurrentClient() || terminalAuthenticationFailure) return
+      setConnectionState('connected')
       refreshDurableState()
       client.subscribe(`/topic/notifications/${roleSlug}`, (message) => {
+        if (!isCurrentClient() || terminalAuthenticationFailure) return
         const notification = parseRealtimeNotification(message)
         if (!notification || notification.role !== role || !rememberEvent(notification.eventId)) return
 
@@ -166,6 +209,27 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
       })
     }
 
+    // A close is the authoritative transport failure signal, including the
+    // close STOMP.js performs after a heartbeat timeout. STOMP.js remains the
+    // sole owner of scheduling the subsequent reconnect.
+    client.onWebSocketClose = markReconnecting
+    client.onWebSocketError = markReconnecting
+    client.onStompError = (frame) => {
+      if (!isCurrentClient()) return
+      if (!isAuthenticationFailure(frame)) {
+        markReconnecting()
+        return
+      }
+
+      terminalAuthenticationFailure = true
+      activeClient.current = null
+      // Deactivation immediately disables STOMP.js's retry loop. The token
+      // match inside invalidateCurrentSession prevents a stale socket failure
+      // from logging out a newer session.
+      previousDeactivation.current = deactivateClient(client)
+      invalidateCurrentSession(token)
+    }
+
     const reconcileWhenActive = () => {
       if (document.visibilityState !== 'hidden') refreshDurableState()
     }
@@ -181,11 +245,19 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
     // to the user then invalidate the cache memory of react query and
     // refetch it from the database
     document.addEventListener('visibilitychange', reconcileWhenActive)
-    client.activate()
+    // React Strict Mode and token/role changes can start a new effect while the
+    // previous client's asynchronous shutdown is still completing. Serialize
+    // activation behind that shutdown so only one socket can be active.
+    const activationBarrier = previousDeactivation.current
+    void activationBarrier.then(() => {
+      if (isCurrentClient() && !terminalAuthenticationFailure) client.activate()
+    })
     return () => {
+      disposed = true
+      if (activeClient.current === client) activeClient.current = null
       window.removeEventListener('focus', reconcileWhenActive)
       document.removeEventListener('visibilitychange', reconcileWhenActive)
-      void client.deactivate()
+      previousDeactivation.current = deactivateClient(client)
       if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current)
       refreshTimer.current = null
     }
@@ -202,8 +274,9 @@ export function NotificationRealtimeProvider({ children }: { children: ReactNode
     setPopups({ visible: [], overflowCount: 0 })
   }, [])
 
-  const value = useMemo(() => ({ ...popups, dismissNotification, clearPopups }), [
+  const value = useMemo(() => ({ ...popups, connectionState, dismissNotification, clearPopups }), [
     clearPopups,
+    connectionState,
     dismissNotification,
     popups,
   ])
