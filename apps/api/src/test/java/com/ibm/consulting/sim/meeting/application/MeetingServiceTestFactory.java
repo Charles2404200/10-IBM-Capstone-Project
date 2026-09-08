@@ -65,4 +65,30 @@ public final class MeetingServiceTestFactory {
                 difficulty,
                 mock(GuidedMeetingResponseService.class));
     }
+
+    public static MeetingService forLifecycleCommands(
+            MeetingRepository meetings,
+            EngagementRepository engagements,
+            DifficultyProfile profile) {
+        PersonaStateRepository personaStates = mock(PersonaStateRepository.class);
+        when(personaStates.findByEngagementId(any(UUID.class))).thenReturn(Optional.empty());
+        when(personaStates.save(any(PersonaState.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        DifficultyProfileService difficulty = mock(DifficultyProfileService.class);
+        when(difficulty.forEngagement(any(Engagement.class))).thenReturn(profile);
+
+        return new MeetingService(
+                meetings,
+                mock(ConversationTurnRepository.class),
+                personaStates,
+                mock(MeetingPreparationRepository.class),
+                engagements,
+                mock(PersonaCatalogService.class),
+                mock(ResearchEvidenceRepository.class),
+                mock(AiOrchestrationService.class),
+                new ObjectMapper(),
+                mock(TranscriptExportService.class),
+                mock(KnowledgeRetrievalService.class),
+                difficulty,
+                mock(GuidedMeetingResponseService.class));
+    }
 }
