@@ -1,13 +1,13 @@
-import type { ProposalDraftRequest } from '@/api/hooks/useProposal'
+import type { ProposalDraftForm } from '@/api/hooks/useProposal'
 
 const storagePrefix = 'consulting-sim:proposal-draft:'
 
 interface StoredProposalDraft {
   version: 1
-  draft: ProposalDraftRequest
+  draft: ProposalDraftForm
 }
 
-export function loadRecoveredProposalDraft(engagementId: string): ProposalDraftRequest | null {
+export function loadRecoveredProposalDraft(engagementId: string): ProposalDraftForm | null {
   try {
     const raw = window.localStorage.getItem(storagePrefix + engagementId)
     if (!raw) return null
@@ -18,7 +18,7 @@ export function loadRecoveredProposalDraft(engagementId: string): ProposalDraftR
   }
 }
 
-export function storeProposalDraft(engagementId: string, draft: ProposalDraftRequest) {
+export function storeProposalDraft(engagementId: string, draft: ProposalDraftForm) {
   window.localStorage.setItem(storagePrefix + engagementId, JSON.stringify({ version: 1, draft } satisfies StoredProposalDraft))
 }
 

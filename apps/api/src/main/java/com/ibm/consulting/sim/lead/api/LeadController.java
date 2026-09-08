@@ -51,8 +51,6 @@ public class LeadController {
             @NotNull EvidenceType evidenceType,
             @Size(max = 500) String sourceUrl,
             @Size(max = 300) String sourceTitle,
-            EvidenceOrigin origin,
-            EvidenceVerificationStatus verificationStatus,
             LocalDate occurredOn,
             ConfidenceLevel confidence,
             @Min(0) @Max(100) Integer relevanceScore,

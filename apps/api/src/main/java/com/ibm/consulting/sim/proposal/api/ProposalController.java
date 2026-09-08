@@ -1,13 +1,17 @@
 package com.ibm.consulting.sim.proposal.api;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.proposal.application.*;
 import com.ibm.consulting.sim.proposal.domain.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,32 +28,46 @@ public class ProposalController {
 
     public ProposalController(ProposalService proposalService) { this.proposalService = proposalService; }
 
-    record OutcomeRequest(String outcome, String metric, String target) {
+    record OutcomeRequest(
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String outcome,
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String metric,
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String target) {
         ProposalBusinessOutcome toDomain() { return new ProposalBusinessOutcome(outcome, metric, target); }
     }
-    record MilestoneRequest(String phase, String duration) {
+    record MilestoneRequest(
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String phase,
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String duration) {
         ProposalMilestone toDomain() { return new ProposalMilestone(phase, duration); }
     }
-    record RiskRequest(String risk, String severity, String mitigation) {
+    record RiskRequest(
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String risk,
+            @Pattern(regexp = "(?:|LOW|MEDIUM|HIGH)") String severity,
+            @Size(max = ProposalRequestLimits.NARRATIVE_MAX_LENGTH) String mitigation) {
         ProposalRisk toDomain() { return new ProposalRisk(risk, severity, mitigation); }
     }
-    record EvidenceLinkRequest(String section, String sourceId) {
+    record EvidenceLinkRequest(
+            @NotBlank @Size(max = ProposalRequestLimits.EVIDENCE_SECTION_MAX_LENGTH) String section,
+            @NotBlank @Size(max = ProposalRequestLimits.EVIDENCE_SOURCE_ID_MAX_LENGTH) String sourceId) {
         ProposalEvidenceLink toDomain() { return new ProposalEvidenceLink(section, sourceId); }
     }
 
     record ProposalDraftRequest(
-            String problemStatement,
-            String solutionStrategy,
-            List<String> components,
-            BigDecimal budget,
-            Integer timelineWeeks,
-            String budgetConfidence,
-            String budgetSource,
-            List<OutcomeRequest> businessOutcomes,
-            List<MilestoneRequest> milestones,
-            List<RiskRequest> risks,
-            List<String> assumptions,
-            List<EvidenceLinkRequest> evidenceLinks) {
+            @Size(max = ProposalRequestLimits.NARRATIVE_MAX_LENGTH) String problemStatement,
+            @Size(max = ProposalRequestLimits.NARRATIVE_MAX_LENGTH) String solutionStrategy,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS)
+            List<@NotNull @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String> components,
+            @JsonDeserialize(using = StrictBigDecimalDeserializer.class)
+            @PositiveOrZero @Digits(integer = 12, fraction = 2) BigDecimal budget,
+            @Positive Integer timelineWeeks,
+            @Pattern(regexp = "(?:|UNCONFIRMED|LOW|MEDIUM|HIGH)") String budgetConfidence,
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String budgetSource,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS) List<@NotNull @Valid OutcomeRequest> businessOutcomes,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS) List<@NotNull @Valid MilestoneRequest> milestones,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS) List<@NotNull @Valid RiskRequest> risks,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS)
+            List<@NotNull @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String> assumptions,
+            @Size(max = ProposalRequestLimits.MAX_EVIDENCE_LINKS)
+            List<@NotNull @Valid EvidenceLinkRequest> evidenceLinks) {
         ProposalDraftContent toContent() {
             return new ProposalDraftContent(problemStatement, solutionStrategy, components, budget,
                     timelineWeeks == null ? 1 : timelineWeeks, budgetConfidence, budgetSource,
@@ -66,18 +84,22 @@ public class ProposalController {
 
     /** Retained for backward-compatible callers of the original submit contract. */
     record SubmitProposalRequest(
-            @NotBlank String problemStatement,
-            @NotNull List<String> components,
-            @NotNull @PositiveOrZero BigDecimal budget,
+            @NotBlank @Size(max = ProposalRequestLimits.NARRATIVE_MAX_LENGTH) String problemStatement,
+            @NotNull @Size(max = ProposalRequestLimits.MAX_ITEMS)
+            List<@NotNull @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String> components,
+            @JsonDeserialize(using = StrictBigDecimalDeserializer.class)
+            @NotNull @PositiveOrZero @Digits(integer = 12, fraction = 2) BigDecimal budget,
             @Positive int timelineWeeks,
-            String solutionStrategy,
-            String budgetConfidence,
-            String budgetSource,
-            List<OutcomeRequest> businessOutcomes,
-            List<MilestoneRequest> milestones,
-            List<RiskRequest> risks,
-            List<String> assumptions,
-            List<EvidenceLinkRequest> evidenceLinks) {
+            @Size(max = ProposalRequestLimits.NARRATIVE_MAX_LENGTH) String solutionStrategy,
+            @Pattern(regexp = "(?:|UNCONFIRMED|LOW|MEDIUM|HIGH)") String budgetConfidence,
+            @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String budgetSource,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS) List<@NotNull @Valid OutcomeRequest> businessOutcomes,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS) List<@NotNull @Valid MilestoneRequest> milestones,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS) List<@NotNull @Valid RiskRequest> risks,
+            @Size(max = ProposalRequestLimits.MAX_ITEMS)
+            List<@NotNull @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String> assumptions,
+            @Size(max = ProposalRequestLimits.MAX_EVIDENCE_LINKS)
+            List<@NotNull @Valid EvidenceLinkRequest> evidenceLinks) {
         ProposalDraftContent toContent() {
             return new ProposalDraftRequest(problemStatement, solutionStrategy, components, budget, timelineWeeks,
                     budgetConfidence, budgetSource, businessOutcomes, milestones, risks, assumptions, evidenceLinks).toContent();
@@ -100,19 +122,19 @@ public class ProposalController {
     }
 
     @PutMapping("/draft")
-    ProposalResponse saveDraft(@PathVariable UUID engagementId, @RequestBody ProposalDraftRequest request,
+    ProposalResponse saveDraft(@PathVariable UUID engagementId, @Valid @RequestBody ProposalDraftRequest request,
                                @AuthenticationPrincipal User user) {
         return proposalService.saveDraft(engagementId, user.getId(), request.toContent());
     }
 
     @PostMapping("/review")
-    ProposalReviewResponse review(@PathVariable UUID engagementId, @RequestBody ProposalDraftRequest request,
+    ProposalReviewResponse review(@PathVariable UUID engagementId, @Valid @RequestBody ProposalDraftRequest request,
                                   @AuthenticationPrincipal User user) {
         return proposalService.review(engagementId, user.getId(), request.toContent());
     }
 
     @PostMapping("/challenge")
-    ProposalChallengeResponse challenge(@PathVariable UUID engagementId, @RequestBody ProposalDraftRequest request,
+    ProposalChallengeResponse challenge(@PathVariable UUID engagementId, @Valid @RequestBody ProposalDraftRequest request,
                                         @AuthenticationPrincipal User user) {
         return proposalService.challenge(engagementId, user.getId(), request.toContent());
     }

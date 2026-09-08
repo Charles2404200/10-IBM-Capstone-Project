@@ -17,6 +17,9 @@ export function ProposalOutcomeView({ proposal, engagementId }: { proposal: Prop
   const [activeView, setActiveView] = useState<'overview' | 'score' | 'evidence'>('overview')
   const [impactPage, setImpactPage] = useState(0)
   const presentation = outcomePresentation(proposal.clientDecisionOutcome)
+  const clientDecisionMessage = proposal.clientResponse
+    ?? proposal.decisionRationale
+    ?? 'The client response is not yet available.'
   const strengths = decisionInsights(proposal.decisionInsights, 'STRENGTH')
   const concerns = decisionInsights(proposal.decisionInsights, 'CONCERN')
   const conditions = decisionInsights(proposal.decisionInsights, 'CONDITION')
@@ -54,7 +57,7 @@ export function ProposalOutcomeView({ proposal, engagementId }: { proposal: Prop
           <Tag type={presentation.tagType}>{presentation.label}</Tag>
           <div className={styles.outcomeIcon}><CheckmarkFilled size={28} /></div>
           <h2>{presentation.subtitle}</h2>
-          <p className={styles.decisionRationale}>{proposal.decisionRationale}</p>
+          {proposal.decisionRationale && <p className={styles.decisionRationale}>{proposal.decisionRationale}</p>}
           <div className={styles.railMetric}>
             <span>Strongest factor</span>
             <strong>{strongestDimension ? `${strongestDimension.dimension} ${strongestDimension.score}/100` : 'Decision recorded'}</strong>
@@ -69,7 +72,7 @@ export function ProposalOutcomeView({ proposal, engagementId }: { proposal: Prop
           </div>
 
           <div className={styles.outcomeView}>
-            {activeView === 'overview' && <DecisionOverview strengths={strengths} concerns={concerns} conditions={conditions} clientResponse={proposal.clientResponse || proposal.decisionRationale} />}
+            {activeView === 'overview' && <DecisionOverview strengths={strengths} concerns={concerns} conditions={conditions} clientResponse={clientDecisionMessage} />}
             {activeView === 'score' && <DecisionScore dimensions={proposal.decisionDimensions} />}
             {activeView === 'evidence' && <EvidenceImpact impact={visibleImpact} current={impactPage} total={impactPageCount} counts={supportCounts} onPrevious={() => setImpactPage((current) => Math.max(0, current - 1))} onNext={() => setImpactPage((current) => Math.min(impactPageCount - 1, current + 1))} />}
           </div>

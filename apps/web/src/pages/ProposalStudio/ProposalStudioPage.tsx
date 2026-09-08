@@ -3,13 +3,13 @@ import { Button, Heading, InlineLoading, InlineNotification, NumberInput, Select
 import { Add, Checkmark, CheckmarkFilled, ChevronLeft, ChevronRight, Renew, Send, TrashCan, WarningAlt } from '@carbon/icons-react'
 import { useParams } from 'react-router-dom'
 import type { ProposalReview } from '@/api/types'
-import type { ProposalDraftRequest } from '@/api/hooks/useProposal'
+import type { ProposalDraftForm } from '@/api/hooks/useProposal'
 import LoadingState from '@/components/shared/LoadingState'
 import { ProposalOutcomeView } from '@/features/proposal/components/ProposalOutcomeView'
 import { useProposalStudio } from '@/features/proposal/hooks/useProposalStudio'
 import { proposalSections } from '@/features/proposal/services/proposalDraftService'
 import { PHASE_LABEL } from '@/lifecycle/phases'
-import { getProblemDetail } from '@/api/problemDetails'
+import { getApiProblem } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
@@ -59,6 +59,11 @@ export default function ProposalStudioPage() {
   const sourceEnd = Math.min(sources.length, (sourcePage + 1) * SOURCES_PER_PAGE)
   const isReviewing = studio.reviewProposal.isPending
   const isSubmitting = studio.submitProposal.isPending
+  const hasProposalFailure = studio.submitProposal.isError || studio.saveState === 'error'
+  const proposalFailure = studio.submitProposal.error ?? studio.saveDraft.error
+  const proposalProblem = hasProposalFailure
+    ? getApiProblem(proposalFailure, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')
+    : null
 
   useEffect(() => {
     setSourcePage((current) => Math.min(current, sourcePageCount - 1))
@@ -87,7 +92,16 @@ export default function ProposalStudioPage() {
         </div>
       </header>
 
-      {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={getProblemDetail(studio.submitProposal.error ?? studio.saveDraft.error, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')} hideCloseButton />}
+      {proposalProblem && <>
+        <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={proposalProblem.detail} hideCloseButton />
+        {proposalProblem.violations && (
+          <ul aria-label="Proposal validation errors">
+            {Object.entries(proposalProblem.violations).map(([field, message]) => (
+              <li key={field}><strong>{field}</strong>: {message}</li>
+            ))}
+          </ul>
+        )}
+      </>}
 
       <section className={`${styles.progressStrip} objective-steps`} aria-label="Proposal progress">
         {proposalSections.map((section, index) => {
@@ -149,15 +163,15 @@ export default function ProposalStudioPage() {
   )
 }
 
-type DraftUpdate = (fn: (value: ProposalDraftRequest) => ProposalDraftRequest) => void
+type DraftUpdate = (fn: (value: ProposalDraftForm) => ProposalDraftForm) => void
 
-function Foundation({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
+function Foundation({ draft, update }: { draft: ProposalDraftForm; update: DraftUpdate }) {
   return <Stack gap={5}><EditorIntroduction title="Proposal foundation" description="State the client problem, then make the recommendation logic clear." /><FoundationNarrativeEditor draft={draft} update={update} /><ListEditor label="Solution components" itemsPerPage={2} values={draft.components} placeholder="e.g. Integration pilot and workflow redesign" onChange={(components) => update((current) => ({ ...current, components }))} /></Stack>
 }
 
 type FoundationNarrative = 'problem' | 'solution'
 
-function FoundationNarrativeEditor({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
+function FoundationNarrativeEditor({ draft, update }: { draft: ProposalDraftForm; update: DraftUpdate }) {
   const [activeNarrative, setActiveNarrative] = useState<FoundationNarrative>('problem')
   const isProblem = activeNarrative === 'problem'
   const label = isProblem ? 'Problem statement' : 'Recommended solution'
@@ -188,15 +202,15 @@ function FoundationNarrativeEditor({ draft, update }: { draft: ProposalDraftRequ
   </section>
 }
 
-function Commercial({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
+function Commercial({ draft, update }: { draft: ProposalDraftForm; update: DraftUpdate }) {
   return <Stack gap={5}><EditorIntroduction title="Value and commercial logic" description="Make the outcome measurable and distinguish consultant estimates from confirmed client facts." /><StructuredEditor label="Expected business outcomes and KPIs" addLabel="Add outcome" rows={draft.businessOutcomes} empty={{ outcome: '', metric: '', target: '' }} fields={[['outcome', 'Business outcome'], ['metric', 'Metric'], ['target', 'Target']]} onChange={(businessOutcomes) => update((current) => ({ ...current, businessOutcomes }))} /><div className={styles.commercialGrid}><NumberInput id="proposal-budget" label="Estimated budget (USD)" min={0} value={draft.budget} onChange={(_, data) => update((current) => ({ ...current, budget: String(data.value) }))} /><Select id="budget-confidence" labelText="Confidence" value={draft.budgetConfidence} onChange={(event) => update((current) => ({ ...current, budgetConfidence: event.target.value }))}><SelectItem value="UNCONFIRMED" text="Unconfirmed" /><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select><TextInput id="budget-source" labelText="Source / basis" value={draft.budgetSource} onChange={(event) => update((current) => ({ ...current, budgetSource: event.target.value }))} /></div></Stack>
 }
 
-function Delivery({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
+function Delivery({ draft, update }: { draft: ProposalDraftForm; update: DraftUpdate }) {
   return <Stack gap={5}><EditorIntroduction title="Timeline and milestones" description="Translate the delivery window into observable milestones the client can evaluate." /><NumberInput id="timeline-weeks" label="Total timeline (weeks)" min={1} value={draft.timelineWeeks} onChange={(_, data) => update((current) => ({ ...current, timelineWeeks: Number(data.value) || 1 }))} /><StructuredEditor label="Milestones" addLabel="Add milestone" rows={draft.milestones} empty={{ phase: '', duration: '' }} fields={[['phase', 'Phase / milestone'], ['duration', 'Timing']]} onChange={(milestones) => update((current) => ({ ...current, milestones }))} /></Stack>
 }
 
-function RiskAssumptions({ draft, update, showRisks }: { draft: ProposalDraftRequest; update: DraftUpdate; showRisks: boolean }) {
+function RiskAssumptions({ draft, update, showRisks }: { draft: ProposalDraftForm; update: DraftUpdate; showRisks: boolean }) {
   if (!showRisks) return <Stack gap={5}><EditorIntroduction title="Evidence and assumptions" description="Make the conditions behind the recommendation explicit. Attached evidence remains traceable by section." /><ListEditor label="Assumptions and dependencies" values={draft.assumptions} placeholder="e.g. Client SMEs are available for targeted validation" onChange={(assumptions) => update((current) => ({ ...current, assumptions }))} /><EvidenceSummary draft={draft} /></Stack>
   return <Stack gap={5}><EditorIntroduction title="Risks and mitigations" description="Show how delivery, operational and adoption risks will be controlled." /><StructuredEditor label="Risks" addLabel="Add risk" rows={draft.risks} empty={{ risk: '', severity: 'MEDIUM', mitigation: '' }} fields={[['risk', 'Risk'], ['severity', 'Severity'], ['mitigation', 'Mitigation']]} onChange={(risks) => update((current) => ({ ...current, risks }))} /></Stack>
 }
@@ -241,7 +255,7 @@ function Pager({ page, pageCount, onPrevious, onNext }: { page: number; pageCoun
   return <div className={styles.inlinePager}><span>{page + 1}/{pageCount}</span><Button kind="ghost" size="sm" hasIconOnly iconDescription="Previous items" renderIcon={ChevronLeft} disabled={page === 0} onClick={onPrevious} /><Button kind="ghost" size="sm" hasIconOnly iconDescription="Next items" renderIcon={ChevronRight} disabled={page === pageCount - 1} onClick={onNext} /></div>
 }
 
-function EvidenceSummary({ draft }: { draft: ProposalDraftRequest }) {
+function EvidenceSummary({ draft }: { draft: ProposalDraftForm }) {
   const [page, setPage] = useState(0)
   const pageSize = 3
   const pageCount = Math.max(1, Math.ceil(draft.evidenceLinks.length / pageSize))

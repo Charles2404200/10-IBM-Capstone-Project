@@ -26,10 +26,20 @@ type SocketEvent =
   | { type: 'turn.options.error'; payload: { message: string } }
   | { type: 'turn.error'; payload: { message: string } }
 
-function toWebSocketUrl(baseUrl: string): string {
-  const url = new URL('/ws', baseUrl || window.location.origin)
+export const meetingSocketContract = {
+  endpointPath: '/ws',
+  topic: (meetingId: string) => `/topic/meetings/${meetingId}`,
+  sendDestination: (meetingId: string) => `/app/meetings/${meetingId}/send`,
+} as const
+
+export function toWebSocketUrl(baseUrl: string, origin = window.location.origin): string {
+  const url = new URL(meetingSocketContract.endpointPath, baseUrl || origin)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   return url.toString()
+}
+
+export function createMeetingMessage(message: string, messageId: string = crypto.randomUUID()) {
+  return { message, messageId }
 }
 
 /**
@@ -92,7 +102,7 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
 
     client.onConnect = () => {
       connectedRef.current = true
-      client.subscribe(`/topic/meetings/${meetingId}`, (frame: IMessage) => {
+      client.subscribe(meetingSocketContract.topic(meetingId), (frame: IMessage) => {
         if (disposed) return
         const event = JSON.parse(frame.body) as SocketEvent
         if (event.type === 'turn.thinking') {
@@ -201,14 +211,14 @@ export function useMeetingSocket(meetingId: string): UsePersonaTurnStreamResult 
       // Same idempotency key pattern as the SSE hook: the backend replays an
       // already-persisted turn for a repeated messageId instead of re-invoking
       // the AI (P0 fix — duplicate reply incident).
-      const messageId = crypto.randomUUID()
+      const payload = createMeetingMessage(message)
 
       try {
         await new Promise<void>((resolve, reject) => {
           pendingResolversRef.current = { resolve, reject }
           client.publish({
-            destination: `/app/meetings/${meetingId}/send`,
-            body: JSON.stringify({ message, messageId }),
+            destination: meetingSocketContract.sendDestination(meetingId),
+            body: JSON.stringify(payload),
           })
         })
       } catch (err) {

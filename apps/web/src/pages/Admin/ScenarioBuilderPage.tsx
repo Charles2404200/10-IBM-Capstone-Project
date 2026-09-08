@@ -467,7 +467,7 @@ function ScenarioLibraryRow({ scenario, onOpen }: { scenario: ScenarioSummary; o
         </div>
       </div>
       <div className={styles.libraryMetadata}>
-        <span><strong>v{scenario.version}</strong> version</span>
+        <span><strong>v{scenario.contentVersion}</strong> version</span>
         <span><strong>{scenario.personas.length}</strong> personas</span>
         <span><strong>{difficultyLabel}</strong> difficulty</span>
       </div>

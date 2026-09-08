@@ -52,7 +52,15 @@ const presentations: Record<ClientDecisionOutcome, OutcomePresentation> = {
   },
 }
 
-export function outcomePresentation(outcome: ClientDecisionOutcome): OutcomePresentation {
+const pendingPresentation: OutcomePresentation = {
+  label: 'Decision pending',
+  subtitle: 'The proposal has been submitted and the client decision is not yet available.',
+  tagType: 'blue',
+  nextAction: 'Wait for the client decision before reviewing the final assessment.',
+}
+
+export function outcomePresentation(outcome: ClientDecisionOutcome | null): OutcomePresentation {
+  if (outcome === null) return pendingPresentation
   return presentations[outcome]
 }
 

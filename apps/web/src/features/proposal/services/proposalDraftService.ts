@@ -1,5 +1,5 @@
 import type { Proposal, ProposalSource } from '@/api/types'
-import type { ProposalDraftRequest } from '@/api/hooks/useProposal'
+import type { ProposalDraftForm } from '@/api/hooks/useProposal'
 
 export type ProposalSection = 'PROBLEM' | 'OUTCOMES' | 'TIMELINE' | 'RISKS' | 'ASSUMPTIONS'
 
@@ -11,7 +11,7 @@ export const proposalSections: { id: ProposalSection; label: string }[] = [
   { id: 'ASSUMPTIONS', label: 'Evidence & review' },
 ]
 
-export function createEmptyProposalDraft(): ProposalDraftRequest {
+export function createEmptyProposalDraft(): ProposalDraftForm {
   return {
     problemStatement: '',
     solutionStrategy: '',
@@ -28,12 +28,12 @@ export function createEmptyProposalDraft(): ProposalDraftRequest {
   }
 }
 
-export function proposalToDraft(proposal: Proposal): ProposalDraftRequest {
+export function proposalToDraft(proposal: Proposal): ProposalDraftForm {
   return {
     problemStatement: proposal.problemStatement ?? '',
     solutionStrategy: proposal.solutionStrategy ?? '',
     components: proposal.components.length ? proposal.components : [''],
-    budget: proposal.budget ?? '0',
+    budget: String(proposal.budget ?? 0),
     timelineWeeks: proposal.timelineWeeks || 8,
     budgetConfidence: proposal.budgetConfidence ?? 'UNCONFIRMED',
     budgetSource: proposal.budgetSource ?? 'Consultant estimate',
@@ -45,16 +45,16 @@ export function proposalToDraft(proposal: Proposal): ProposalDraftRequest {
   }
 }
 
-export function isSourceAttached(draft: ProposalDraftRequest, section: ProposalSection, sourceId: string) {
+export function isSourceAttached(draft: ProposalDraftForm, section: ProposalSection, sourceId: string) {
   return draft.evidenceLinks.some((link) => link.section === section && link.sourceId === sourceId)
 }
 
-export function attachSource(draft: ProposalDraftRequest, section: ProposalSection, source: ProposalSource) {
+export function attachSource(draft: ProposalDraftForm, section: ProposalSection, source: ProposalSource) {
   if (isSourceAttached(draft, section, source.id)) return draft
   return { ...draft, evidenceLinks: [...draft.evidenceLinks, { section, sourceId: source.id }] }
 }
 
-export function detachSource(draft: ProposalDraftRequest, section: ProposalSection, sourceId: string) {
+export function detachSource(draft: ProposalDraftForm, section: ProposalSection, sourceId: string) {
   return {
     ...draft,
     evidenceLinks: draft.evidenceLinks.filter((link) => !(link.section === section && link.sourceId === sourceId)),

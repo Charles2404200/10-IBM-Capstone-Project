@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.proposal.application;
 
 import com.ibm.consulting.sim.proposal.domain.Proposal;
 import com.ibm.consulting.sim.proposal.domain.ClientDecisionOutcome;
+import com.ibm.consulting.sim.proposal.domain.ProposalDecision;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -47,15 +48,16 @@ public record ProposalResponse(
                 p.getEvidenceLinks().stream().map(item -> new ProposalEvidenceLinkResponse(item.getSection(), item.getSourceId())).toList(),
                 p.getAlignmentScore(),
                 p.getDecision().name(), p.getDecisionRationale(), p.getClientResponse(),
-                outcome(p).name(), valueOr(p.getDecisionConfidence(), p.getAlignmentScore()),
+                outcome(p), valueOr(p.getDecisionConfidence(), p.getAlignmentScore()),
                 valueOr(p.getLearnerPerformanceScore(), p.getAlignmentScore()),
                 dimensions(p), insights(p), impacts(p), p.getSubmittedAt());
     }
 
-    private static ClientDecisionOutcome outcome(Proposal proposal) {
-        if (proposal.getClientDecisionOutcome() != null) return proposal.getClientDecisionOutcome();
-        return proposal.getDecision() != null && proposal.getDecision().name().equals("WON")
-                ? ClientDecisionOutcome.PROPOSAL_ACCEPTED : ClientDecisionOutcome.REJECTED;
+    private static String outcome(Proposal proposal) {
+        if (proposal.getClientDecisionOutcome() != null) return proposal.getClientDecisionOutcome().name();
+        if (proposal.getDecision() == ProposalDecision.WON) return ClientDecisionOutcome.PROPOSAL_ACCEPTED.name();
+        if (proposal.getDecision() == ProposalDecision.LOST) return ClientDecisionOutcome.REJECTED.name();
+        return null;
     }
     private static int valueOr(Integer value, int fallback) { return value == null ? fallback : value; }
     private static List<ProposalDecisionDimensionResponse> dimensions(Proposal proposal) {

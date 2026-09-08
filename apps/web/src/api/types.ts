@@ -15,8 +15,8 @@ export interface PersonaSummary {
   name: string
   jobTitle: string
   organisation: string
-  communicationStyle: string
-  visibleConcerns: string
+  communicationStyle: string | null
+  visibleConcerns: string | null
 }
 
 export interface DifficultyProfile {
@@ -112,7 +112,7 @@ export interface ScenarioSummary {
   industry: string
   description: string
   difficulty: number
-  version: number
+  contentVersion: number
   status: string
   personas: PersonaSummary[]
   rubricWeights: Record<string, number>
@@ -211,8 +211,6 @@ export interface SaveResearchPayload {
   evidenceType: EvidenceType
   sourceUrl?: string
   sourceTitle?: string
-  origin?: EvidenceOrigin
-  verificationStatus?: EvidenceVerificationStatus
   occurredOn?: string
   confidence?: ConfidenceLevel
   relevanceScore?: number
@@ -571,7 +569,7 @@ export interface Proposal {
   problemStatement: string
   solutionStrategy: string | null
   components: string[]
-  budget: string
+  budget: number
   timelineWeeks: number
   budgetConfidence: string | null
   budgetSource: string | null
@@ -582,15 +580,15 @@ export interface Proposal {
   evidenceLinks: ProposalEvidenceLink[]
   alignmentScore: number
   decision: ProposalDecision
-  decisionRationale: string
+  decisionRationale: string | null
   clientResponse: string | null
-  clientDecisionOutcome: ClientDecisionOutcome
+  clientDecisionOutcome: ClientDecisionOutcome | null
   decisionConfidence: number
   learnerPerformanceScore: number
   decisionDimensions: ProposalDecisionDimension[]
   decisionInsights: ProposalDecisionInsight[]
   evidenceImpacts: ProposalEvidenceImpact[]
-  submittedAt: string
+  submittedAt: string | null
 }
 
 // ─── Assessment ───────────────────────────────────────────────────────────────

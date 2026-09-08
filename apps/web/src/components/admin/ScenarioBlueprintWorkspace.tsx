@@ -130,7 +130,7 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
       <Tile className={styles.readinessTile}>
         <div className={styles.readinessHeader}>
           <div>
-            <p className={styles.sectionEyebrow}>Version {scenario.version} · {scenario.status}</p>
+            <p className={styles.sectionEyebrow}>Version {scenario.contentVersion} · {scenario.status}</p>
             <h5>{readiness.readyToPublish ? 'Ready to publish' : 'Publishing checklist'}</h5>
           </div>
           <Tag type={readiness.readyToPublish ? 'green' : 'warm-gray'}>{readiness.readyToPublish ? 'Ready' : `${readiness.blockers.length} actions needed`}</Tag>

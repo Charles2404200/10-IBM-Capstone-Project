@@ -454,7 +454,6 @@ export default function ClientIntelligencePage() {
         sourceTitle: artifact.title,
         occurredOn: artifact.publishedOn,
         confidence: artifact.confidence,
-        origin: artifact.origin,
         relevanceScore: artifact.relevanceScore,
       },
       {

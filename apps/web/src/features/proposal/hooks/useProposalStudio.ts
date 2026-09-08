@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProposalReview, ProposalSource } from '@/api/types'
 import {
-  type ProposalDraftRequest,
+  type ProposalDraftForm,
   useProposalChallenge,
   useProposalReview,
   useProposalWorkspace,
@@ -29,7 +29,7 @@ export function useProposalStudio(engagementId: string) {
   const reviewProposal = useProposalReview(engagementId)
   const challengeProposal = useProposalChallenge(engagementId)
   const submitProposal = useSubmitProposal(engagementId)
-  const [draft, setDraft] = useState<ProposalDraftRequest>(createEmptyProposalDraft)
+  const [draft, setDraft] = useState<ProposalDraftForm>(createEmptyProposalDraft)
   const [activeSection, setActiveSection] = useState<ProposalSection>('PROBLEM')
   const [review, setReview] = useState<ProposalReview | null>(null)
   const [saveState, setSaveState] = useState<DraftSaveState>('idle')
@@ -54,7 +54,7 @@ export function useProposalStudio(engagementId: string) {
     }
   }, [engagementId, workspace.data])
 
-  const updateDraft = useCallback((updater: (current: ProposalDraftRequest) => ProposalDraftRequest) => {
+  const updateDraft = useCallback((updater: (current: ProposalDraftForm) => ProposalDraftForm) => {
     const nextDraft = updater(draftRef.current)
     draftRef.current = nextDraft
     storeProposalDraft(engagementId, nextDraft)
