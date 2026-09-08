@@ -141,7 +141,7 @@ public class ScenarioService {
             @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioSummary publish(UUID scenarioId) {
-        Scenario scenario = findScenario(scenarioId);
+        Scenario scenario = findScenarioForUpdate(scenarioId);
         ScenarioAuthoringView.Readiness readiness = readiness(scenario);
         if (!readiness.readyToPublish()) throw new ScenarioNotReadyException(readiness.blockers());
         scenarioRepository.findByLineageIdAndStatus(scenario.getScenarioLineageId(), ScenarioStatus.ACTIVE)
@@ -326,6 +326,11 @@ public class ScenarioService {
 
     private Scenario findScenario(UUID scenarioId) {
         return scenarioRepository.findById(scenarioId)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+    }
+
+    private Scenario findScenarioForUpdate(UUID scenarioId) {
+        return scenarioRepository.findByIdForUpdate(scenarioId)
                 .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
     }
 

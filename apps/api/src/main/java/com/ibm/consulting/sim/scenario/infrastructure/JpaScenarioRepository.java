@@ -11,6 +11,7 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -25,6 +26,10 @@ import java.util.UUID;
 interface SpringDataScenarioRepository extends JpaRepository<Scenario, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Scenario> {
     List<Scenario> findByStatus(ScenarioStatus status);
     List<Scenario> findByScenarioLineageIdAndStatus(UUID scenarioLineageId, ScenarioStatus status);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select scenario from Scenario scenario where scenario.id = :id")
+    Optional<Scenario> findByIdForUpdate(@Param("id") UUID id);
 
     @Query("""
             select distinct scenario.industry from Scenario scenario
@@ -60,6 +65,7 @@ class JpaScenarioRepository implements ScenarioRepository {
         return repo.findByScenarioLineageIdAndStatus(lineageId, status);
     }
     @Override public Optional<Scenario> findById(UUID id) { return repo.findById(id); }
+    @Override public Optional<Scenario> findByIdForUpdate(UUID id) { return repo.findByIdForUpdate(id); }
     @Override public List<Scenario> findByIdIn(List<UUID> ids) { return ids.isEmpty() ? List.of() : repo.findAllById(ids); }
     @Override public Scenario save(Scenario scenario) { return repo.save(scenario); }
 

@@ -99,19 +99,12 @@ public class LeadController {
         return leadService.saveEvidence(engagementId, user.getId(),
                 req.note(), req.hypothesis(), req.evidenceType(),
                 req.sourceUrl(), req.sourceTitle(),
-                req.origin() != null ? req.origin() : EvidenceOrigin.USER_SUPPLIED,
-                req.verificationStatus() != null ? req.verificationStatus()
-                        : defaultVerification(req.origin()),
+                EvidenceOrigin.USER_SUPPLIED,
+                EvidenceVerificationStatus.UNVERIFIED,
                 req.occurredOn(),
                 req.confidence() != null ? req.confidence() : ConfidenceLevel.MEDIUM,
                 req.relevanceScore(),
                 req.supportingEvidenceIds());
-    }
-
-    private EvidenceVerificationStatus defaultVerification(EvidenceOrigin origin) {
-        return origin == null || origin == EvidenceOrigin.USER_SUPPLIED
-                ? EvidenceVerificationStatus.UNVERIFIED
-                : EvidenceVerificationStatus.CORROBORATED;
     }
 
     @GetMapping("/engagements/{engagementId}/research")

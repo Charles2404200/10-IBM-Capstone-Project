@@ -40,9 +40,6 @@ import static com.ibm.consulting.sim.shared.config.CacheConfig.PORTFOLIO_SUMMARY
 @Service
 public class PortfolioService {
 
-    private static final Set<EngagementState> COMPLETED_STATES = Set.of(
-            EngagementState.CLIENT_DECISION, EngagementState.REVIEW, EngagementState.COMPLETED);
-
     private static final Set<String> WON_OUTCOMES = Set.of(
             "PILOT_APPROVED", "PROPOSAL_ACCEPTED", "STRATEGIC_PARTNERSHIP", "WON");
 
@@ -70,7 +67,7 @@ public class PortfolioService {
         List<Engagement> engagements = engagementRepository.findByUserId(userId);
 
         List<Engagement> completed = engagements.stream()
-                .filter(e -> COMPLETED_STATES.contains(e.getState()))
+                .filter(e -> e.getState() == EngagementState.COMPLETED)
                 .toList();
 
         List<UUID> completedIds = completed.stream().map(Engagement::getId).toList();

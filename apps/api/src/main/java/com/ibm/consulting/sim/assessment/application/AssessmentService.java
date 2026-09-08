@@ -67,7 +67,7 @@ public class AssessmentService {
 
     @Transactional
     public AssessmentResponse generate(UUID engagementId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         return assessmentRepository.findByEngagementId(engagementId)

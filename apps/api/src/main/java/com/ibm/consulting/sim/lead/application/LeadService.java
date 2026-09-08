@@ -184,7 +184,7 @@ public class LeadService {
      */
     @Transactional
     public ResearchGateStatus completeResearch(UUID engagementId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
 

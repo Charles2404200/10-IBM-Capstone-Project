@@ -82,7 +82,16 @@ public class ProposalController {
             return new ProposalDraftRequest(problemStatement, solutionStrategy, components, budget, timelineWeeks,
                     budgetConfidence, budgetSource, businessOutcomes, milestones, risks, assumptions, evidenceLinks).toContent();
         }
-        boolean usesWorkspaceContract() { return solutionStrategy != null || businessOutcomes != null || evidenceLinks != null; }
+        boolean usesWorkspaceContract() {
+            return solutionStrategy != null
+                    || budgetConfidence != null
+                    || budgetSource != null
+                    || businessOutcomes != null
+                    || milestones != null
+                    || risks != null
+                    || assumptions != null
+                    || evidenceLinks != null;
+        }
     }
 
     @GetMapping("/workspace")

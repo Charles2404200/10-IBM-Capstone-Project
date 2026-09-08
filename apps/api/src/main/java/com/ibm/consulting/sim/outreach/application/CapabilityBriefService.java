@@ -42,7 +42,7 @@ public class CapabilityBriefService {
     @Transactional
     public CapabilityBriefResponse submit(UUID engagementId, UUID userId, String relevantExperience, String approach,
                                           String caseExample, String clientFit) {
-        Engagement engagement = requireOwnedEngagement(engagementId, userId);
+        Engagement engagement = requireOwnedEngagementForUpdate(engagementId, userId);
         OutreachAttempt latestAttempt = outreachRepository.findByEngagementId(engagementId).stream()
                 .max(Comparator.comparingInt(OutreachAttempt::getAttemptNumber))
                 .orElseThrow(() -> new InvalidCapabilityBriefStateException("No client request is available"));
@@ -88,6 +88,11 @@ public class CapabilityBriefService {
 
     private Engagement requireOwnedEngagement(UUID engagementId, UUID userId) {
         return engagementRepository.findByIdAndUserId(engagementId, userId)
+                .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
+    }
+
+    private Engagement requireOwnedEngagementForUpdate(UUID engagementId, UUID userId) {
+        return engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
     }
 

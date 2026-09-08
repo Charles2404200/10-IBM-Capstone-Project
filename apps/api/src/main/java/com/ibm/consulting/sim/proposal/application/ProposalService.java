@@ -119,7 +119,7 @@ public class ProposalService {
 
     @Transactional(readOnly = true)
     public ProposalReviewResponse review(UUID engagementId, UUID userId, ProposalDraftContent content) {
-        Engagement engagement = loadOwnedEngagement(engagementId, userId);
+        Engagement engagement = loadReviewableEngagement(engagementId, userId);
         List<ProposalSource> sources = sources(engagement);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
         String cacheKey = reviewCacheKey(engagementId, content, sources, profile);
@@ -158,7 +158,7 @@ public class ProposalService {
 
     @Transactional(readOnly = true)
     public ProposalChallengeResponse challenge(UUID engagementId, UUID userId, ProposalDraftContent content) {
-        Engagement engagement = loadOwnedEngagement(engagementId, userId);
+        Engagement engagement = loadReviewableEngagement(engagementId, userId);
         List<ProposalSource> sources = sources(engagement);
         return aiOrchestrationService.execute(
                 "proposal_challenge", engagementId, challengePrompt(content, sources), PROMPT_VERSION,
@@ -395,8 +395,17 @@ public class ProposalService {
     }
 
     private Engagement loadEditableEngagement(UUID engagementId, UUID userId) {
-        Engagement engagement = loadOwnedEngagement(engagementId, userId);
+        Engagement engagement = loadOwnedEngagementForUpdate(engagementId, userId);
         recoverPassedMeetingState(engagement);
+        if (engagement.getState() != EngagementState.DISCOVERY_COMPLETE
+                && engagement.getState() != EngagementState.PROPOSAL_DRAFT) {
+            throw new InvalidProposalStateException(engagement.getState());
+        }
+        return engagement;
+    }
+
+    private Engagement loadReviewableEngagement(UUID engagementId, UUID userId) {
+        Engagement engagement = loadOwnedEngagement(engagementId, userId);
         if (engagement.getState() != EngagementState.DISCOVERY_COMPLETE
                 && engagement.getState() != EngagementState.PROPOSAL_DRAFT) {
             throw new InvalidProposalStateException(engagement.getState());
@@ -426,6 +435,11 @@ public class ProposalService {
 
     private Engagement loadOwnedEngagement(UUID engagementId, UUID userId) {
         return engagementRepository.findByIdAndUserId(engagementId, userId)
+                .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
+    }
+
+    private Engagement loadOwnedEngagementForUpdate(UUID engagementId, UUID userId) {
+        return engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
     }
 
