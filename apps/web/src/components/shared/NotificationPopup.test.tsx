@@ -19,6 +19,7 @@ const notification = (priority: 'NORMAL' | 'IMPORTANT' | 'CRITICAL') => ({
 describe('NotificationPopup priority and overflow', () => {
   it('renders important politely and critical assertively', () => {
     mocks.useNotification.mockReturnValue({
+      connectionState: 'connected',
       visible: [notification('IMPORTANT'), notification('CRITICAL')],
       overflowCount: 0,
       dismissNotification: vi.fn(),
@@ -33,6 +34,7 @@ describe('NotificationPopup priority and overflow', () => {
   it('opens the durable Notification Centre from the aggregate', () => {
     const clearPopups = vi.fn()
     mocks.useNotification.mockReturnValue({
+      connectionState: 'connected',
       visible: [notification('NORMAL')],
       overflowCount: 47,
       dismissNotification: vi.fn(),
@@ -50,5 +52,29 @@ describe('NotificationPopup priority and overflow', () => {
     fireEvent.click(screen.getByRole('button', { name: /47 additional notifications/i }))
     expect(screen.getByRole('heading', { name: 'Notification Centre' })).toBeInTheDocument()
     expect(clearPopups).toHaveBeenCalled()
+  })
+
+  it('shows a temporary status only while notification delivery is reconnecting', () => {
+    mocks.useNotification.mockReturnValue({
+      connectionState: 'reconnecting',
+      visible: [],
+      overflowCount: 0,
+      dismissNotification: vi.fn(),
+      clearPopups: vi.fn(),
+    })
+    const view = render(<MemoryRouter><NotificationPopup /></MemoryRouter>)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Notification connection interrupted')
+    expect(screen.getByRole('status')).toHaveTextContent('Reconnecting…')
+
+    mocks.useNotification.mockReturnValue({
+      connectionState: 'connected',
+      visible: [],
+      overflowCount: 0,
+      dismissNotification: vi.fn(),
+      clearPopups: vi.fn(),
+    })
+    view.rerender(<MemoryRouter><NotificationPopup /></MemoryRouter>)
+    expect(screen.queryByText('Notification connection interrupted')).not.toBeInTheDocument()
   })
 })
