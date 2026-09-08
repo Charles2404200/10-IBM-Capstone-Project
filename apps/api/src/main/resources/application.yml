@@ -78,6 +78,10 @@ app:
       password: ${ADMIN_PASSWORD:}
       display-name: ${ADMIN_DISPLAY_NAME:Platform Administrator}
   identity:
+    login-attempts:
+      max-failures: ${LOGIN_MAX_FAILURES:5}
+      window: ${LOGIN_FAILURE_WINDOW:15m}
+      maximum-tracked-accounts: ${LOGIN_MAX_TRACKED_ACCOUNTS:100000}
     email:
       public-web-url: ${APP_PUBLIC_WEB_URL:http://localhost:3000}
       verification-ttl-minutes: ${EMAIL_VERIFICATION_TTL_MINUTES:1440}

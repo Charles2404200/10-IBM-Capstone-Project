@@ -42,6 +42,6 @@ public class ScenarioController {
 
     @GetMapping("/{id}")
     ScenarioSummary getById(@PathVariable UUID id) {
-        return scenarioService.getById(id);
+        return scenarioService.getActiveById(id);
     }
 }

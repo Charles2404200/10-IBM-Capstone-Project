@@ -6,7 +6,9 @@ import java.util.UUID;
 
 public interface UserRepository {
     User save(User user);
+    User saveAndFlush(User user);
     Optional<User> findById(UUID id);
+    Optional<User> findByIdForUpdate(UUID id);
     Optional<User> findByEmail(String email);
     /** Serializes security-credential issuance scoped to one account. */
     Optional<User> findByEmailForUpdate(String email);

@@ -13,7 +13,9 @@ import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "scenarios")
+@Table(name = "scenarios", uniqueConstraints = @UniqueConstraint(
+        name = "uq_scenarios_lineage_content_version",
+        columnNames = {"scenario_lineage_id", "content_version"}))
 public class Scenario extends BaseEntity {
 
     private static final String DEFAULT_ROLE = "Management Consultant";
@@ -103,6 +105,14 @@ public class Scenario extends BaseEntity {
 
     /** Creates a new DRAFT revision while preserving the published revision for active engagements. */
     public Scenario createRevision() {
+        return createRevision(contentVersion + 1);
+    }
+
+    /** Creates a draft from this content using the next version allocated under a lineage lock. */
+    public Scenario createRevision(int nextContentVersion) {
+        if (nextContentVersion <= contentVersion) {
+            throw new IllegalArgumentException("A revision version must be newer than its source");
+        }
         Scenario revision = new Scenario();
         revision.title = title;
         revision.industry = industry;
@@ -119,7 +129,7 @@ public class Scenario extends BaseEntity {
         revision.rubricWeightsEncoded = rubricWeightsEncoded;
         revision.authoringConfig = authoringConfig;
         revision.scenarioLineageId = scenarioLineageId;
-        revision.contentVersion = contentVersion + 1;
+        revision.contentVersion = nextContentVersion;
         revision.status = ScenarioStatus.DRAFT;
         return revision;
     }

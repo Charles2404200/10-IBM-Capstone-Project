@@ -19,6 +19,9 @@ interface SpringDataUserRepository extends JpaRepository<User, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select user from User user where user.email = :email")
     Optional<User> findByEmailForUpdate(@Param("email") String email);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select user from User user where user.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") UUID id);
     boolean existsByEmail(String email);
 }
 
@@ -32,7 +35,9 @@ class JpaUserRepository implements UserRepository {
     }
 
     @Override public User save(User user) { return repo.save(user); }
+    @Override public User saveAndFlush(User user) { return repo.saveAndFlush(user); }
     @Override public Optional<User> findById(UUID id) { return repo.findById(id); }
+    @Override public Optional<User> findByIdForUpdate(UUID id) { return repo.findByIdForUpdate(id); }
     @Override public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
     @Override public Optional<User> findByEmailForUpdate(String email) { return repo.findByEmailForUpdate(email); }
     @Override public boolean existsByEmail(String email) { return repo.existsByEmail(email); }

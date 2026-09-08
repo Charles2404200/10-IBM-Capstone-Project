@@ -6,6 +6,8 @@ import com.ibm.consulting.sim.identity.application.PasswordResetService;
 import com.ibm.consulting.sim.identity.application.RegistrationResponse;
 import com.ibm.consulting.sim.identity.application.RegisterUserUseCase;
 import com.ibm.consulting.sim.identity.application.TokenResponse;
+import com.ibm.consulting.sim.identity.application.LoginAttemptLimiter;
+import com.ibm.consulting.sim.identity.domain.InvalidCredentialsException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -21,19 +23,22 @@ public class AuthController {
     private final AuthenticateUseCase authenticateUseCase;
     private final EmailVerificationService emailVerificationService;
     private final PasswordResetService passwordResetService;
+    private final LoginAttemptLimiter loginAttemptLimiter;
 
     public AuthController(RegisterUserUseCase registerUseCase, AuthenticateUseCase authenticateUseCase,
                           EmailVerificationService emailVerificationService,
-                          PasswordResetService passwordResetService) {
+                          PasswordResetService passwordResetService,
+                          LoginAttemptLimiter loginAttemptLimiter) {
         this.registerUseCase = registerUseCase;
         this.authenticateUseCase = authenticateUseCase;
         this.emailVerificationService = emailVerificationService;
         this.passwordResetService = passwordResetService;
+        this.loginAttemptLimiter = loginAttemptLimiter;
     }
 
     record RegisterRequest(
-            @NotBlank @Email String email,
-            @NotBlank @Size(min = 8, max = 128) String password,
+            @NotBlank @Email @Size(max = AuthenticationRequestLimits.EMAIL_MAX_LENGTH) String email,
+            @NotBlank @Size(min = 8, max = AuthenticationRequestLimits.PASSWORD_MAX_LENGTH) String password,
             @NotBlank @Size(min = 2, max = 80) String displayName) {
         RegisterRequest {
             displayName = displayName == null ? null : displayName.trim();
@@ -41,12 +46,14 @@ public class AuthController {
     }
 
     record LoginRequest(
-            @NotBlank @Email String email,
-            @NotBlank String password) {}
+            @NotBlank @Email @Size(max = AuthenticationRequestLimits.EMAIL_MAX_LENGTH) String email,
+            @NotBlank @Size(max = AuthenticationRequestLimits.PASSWORD_MAX_LENGTH) String password) {}
 
-    record EmailRequest(@NotBlank @Email String email) {}
-    record TokenRequest(@NotBlank String token) {}
-    record ResetPasswordRequest(@NotBlank String token, @NotBlank @Size(min = 8, max = 128) String password) {}
+    record EmailRequest(@NotBlank @Email @Size(max = AuthenticationRequestLimits.EMAIL_MAX_LENGTH) String email) {}
+    record TokenRequest(@NotBlank @Size(max = AuthenticationRequestLimits.CREDENTIAL_TOKEN_MAX_LENGTH) String token) {}
+    record ResetPasswordRequest(
+            @NotBlank @Size(max = AuthenticationRequestLimits.CREDENTIAL_TOKEN_MAX_LENGTH) String token,
+            @NotBlank @Size(min = 8, max = AuthenticationRequestLimits.PASSWORD_MAX_LENGTH) String password) {}
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -56,7 +63,15 @@ public class AuthController {
 
     @PostMapping("/login")
     TokenResponse login(@Valid @RequestBody LoginRequest req) {
-        return authenticateUseCase.execute(req.email(), req.password());
+        loginAttemptLimiter.checkAllowed(req.email());
+        try {
+            TokenResponse response = authenticateUseCase.execute(req.email(), req.password());
+            loginAttemptLimiter.recordSuccess(req.email());
+            return response;
+        } catch (InvalidCredentialsException exception) {
+            loginAttemptLimiter.recordFailure(req.email());
+            throw exception;
+        }
     }
 
     @PostMapping("/email-verification/resend")

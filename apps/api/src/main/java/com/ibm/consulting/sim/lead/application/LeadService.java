@@ -42,6 +42,8 @@ public class LeadService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "leadsByScenario", key = "#scenarioId")
     public List<LeadSummary> listForScenario(UUID scenarioId) {
+        scenarioRepository.findByIdAndStatus(scenarioId, com.ibm.consulting.sim.scenario.domain.ScenarioStatus.ACTIVE)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
         return leadRepository.findByScenarioId(scenarioId).stream()
                 .map(LeadSummary::from)
                 .toList();

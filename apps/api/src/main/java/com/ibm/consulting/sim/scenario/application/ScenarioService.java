@@ -86,8 +86,8 @@ public class ScenarioService {
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = SCENARIO_CACHE, key = "#id")
-    public ScenarioSummary getById(UUID id) {
-        return scenarioRepository.findById(id)
+    public ScenarioSummary getActiveById(UUID id) {
+        return scenarioRepository.findByIdAndStatus(id, ScenarioStatus.ACTIVE)
                 .map(this::summary)
                 .orElseThrow(() -> new NotFoundException("Scenario", id));
     }
@@ -141,11 +141,16 @@ public class ScenarioService {
             @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioSummary publish(UUID scenarioId) {
-        Scenario scenario = findScenarioForUpdate(scenarioId);
+        List<Scenario> lineage = lockLineageForScenario(scenarioId);
+        Scenario scenario = lineage.stream().filter(candidate -> candidate.getId().equals(scenarioId))
+                .findFirst().orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
         ScenarioAuthoringView.Readiness readiness = readiness(scenario);
         if (!readiness.readyToPublish()) throw new ScenarioNotReadyException(readiness.blockers());
-        scenarioRepository.findByLineageIdAndStatus(scenario.getScenarioLineageId(), ScenarioStatus.ACTIVE)
-                .stream().filter(active -> !active.getId().equals(scenarioId)).forEach(Scenario::archive);
+        lineage.stream().filter(active -> active.getStatus() == ScenarioStatus.ACTIVE)
+                .filter(active -> !active.getId().equals(scenarioId)).forEach(Scenario::archive);
+        // PostgreSQL's partial unique index is immediate. Persist archival first
+        // so Hibernate cannot reorder the new ACTIVE update ahead of it.
+        scenarioRepository.flush();
         scenario.publish();
         ScenarioSummary saved = summary(scenarioRepository.save(scenario));
         auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_PUBLISHED, "SCENARIO", scenarioId.toString());
@@ -253,8 +258,11 @@ public class ScenarioService {
             @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView createRevision(UUID scenarioId) {
-        Scenario source = findScenario(scenarioId);
-        Scenario revision = scenarioRepository.save(source.createRevision());
+        List<Scenario> lineage = lockLineageForScenario(scenarioId);
+        Scenario source = lineage.stream().filter(candidate -> candidate.getId().equals(scenarioId))
+                .findFirst().orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        int nextVersion = lineage.stream().mapToInt(Scenario::getContentVersion).max().orElseThrow() + 1;
+        Scenario revision = scenarioRepository.save(source.createRevision(nextVersion));
 
         Map<UUID, UUID> personaIdMap = new LinkedHashMap<>();
         source.getPersonas().forEach(persona -> {
@@ -329,9 +337,15 @@ public class ScenarioService {
                 .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
     }
 
-    private Scenario findScenarioForUpdate(UUID scenarioId) {
-        return scenarioRepository.findByIdForUpdate(scenarioId)
+    private List<Scenario> lockLineageForScenario(UUID scenarioId) {
+        UUID lineageId = scenarioRepository.findLineageIdById(scenarioId)
                 .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        // Every revision points at the original scenario row. Lock that stable
+        // anchor before querying the lineage so a waiter takes a fresh snapshot
+        // after the preceding revision/publication transaction commits.
+        scenarioRepository.findByIdForUpdate(lineageId)
+                .orElseThrow(() -> new NotFoundException("Scenario lineage", lineageId));
+        return scenarioRepository.findLineageForUpdate(lineageId);
     }
 
     private ScenarioAuthoringView.Readiness readiness(Scenario scenario) {

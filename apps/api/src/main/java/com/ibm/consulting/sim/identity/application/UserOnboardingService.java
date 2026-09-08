@@ -19,7 +19,7 @@ public class UserOnboardingService {
     /** Idempotently records the learner's first product orientation. */
     @Transactional
     public void complete(User authenticatedUser) {
-        User user = userRepository.findById(authenticatedUser.getId())
+        User user = userRepository.findByIdForUpdate(authenticatedUser.getId())
                 .orElseThrow(() -> new IllegalStateException("Authenticated user no longer exists"));
         if (!user.requiresOnboarding()) {
             return;

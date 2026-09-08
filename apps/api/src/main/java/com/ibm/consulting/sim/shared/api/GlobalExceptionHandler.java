@@ -3,9 +3,11 @@ package com.ibm.consulting.sim.shared.api;
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.identity.domain.EmailVerificationRequiredException;
+import com.ibm.consulting.sim.identity.application.LoginRateLimitExceededException;
 import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -61,6 +63,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EmailVerificationRequiredException.class)
     ProblemDetail handleEmailVerificationRequired(EmailVerificationRequiredException ex) {
         return problem(HttpStatus.FORBIDDEN, "email-verification-required", ex.getMessage());
+    }
+
+    @ExceptionHandler(LoginRateLimitExceededException.class)
+    ResponseEntity<ProblemDetail> handleLoginRateLimit(LoginRateLimitExceededException ex) {
+        ProblemDetail detail = problem(HttpStatus.TOO_MANY_REQUESTS, "login-rate-limit", ex.getMessage());
+        long retryAfterSeconds = Math.max(1, ex.getRetryAfter().toSeconds());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", Long.toString(retryAfterSeconds))
+                .body(detail);
     }
 
     @ExceptionHandler(EmailDeliveryUnavailableException.class)

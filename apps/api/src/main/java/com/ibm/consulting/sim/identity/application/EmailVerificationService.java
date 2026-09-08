@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 
 /** Owns resend, verification and invalidation rules for account-confirmation credentials. */
 @Service
@@ -46,13 +47,19 @@ public class EmailVerificationService {
     @Transactional
     public void verify(String suppliedToken) {
         CredentialTokenService.ParsedCredential credential = credentialTokenService.parse(suppliedToken);
-        EmailVerificationToken token = tokens.findBySelector(credential.selector())
+        UUID userId = tokens.findUserIdBySelector(credential.selector())
+                .orElseThrow(() -> new InvalidCredentialTokenException("email verification"));
+        // Lock in the same user-then-credential order used by resend/issuance.
+        // The preliminary lookup is scalar so a stale token entity cannot remain
+        // managed while a concurrent confirmation commits ahead of this one.
+        User user = users.findByIdForUpdate(userId)
+                .orElseThrow(() -> new InvalidCredentialTokenException("email verification"));
+        EmailVerificationToken token = tokens.findBySelectorForUpdate(credential.selector())
+                .filter(locked -> locked.getUserId().equals(user.getId()))
                 .orElseThrow(() -> new InvalidCredentialTokenException("email verification"));
         if (!credentialTokenService.matches(token.getTokenHash(), credential.secret())) {
             throw new InvalidCredentialTokenException("email verification");
         }
-        User user = users.findById(token.getUserId())
-                .orElseThrow(() -> new InvalidCredentialTokenException("email verification"));
         if (!user.isActive()) {
             throw new InvalidCredentialTokenException("email verification");
         }
