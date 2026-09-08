@@ -76,8 +76,9 @@ class ScenarioServiceTest {
         UUID scenarioId = scenario.getId();
 
         // mock scenario
-        when(scenarioRepository.findByIdForUpdate(scenarioId)).thenReturn(Optional.of(scenario));
-        when(scenarioRepository.findByLineageIdAndStatus(any(), eq(ScenarioStatus.ACTIVE))).thenReturn(List.of());
+        when(scenarioRepository.findLineageIdById(scenarioId)).thenReturn(Optional.of(scenario.getScenarioLineageId()));
+        when(scenarioRepository.findByIdForUpdate(scenario.getScenarioLineageId())).thenReturn(Optional.of(scenario));
+        when(scenarioRepository.findLineageForUpdate(scenario.getScenarioLineageId())).thenReturn(List.of(scenario));
         when(scenarioRepository.save(scenario)).thenReturn(scenario);
 
         mockDifficultyProfile();

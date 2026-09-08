@@ -98,7 +98,9 @@ class CredentialIssuanceConcurrencyIntegrationTest {
     private UserRepository gateEmailReads(UserRepository delegate, CountDownLatch readsReached) {
         return new UserRepository() {
             @Override public User save(User user) { return delegate.save(user); }
+            @Override public User saveAndFlush(User user) { return delegate.saveAndFlush(user); }
             @Override public Optional<User> findById(UUID id) { return delegate.findById(id); }
+            @Override public Optional<User> findByIdForUpdate(UUID id) { return delegate.findByIdForUpdate(id); }
             @Override public Optional<User> findByEmail(String email) {
                 Optional<User> result = delegate.findByEmail(email);
                 readsReached.countDown();

@@ -183,11 +183,28 @@ class KnowledgePublicationConcurrencyIntegrationTest {
         @Override public Optional<Scenario> findById(UUID id) {
             return Optional.ofNullable(entityManager.find(Scenario.class, id));
         }
+        @Override public Optional<Scenario> findByIdAndStatus(UUID id, ScenarioStatus status) {
+            return findById(id).filter(scenario -> scenario.getStatus() == status);
+        }
         @Override public Optional<Scenario> findByIdForUpdate(UUID id) {
             return Optional.ofNullable(entityManager.find(Scenario.class, id, LockModeType.PESSIMISTIC_WRITE));
         }
+        @Override public Optional<UUID> findLineageIdById(UUID id) {
+            return findById(id).map(Scenario::getScenarioLineageId);
+        }
+        @Override public List<Scenario> findLineageForUpdate(UUID lineageId) {
+            return entityManager.createQuery("""
+                            select scenario from Scenario scenario
+                            where scenario.scenarioLineageId = :lineageId
+                            order by scenario.contentVersion, scenario.id
+                            """, Scenario.class)
+                    .setParameter("lineageId", lineageId)
+                    .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                    .getResultList();
+        }
         @Override public List<Scenario> findByIdIn(List<UUID> ids) { return List.of(); }
         @Override public Scenario save(Scenario scenario) { return scenario; }
+        @Override public void flush() { entityManager.flush(); }
     }
 
     private final class EntityManagerKnowledgeDocumentRepository implements KnowledgeDocumentRepository {
