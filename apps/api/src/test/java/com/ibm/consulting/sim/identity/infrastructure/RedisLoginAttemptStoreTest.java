@@ -24,19 +24,23 @@ class RedisLoginAttemptStoreTest {
         when(client.execute(anyList())).thenReturn(IntNode.valueOf(2));
         RedisLoginAttemptStore store = new RedisLoginAttemptStore(client, properties());
 
-        store.recordFailure("account-hash");
+        assertThat(store.tryAcquire("account-hash")).isTrue();
         assertThat(store.failureCount("account-hash")).isEqualTo(2);
+        store.release("account-hash");
         store.reset("account-hash");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<String>> commands = ArgumentCaptor.forClass(List.class);
-        verify(client, times(3)).execute(commands.capture());
+        verify(client, times(4)).execute(commands.capture());
         assertThat(commands.getAllValues().get(0))
                 .startsWith("EVAL")
                 .contains("1", "identity:login-failures:account-hash", "5", "900000");
         assertThat(commands.getAllValues().get(1))
                 .containsExactly("GET", "identity:login-failures:account-hash");
         assertThat(commands.getAllValues().get(2))
+                .startsWith("EVAL")
+                .contains("1", "identity:login-failures:account-hash");
+        assertThat(commands.getAllValues().get(3))
                 .containsExactly("DEL", "identity:login-failures:account-hash");
     }
 
@@ -46,9 +50,50 @@ class RedisLoginAttemptStoreTest {
         when(client.execute(anyList())).thenThrow(new IllegalStateException("unavailable"));
         RedisLoginAttemptStore store = new RedisLoginAttemptStore(client, properties());
 
-        store.recordFailure("account-hash");
+        assertThat(store.tryAcquire("account-hash")).isTrue();
 
         assertThat(store.failureCount("account-hash")).isEqualTo(1);
+    }
+
+    @Test
+    void healthyRedisAttemptsRemainInTheLocalShadowDuringAnOutage() {
+        UpstashRestClient client = mock(UpstashRestClient.class);
+        when(client.execute(anyList()))
+                .thenReturn(IntNode.valueOf(1), IntNode.valueOf(2))
+                .thenThrow(new IllegalStateException("outage"));
+        RedisLoginAttemptStore store = new RedisLoginAttemptStore(client, properties());
+
+        assertThat(store.tryAcquire("account-hash")).isTrue();
+        assertThat(store.tryAcquire("account-hash")).isTrue();
+
+        assertThat(store.failureCount("account-hash")).isEqualTo(2);
+    }
+
+    @Test
+    void deniedRedisAdmissionRetainsTheThresholdDuringAnOutage() {
+        UpstashRestClient client = mock(UpstashRestClient.class);
+        when(client.execute(anyList()))
+                .thenReturn(IntNode.valueOf(-5))
+                .thenThrow(new IllegalStateException("outage"));
+        RedisLoginAttemptStore store = new RedisLoginAttemptStore(client, properties());
+
+        assertThat(store.tryAcquire("account-hash")).isFalse();
+
+        assertThat(store.failureCount("account-hash")).isEqualTo(5);
+    }
+
+    @Test
+    void successfulResetClearsTheLocalShadowAndRedisCounter() {
+        UpstashRestClient client = mock(UpstashRestClient.class);
+        when(client.execute(anyList()))
+                .thenReturn(IntNode.valueOf(3), IntNode.valueOf(1))
+                .thenThrow(new IllegalStateException("outage"));
+        RedisLoginAttemptStore store = new RedisLoginAttemptStore(client, properties());
+        assertThat(store.tryAcquire("account-hash")).isTrue();
+
+        store.reset("account-hash");
+
+        assertThat(store.failureCount("account-hash")).isZero();
     }
 
     private LoginAttemptProperties properties() {

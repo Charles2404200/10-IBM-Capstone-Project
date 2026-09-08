@@ -41,6 +41,7 @@ class JwtCredentialInvalidationTest {
         User user = User.create("learner@example.com", "old-password-hash", "Learner", UserRole.LEARNER);
         UserRepository users = mock(UserRepository.class);
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
+        when(users.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
 
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
@@ -61,7 +62,8 @@ class JwtCredentialInvalidationTest {
         PasswordResetToken resetToken = PasswordResetToken.issue(
                 user.getId(), resetCredential.selector(), resetCredential.hash(), Instant.now().plusSeconds(60));
         PasswordResetTokenRepository resetTokens = mock(PasswordResetTokenRepository.class);
-        when(resetTokens.findBySelector(resetCredential.selector())).thenReturn(Optional.of(resetToken));
+        when(resetTokens.findUserIdBySelector(resetCredential.selector())).thenReturn(Optional.of(user.getId()));
+        when(resetTokens.findBySelectorForUpdate(resetCredential.selector())).thenReturn(Optional.of(resetToken));
         PasswordResetService resetService = new PasswordResetService(
                 users,
                 resetTokens,

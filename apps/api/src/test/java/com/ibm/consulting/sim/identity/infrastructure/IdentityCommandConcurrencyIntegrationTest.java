@@ -4,12 +4,16 @@ import com.ibm.consulting.sim.identity.application.CredentialTokenService;
 import com.ibm.consulting.sim.identity.application.EmailVerificationService;
 import com.ibm.consulting.sim.identity.application.IdentityEmailProperties;
 import com.ibm.consulting.sim.identity.application.RegisterUserUseCase;
+import com.ibm.consulting.sim.identity.application.PasswordResetService;
 import com.ibm.consulting.sim.identity.application.UserOnboardingService;
 import com.ibm.consulting.sim.identity.domain.EmailVerificationToken;
 import com.ibm.consulting.sim.identity.domain.EmailVerificationTokenRepository;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserAlreadyExistsException;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
+import com.ibm.consulting.sim.identity.domain.PasswordResetToken;
+import com.ibm.consulting.sim.identity.domain.PasswordResetTokenRepository;
+import com.ibm.consulting.sim.identity.domain.InvalidCredentialTokenException;
 import com.ibm.consulting.sim.shared.email.application.TransactionalEmailPublisher;
 import com.ibm.consulting.sim.shared.email.template.TransactionalEmailTemplates;
 import jakarta.persistence.EntityManager;
@@ -48,7 +52,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest
-@Import({JpaUserRepository.class, JpaEmailVerificationTokenRepository.class})
+@Import({JpaUserRepository.class, JpaEmailVerificationTokenRepository.class, JpaPasswordResetTokenRepository.class})
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -68,6 +72,7 @@ class IdentityCommandConcurrencyIntegrationTest {
     @Autowired EntityManager entityManager;
     @Autowired UserRepository userRepository;
     @Autowired EmailVerificationTokenRepository verificationTokens;
+    @Autowired PasswordResetTokenRepository passwordResetTokens;
     @Autowired PlatformTransactionManager transactionManager;
 
     @Test
@@ -154,6 +159,48 @@ class IdentityCommandConcurrencyIntegrationTest {
         assertThat(sibling.isUsableAt(Instant.now())).isFalse();
 
         inTransaction(() -> service.verify(credential.compactToken()));
+    }
+
+    @Test
+    void concurrentPasswordResetConsumesTheCredentialExactlyOnce() throws Exception {
+        CredentialTokenService credentialService = new CredentialTokenService();
+        CredentialTokenService.IssuedCredential credential = credentialService.issue();
+        CredentialTokenService.IssuedCredential siblingCredential = credentialService.issue();
+        UUID userId = inTransaction(() -> {
+            User user = User.create(UUID.randomUUID() + "@example.com", "old-hash", "Learner",
+                    com.ibm.consulting.sim.identity.domain.UserRole.LEARNER);
+            entityManager.persist(user);
+            passwordResetTokens.save(PasswordResetToken.issue(user.getId(), credential.selector(), credential.hash(),
+                    Instant.now().plusSeconds(600)));
+            passwordResetTokens.save(PasswordResetToken.issue(user.getId(), siblingCredential.selector(),
+                    siblingCredential.hash(), Instant.now().plusSeconds(600)));
+            entityManager.flush();
+            return user.getId();
+        });
+        PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+        when(passwordEncoder.encode("NewStrongPassword123!")).thenReturn("new-hash");
+        PasswordResetService service = new PasswordResetService(
+                userRepository, passwordResetTokens, credentialService, passwordEncoder,
+                mock(TransactionalEmailPublisher.class), new TransactionalEmailTemplates(),
+                new IdentityEmailProperties());
+
+        List<Outcome> outcomes = runConcurrently(
+                () -> service.reset(credential.compactToken(), "NewStrongPassword123!"),
+                () -> service.reset(credential.compactToken(), "NewStrongPassword123!"));
+
+        assertThat(outcomes).filteredOn(Outcome::succeeded).hasSize(1);
+        assertThat(outcomes).filteredOn(outcome -> !outcome.succeeded())
+                .extracting(Outcome::failure)
+                .allMatch(InvalidCredentialTokenException.class::isInstance);
+        assertThat(inTransaction(() -> userRepository.findById(userId).orElseThrow().getPasswordHash()))
+                .isEqualTo("new-hash");
+        PasswordResetToken used = inTransaction(
+                () -> passwordResetTokens.findBySelector(credential.selector()).orElseThrow());
+        PasswordResetToken sibling = inTransaction(
+                () -> passwordResetTokens.findBySelector(siblingCredential.selector()).orElseThrow());
+        assertThat(used.getUsedAt()).isNotNull();
+        assertThat(sibling.getRevokedAt()).isNotNull();
+        verify(passwordEncoder, times(1)).encode("NewStrongPassword123!");
     }
 
     private UserRepository gateEmailExistenceChecks(UserRepository delegate, CountDownLatch checksReached) {
