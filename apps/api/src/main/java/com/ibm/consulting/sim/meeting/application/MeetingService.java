@@ -391,6 +391,7 @@ public class MeetingService {
     public MeetingResponse complete(UUID meetingId, UUID userId) {
         Meeting meeting = loadOwnedMeeting(meetingId, userId);
         if (meeting.getStatus() == MeetingStatus.COMPLETED) {
+            transcriptExportService.scheduleAfterCommit(meeting.getId());
             return responseFor(meeting);
         }
         throw new InvalidMeetingStateException(
@@ -403,7 +404,7 @@ public class MeetingService {
         MeetingDebriefNarrative debrief = createDebrief(meeting, state, decision, turns);
 
         meeting.complete(decision.outcome(), debrief.feedback(), debrief.tips());
-        exportTranscriptBestEffort(meeting);
+        transcriptExportService.scheduleAfterCommit(meeting.getId());
         meetingRepository.save(meeting);
 
         if (decision.passed()) {
@@ -442,7 +443,7 @@ public class MeetingService {
     private MeetingRetryEligibility completeAutomatically(Meeting meeting, Engagement engagement,
                                                           MeetingTerminationDecision decision) {
         meeting.complete(MeetingCompletionOutcome.FAILED, decision.message(), decision.retryGuidance(), decision.reason());
-        exportTranscriptBestEffort(meeting);
+        transcriptExportService.scheduleAfterCommit(meeting.getId());
         meetingRepository.save(meeting);
 
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
@@ -455,22 +456,6 @@ public class MeetingService {
         }
         engagementRepository.save(engagement);
         return eligibility;
-    }
-
-    /**
-     * Meeting state is durable in Postgres. Transcript object storage improves
-     * portability, but an unavailable bucket must never fail a learner turn or
-     * roll back an otherwise valid meeting result.
-     */
-    private void exportTranscriptBestEffort(Meeting meeting) {
-        try {
-            String storageReference = transcriptExportService.export(meeting);
-            if (storageReference != null && !storageReference.isBlank()) {
-                meeting.recordTranscriptExport(storageReference);
-            }
-        } catch (RuntimeException exception) {
-            log.error("Transcript export failed for completed meeting {}; retaining relational transcript", meeting.getId(), exception);
-        }
     }
 
     private MeetingDebriefNarrative createDebrief(Meeting meeting, PersonaState state,

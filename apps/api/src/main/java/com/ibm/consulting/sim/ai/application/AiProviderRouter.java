@@ -6,7 +6,6 @@ import com.ibm.consulting.sim.ai.domain.AiProviderException;
 import com.ibm.consulting.sim.ai.domain.AiResponseParser;
 import com.ibm.consulting.sim.ai.domain.AiTaskType;
 import com.ibm.consulting.sim.ai.domain.AiValidationException;
-import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -115,25 +114,29 @@ public class AiProviderRouter implements AiModelGateway {
             if (!provider.isAvailable()) {
                 continue; // no credentials configured yet — silent skip, this is expected, not a failure
             }
+            boolean isFallback = i > 0;
+            CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(providerId);
+            if (!breaker.tryAcquirePermission()) {
+                log.debug("Circuit breaker open for provider {}, skipping for task {}", providerId, task);
+                continue;
+            }
             long quotaLimit = dailyQuotaByProvider.getOrDefault(providerId, 0L);
             if (!quotaStore.tryConsume(providerId, quotaLimit)) {
+                breaker.releasePermission();
                 log.debug("Provider {} has exhausted its daily free-tier quota, skipping for task {}", providerId, task);
                 continue;
             }
-
-            boolean isFallback = i > 0;
-            CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(providerId);
             long start = System.currentTimeMillis();
             try {
-                String result = breaker.executeSupplier(() -> provider.complete(useCase, prompt));
+                String result = provider.complete(useCase, prompt);
                 long latencyMs = System.currentTimeMillis() - start;
+                breaker.onSuccess(latencyMs, TimeUnit.MILLISECONDS);
                 operationsRecorder.recordSuccess(providerId, task, latencyMs, isFallback);
                 logProviderAttempt(providerId, task, i + 1, latencyMs, isFallback, "success", null);
                 return result;
-            } catch (CallNotPermittedException circuitOpen) {
-                log.debug("Circuit breaker open for provider {}, skipping for task {}", providerId, task);
             } catch (Exception e) {
                 long latencyMs = System.currentTimeMillis() - start;
+                breaker.onError(latencyMs, TimeUnit.MILLISECONDS, e);
                 operationsRecorder.recordFailure(providerId, task, latencyMs, isFallback);
                 logProviderAttempt(providerId, task, i + 1, latencyMs, isFallback,
                         "failure", e.getClass().getSimpleName());
@@ -175,6 +178,7 @@ public class AiProviderRouter implements AiModelGateway {
         ProviderAttempt<T> preferredResult = null;
         AiValidationException lastValidationFailure = null;
         AiProviderException lastProviderFailure = null;
+        int skippedCandidates = 0;
         try {
             for (int completed = 0; completed < candidates.size(); completed++) {
                 long remainingNanos = deadlineNanos - System.nanoTime();
@@ -182,6 +186,10 @@ public class AiProviderRouter implements AiModelGateway {
                 Future<ProviderAttempt<T>> future = completions.poll(remainingNanos, TimeUnit.NANOSECONDS);
                 if (future == null) break;
                 ProviderAttempt<T> attempt = future.get();
+                if (attempt.skipped()) {
+                    skippedCandidates++;
+                    continue;
+                }
                 if (!attempt.succeeded()) {
                     if (attempt.failure() instanceof AiValidationException validationFailure) {
                         lastValidationFailure = validationFailure;
@@ -203,6 +211,9 @@ public class AiProviderRouter implements AiModelGateway {
             }
             if (lastValidationFailure != null) throw lastValidationFailure;
             if (lastProviderFailure != null) throw lastProviderFailure;
+            if (skippedCandidates == candidates.size()) {
+                throw new AiProviderException("No provider had circuit capacity and request quota for task " + task);
+            }
             throw new AiProviderException("All provider calls exceeded the " + timeoutMs + "ms budget for task " + task);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
@@ -220,7 +231,6 @@ public class AiProviderRouter implements AiModelGateway {
             if (candidates.size() >= parallelMaxCandidates) break;
             AiProvider provider = providersById.get(providerId);
             if (provider == null || !provider.isAvailable() || !provider.capabilities().supports(task)) continue;
-            if (!quotaStore.tryConsume(providerId, dailyQuotaByProvider.getOrDefault(providerId, 0L))) continue;
             candidates.add(new ProviderCandidate(candidates.size(), provider));
         }
         return candidates;
@@ -251,9 +261,27 @@ public class AiProviderRouter implements AiModelGateway {
                                                       String prompt, AiResponseParser<T> parser) {
         long start = System.currentTimeMillis();
         AiProvider provider = candidate.provider();
+        CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(provider.id());
+        if (!breaker.tryAcquirePermission()) {
+            log.debug("Circuit breaker open for provider {}, skipping for task {}", provider.id(), task);
+            return ProviderAttempt.skipped(candidate);
+        }
+        if (!quotaStore.tryConsume(provider.id(), dailyQuotaByProvider.getOrDefault(provider.id(), 0L))) {
+            breaker.releasePermission();
+            log.debug("Provider {} has exhausted its daily free-tier quota, skipping for task {}", provider.id(), task);
+            return ProviderAttempt.skipped(candidate);
+        }
+        String raw;
         try {
-            CircuitBreaker breaker = circuitBreakerRegistry.circuitBreaker(provider.id());
-            String raw = breaker.executeSupplier(() -> provider.complete(useCase, prompt));
+            raw = provider.complete(useCase, prompt);
+            long latencyMs = System.currentTimeMillis() - start;
+            breaker.onSuccess(latencyMs, TimeUnit.MILLISECONDS);
+        } catch (Exception failure) {
+            long latencyMs = System.currentTimeMillis() - start;
+            breaker.onError(latencyMs, TimeUnit.MILLISECONDS, failure);
+            return failedAttempt(candidate, task, useCase, start, failure);
+        }
+        try {
             T parsed = parser.parse(raw);
             long latencyMs = System.currentTimeMillis() - start;
             operationsRecorder.recordSuccess(provider.id(), task, latencyMs, candidate.priority() > 0);
@@ -261,35 +289,44 @@ public class AiProviderRouter implements AiModelGateway {
                     candidate.priority() > 0, "success", null);
             return ProviderAttempt.success(candidate, parsed);
         } catch (Exception failure) {
-            long latencyMs = System.currentTimeMillis() - start;
-            operationsRecorder.recordFailure(provider.id(), task, latencyMs, candidate.priority() > 0);
-            String error = failure instanceof CallNotPermittedException ? "circuit_open" : failure.getClass().getSimpleName();
-            logProviderAttempt(provider.id(), task, candidate.priority() + 1, latencyMs,
-                    candidate.priority() > 0, "failure", error);
-            AiProviderException normalized = failure instanceof AiProviderException providerFailure
-                    ? providerFailure
-                    : new AiProviderException("Provider " + provider.id() + " failed for use-case " + useCase, failure);
-            RuntimeException normalizedFailure = failure instanceof AiValidationException validationFailure
-                    ? validationFailure
-                    : normalized;
-            return ProviderAttempt.failure(candidate, normalizedFailure);
+            return failedAttempt(candidate, task, useCase, start, failure);
         }
+    }
+
+    private <T> ProviderAttempt<T> failedAttempt(ProviderCandidate candidate, AiTaskType task, String useCase,
+                                                  long start, Exception failure) {
+        AiProvider provider = candidate.provider();
+        long latencyMs = System.currentTimeMillis() - start;
+        operationsRecorder.recordFailure(provider.id(), task, latencyMs, candidate.priority() > 0);
+        logProviderAttempt(provider.id(), task, candidate.priority() + 1, latencyMs,
+                candidate.priority() > 0, "failure", failure.getClass().getSimpleName());
+        AiProviderException normalized = failure instanceof AiProviderException providerFailure
+                ? providerFailure
+                : new AiProviderException("Provider " + provider.id() + " failed for use-case " + useCase, failure);
+        RuntimeException normalizedFailure = failure instanceof AiValidationException validationFailure
+                ? validationFailure
+                : normalized;
+        return ProviderAttempt.failure(candidate, normalizedFailure);
     }
 
     private record ProviderCandidate(int priority, AiProvider provider) {
     }
 
-    private record ProviderAttempt<T>(ProviderCandidate candidate, T value, RuntimeException failure) {
+    private record ProviderAttempt<T>(ProviderCandidate candidate, T value, RuntimeException failure, boolean skipped) {
         static <T> ProviderAttempt<T> success(ProviderCandidate candidate, T value) {
-            return new ProviderAttempt<>(candidate, value, null);
+            return new ProviderAttempt<>(candidate, value, null, false);
         }
 
         static <T> ProviderAttempt<T> failure(ProviderCandidate candidate, RuntimeException failure) {
-            return new ProviderAttempt<>(candidate, null, failure);
+            return new ProviderAttempt<>(candidate, null, failure, false);
+        }
+
+        static <T> ProviderAttempt<T> skipped(ProviderCandidate candidate) {
+            return new ProviderAttempt<>(candidate, null, null, true);
         }
 
         boolean succeeded() {
-            return failure == null;
+            return failure == null && !skipped;
         }
     }
 

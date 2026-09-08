@@ -39,14 +39,14 @@ public class LoginAttemptLimiter {
         }
     }
 
-    public void checkAllowed(String email) {
-        if (store.failureCount(key(email)) >= properties.getMaxFailures()) {
+    public void acquire(String email) {
+        if (!store.tryAcquire(key(email))) {
             throw new LoginRateLimitExceededException(properties.getWindow());
         }
     }
 
-    public void recordFailure(String email) {
-        store.recordFailure(key(email));
+    public void release(String email) {
+        store.release(key(email));
     }
 
     public void recordSuccess(String email) {

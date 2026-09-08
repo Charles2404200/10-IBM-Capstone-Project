@@ -5,5 +5,6 @@ import java.util.UUID;
 
 public interface AiTraceRepository {
     AiTrace save(AiTrace trace);
+    AiTrace saveAndFlush(AiTrace trace);
     List<AiTrace> findByEngagementId(UUID engagementId);
 }

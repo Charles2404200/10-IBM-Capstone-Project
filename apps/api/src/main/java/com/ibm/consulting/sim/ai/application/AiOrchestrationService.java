@@ -25,7 +25,7 @@ public class AiOrchestrationService {
 
     private final AiModelGateway gateway;
     private final ObjectProvider<AiProviderRouter> parallelRouterProvider;
-    private final AiTraceRepository traceRepository;
+    private final AiTraceRecorder traceRecorder;
     private final ExecutorService executor;
     private final long timeoutMs;
     private final long conversationTimeoutMs;
@@ -35,7 +35,7 @@ public class AiOrchestrationService {
 
     public AiOrchestrationService(AiModelGateway gateway,
                                    ObjectProvider<AiProviderRouter> parallelRouterProvider,
-                                   AiTraceRepository traceRepository,
+                                   AiTraceRecorder traceRecorder,
                                    @Qualifier("aiProviderExecutor") ExecutorService executor,
                                    @Value("${app.ai.timeout-ms:15000}") long timeoutMs,
                                    @Value("${app.ai.conversation-timeout-ms:4000}") long conversationTimeoutMs,
@@ -44,7 +44,7 @@ public class AiOrchestrationService {
                                    @Value("${app.watsonx.model-id}") String modelId) {
         this.gateway = gateway;
         this.parallelRouterProvider = parallelRouterProvider;
-        this.traceRepository = traceRepository;
+        this.traceRecorder = traceRecorder;
         this.executor = executor;
         this.timeoutMs = timeoutMs;
         this.conversationTimeoutMs = conversationTimeoutMs;
@@ -135,6 +135,11 @@ public class AiOrchestrationService {
     private void trace(String useCase, UUID engagementId, int promptVersion, long start,
                         AiTraceStatus status, String errorMessage, String selectedProvider) {
         long latency = System.currentTimeMillis() - start;
-        traceRepository.save(AiTrace.record(useCase, engagementId, selectedProvider, promptVersion, latency, status, errorMessage));
+        try {
+            traceRecorder.record(useCase, engagementId, selectedProvider, promptVersion, latency, status, errorMessage);
+        } catch (RuntimeException traceFailure) {
+            log.warn("AI trace persistence failed for use-case {}; preserving the operation result",
+                    useCase, traceFailure);
+        }
     }
 }

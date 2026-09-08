@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 
 /** Password recovery always stores an opaque one-time credential as a digest. */
 @Service
@@ -49,14 +50,19 @@ public class PasswordResetService {
     @Transactional
     public void reset(String suppliedToken, String newPassword) {
         CredentialTokenService.ParsedCredential credential = credentialTokenService.parse(suppliedToken);
-        PasswordResetToken token = tokens.findBySelector(credential.selector())
+        UUID userId = tokens.findUserIdBySelector(credential.selector())
+                .orElseThrow(() -> new InvalidCredentialTokenException("password reset"));
+        // Credential issuance locks the user first. Use the same order here to
+        // avoid deadlocks and load the mutable token only after serialization.
+        User user = users.findByIdForUpdate(userId)
+                .orElseThrow(() -> new InvalidCredentialTokenException("password reset"));
+        PasswordResetToken token = tokens.findBySelectorForUpdate(credential.selector())
+                .filter(locked -> locked.getUserId().equals(user.getId()))
                 .orElseThrow(() -> new InvalidCredentialTokenException("password reset"));
         Instant now = Instant.now();
         if (!token.isUsableAt(now) || !credentialTokenService.matches(token.getTokenHash(), credential.secret())) {
             throw new InvalidCredentialTokenException("password reset");
         }
-        User user = users.findById(token.getUserId())
-                .orElseThrow(() -> new InvalidCredentialTokenException("password reset"));
         if (!user.isActive() || !user.isEmailVerified()) {
             throw new InvalidCredentialTokenException("password reset");
         }

@@ -64,7 +64,7 @@ public class GuidedMeetingResponseService {
 
     @Transactional
     public MeetingResponseOptionsResponse optionsFor(UUID meetingId, UUID userId) {
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
         Engagement engagement = engagementRepository.findByIdAndUserId(meeting.getEngagementId(), userId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
@@ -118,6 +118,7 @@ public class GuidedMeetingResponseService {
      * can deliver them immediately. Invalid model output is deliberately not kept;
      * the read endpoint can then perform a fresh, validated generation on retry.
      */
+    @Transactional
     public MeetingResponseOptionsResponse cachePreGenerated(UUID meetingId, int sourceSequence,
                                                              DifficultyProfile profile, List<String> options) {
         if (MeetingInteractionMode.forDifficulty(profile.level()) == MeetingInteractionMode.FREEFORM) {
@@ -128,6 +129,11 @@ public class GuidedMeetingResponseService {
             return MeetingResponseOptionsResponse.unavailable(sourceSequence,
                     "Guided responses are temporarily unavailable. Please try again.");
         }
+        // The send-message path already owns this same lock. Taking it here as
+        // well makes direct/pre-generated creation and on-demand creation share
+        // one per-meeting serialization point.
+        meetingRepository.findByIdForUpdate(meetingId)
+                .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
         return optionSetRepository.findByMeetingIdAndSourceSequence(meetingId, sourceSequence)
                 .map(MeetingResponseOptionsResponse::from)
                 .orElseGet(() -> MeetingResponseOptionsResponse.from(optionSetRepository.save(

@@ -35,6 +35,11 @@ interface SpringDataEmailVerificationTokenRepository extends JpaRepository<Email
 @Repository
 interface SpringDataPasswordResetTokenRepository extends JpaRepository<PasswordResetToken, UUID> {
     Optional<PasswordResetToken> findBySelector(String selector);
+    @Query("select token.userId from PasswordResetToken token where token.selector = :selector")
+    Optional<UUID> findUserIdBySelector(@Param("selector") String selector);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select token from PasswordResetToken token where token.selector = :selector")
+    Optional<PasswordResetToken> findBySelectorForUpdate(@Param("selector") String selector);
     Optional<PasswordResetToken> findTopByUserIdOrderByCreatedAtDesc(UUID userId);
 
     @Modifying
@@ -75,6 +80,12 @@ class JpaPasswordResetTokenRepository implements PasswordResetTokenRepository {
 
     @Override public PasswordResetToken save(PasswordResetToken token) { return repository.save(token); }
     @Override public Optional<PasswordResetToken> findBySelector(String selector) { return repository.findBySelector(selector); }
+    @Override public Optional<UUID> findUserIdBySelector(String selector) {
+        return repository.findUserIdBySelector(selector);
+    }
+    @Override public Optional<PasswordResetToken> findBySelectorForUpdate(String selector) {
+        return repository.findBySelectorForUpdate(selector);
+    }
     @Override public Optional<PasswordResetToken> findLatestByUserId(UUID userId) { return repository.findTopByUserIdOrderByCreatedAtDesc(userId); }
     @Override public void revokeActiveForUser(UUID userId, Instant now) { repository.revokeActiveForUser(userId, now); }
 }

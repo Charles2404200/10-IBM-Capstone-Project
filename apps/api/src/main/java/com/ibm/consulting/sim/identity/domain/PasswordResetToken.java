@@ -50,4 +50,6 @@ public class PasswordResetToken extends BaseEntity {
     public String getSelector() { return selector; }
     public String getTokenHash() { return tokenHash; }
     public Instant getExpiresAt() { return expiresAt; }
+    public Instant getUsedAt() { return usedAt; }
+    public Instant getRevokedAt() { return revokedAt; }
 }

@@ -63,13 +63,15 @@ public class AuthController {
 
     @PostMapping("/login")
     TokenResponse login(@Valid @RequestBody LoginRequest req) {
-        loginAttemptLimiter.checkAllowed(req.email());
+        loginAttemptLimiter.acquire(req.email());
         try {
             TokenResponse response = authenticateUseCase.execute(req.email(), req.password());
             loginAttemptLimiter.recordSuccess(req.email());
             return response;
         } catch (InvalidCredentialsException exception) {
-            loginAttemptLimiter.recordFailure(req.email());
+            throw exception;
+        } catch (RuntimeException exception) {
+            loginAttemptLimiter.release(req.email());
             throw exception;
         }
     }

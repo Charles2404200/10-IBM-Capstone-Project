@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.meeting.application.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -42,8 +43,15 @@ public class MeetingController {
         this.sseExecutor = sseExecutor;
     }
 
-    record PreparationRequest(String objective, List<String> agenda, List<String> discoveryQuestions) {}
-    record MessageRequest(@NotBlank String message, String messageId) {}
+    record PreparationRequest(
+            @Size(max = MeetingRequestLimits.OBJECTIVE_MAX_LENGTH) String objective,
+            @Size(max = MeetingRequestLimits.PLAN_MAX_ITEMS)
+            List<@NotBlank @Size(max = MeetingRequestLimits.PLAN_ITEM_MAX_LENGTH) String> agenda,
+            @Size(max = MeetingRequestLimits.PLAN_MAX_ITEMS)
+            List<@NotBlank @Size(max = MeetingRequestLimits.PLAN_ITEM_MAX_LENGTH) String> discoveryQuestions) {}
+    record MessageRequest(
+            @NotBlank @Size(max = MeetingRequestLimits.MESSAGE_MAX_LENGTH) String message,
+            @Size(max = MeetingRequestLimits.MESSAGE_ID_MAX_LENGTH) String messageId) {}
 
     @PutMapping("/engagements/{engagementId}/preparation")
     MeetingPreparationResponse updatePreparation(@PathVariable UUID engagementId,
