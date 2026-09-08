@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.lead.infrastructure;
 
 import com.ibm.consulting.sim.engagement.domain.Engagement;
+import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRole;
@@ -112,10 +113,59 @@ class LeadCommandConcurrencyIntegrationTest {
         assertThat(evidence).extracting(ResearchEvidence::getSequenceNo).containsExactlyInAnyOrder(1, 2);
     }
 
+    @Test
+    void concurrentResearchCompletionTransitionsExactlyOnce() throws Exception {
+        TestData data = inTransaction(() -> {
+            TestData created = persistData(true);
+            persistReadyEvidence(created);
+            return created;
+        });
+        CountDownLatch readsReached = new CountDownLatch(2);
+        LeadService service = service(gateOrdinaryEngagementReads(readsReached), evidenceRepository);
+
+        List<Outcome> outcomes = runConcurrently(
+                () -> service.completeResearch(data.engagementId(), data.userId()),
+                () -> service.completeResearch(data.engagementId(), data.userId()));
+
+        Engagement persisted = inTransaction(() -> entityManager.find(Engagement.class, data.engagementId()));
+        Long transitionEvents = inTransaction(() -> entityManager.createQuery("""
+                        select count(event) from EngagementEvent event
+                        where event.engagement.id = :engagementId and event.state = :state
+                        """, Long.class)
+                .setParameter("engagementId", data.engagementId())
+                .setParameter("state", EngagementState.HYPOTHESIS_READY)
+                .getSingleResult());
+        assertThat(outcomes).allMatch(Outcome::succeeded);
+        assertThat(persisted.getState()).isEqualTo(EngagementState.HYPOTHESIS_READY);
+        assertThat(transitionEvents).isEqualTo(1L);
+    }
+
     private void saveEvidence(LeadService service, TestData data, String note) {
         service.saveEvidence(data.engagementId(), data.userId(), note, null, EvidenceType.OTHER,
                 null, null, EvidenceOrigin.USER_SUPPLIED, EvidenceVerificationStatus.UNVERIFIED,
                 null, ConfidenceLevel.MEDIUM, 35, Set.of());
+    }
+
+    private void persistReadyEvidence(TestData data) {
+        List<EvidenceType> types = List.of(EvidenceType.STAKEHOLDER_PROFILE,
+                EvidenceType.FINANCIAL_SIGNAL, EvidenceType.TECHNOLOGY_INDICATOR, EvidenceType.HYPOTHESIS);
+        for (int index = 0; index < types.size(); index++) {
+            EvidenceType type = types.get(index);
+            entityManager.persist(ResearchEvidence.builder()
+                    .engagementId(data.engagementId())
+                    .leadId(data.firstLeadId())
+                    .note(type == EvidenceType.HYPOTHESIS
+                            ? "The client likely needs a staged modernisation pilot grounded in the collected evidence."
+                            : "Trusted scenario evidence for " + type)
+                    .evidenceType(type)
+                    .origin(EvidenceOrigin.SCENARIO_CURATED)
+                    .verificationStatus(EvidenceVerificationStatus.CORROBORATED)
+                    .confidence(ConfidenceLevel.HIGH)
+                    .relevanceScore(90)
+                    .sequenceNo(index + 1)
+                    .build());
+        }
+        entityManager.flush();
     }
 
     private LeadService service(EngagementRepository engagements, ResearchEvidenceRepository evidence) {

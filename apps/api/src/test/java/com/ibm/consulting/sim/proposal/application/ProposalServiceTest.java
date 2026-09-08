@@ -45,7 +45,7 @@ class ProposalServiceTest {
         ProposalRepository proposalRepository = mock(ProposalRepository.class);
         EngagementRepository engagementRepository = mock(EngagementRepository.class);
         MeetingRepository meetingRepository = mock(MeetingRepository.class);
-        when(engagementRepository.findByIdAndUserId(engagementId, userId)).thenReturn(Optional.of(engagement));
+        when(engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)).thenReturn(Optional.of(engagement));
         when(meetingRepository.findByEngagementId(nullable(UUID.class))).thenReturn(Optional.of(passedMeeting));
         when(proposalRepository.findByEngagementId(engagementId)).thenReturn(Optional.empty());
         when(proposalRepository.save(any(Proposal.class))).thenAnswer(invocation -> invocation.getArgument(0));

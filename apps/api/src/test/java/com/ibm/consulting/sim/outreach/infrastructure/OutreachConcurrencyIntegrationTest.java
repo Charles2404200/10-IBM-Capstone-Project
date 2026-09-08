@@ -12,8 +12,9 @@ import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
-import com.ibm.consulting.sim.outreach.application.OutreachResponse;
 import com.ibm.consulting.sim.outreach.application.OutreachService;
+import com.ibm.consulting.sim.outreach.application.CapabilityBriefService;
+import com.ibm.consulting.sim.outreach.domain.CapabilityBriefRepository;
 import com.ibm.consulting.sim.outreach.domain.OutreachAttempt;
 import com.ibm.consulting.sim.outreach.domain.OutreachNextAction;
 import com.ibm.consulting.sim.outreach.domain.OutreachOutcome;
@@ -58,7 +59,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest
-@Import(JpaOutreachRepository.class)
+@Import({JpaOutreachRepository.class, JpaCapabilityBriefRepository.class})
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers(disabledWithoutDocker = true)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -77,6 +78,7 @@ class OutreachConcurrencyIntegrationTest {
 
     @Autowired EntityManager entityManager;
     @Autowired OutreachRepository outreachRepository;
+    @Autowired CapabilityBriefRepository capabilityBriefRepository;
     @Autowired PlatformTransactionManager transactionManager;
 
     @Test
@@ -93,6 +95,30 @@ class OutreachConcurrencyIntegrationTest {
                 () -> outreachRepository.findByEngagementId(data.engagementId()));
         assertThat(attempts).hasSize(3);
         assertThat(attempts).extracting(OutreachAttempt::getAttemptNumber).doesNotHaveDuplicates();
+        assertThat(outcomes).filteredOn(Outcome::succeeded).hasSize(1);
+    }
+
+    @Test
+    void concurrentCapabilityBriefSubmissionsCreateOneBriefAndOneTransition() throws Exception {
+        TestData data = inTransaction(this::persistEngagementWithCapabilityRequest);
+        CapabilityBriefService service = new CapabilityBriefService(capabilityBriefRepository, outreachRepository,
+                new EntityManagerEngagementRepository(entityManager));
+        String completeSection = "Relevant evidence and delivery detail ".repeat(8);
+
+        List<Outcome> outcomes = runConcurrently(
+                () -> service.submit(data.engagementId(), data.userId(), completeSection, completeSection,
+                        completeSection, completeSection),
+                () -> service.submit(data.engagementId(), data.userId(), completeSection, completeSection,
+                        completeSection, completeSection));
+
+        Long briefCount = inTransaction(() -> entityManager.createQuery(
+                        "select count(brief) from CapabilityBrief brief where brief.engagementId = :engagementId",
+                        Long.class)
+                .setParameter("engagementId", data.engagementId())
+                .getSingleResult());
+        Engagement persisted = inTransaction(() -> entityManager.find(Engagement.class, data.engagementId()));
+        assertThat(briefCount).isEqualTo(1L);
+        assertThat(persisted.getState()).isEqualTo(EngagementState.MEETING_SECURED);
         assertThat(outcomes).filteredOn(Outcome::succeeded).hasSize(1);
     }
 
@@ -127,8 +153,8 @@ class OutreachConcurrencyIntegrationTest {
         };
     }
 
-    private List<Outcome> runConcurrently(Callable<OutreachResponse> firstCommand,
-                                          Callable<OutreachResponse> secondCommand) throws Exception {
+    private List<Outcome> runConcurrently(Callable<?> firstCommand,
+                                          Callable<?> secondCommand) throws Exception {
         CountDownLatch start = new CountDownLatch(1);
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<Outcome> first = executor.submit(() -> execute(start, firstCommand));
@@ -138,7 +164,7 @@ class OutreachConcurrencyIntegrationTest {
         }
     }
 
-    private Outcome execute(CountDownLatch start, Callable<OutreachResponse> command) throws Exception {
+    private Outcome execute(CountDownLatch start, Callable<?> command) throws Exception {
         assertThat(start.await(5, TimeUnit.SECONDS)).isTrue();
         try {
             return new Outcome(inTransaction(command), null);
@@ -180,6 +206,35 @@ class OutreachConcurrencyIntegrationTest {
         return new TestData(user.getId(), engagement.getId(), lead);
     }
 
+    private TestData persistEngagementWithCapabilityRequest() {
+        TestData data = persistBaseOutreachEngagement();
+        OutreachAttempt attempt = OutreachAttempt.create(data.engagementId(), 1, "Capabilities", "Introduction");
+        attempt.resolve("Please send a one-page capability brief for review.", OutreachOutcome.FOLLOW_UP_REQUIRED,
+                OutreachNextAction.SUBMIT_CAPABILITY_BRIEF, 70, 70, 70, 70);
+        entityManager.persist(attempt);
+        entityManager.flush();
+        return data;
+    }
+
+    private TestData persistBaseOutreachEngagement() {
+        User user = User.create(UUID.randomUUID() + "@example.com", "hash", "Learner", UserRole.LEARNER);
+        Scenario scenario = Scenario.create("Outreach scenario", "Technology", "Scenario", 3);
+        Persona persona = Persona.create(scenario, "Client", "CIO", "Example Co", "Direct", "Risk",
+                "Budget", "Delivery");
+        Lead lead = Lead.create(scenario.getId(), "Example Co", "Technology", "Modernisation", LeadDifficulty.MEDIUM);
+        entityManager.persist(user);
+        entityManager.persist(scenario);
+        entityManager.persist(persona);
+        entityManager.persist(lead);
+        Engagement engagement = Engagement.start(user.getId(), scenario.getId(), persona.getId());
+        engagement.selectLead(lead.getId());
+        engagement.transitionTo(EngagementState.HYPOTHESIS_READY, "ready");
+        engagement.transitionTo(EngagementState.OUTREACHING, "outreach");
+        entityManager.persist(engagement);
+        entityManager.flush();
+        return new TestData(user.getId(), engagement.getId(), lead);
+    }
+
     private <T> T inTransaction(Callable<T> work) {
         return new TransactionTemplate(transactionManager).execute(status -> {
             try { return work.call(); }
@@ -206,7 +261,7 @@ class OutreachConcurrencyIntegrationTest {
     }
 
     private record TestData(UUID userId, UUID engagementId, Lead lead) {}
-    private record Outcome(OutreachResponse response, RuntimeException failure) {
+    private record Outcome(Object response, RuntimeException failure) {
         boolean succeeded() { return response != null; }
     }
 }

@@ -21,6 +21,8 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -94,5 +96,40 @@ class KnowledgeControllerSecurityTest {
 
         mockMvc.perform(get("/api/v1/admin/scenarios/{id}/documents", scenarioId))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "SCENARIO_AUTHOR")
+    void uploadRejectsOversizedContentBeforeIngestion() throws Exception {
+        UUID scenarioId = UUID.randomUUID();
+        when(scenarioRepository.findById(scenarioId))
+                .thenReturn(Optional.of(Scenario.create("Draft", "Retail", "Description", 3)));
+        String body = "{\"personaId\":null,\"collection\":\"SCENARIO_TRUTH\","
+                + "\"title\":\"Document\",\"content\":\"" + "x".repeat(50_001) + "\"}";
+
+        mockMvc.perform(post("/api/v1/admin/scenarios/{id}/documents", scenarioId)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest());
+
+        verify(ingestionService, never()).ingest(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "SCENARIO_AUTHOR")
+    void updateRejectsTitleLongerThanDatabaseColumn() throws Exception {
+        UUID scenarioId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        when(scenarioRepository.findById(scenarioId))
+                .thenReturn(Optional.of(Scenario.create("Draft", "Retail", "Description", 3)));
+        String body = "{\"personaId\":null,\"collection\":\"SCENARIO_TRUTH\","
+                + "\"title\":\"" + "x".repeat(256) + "\",\"content\":\"Content\"}";
+
+        mockMvc.perform(put("/api/v1/admin/scenarios/{id}/documents/{docId}", scenarioId, documentId)
+                        .contentType("application/json")
+                        .content(body))
+                .andExpect(status().isBadRequest());
+
+        verify(ingestionService, never()).update(any(), any(), any(), any(), any(), any());
     }
 }

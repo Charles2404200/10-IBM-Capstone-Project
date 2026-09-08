@@ -76,7 +76,7 @@ class ScenarioServiceTest {
         UUID scenarioId = scenario.getId();
 
         // mock scenario
-        when(scenarioRepository.findById(scenarioId)).thenReturn(Optional.of(scenario));
+        when(scenarioRepository.findByIdForUpdate(scenarioId)).thenReturn(Optional.of(scenario));
         when(scenarioRepository.findByLineageIdAndStatus(any(), eq(ScenarioStatus.ACTIVE))).thenReturn(List.of());
         when(scenarioRepository.save(scenario)).thenReturn(scenario);
 
