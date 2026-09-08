@@ -60,7 +60,7 @@ public class OutreachService {
 
     @Transactional
     public OutreachResponse send(UUID engagementId, UUID userId, String subject, String body) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         if (engagement.getState() != EngagementState.HYPOTHESIS_READY

@@ -84,7 +84,7 @@ public class MeetingService {
 
     @Transactional
     public MeetingResponse start(UUID engagementId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         if (engagement.getState() != EngagementState.PREPARING) {
@@ -136,7 +136,7 @@ public class MeetingService {
     @Transactional
     public MeetingResponse retry(UUID meetingId, UUID userId) {
         Meeting failedMeeting = loadOwnedMeeting(meetingId, userId);
-        Engagement engagement = engagementRepository.findByIdAndUserId(failedMeeting.getEngagementId(), userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(failedMeeting.getEngagementId(), userId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
         List<Meeting> attempts = meetingRepository.findAllByEngagementIdOrderByCreatedAtAsc(engagement.getId());
         Meeting latestAttempt = attempts.isEmpty() ? failedMeeting : attempts.get(attempts.size() - 1);

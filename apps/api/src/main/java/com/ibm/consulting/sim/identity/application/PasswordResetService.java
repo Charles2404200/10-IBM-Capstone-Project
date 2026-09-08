@@ -42,7 +42,7 @@ public class PasswordResetService {
     /** Deliberately silent for unknown/inactive/unverified accounts to avoid account enumeration. */
     @Transactional
     public void request(String email) {
-        users.findByEmail(normalise(email)).filter(User::isActive).filter(User::isEmailVerified)
+        users.findByEmailForUpdate(normalise(email)).filter(User::isActive).filter(User::isEmailVerified)
                 .ifPresent(this::issueAndDeliverUnlessCoolingDown);
     }
 

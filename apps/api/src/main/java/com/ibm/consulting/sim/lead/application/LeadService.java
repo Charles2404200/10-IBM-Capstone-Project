@@ -62,7 +62,7 @@ public class LeadService {
 
     @Transactional
     public void selectLead(UUID engagementId, UUID leadId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         // Idempotent no-op: re-selecting the same lead (e.g. a stale UI retry)
@@ -96,7 +96,7 @@ public class LeadService {
                                                 LocalDate occurredOn, ConfidenceLevel confidence,
                                                 Integer relevanceScore,
                                                 Set<UUID> supportingEvidenceIds) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         UUID leadId = engagement.getSelectedLeadId();
         if (leadId == null) {

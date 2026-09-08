@@ -8,6 +8,8 @@ public interface UserRepository {
     User save(User user);
     Optional<User> findById(UUID id);
     Optional<User> findByEmail(String email);
+    /** Serializes security-credential issuance scoped to one account. */
+    Optional<User> findByEmailForUpdate(String email);
     boolean existsByEmail(String email);
     List<User> findAll();
 }

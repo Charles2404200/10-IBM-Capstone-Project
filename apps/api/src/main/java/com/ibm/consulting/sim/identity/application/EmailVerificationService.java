@@ -39,7 +39,7 @@ public class EmailVerificationService {
 
     @Transactional
     public void resend(String email) {
-        users.findByEmail(normalise(email)).filter(User::isActive).filter(user -> !user.isEmailVerified())
+        users.findByEmailForUpdate(normalise(email)).filter(User::isActive).filter(user -> !user.isEmailVerified())
                 .ifPresent(this::issueAndDeliverUnlessCoolingDown);
     }
 

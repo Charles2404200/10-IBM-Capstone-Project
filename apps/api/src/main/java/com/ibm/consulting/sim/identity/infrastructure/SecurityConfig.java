@@ -54,7 +54,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers("/actuator/prometheus").hasRole("OBSERVABILITY")
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/scenarios").permitAll()
                         // The WebSocket handshake is a plain, unauthenticated HTTP GET (browsers
                         // cannot attach an Authorization header to it) — real authentication for
