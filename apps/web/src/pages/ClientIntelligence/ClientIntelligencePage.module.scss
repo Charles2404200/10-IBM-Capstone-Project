@@ -70,6 +70,7 @@ $accent-blue-dark: #0043ce;
   align-items: flex-start;
   gap: $spacing-05;
   margin-bottom: $spacing-04;
+  margin-top: $spacing-04;
 }
 
 .nextActionPanel {
@@ -283,10 +284,10 @@ $accent-blue-dark: #0043ce;
 .actionButton {
   display: flex;
   align-items: center;
-  gap: $spacing-03;
+  gap: $spacing-02;
   width: 100%;
-  padding: $spacing-04;
-  margin-bottom: $spacing-03;
+  padding: $spacing-02 $spacing-03;
+  margin-bottom: $spacing-02;
   background: $layer-bg;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -318,8 +319,27 @@ $accent-blue-dark: #0043ce;
 }
 
 .actionButtonLabel {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
   min-width: 0;
+  width: 100%;
+
+  strong {
+    color: $text-primary;
+    font-size: 0.8125rem;
+  }
+
+  small {
+    color: $text-secondary;
+    display: block;
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    overflow: visible;
+    white-space: normal;
+    width: 100%;
+  }
 }
 
 .actionButtonCheck {
@@ -952,8 +972,24 @@ $accent-blue-dark: #0043ce;
   }
 }
 
+.mainAreaColumn,
 .workColumn {
   height: calc(100vh - 13.5rem);
+  min-height: 0;
+}
+
+.mainArea {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-04;
+  height: 100%;
+  min-height: 0;
+}
+
+.topRow {
+  display: flex;
+  gap: $spacing-04;
+  flex: 0 0 21rem; 
   min-height: 0;
 }
 
@@ -966,7 +1002,9 @@ $accent-blue-dark: #0043ce;
 }
 
 .researchActions {
+  flex: 0 0 15.5rem;
   padding: $spacing-04;
+  overflow: visible;
 
   h2 {
     color: $text-primary;
@@ -1023,9 +1061,13 @@ $accent-blue-dark: #0043ce;
 }
 
 .workspace {
-  display: grid;
-  gap: $spacing-04;
-  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  /* CHANGED: used to be a 2-row grid (researchWorkspace + evidenceBoard
+     stacked). Now it only ever holds researchWorkspace, and sits as a
+     flexible item next to researchActions inside .topRow. */
+  flex: 1 1 auto; /* NEW */
+  min-width: 0; /* NEW */
+  display: flex; /* CHANGED from display: grid */
+  flex-direction: column; /* NEW */
 }
 
 .researchWorkspace,
@@ -1034,8 +1076,16 @@ $accent-blue-dark: #0043ce;
   border: 1px solid $border-subtle;
   border-radius: 6px;
   min-height: 0;
-  overflow: hidden;
   padding: $spacing-04;
+}
+.researchWorkspace {
+  flex: 1 1 auto;
+  overflow-y: auto; 
+}
+
+.evidenceBoard {
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .workspaceHeading,
@@ -1148,7 +1198,9 @@ $accent-blue-dark: #0043ce;
 }
 
 .evidenceGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  flex: 1 1 auto;
+  overflow-y: auto;
 }
 
 .evidenceCard {
@@ -1334,9 +1386,9 @@ $accent-blue-dark: #0043ce;
 
 @media (max-width: 1200px), (max-height: 840px) {
   .page { height: auto; min-height: calc(100vh - 3rem); overflow: visible; }
-  .workColumn { height: auto; }
+  .mainAreaColumn, .workColumn { height: auto; }
+  .mainArea, .topRow { height: auto; }
   .workspace, .researchActions, .decisionRail { height: auto; overflow: visible; }
-  .workspace { grid-template-rows: auto auto; }
   .researchWorkspace, .evidenceBoard, .hypothesisWorkspace, .researchGate { overflow: visible; }
 }
 
@@ -1346,6 +1398,8 @@ $accent-blue-dark: #0043ce;
   .readinessBand { grid-template-columns: repeat(2, 1fr); }
   .readinessTitle { grid-column: span 2; }
   .evidenceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .topRow { flex-direction: column; }
+  .researchActions { flex: 0 0 auto; }
 }
 
 @media (max-width: 671px) {
@@ -1406,8 +1460,14 @@ $accent-blue-dark: #0043ce;
     padding: $spacing-03 $spacing-04;
   }
 
+  .mainAreaColumn,
   .workColumn {
     height: auto;
+    min-height: 0;
+  }
+
+  .mainArea {
+    height: 100%;
     min-height: 0;
   }
 
@@ -1425,18 +1485,14 @@ $accent-blue-dark: #0043ce;
   }
 
   .actionButton {
-    flex: 1 1 0;
+    flex: 0 0 auto;
     margin-bottom: $spacing-02;
-    min-height: 0;
+    min-height: 4.5rem;
     padding: $spacing-03;
   }
 
   .actionButton:last-child {
     margin-bottom: 0;
-  }
-
-  .workspace {
-    grid-template-rows: minmax(0, 1.12fr) minmax(0, 0.88fr);
   }
 
   .researchWorkspace,
@@ -1528,4 +1584,3 @@ $accent-blue-dark: #0043ce;
     margin-top: $spacing-02 !important;
   }
 }
-
