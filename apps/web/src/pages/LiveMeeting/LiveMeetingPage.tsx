@@ -240,22 +240,21 @@ export default function LiveMeetingPage() {
   return (
     <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
     <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
-      <Grid fullWidth className={styles.headerGrid}>
+      <Grid fullWidth narrow className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
             <div>
-              <p className={styles.eyebrow}>Live discovery</p>
               <Heading>Live Client Meeting</Heading>
             </div>
           </div>
         </Column>
       </Grid>
 
-      <Grid fullWidth className={styles.workspaceGrid}>
+      <Grid fullWidth narrow className={styles.workspaceGrid}>
         <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
           <section className={styles.conversationPanel} aria-label="Live client conversation">
-            <div className={`${styles.transcriptViewport} objective-transcript`} ref={transcriptRef}>
-              {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
+            <div className={`${styles.transcriptViewport} objective-transcript ${turns.length === 0 && !pendingMessage && !streamingText ? styles.emptyTranscriptViewport : ''}`} ref={transcriptRef} >
+              {turns.length === 0 && !pendingMessage && (<p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>)}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
                 <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />
