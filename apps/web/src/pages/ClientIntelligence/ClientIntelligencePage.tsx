@@ -14,6 +14,7 @@ import {
   Checkbox,
   Modal,
   InlineNotification,
+  Stack
 } from '@carbon/react'
 import {
   Add, ArrowRight, Locked, Link as LinkIcon, Search,
@@ -28,6 +29,7 @@ import type { ConfidenceLevel, EvidenceType, ResearchArtifact, ResearchEvidence 
 import styles from './ClientIntelligencePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
+import { useEffect } from 'react'
 
 const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
@@ -51,7 +53,7 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'evidence-card',
     objective: 'Where a finding came from',
-    description: 'Each card carries a reference code, the source it came from, how reliable that source is, and how closely it relates to this client. Those tell you what a finding is worth citing for \u2014 they are not marks, and a low one is still yours to use if it fits.',
+    description: 'Each card carries a reference code, the source it came from, how reliable that source is, and how closely it relates to this client. Those tell you what a finding is worth citing for — they are not marks, and a low one is still yours to use if it fits.',
     targets: ['.objective-evidence-board'],
   },
   {
@@ -63,13 +65,13 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'hypothesis',
     objective: 'Form a grounded hypothesis',
-    description: 'Use the evidence you collected to explain the client\u2019s underlying problem and likely business impact.',
+    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
     targets: ['.objective-hypothesis'],
   },
   {
     id: 'gate',
     objective: 'Moving on',
-    description: 'Outreach opens once every requirement above is met. You can keep researching after that if you want more to work with \u2014 the gate is a floor, not a target.',
+    description: 'Outreach opens once every requirement above is met. You can keep researching after that if you want more to work with — the gate is a floor, not a target.',
     targets: ['.objective-gate'],
   },
 ]
@@ -237,7 +239,7 @@ function ResearchGateChecklist({
 
   return (
     <div className={`${styles.researchGate} objective-gate`}>
-      {/* <h4 className={styles.researchGateTitle}>Ready for Outreach?</h4>
+      <h4 className={styles.researchGateTitle}>Ready for Outreach?</h4>
       <Stack gap={2}>
         <GateRequirement
           met={gate.evidenceCount >= gate.requiredEvidenceCount}
@@ -259,7 +261,7 @@ function ResearchGateChecklist({
           met={gate.confidencePercent >= gate.requiredConfidencePercent}
           label={`Research confidence at least ${gate.requiredConfidencePercent}% (${gate.confidencePercent}%)`}
         />
-      </Stack> */}
+      </Stack>
 
       {gate.coaching?.length > 0 && (
         <div className={styles.gateCoaching}>
@@ -417,12 +419,14 @@ export default function ClientIntelligencePage() {
     () => citableEvidence.filter((e) => e.evidenceType !== 'HYPOTHESIS'),
     [citableEvidence]
   )
-  const evidencePageSize = 4
-  const findingsPageSize = 3
-  const visibleEvidence = nonHypothesisEvidence.slice(evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize)
-  const visibleFindings = researchResults.slice(findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize)
+  const evidencePageSize = 3
+  const findingsPageSize = 2
+  const visibleEvidence = nonHypothesisEvidence.slice( evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize,)
+  const visibleFindings = researchResults.slice( findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize,)
   const evidencePageCount = Math.max(1, Math.ceil(nonHypothesisEvidence.length / evidencePageSize))
   const findingsPageCount = Math.max(1, Math.ceil(researchResults.length / findingsPageSize))
+  useEffect(() => { setEvidencePage((page) => Math.min(page, evidencePageCount - 1))}, [evidencePageCount])
+  useEffect(() => { setFindingsPage((page) => Math.min(page, findingsPageCount - 1)) }, [findingsPageCount])
   const readinessCompleteCount = [
     gate ? gate.evidenceCount >= gate.requiredEvidenceCount : false,
     gate?.hasStakeholderEvidence ?? false,
@@ -461,7 +465,7 @@ export default function ClientIntelligencePage() {
           setResearchResults((items) => items.filter((item) => item.id !== artifact.id))
           setEvidencePage(0)
         },
-      }
+      },
     )
   }
 
@@ -494,7 +498,7 @@ export default function ClientIntelligencePage() {
           setManualEvidenceOpen(false)
           setEvidencePage(0)
         },
-      }
+      },
     )
   }
 
@@ -558,19 +562,19 @@ export default function ClientIntelligencePage() {
                 <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
                 {activeResearchAction ? (
                   <div className={styles.researchMethods}>
-                    <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
+                    <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag style={{ marginTop: '8px' }} type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" style={{ marginTop: '20px' }} onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
                     <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Add external context</h3><p>AI correlates your input without changing canonical scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button></Tile></form>
                   </div>
                 ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
                 {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}
                 {generateResearch.isError && <InlineNotification kind="error" lowContrast title="Research could not be generated" subtitle="Retry this research action." hideCloseButton className={styles.researchError} />}
-                {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
+                {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div key={`findings-page-${findingsPage}`} className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
               </section>
             </main>
           </div>
           <section className={`${styles.evidenceBoard} objective-evidence-board`}>
             <div className={styles.compactSectionHeader}><div><p className={styles.sectionEyebrow}>Evidence board</p><h2>Collected evidence ({nonHypothesisEvidence.length})</h2></div><div className={styles.evidenceTools}><Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => setManualEvidenceOpen(true)}>Add source</Button>{nonHypothesisEvidence.length > evidencePageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous evidence" disabled={evidencePage === 0} onClick={() => setEvidencePage((page) => page - 1)} /><span>{evidencePage + 1} / {evidencePageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next evidence" disabled={evidencePage >= evidencePageCount - 1} onClick={() => setEvidencePage((page) => page + 1)} /></div>}</div></div>
-            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
+            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div key={`evidence-page-${evidencePage}`} className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
           </section>
         </div>
       </Column>

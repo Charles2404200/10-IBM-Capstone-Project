@@ -519,7 +519,7 @@ $accent-blue-dark: #0043ce;
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: $spacing-05;
 }
 
@@ -979,8 +979,8 @@ $accent-blue-dark: #0043ce;
 }
 
 .mainArea {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 11.5rem;
   gap: $spacing-04;
   height: 100%;
   min-height: 0;
@@ -989,16 +989,20 @@ $accent-blue-dark: #0043ce;
 .topRow {
   display: flex;
   gap: $spacing-04;
-  flex: 0 0 21rem; 
   min-height: 0;
+  height: 100%;
 }
 
 .researchActions,
 .workspace,
 .decisionRail {
-  height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+.researchActions,
+.workspace {
+  height: 100%;
 }
 
 .researchActions {
@@ -1061,13 +1065,12 @@ $accent-blue-dark: #0043ce;
 }
 
 .workspace {
-  /* CHANGED: used to be a 2-row grid (researchWorkspace + evidenceBoard
-     stacked). Now it only ever holds researchWorkspace, and sits as a
-     flexible item next to researchActions inside .topRow. */
-  flex: 1 1 auto; /* NEW */
-  min-width: 0; /* NEW */
-  display: flex; /* CHANGED from display: grid */
-  flex-direction: column; /* NEW */
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .researchWorkspace,
@@ -1078,14 +1081,16 @@ $accent-blue-dark: #0043ce;
   min-height: 0;
   padding: $spacing-04;
 }
+
 .researchWorkspace {
   flex: 1 1 auto;
-  overflow-y: auto; 
+  min-height: 0;
+  overflow: hidden;
 }
 
 .evidenceBoard {
-  flex: 1 1 auto;
-  overflow: hidden;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .workspaceHeading,
@@ -1118,10 +1123,10 @@ $accent-blue-dark: #0043ce;
 .researchMethod {
   background: #fcfcfc;
   border: 1px solid $border-subtle;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: $spacing-02;
-  grid-template-rows: auto auto 1fr auto;
-  height: 10.25rem;
+  min-height: 10.25rem;
   padding: $spacing-04;
 
   h3 {
@@ -1148,6 +1153,10 @@ $accent-blue-dark: #0043ce;
   align-items: end;
   display: flex;
   gap: $spacing-02;
+}
+
+.researchMethod > :global(.cds--btn) {
+  margin-top: auto;
 }
 
 .workspaceEmpty {
@@ -1184,7 +1193,14 @@ $accent-blue-dark: #0043ce;
   margin-top: $spacing-03;
 }
 
-.findingsGrid,
+.findingsGrid {
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: $spacing-03;
+  overflow: hidden;
+}
+
 .evidenceGrid {
   display: grid;
   gap: $spacing-03;
@@ -1197,17 +1213,11 @@ $accent-blue-dark: #0043ce;
   display: block;
 }
 
-.evidenceGrid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  flex: 1 1 auto;
-  overflow-y: auto;
-}
-
 .evidenceCard {
   border-left: 3px solid $accent-blue;
   display: flex;
   flex-direction: column;
-  height: 8.2rem;
+  height: 7.5rem;
   min-width: 0;
   overflow: hidden;
   padding: $spacing-03;
@@ -1277,6 +1287,8 @@ $accent-blue-dark: #0043ce;
 .pager {
   color: $text-secondary;
   font-size: 0.6875rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pager :global(.cds--btn) {
@@ -1303,20 +1315,19 @@ $accent-blue-dark: #0043ce;
 .decisionRail {
   display: grid;
   gap: $spacing-04;
-  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  overflow: hidden;
+  grid-template-rows: auto auto;
+  align-content: start;
   padding: 0;
 }
 
 .hypothesisWorkspace,
 .researchGate {
-  min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: $spacing-04;
 }
 
 .hypothesisWorkspaceHeader {
-  margin-bottom: $spacing-03;
+  margin-bottom: $spacing-02;
 
   h3 { font-size: 0.9375rem; }
 }
@@ -1336,10 +1347,10 @@ $accent-blue-dark: #0043ce;
   display: -webkit-box;
   font-size: 0.75rem;
   line-height: 1.35;
-  margin-bottom: $spacing-03;
+  margin-bottom: $spacing-02;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .hypothesisMetaRow { font-size: 0.6875rem; }
@@ -1410,6 +1421,10 @@ $accent-blue-dark: #0043ce;
   .readinessTitle { grid-column: auto; }
   .readinessBand .gateRequirement { border-left: 0; border-top: 1px solid $border-subtle; padding-left: 0; padding-top: $spacing-03; }
   .findingsGrid, .evidenceGrid { grid-template-columns: 1fr; }
+  .findingsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .findingsGrid .evidenceCard { height: auto; min-height: 7rem; }
+  .findingsGrid .evidenceTitle { -webkit-line-clamp: 2; }
+  .findingsGrid .evidenceNote { -webkit-line-clamp: 3;}
 }
 
 // Desktop research canvas. The workflow HUD consumes the space above this
@@ -1495,11 +1510,18 @@ $accent-blue-dark: #0043ce;
     margin-bottom: 0;
   }
 
-  .researchWorkspace,
-  .evidenceBoard {
+  .researchWorkspace {
     display: flex;
     flex-direction: column;
     padding: $spacing-03;
+  }
+
+  .evidenceBoard {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: $spacing-03;
+    overflow: hidden;
   }
 
   .researchMethods {
@@ -1507,7 +1529,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .researchMethod {
-    height: 7.5rem;
+    min-height: 7.5rem;
     padding: $spacing-03;
   }
 
@@ -1516,7 +1538,6 @@ $accent-blue-dark: #0043ce;
   // it a real layout height rather than letting its submit button escape into
   // the findings below.
   .researchContextForm .researchMethod {
-    height: auto;
     min-height: 10rem;
   }
 
@@ -1543,9 +1564,25 @@ $accent-blue-dark: #0043ce;
     margin-top: $spacing-02;
   }
 
+  .evidenceBoard .compactSectionHeader {
+    flex: 0 0 auto;
+    min-height: 2rem;
+    margin-bottom: $spacing-03;
+  }
+
+  .evidenceGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: 0 0 7.5rem;
+    height: 7.5rem;
+    min-height: 7.5rem;
+    overflow: hidden;
+  }
+
   .evidenceCard {
-    height: 5.5rem;
+    height: 7.5rem;
+    min-width: 0;
     padding: $spacing-03;
+    overflow: hidden;
   }
 
   .evidenceTitle {
@@ -1554,7 +1591,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .evidenceNote {
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
   }
 
   .decisionRail {
