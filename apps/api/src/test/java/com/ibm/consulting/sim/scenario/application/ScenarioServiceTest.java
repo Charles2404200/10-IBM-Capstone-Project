@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -61,6 +63,13 @@ class ScenarioServiceTest {
         when(authoringConfigService.forScenario(scenario)).thenReturn(config);
 
         Lead lead = mock(Lead.class);
+        when(lead.getPublicDescription()).thenReturn("A qualified client opportunity");
+        when(lead.getPotentialValueRange()).thenReturn("$100K-$250K");
+        when(lead.getDecisionMaker()).thenReturn("Chief Information Officer");
+        when(lead.getTechnologyStack()).thenReturn("Cloud platform");
+        when(lead.getBudgetSignal()).thenReturn("Funding available");
+        when(lead.getPainSeverity()).thenReturn("High");
+        when(lead.getSignals()).thenReturn(List.of(mock(com.ibm.consulting.sim.lead.domain.LeadSignal.class)));
         when(leadRepository.findByScenarioId(scenario.getId())).thenReturn(List.of(lead));
     }
 
@@ -90,6 +99,50 @@ class ScenarioServiceTest {
             eq(AuditAction.ADMIN_SCENARIO_PUBLISHED),
             eq("SCENARIO"),
             eq(scenarioId.toString()));
+    }
+
+    @Test
+    void publishReadinessRejectsIncompleteDraftLeadIntelligence() {
+        Scenario scenario = Scenario.create("Test Scenario", "Retail", "Test description", 3);
+        scenario.updateBriefing("Consultant", "Test objective", List.of("Test success criteria"), 3);
+        scenario.updateRubricWeights(Map.of("Communication", 100));
+        scenario.addPersona("Test Persona", "Manager", "Test Organisation", null, null, null, null);
+        UUID scenarioId = scenario.getId();
+
+        when(scenarioRepository.findLineageIdById(scenarioId)).thenReturn(Optional.of(scenario.getScenarioLineageId()));
+        when(scenarioRepository.findByIdForUpdate(scenario.getScenarioLineageId())).thenReturn(Optional.of(scenario));
+        when(scenarioRepository.findLineageForUpdate(scenario.getScenarioLineageId())).thenReturn(List.of(scenario));
+        ScenarioAuthoringConfig config = mock(ScenarioAuthoringConfig.class);
+        when(config.canonicalFacts()).thenReturn(List.of(mock(CanonicalFact.class)));
+        when(config.revealRules()).thenReturn(List.of(mock(RevealRule.class)));
+        when(authoringConfigService.forScenario(scenario)).thenReturn(config);
+        when(leadRepository.findByScenarioId(scenarioId)).thenReturn(List.of(
+                Lead.create(scenarioId, "Example Corp", "Technology", null,
+                        com.ibm.consulting.sim.lead.domain.LeadDifficulty.MEDIUM)));
+
+        assertThatThrownBy(() -> service.publish(scenarioId))
+                .isInstanceOf(ScenarioNotReadyException.class)
+                .hasMessageContaining("Complete every lead's description");
+    }
+
+    @Test
+    void publishReadinessRejectsAnIncompleteBriefingWhileDraftEditingRemainsAllowed() {
+        Scenario scenario = Scenario.create("Test Scenario", "Retail", "Test description", 3);
+        scenario.updateBriefing(null, null, List.of(), 3);
+        scenario.updateRubricWeights(Map.of("Communication", 100));
+        scenario.addPersona("Test Persona", "Manager", "Test Organisation", null, null, null, null);
+        UUID scenarioId = scenario.getId();
+
+        when(scenarioRepository.findLineageIdById(scenarioId)).thenReturn(Optional.of(scenario.getScenarioLineageId()));
+        when(scenarioRepository.findByIdForUpdate(scenario.getScenarioLineageId())).thenReturn(Optional.of(scenario));
+        when(scenarioRepository.findLineageForUpdate(scenario.getScenarioLineageId())).thenReturn(List.of(scenario));
+        mockScenarioReadiness(scenario);
+
+        assertThat(scenario.getConsultantRole()).isEqualTo("Management Consultant");
+        assertThat(scenario.getObjective()).isEmpty();
+        assertThatThrownBy(() -> service.publish(scenarioId))
+                .isInstanceOf(ScenarioNotReadyException.class)
+                .hasMessageContaining("Define the learner objective");
     }
 
     // audit logging - archive scenario

@@ -9,6 +9,7 @@ import com.ibm.consulting.sim.scenario.application.LeadAuthoringRequest;
 import com.ibm.consulting.sim.scenario.application.ScenarioCatalogResponse;
 import com.ibm.consulting.sim.scenario.application.ScenarioService;
 import com.ibm.consulting.sim.scenario.application.ScenarioSummary;
+import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,9 +68,7 @@ class AdminScenarioControllerSecurityTest {
     @WithMockUser(roles = "SCENARIO_AUTHOR")
     void scenarioAuthorCanCreateScenario() throws Exception {
         when(scenarioService.create(org.mockito.ArgumentMatchers.any())).thenReturn(
-                new ScenarioSummary(UUID.randomUUID(), "Title", "Retail", "Description", 3, 1, "DRAFT", List.of(), java.util.Map.of(),
-                        new ScenarioSummary.DifficultyProfile(3, 3, 3),
-                        new ScenarioSummary.Briefing("Management Consultant", "", List.of(), 10)));
+                ScenarioSummary.from(Scenario.create("Title", "Retail", "Description", 3)));
 
         mockMvc.perform(post("/api/v1/admin/scenarios")
                         .contentType("application/json")

@@ -162,6 +162,46 @@ class ScenarioLineageConcurrencyIntegrationTest {
         assertThat(inTransaction(() -> scenarios.listAuthoringLeads(draftId))).hasSize(1);
     }
 
+    @Test
+    void successCriteriaSurviveAnExactDatabaseRoundTrip() {
+        List<String> criteria = List.of(
+                "Reduce cost | protect quality",
+                "Punctuation: commas, semicolons; and periods.",
+                "Unicode: café — 東京",
+                "  preserve authored whitespace  ");
+
+        UUID scenarioId = inTransaction(() -> {
+            Scenario scenario = Scenario.create("Criteria contract", "Technology", "Description", 3);
+            scenario.updateBriefing("Consultant", "Objective", criteria, 10);
+            entityManager.persist(scenario);
+            entityManager.flush();
+            return scenario.getId();
+        });
+
+        List<String> reloaded = inTransaction(() -> {
+            entityManager.clear();
+            return scenarioRepository.findById(scenarioId).orElseThrow().getSuccessCriteria();
+        });
+
+        assertThat(reloaded).containsExactlyElementsOf(criteria);
+    }
+
+    @Test
+    void emptySuccessCriteriaSurviveDatabaseRoundTrip() {
+        UUID scenarioId = inTransaction(() -> {
+            Scenario scenario = Scenario.create("Empty criteria", "Technology", "Description", 3);
+            scenario.updateBriefing("Consultant", "", List.of(), 10);
+            entityManager.persist(scenario);
+            entityManager.flush();
+            return scenario.getId();
+        });
+
+        assertThat(inTransaction(() -> {
+            entityManager.clear();
+            return scenarioRepository.findById(scenarioId).orElseThrow().getSuccessCriteria();
+        })).isEmpty();
+    }
+
     private ScenarioService service(KnowledgeIngestionService knowledge) {
         ObjectMapper objectMapper = new ObjectMapper();
         return new ScenarioService(
@@ -183,7 +223,11 @@ class ScenarioLineageConcurrencyIntegrationTest {
                 List.of(new RevealRule(RevealTarget.BUDGET_SIGNAL, Set.of(EvidenceType.FINANCIAL_SIGNAL), 1))));
         if (active) scenario.publish();
         entityManager.persist(scenario);
-        entityManager.persist(Lead.create(scenario.getId(), "Example Corp", "Technology", "Modernisation opportunity", LeadDifficulty.MEDIUM));
+        Lead lead = Lead.create(scenario.getId(), "Example Corp", "Technology", "Modernisation opportunity", LeadDifficulty.MEDIUM);
+        lead.configure("Example Corp", "Technology", "Modernisation opportunity", LeadDifficulty.MEDIUM,
+                "$100K-$250K", "Chief Information Officer", "Cloud platform", "Funding available", "High",
+                List.of(new Lead.SignalInput("Transformation programme announced", "OPPORTUNITY")));
+        entityManager.persist(lead);
         entityManager.flush();
         return scenario.getId();
     }
