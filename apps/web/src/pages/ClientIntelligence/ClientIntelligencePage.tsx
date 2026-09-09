@@ -377,6 +377,7 @@ function HypothesisWorkspace({
           <Controller control={control} name="confidence" render={({ field }) => (
             <Dropdown
               id="hypothesis-confidence"
+              label="Confidence"
               titleText="How confident are you?"
               items={CONFIDENCE_LEVELS}
               selectedItem={field.value}
@@ -603,9 +604,9 @@ export default function ClientIntelligencePage() {
 
       <Modal open={manualEvidenceOpen} modalHeading="Add a source to the evidence board" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" onRequestClose={() => setManualEvidenceOpen(false)} onRequestSubmit={handleSubmit(onSubmit)} primaryButtonDisabled={saveResearch.isPending}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.manualEvidenceForm}>
-          <Controller control={control} name="evidenceType" render={({ field }) => (<Dropdown id="evidenceType" titleText="Research area" items={EVIDENCE_TYPES} itemToString={(item) => item ? item.replace(/_/g, ' ') : ''} selectedItem={field.value} onChange={({ selectedItem }) => { field.onChange(selectedItem); setActiveAction(null) }} />)} />
+          <Controller control={control} name="evidenceType" render={({ field }) => (<Dropdown id="evidenceType" label="Research area" titleText="Research area" items={EVIDENCE_TYPES} itemToString={(item) => item ? item.replace(/_/g, ' ') : ''} selectedItem={field.value} onChange={({ selectedItem }) => { field.onChange(selectedItem); setActiveAction(null) }} />)} />
           <TextArea id="note" labelText="Finding" rows={3} invalid={Boolean(errors.note)} invalidText="A finding is required" {...register('note', { required: true })} />
-          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Controller control={control} name="confidence" render={({ field }) => (<Dropdown id="confidence" titleText="Reliability" items={CONFIDENCE_LEVELS} selectedItem={field.value} onChange={({ selectedItem }) => field.onChange(selectedItem)} />)} /></div>
+          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Controller control={control} name="confidence" render={({ field }) => (<Dropdown id="confidence" label="Reliability" titleText="Reliability" items={CONFIDENCE_LEVELS} selectedItem={field.value} onChange={({ selectedItem }) => field.onChange(selectedItem)} />)} /></div>
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
       </Modal>
