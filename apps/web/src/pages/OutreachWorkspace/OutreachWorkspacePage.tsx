@@ -445,7 +445,7 @@ export default function OutreachWorkspacePage() {
                   </form>
                 </Tile>
 
-                <Tile className={`${styles.assistPanel} objective-assistance`}>
+                <Tile className={`${styles.assistPanel} objective-assistance objective-evidence`}>
                   <p className={styles.eyebrow}>Evidence assistant</p>
                   <h3>Build your message with evidence</h3>
                   <p>Use verified client signals to make your outreach specific and relevant.</p>
