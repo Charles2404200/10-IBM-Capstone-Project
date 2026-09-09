@@ -185,7 +185,7 @@
 .overviewHeading, .replyHeading, .stripHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
 .clientIdentity { display: flex; align-items: center; gap: $spacing-04; margin-top: $spacing-03; }
 .clientIdentity strong { display: block; margin-bottom: $spacing-02; }
-.clientMonogram { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; border-radius: 50%; color: $text-on-color; background: #0f2b6d; @include type-style('heading-03'); }
+.clientMonogram { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; flex: 0 0 auto; border-radius: 50%; color: $text-on-color; background: #0f2b6d; @include type-style('heading-03'); }
 .clientDetails { display: grid; gap: $spacing-02; margin: $spacing-04 0 0; }
 .clientDetails div { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: $spacing-03; }
 .clientDetails dt { color: $text-secondary; @include type-style('label-01'); }
