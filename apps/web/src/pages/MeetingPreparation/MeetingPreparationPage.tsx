@@ -62,7 +62,7 @@ const MEETING_PREP_OBJECTIVES = [
   {
     id: 'start',
     objective: 'Opening the meeting',
-    description: 'Save keeps your plan without leaving. Start meeting stays locked until the readiness preview reaches its threshold, and once the meeting opens you go in with the plan as it stands \u2014 so finish the parts you still want.',
+    description: 'Save your proposal plan without leaving here or start the meeting. The latter button stays locked until the readiness score reaches its threshold, and once the meeting opens you can proceed to the live meeting.',
     targets: ['.objective-start'],
   },
 ]
@@ -296,7 +296,6 @@ export default function MeetingPreparationPage() {
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
           <div>
-            <p className={styles.eyebrow}>Engagement workflow / step 4</p>
             <Heading>{PHASE_LABEL.MEETING_PREPARATION}</Heading>
             <p className={styles.pageDescription}>Turn your research into a focused client conversation with a clear purpose, flow and questions.</p>
           </div>
@@ -321,8 +320,8 @@ export default function MeetingPreparationPage() {
           <ProgressBar label="Meeting readiness" hideLabel value={readinessScore} max={100} size="small" />
           <div className={styles.readinessChecks}>
             <ReadinessCheck complete={objectiveReady} label="Meeting objective" detail="20 points" />
-            <ReadinessCheck complete={agendaCount >= 3} label="Agenda flow" detail={`${agendaCount}/4 items`} />
-            <ReadinessCheck complete={questionCount >= 3} label="Discovery questions" detail={`${questionCount}/5 questions`} />
+            <ReadinessCheck complete={agendaCount >= 3} label="Agenda flow" detail={`${agendaCount}/3 items`} />
+            <ReadinessCheck complete={questionCount >= 3} label="Discovery questions" detail={`${questionCount}/3 questions`} />
           </div>
         </section>
 
