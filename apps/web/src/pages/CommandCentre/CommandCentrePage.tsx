@@ -13,6 +13,7 @@ import {
   Stack,
   Tag,
   TextInput,
+  Dropdown,
 } from '@carbon/react'
 import { Add, ArrowRight, Renew, Search } from '@carbon/icons-react'
 import { useMyEngagements, useStartEngagement } from '@/api/hooks/useEngagements'
@@ -163,8 +164,15 @@ function FeaturedEngagement({
           </div>
 
           <div className={styles.nextActionBlock}>
-            <span className={styles.blockLabel}>Next action</span>
-            <p>{engagement.nextAction}</p>
+            <div>
+              <span className={styles.blockLabel}>Next action</span>
+              <p>{engagement.nextAction}</p>
+            </div>
+            <div className={styles.featuredCta}>
+              <Button renderIcon={ArrowRight} onClick={() => navigate(resolveEngagementRoute(engagement))}>
+                Continue engagement
+              </Button>
+            </div>
           </div>
 
           <div className={styles.featuredFacts}>
@@ -173,11 +181,7 @@ function FeaturedEngagement({
           </div>
         </div>
 
-        <div className={styles.featuredCta}>
-          <Button renderIcon={ArrowRight} onClick={() => navigate(resolveEngagementRoute(engagement))}>
-            Continue engagement
-          </Button>
-        </div>
+        
       </div>
     </section>
   )
@@ -390,18 +394,18 @@ function FirstRunPanel({
       </h2>
       <ol className={`${styles.firstRunArc} objective-engagement-arc`}>
         <li>
-          <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence before you say anything.
+          <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence on the client before interacting with them.
         </li>
         <li>
-          <strong>{PHASE_LABEL.OUTREACH}</strong> — earn a meeting, then run it.
+          <strong>{PHASE_LABEL.OUTREACH}</strong> — reach out to client to discuss and further understand their needs.
         </li>
         <li>
-          <strong>{PHASE_LABEL.PROPOSAL}</strong> — put a case to them and live with their answer.
+          <strong>{PHASE_LABEL.PROPOSAL}</strong> — build and present your case to them and receive their feedback.
         </li>
       </ol>
       <p className={styles.firstRunNote}>
-        Nothing here is undoable practice with a safety net — the client reacts to what you actually
-        write, and your review at the end is built from those reactions.
+        Your interactions have consequences. The client responds to your decisions, and those responses shape your final review. 
+        Pay close attention to each step and approach every interaction as you would with a real client.
       </p>
 
       {scenario ? (
@@ -422,7 +426,7 @@ function FirstRunPanel({
       <button
         type="button"
         className={styles.firstRunAlt}
-        onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
+        onClick={() => document.getElementById('scenario-catalogue')?.scrollIntoView({ behavior: 'smooth' })}
       >
         Or choose a different client
       </button>
