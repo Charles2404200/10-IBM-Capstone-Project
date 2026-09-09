@@ -8,8 +8,6 @@ import {
   Pagination,
   RadioButton,
   RadioButtonGroup,
-  Select,
-  SelectItem,
   Stack,
   Tag,
   TextInput,
@@ -121,10 +119,10 @@ function EngagementStatusTag({ engagement }: { engagement: Engagement }) {
   return <Tag type={meta.tag} size="sm">{meta.label}</Tag>
 }
 
-function StarRating({ value }: { value: number }) {
+function StarRating({ value, max = 5 }: { value: number; max?: number }) {
   return (
     <span className={styles.difficultyStars}>
-      {'*'.repeat(value)}{'-'.repeat(Math.max(0, 5 - value))}
+      {value}/{max}
     </span>
   )
 }
@@ -266,7 +264,7 @@ function ScenarioCard({
     <div className={styles.scenarioCard}>
       <div className={styles.scenarioTags}>
         <Tag type="cyan" size="sm">{scenario.industry}</Tag>
-        <Tag type="gray" size="sm"><StarRating value={scenario.difficulty} /></Tag>
+        <Tag type="gray" size="sm">Complexity: <StarRating value={scenario.difficulty} /></Tag>
       </div>
       <h4>{scenario.title}</h4>
       <p>{scenario.description}</p>
@@ -657,31 +655,43 @@ export default function CommandCentrePage() {
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                 />
-                <Select
+                <Dropdown
                   id="status-filter"
-                  labelText="Filter"
+                  titleText="Filter"
                   hideLabel
-                  value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                >
-                  <SelectItem value="ALL" text="All active" />
-                  <SelectItem value="ACTION_REQUIRED" text="Action required" />
-                  <SelectItem value="AWAITING_RESPONSE" text="Awaiting response" />
-                  <SelectItem value="READY_FOR_REVIEW" text="Ready for review" />
-                </Select>
-                <Select
+                  label="All active"
+                  items={['All active', 'Action required', 'Awaiting response', 'Ready for review']}
+                  selectedItem={
+                    statusFilter === 'ALL' ? 'All active' : 
+                    statusFilter === 'ACTION_REQUIRED' ? 'Action required' : 
+                    statusFilter === 'AWAITING_RESPONSE' ? 'Awaiting response' : 'Ready for review'
+                  }
+                  onChange={({ selectedItem }) => {
+                    setStatusFilter(
+                      selectedItem === 'Action required' ? 'ACTION_REQUIRED' : 
+                      selectedItem === 'Awaiting response' ? 'AWAITING_RESPONSE' : 
+                      selectedItem === 'Ready for review' ? 'READY_FOR_REVIEW' : 'ALL',
+                    )
+                  }}
+                />
+                <Dropdown
                   id="sort-mode"
-                  labelText="Sort"
+                  titleText="Sort"
                   hideLabel
-                  value={sortMode}
-                  onChange={(event) => setSortMode(event.target.value as SortMode)}
-                >
-                  <SelectItem value="RECENT" text="Recently active" />
-                  <SelectItem value="PROGRESS" text="Progress" />
-                  <SelectItem value="SCENARIO" text="Scenario" />
-                </Select>
+                  label="Recently active"
+                  items={['Recently active', 'Progress', 'Scenario']}
+                  selectedItem={
+                    sortMode === 'RECENT' ? 'Recently active' : 
+                    sortMode === 'PROGRESS' ? 'Progress' : 'Scenario'
+                  }
+                  onChange={({ selectedItem }) => {
+                    setSortMode(
+                      selectedItem === 'Progress' ? 'PROGRESS' : 
+                      selectedItem === 'Scenario' ? 'SCENARIO' : 'RECENT',
+                    )
+                  }}
+                />
               </div>
-
               <div className={styles.compactList}>
                 {filteredActiveEngagements.length > 0 ? (
                   filteredActiveEngagements.map((engagement) => (
@@ -778,19 +788,36 @@ export default function CommandCentrePage() {
                 value={catalogueSearch}
                 onChange={(event) => setCatalogueSearch(event.target.value)}
               />
-              <Select id="scenario-catalogue-industry" labelText="Industry" hideLabel value={catalogueIndustry} onChange={(event) => setCatalogueIndustry(event.target.value)}>
-                <SelectItem value="" text="All industries" />
-                {catalogIndustries.map((industry) => <SelectItem key={industry} value={industry} text={industry} />)}
-              </Select>
-              <Select id="scenario-catalogue-difficulty" labelText="Difficulty" hideLabel value={String(catalogueDifficulty)} onChange={(event) => setCatalogueDifficulty(event.target.value ? Number(event.target.value) : '')}>
-                <SelectItem value="" text="All difficulty" />
-                <SelectItem value="2" text="Guided" />
-                <SelectItem value="3" text="Standard" />
-                <SelectItem value="4" text="Advanced" />
-              </Select>
-              <span className={styles.catalogueLoading}>{catalogueLoading ? 'Updating results...' : 'Cached catalogue'}</span>
+              <Dropdown id="scenario-catalogue-industry" titleText="Industry" hideLabel label="All industries" 
+                items={['All industries', ...catalogIndustries]} 
+                selectedItem={catalogueIndustry || 'All industries'}
+                onChange={({ selectedItem }) => {
+                  setCatalogueIndustry(
+                    selectedItem === 'All industries' ? '' : selectedItem ?? '',
+                  )
+                }}
+              />
+              <Dropdown id="scenario-catalogue-difficulty" titleText="Difficulty" hideLabel label="All difficulty"
+                items={['All difficulty', 'Guided', 'Standard', 'Advanced']}
+                selectedItem={
+                  catalogueDifficulty === 2 ? 'Guided' : 
+                  catalogueDifficulty === 3 ? 'Standard' : 
+                  catalogueDifficulty === 4 ? 'Advanced' : 'All difficulty'
+                }
+                onChange={({ selectedItem }) => {
+                  setCatalogueDifficulty(
+                    selectedItem === 'Guided' ? 2 : 
+                    selectedItem === 'Standard' ? 3 : 
+                    selectedItem === 'Advanced' ? 4 : '',
+                  )
+                }}
+              />
             </div>
-            {scenarioCatalogue?.items.length ? (
+            {catalogueLoading ? (
+              <div className={styles.catalogueLoadingState}>
+                <LoadingState />
+              </div>
+            ) : scenarioCatalogue?.items.length ? (
               <>
                 <div className={styles.scenarioGrid}>
                   {scenarioCatalogue.items.map((scenario) => (
