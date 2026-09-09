@@ -735,7 +735,7 @@ export default function CommandCentrePage() {
                     <h3>{scenarioCatalogue.items[0].title}</h3>
                     <p>Practise stakeholder discovery and commercial evidence gathering in a fresh industry context.</p>
                   </div>
-                  <Button kind="secondary" size="sm" renderIcon={Renew} onClick={() => handleStart(scenarioCatalogue.items[0])}>
+                  <Button kind="secondary" size="sm" renderIcon={Renew} style={{ height: 'fit-content', alignSelf: 'flex-start' }} onClick={() => handleStart(scenarioCatalogue.items[0])}>
                     Start scenario
                   </Button>
                 </section>
