@@ -7,6 +7,7 @@ import com.ibm.consulting.sim.knowledge.domain.KnowledgeCollection;
 import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocument;
 import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
 import com.ibm.consulting.sim.lead.domain.Lead;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
@@ -94,7 +95,7 @@ class KnowledgePublicationConcurrencyIntegrationTest {
             return readyConfig;
         });
         LeadRepository leads = mock(LeadRepository.class);
-        when(leads.findByScenarioId(fixture.scenarioId())).thenReturn(List.of(mock(Lead.class)));
+        when(leads.findByScenarioId(fixture.scenarioId())).thenReturn(List.of(completeLead(fixture.scenarioId())));
         DifficultyProfileService difficulty = mock(DifficultyProfileService.class);
         when(difficulty.forScenario(any(Scenario.class)))
                 .thenReturn(com.ibm.consulting.sim.scenario.domain.DifficultyProfile.defaults(3, 3, 3, 3));
@@ -130,6 +131,15 @@ class KnowledgePublicationConcurrencyIntegrationTest {
         assertThat(published.getStatus()).isEqualTo(ScenarioStatus.ACTIVE);
         verify(embeddings, never()).embed(any());
         assertThat(documentCount(fixture.scenarioId())).isEqualTo(mutation == Mutation.UPLOAD ? 0L : 1L);
+    }
+
+    private static Lead completeLead(UUID scenarioId) {
+        Lead lead = Lead.create(scenarioId, "Example Corp", "Technology",
+                "Modernisation opportunity", LeadDifficulty.MEDIUM);
+        lead.configure("Example Corp", "Technology", "Modernisation opportunity", LeadDifficulty.MEDIUM,
+                "$100K-$250K", "Chief Information Officer", "Cloud platform", "Funding approved", "High",
+                List.of(new Lead.SignalInput("Transformation programme announced", "OPPORTUNITY")));
+        return lead;
     }
 
     private void executeMutation(Mutation mutation, KnowledgeIngestionService service, Fixture fixture) {
