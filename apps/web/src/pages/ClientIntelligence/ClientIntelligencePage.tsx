@@ -9,8 +9,7 @@ import {
   Tile,
   TextInput,
   TextArea,
-  Select,
-  SelectItem,
+  Dropdown,
   Checkbox,
   Modal,
   InlineNotification,
@@ -35,19 +34,19 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'readiness',
     objective: 'Understand outreach readiness',
-    description: 'These requirements show what you need to complete before you can move into outreach.',
+    description: 'These are the requirements you must meet before proceeding to the next step of client outreach.',
     targets: ['.objective-readiness'],
   },
   {
     id: 'actions',
     objective: 'Where research comes from',
-    description: 'Each button runs one line of research on this client. Nothing is gathered until you ask for it, and what comes back depends on which area you choose.',
+    description: 'Each research area relates to what you may want to know about the client. Choose one to view it in your research workspace.',
     targets: ['.objective-evidence'],
   },
   {
     id: 'evidence-board',
     objective: 'Build your evidence base',
-    description: 'Everything you gather or add by hand collects here. This is the base your outreach and your proposal are later judged against, so it is worth reading rather than skimming.',
+    description: 'Any evidence collected will be displayed in this section, your evidence board. This evidence is crucial for your client outreach in the next step, so ensure you understand and analyse your collected evidence.',
     targets: ['.objective-evidence-board'],
   },
   {
@@ -59,23 +58,22 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'stakeholder',
     objective: 'Identify your stakeholder',
-    description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
+    description: 'Research and identify a relevant stakeholder. This is one of the requirements you must meet before being able to proceed to the next step of client outreach.',
     targets: ['.objective-stakeholder-research'],
   },
   {
     id: 'hypothesis',
     objective: 'Form a grounded hypothesis',
-    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
+    description: 'Use the collected evidence to form a hypothesis about the client\'s possible pain points or underlying problems and the relevant business impacts.',
     targets: ['.objective-hypothesis'],
   },
   {
     id: 'gate',
     objective: 'Moving on',
-    description: 'Outreach opens once every requirement above is met. You can keep researching after that if you want more to work with — the gate is a floor, not a target.',
+    description: 'Outreach opens once every requirement above is met. You may continue to research after that, if you want more evidence to work with in later stages.',
     targets: ['.objective-gate'],
   },
 ]
-
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -376,7 +374,15 @@ function HypothesisWorkspace({
               <div className={styles.citationGrid}>{visibleCitations.map((e) => <Controller key={e.id} control={control} name="supportingEvidenceIds" render={({ field }) => <Checkbox id={`support-${e.id}`} labelText={`${evidenceCode(e.sequenceNo)} — ${e.note.slice(0, 74)}`} checked={field.value?.includes(e.id) ?? false} onChange={(_, { checked }) => { const current = field.value ?? []; field.onChange(checked ? [...current, e.id] : current.filter((id) => id !== e.id)) }} />} />)}</div>
             </div>
           )}
-          <Select id="hypothesis-confidence" labelText="How confident are you?" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select>
+          <Controller control={control} name="confidence" render={({ field }) => (
+            <Dropdown
+              id="hypothesis-confidence"
+              titleText="How confident are you?"
+              items={CONFIDENCE_LEVELS}
+              selectedItem={field.value}
+              onChange={({ selectedItem }) => field.onChange(selectedItem)}
+            />
+          )} />
         </form>
       </Modal>
     </div>
@@ -397,12 +403,13 @@ export default function ClientIntelligencePage() {
   const [findingsPage, setFindingsPage] = useState(0)
   const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, setValue, control, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       evidenceType: 'COMPANY_NEWS',
       confidence: 'MEDIUM',
     },
   })
+
   const {
     register: registerExternalContext,
     handleSubmit: handleExternalContextSubmit,
@@ -535,6 +542,7 @@ export default function ClientIntelligencePage() {
           <GateRequirement met={(gate?.confidencePercent ?? 0) >= (gate?.requiredConfidencePercent ?? 40)} label={`${gate?.requiredConfidencePercent ?? 40}% confidence`} />
         </section>
       </Column>
+
       <Column lg={12} md={8} sm={4} className={styles.mainAreaColumn}>
         <div className={styles.mainArea}>
           <div className={styles.topRow}>
@@ -563,7 +571,14 @@ export default function ClientIntelligencePage() {
                 {activeResearchAction ? (
                   <div className={styles.researchMethods}>
                     <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag style={{ marginTop: '8px' }} type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" style={{ marginTop: '20px' }} onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
-                    <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Add external context</h3><p>AI correlates your input without changing canonical scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button></Tile></form>
+                    <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
+                      <Tile className={styles.researchMethod}>
+                        <h3>Add external context</h3>
+                        <p>AI correlates your input without changing canonical scenario truth.</p>
+                        <TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} />
+                        <Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button>
+                      </Tile>
+                    </form>
                   </div>
                 ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
                 {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}
@@ -588,9 +603,9 @@ export default function ClientIntelligencePage() {
 
       <Modal open={manualEvidenceOpen} modalHeading="Add a source to the evidence board" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" onRequestClose={() => setManualEvidenceOpen(false)} onRequestSubmit={handleSubmit(onSubmit)} primaryButtonDisabled={saveResearch.isPending}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.manualEvidenceForm}>
-          <Select id="evidenceType" labelText="Research area" {...register('evidenceType')} onChange={(event) => { register('evidenceType').onChange(event); setActiveAction(null) }}>{EVIDENCE_TYPES.map((type) => <SelectItem key={type} value={type} text={type.replace(/_/g, ' ')} />)}</Select>
+          <Controller control={control} name="evidenceType" render={({ field }) => (<Dropdown id="evidenceType" titleText="Research area" items={EVIDENCE_TYPES} itemToString={(item) => item ? item.replace(/_/g, ' ') : ''} selectedItem={field.value} onChange={({ selectedItem }) => { field.onChange(selectedItem); setActiveAction(null) }} />)} />
           <TextArea id="note" labelText="Finding" rows={3} invalid={Boolean(errors.note)} invalidText="A finding is required" {...register('note', { required: true })} />
-          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Select id="confidence" labelText="Reliability" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select></div>
+          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Controller control={control} name="confidence" render={({ field }) => (<Dropdown id="confidence" titleText="Reliability" items={CONFIDENCE_LEVELS} selectedItem={field.value} onChange={({ selectedItem }) => field.onChange(selectedItem)} />)} /></div>
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
       </Modal>
