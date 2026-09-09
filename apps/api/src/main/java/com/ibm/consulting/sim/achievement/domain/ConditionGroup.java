@@ -11,8 +11,15 @@ public record ConditionGroup(LogicalOperator operator, List<AchievementCondition
         implements AchievementCondition {
 
     public ConditionGroup {
+        if (operator == null) {
+            throw new IllegalArgumentException("A condition group must have a logical operator");
+        }
         if (children == null || children.isEmpty()) {
             throw new IllegalArgumentException("A condition group must have at least one child condition");
         }
+        if (children.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException("A condition group cannot contain a null child condition");
+        }
+        children = List.copyOf(children);
     }
 }

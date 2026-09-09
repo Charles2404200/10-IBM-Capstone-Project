@@ -35,6 +35,7 @@ import type {
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
 } from '@/api/types'
+import { leadAuthoringFormFrom, type LeadAuthoringForm } from '@/features/scenario/services/scenarioAuthoringContract'
 import styles from '@/pages/Admin/ScenarioBuilderPage.module.css'
 import { getProblemDetail } from '@/api/problemDetails'
 
@@ -59,7 +60,7 @@ function blueprintFrom(scenario: ScenarioSummary): UpdateScenarioBlueprintReques
   }
 }
 
-const emptyLead: LeadAuthoringRequest = {
+const emptyLead: LeadAuthoringForm = {
   companyName: '', industry: '', publicDescription: '', difficulty: 'MEDIUM', potentialValueRange: '',
   decisionMaker: '', technologyStack: '', budgetSignal: '', painSeverity: '', signals: [],
 }
@@ -83,7 +84,7 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   const updateLead = useUpdateScenarioLead(scenario.id)
   const [blueprint, setBlueprint] = useState(() => blueprintFrom(scenario))
   const [config, setConfig] = useState<ScenarioAuthoringConfig>({ canonicalFacts: [], revealRules: [] })
-  const [lead, setLead] = useState<LeadAuthoringRequest>({ ...emptyLead })
+  const [lead, setLead] = useState<LeadAuthoringForm>({ ...emptyLead })
   const [revisionCreated, setRevisionCreated] = useState(false)
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
 
@@ -103,18 +104,7 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   const saveConfig = () => updateConfig.mutate(config)
   const startEditingLead = (item: LeadAuthoringView) => {
     setEditingLeadId(item.id)
-    setLead({
-      companyName: item.companyName,
-      industry: item.industry,
-      publicDescription: item.publicDescription ?? '',
-      difficulty: item.difficulty as LeadAuthoringRequest['difficulty'],
-      potentialValueRange: item.potentialValueRange ?? '',
-      decisionMaker: item.decisionMaker ?? '',
-      technologyStack: item.technologyStack ?? '',
-      budgetSignal: item.budgetSignal ?? '',
-      painSeverity: item.painSeverity ?? '',
-      signals: item.signals,
-    })
+    setLead(leadAuthoringFormFrom(item))
   }
   const resetLeadForm = () => {
     setEditingLeadId(null)

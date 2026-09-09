@@ -2,7 +2,9 @@ package com.ibm.consulting.sim.achievement.application;
 
 import com.ibm.consulting.sim.achievement.domain.ConditionType;
 import com.ibm.consulting.sim.achievement.domain.LogicalOperator;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -19,12 +21,13 @@ import java.util.List;
  *       {@code MIN_COMPETENCY_SCORE}) are set, group fields are null.</li>
  * </ul>
  */
+@ValidConditionNode
 public record ConditionNode(
         @NotNull Kind kind,
         LogicalOperator operator,
-        List<ConditionNode> children,
+        @Size(max = 20) List<@NotNull @Valid ConditionNode> children,
         ConditionType type,
-        String competencyName,
+        @Size(max = 200) String competencyName,
         Double threshold) {
 
     public enum Kind { GROUP, LEAF }

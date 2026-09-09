@@ -201,8 +201,9 @@ public class ScenarioService {
     })
     public ScenarioSummary updateDifficultyProfile(UUID scenarioId, UpdateDifficultyProfileRequest request) {
         Scenario scenario = findScenario(scenarioId);
-        difficultyProfileService.updateScenarioProfile(scenario, request.profile());
-        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DIFFICULTY_CHANGED, "SCENARIO", scenarioId.toString(), request.profile().toString());
+        var profile = request.toDomain();
+        difficultyProfileService.updateScenarioProfile(scenario, profile);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DIFFICULTY_CHANGED, "SCENARIO", scenarioId.toString(), profile.toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -352,15 +353,33 @@ public class ScenarioService {
         List<String> blockers = new ArrayList<>();
         ScenarioAuthoringConfig config = authoringConfigService.forScenario(scenario);
         int personas = scenario.getPersonas().size();
-        int leads = leadRepository.findByScenarioId(scenario.getId()).size();
+        List<Lead> authoredLeads = leadRepository.findByScenarioId(scenario.getId());
+        int leads = authoredLeads.size();
         if (personas == 0) blockers.add("Add at least one client persona.");
         if (leads == 0) blockers.add("Add at least one lead definition.");
+        else if (authoredLeads.stream().anyMatch(ScenarioService::isLeadIncomplete)) {
+            blockers.add("Complete every lead's description, intelligence fields, and visible signals.");
+        }
         if (scenario.getObjective() == null || scenario.getObjective().isBlank()) blockers.add("Define the learner objective.");
         if (config.canonicalFacts().isEmpty()) blockers.add("Add scenario-approved canonical facts.");
         if (config.revealRules().isEmpty()) blockers.add("Define intelligence reveal rules.");
         if (scenario.getRubricWeights().isEmpty()) blockers.add("Save competency rubric weights.");
         return new ScenarioAuthoringView.Readiness(blockers.isEmpty(), List.copyOf(blockers), personas, leads,
                 config.canonicalFacts().size(), config.revealRules().size());
+    }
+
+    private static boolean isLeadIncomplete(Lead lead) {
+        return isBlank(lead.getPublicDescription())
+                || isBlank(lead.getPotentialValueRange())
+                || isBlank(lead.getDecisionMaker())
+                || isBlank(lead.getTechnologyStack())
+                || isBlank(lead.getBudgetSignal())
+                || isBlank(lead.getPainSeverity())
+                || lead.getSignals().isEmpty();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void configureLead(Lead lead, LeadAuthoringRequest request) {

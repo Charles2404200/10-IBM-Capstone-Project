@@ -117,7 +117,7 @@ export interface ScenarioSummary {
   personas: PersonaSummary[]
   rubricWeights: Record<string, number>
   difficultyProfile: DifficultyProfile
-  gameplayDifficulty?: GameplayDifficultyProfile
+  gameplayDifficulty: GameplayDifficultyProfile
   briefing: ScenarioBriefing
 }
 
@@ -692,7 +692,7 @@ export interface ConditionNode {
 export interface AchievementSummary {
   id: string
   name: string
-  description: string
+  description: string | null
   iconKey: string
   unlocked: boolean
   unlockedAt: string | null
@@ -702,7 +702,7 @@ export interface AchievementSummary {
 export interface AchievementAdminView {
   id: string
   name: string
-  description: string
+  description: string | null
   iconKey: string
   active: boolean
   rule: ConditionNode
@@ -710,7 +710,7 @@ export interface AchievementAdminView {
 
 export interface UpsertAchievementRequest {
   name: string
-  description: string
+  description: string | null
   iconKey: string
   rule: ConditionNode
 }
@@ -811,13 +811,13 @@ export interface UpdateScenarioBlueprintRequest {
 export interface LeadAuthoringRequest {
   companyName: string
   industry: string
-  publicDescription: string
+  publicDescription: string | null
   difficulty: LeadSummary['difficulty']
-  potentialValueRange: string
-  decisionMaker: string
-  technologyStack: string
-  budgetSignal: string
-  painSeverity: string
+  potentialValueRange: string | null
+  decisionMaker: string | null
+  technologyStack: string | null
+  budgetSignal: string | null
+  painSeverity: string | null
   signals: Array<{ label: string; category: string }>
 }
 

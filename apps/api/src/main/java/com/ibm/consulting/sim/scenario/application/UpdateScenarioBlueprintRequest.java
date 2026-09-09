@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -15,7 +16,7 @@ public record UpdateScenarioBlueprintRequest(
         @Min(1) @Max(5) int difficulty,
         String consultantRole,
         String objective,
-        List<String> successCriteria,
+        @NotNull @Size(max = 20) List<@NotBlank @Size(max = 500) String> successCriteria,
         @Min(1) @Max(90) int simulatedDays,
         @Min(1) @Max(5) int informationAmbiguity,
         @Min(1) @Max(5) int stakeholderComplexity,

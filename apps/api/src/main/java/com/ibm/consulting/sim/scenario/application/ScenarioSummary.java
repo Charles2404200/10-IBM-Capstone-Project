@@ -21,6 +21,11 @@ public record ScenarioSummary(
         GameplayDifficultyProfile gameplayDifficulty,
         Briefing briefing) {
 
+    public ScenarioSummary {
+        gameplayDifficulty = java.util.Objects.requireNonNull(
+                gameplayDifficulty, "gameplayDifficulty is required for every scenario response");
+    }
+
     /** Named difficulty dimensions — explains *why* a scenario is hard, not just a single 1–5 number. */
     public record DifficultyProfile(int informationAmbiguity, int stakeholderComplexity, int commercialPressure) {}
 
@@ -43,14 +48,6 @@ public record ScenarioSummary(
 
     /** Pre-engagement briefing content shown before the learner enters the Lead Pipeline. */
     public record Briefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays) {}
-
-    /** Source-compatible constructor retained for internal clients compiled against the prior response shape. */
-    public ScenarioSummary(UUID id, String title, String industry, String description, int difficulty, int contentVersion,
-                           String status, List<PersonaSummary> personas, Map<String, Integer> rubricWeights,
-                           DifficultyProfile difficultyProfile, Briefing briefing) {
-        this(id, title, industry, description, difficulty, contentVersion, status, personas, rubricWeights,
-                difficultyProfile, null, briefing);
-    }
 
     /**
      * Learner-facing view of a persona. Deliberately excludes {@code hiddenConcerns},
