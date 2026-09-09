@@ -417,7 +417,14 @@ export default function PortfolioPage() {
                   </Column>
                 ))}
               </Grid>
-              <CompetencyTrendGraph trends={portfolio.competencyTrends} />
+              {portfolio.completedEngagements >= 2 ? (
+                <CompetencyTrendGraph trends={portfolio.competencyTrends} />
+              ) : portfolio.completedEngagements === 1 ? (
+                <Tile className={styles.combinedTrendTile} >
+                  <h5 className={styles.combinedTrendTitle}>Progress Across Attempts</h5>
+                  <p className={styles.combinedTrendDescription}>Track your competency across your completed engagements. Complete at least 2 engagements to see your progress.</p>
+                </Tile>
+              ) : null}
             </section>
           )}
 

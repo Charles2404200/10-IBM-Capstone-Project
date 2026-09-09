@@ -132,7 +132,7 @@ export default function AssessmentReviewPage() {
   const outcome = describeOutcome(result.outcome)
 
   return (
-    <Grid fullWidth style={{ padding: '2rem' }}>
+    <Grid fullWidth narrow style={{ padding: '2rem' }}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={6}>
           <div>
@@ -175,12 +175,13 @@ export default function AssessmentReviewPage() {
               <Tile>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>
-                  {result.strengths.map((s, i) => (
-                    <p key={i} style={{ color: '#161616' }}>
-                      <span style={{ color: '#24a148' }} aria-hidden="true">✓ </span>
-                      {s}
-                    </p>
-                  ))}
+                  <ol style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                    {result.strengths.map((s, i) => (
+                      <li key={i} style={{ marginBottom: '0.75rem' }}>
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
                   {result.strengths.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
               </Tile>
@@ -189,12 +190,13 @@ export default function AssessmentReviewPage() {
               <Tile>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
-                  {result.improvementAreas.map((s, i) => (
-                    <p key={i} style={{ color: '#161616' }}>
-                      <span style={{ color: '#b28600' }} aria-hidden="true">△ </span>
-                      {s}
-                    </p>
-                  ))}
+                  <ol style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                    {result.improvementAreas.map((s, i) => (
+                      <li key={i} style={{ marginBottom: '0.75rem' }}>
+                        {s}
+                      </li>
+                    ))}
+                  </ol>
                   {result.improvementAreas.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
                 </Stack>
               </Tile>
