@@ -165,7 +165,7 @@ export default function LeadPipelinePage() {
             />
           )}
 
-          <Grid narrow>
+          <Grid narrow style={{ maxHeight: '32rem', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'thin', }} >
             {leads?.map((lead) => (
               <Column key={lead.id} lg={5} md={4} sm={4} style={{ marginBottom: '1.5rem' }}>
                 <LeadCard
