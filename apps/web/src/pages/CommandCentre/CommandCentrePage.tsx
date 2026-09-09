@@ -446,13 +446,14 @@ export default function CommandCentrePage() {
   const [catalogueIndustry, setCatalogueIndustry] = useState('')
   const [catalogueDifficulty, setCatalogueDifficulty] = useState<number | ''>('')
   const [cataloguePage, setCataloguePage] = useState(1)
+  const [cataloguePageSize, setCataloguePageSize] = useState(8)
   const catalogueFilters = useMemo(() => ({
     search: catalogueSearch.trim() || undefined,
     industry: catalogueIndustry || undefined,
     difficulty: catalogueDifficulty || undefined,
     page: cataloguePage - 1,
-    size: 9,
-  }), [catalogueDifficulty, catalogueIndustry, cataloguePage, catalogueSearch])
+    size: cataloguePageSize,
+  }), [catalogueDifficulty, catalogueIndustry, cataloguePage, cataloguePageSize, catalogueSearch])
   const { data: scenarioCatalogue, isLoading: scenLoading, isFetching: catalogueLoading, isError: scenarioError } = useScenarioCatalog(catalogueFilters)
   const { data: catalogIndustries = [] } = useScenarioCatalogIndustries()
 
@@ -641,39 +642,40 @@ export default function CommandCentrePage() {
                   <h3>Active Engagements</h3>
                   <p>Compact view of everything still in flight.</p>
                 </div>
-                <div className={styles.controls}>
-                  <TextInput
-                    id="engagement-search"
-                    labelText="Search engagements"
-                    hideLabel
-                    placeholder="Search engagements"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                  />
-                  <Select
-                    id="status-filter"
-                    labelText="Filter"
-                    hideLabel
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                  >
-                    <SelectItem value="ALL" text="All active" />
-                    <SelectItem value="ACTION_REQUIRED" text="Action required" />
-                    <SelectItem value="AWAITING_RESPONSE" text="Awaiting response" />
-                    <SelectItem value="READY_FOR_REVIEW" text="Ready for review" />
-                  </Select>
-                  <Select
-                    id="sort-mode"
-                    labelText="Sort"
-                    hideLabel
-                    value={sortMode}
-                    onChange={(event) => setSortMode(event.target.value as SortMode)}
-                  >
-                    <SelectItem value="RECENT" text="Recently active" />
-                    <SelectItem value="PROGRESS" text="Progress" />
-                    <SelectItem value="SCENARIO" text="Scenario" />
-                  </Select>
-                </div>
+              </div>
+              
+              <div className={styles.controls}>
+                <TextInput
+                  id="engagement-search"
+                  labelText="Search engagements"
+                  hideLabel
+                  placeholder="Search engagements"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+                <Select
+                  id="status-filter"
+                  labelText="Filter"
+                  hideLabel
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                >
+                  <SelectItem value="ALL" text="All active" />
+                  <SelectItem value="ACTION_REQUIRED" text="Action required" />
+                  <SelectItem value="AWAITING_RESPONSE" text="Awaiting response" />
+                  <SelectItem value="READY_FOR_REVIEW" text="Ready for review" />
+                </Select>
+                <Select
+                  id="sort-mode"
+                  labelText="Sort"
+                  hideLabel
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as SortMode)}
+                >
+                  <SelectItem value="RECENT" text="Recently active" />
+                  <SelectItem value="PROGRESS" text="Progress" />
+                  <SelectItem value="SCENARIO" text="Scenario" />
+                </Select>
               </div>
 
               <div className={styles.compactList}>
@@ -795,9 +797,12 @@ export default function CommandCentrePage() {
                   className={styles.cataloguePagination}
                   page={cataloguePage}
                   pageSize={scenarioCatalogue.size}
-                  pageSizes={[9]}
+                  pageSizes={Array.from({ length: 100 }, (_, i) => i + 1)}
                   totalItems={scenarioCatalogue.totalElements}
-                  onChange={({ page }) => setCataloguePage(page)}
+                  onChange={({ page, pageSize }) => {
+                    setCataloguePage(pageSize !== cataloguePageSize ? 1 : page)
+                    setCataloguePageSize(pageSize)
+                  }}
                 />
               </>
             ) : (
