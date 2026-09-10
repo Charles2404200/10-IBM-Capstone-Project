@@ -36,31 +36,6 @@ const mockedAnalyzeContext = vi.mocked(useAnalyzeUserContext)
 const mockedGateStatus = vi.mocked(useResearchGateStatus)
 const mockedCompleteResearch = vi.mocked(useCompleteResearch)
 
-// creates an evidence object for tests
-function makeEvidence(
-  sequenceNo: number,
-  overrides: Partial<ResearchEvidence> = {},
-): ResearchEvidence {
-  return {
-    id: `evidence-${sequenceNo}`,
-    engagementId: 'eng-1',
-    note: `Finding number ${sequenceNo}`,
-    hypothesis: null,
-    evidenceType: 'COMPANY_NEWS',
-    sourceUrl: null,
-    sourceTitle: `Source ${sequenceNo}`,
-    origin: 'AI_GENERATED',
-    verificationStatus: 'UNVERIFIED',
-    occurredOn: null,
-    confidence: 'MEDIUM',
-    relevanceScore: 60,
-    sequenceNo,
-    supportingEvidenceIds: [],
-    createdAt: '2026-08-01T10:00:00Z',
-    ...overrides,
-  } as ResearchEvidence
-}
-
 // default research gate data used by the page during tests
 const gate = {
   researchCompleted: false,

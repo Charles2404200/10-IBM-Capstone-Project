@@ -49,7 +49,7 @@ function makeEvidence(sequenceNo: number): ResearchEvidence {
     evidenceType: 'COMPANY_NEWS',
     sourceUrl: null,
     sourceTitle: `Signal ${sequenceNo}`,
-    origin: 'AI_GENERATED',
+    origin: 'AI_SYNTHESIZED',
     verificationStatus: 'VERIFIED',
     occurredOn: null,
     confidence: 'HIGH',

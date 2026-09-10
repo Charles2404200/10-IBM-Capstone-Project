@@ -5,7 +5,7 @@ import LeadPipelinePage from './LeadPipelinePage'
 import { useEngagement } from '@/api/hooks/useEngagements'
 import { useLeads, useSelectLead } from '@/api/hooks/useLeads'
 import { useScenario } from '@/api/hooks/useScenarios'
-import type { Engagement, LeadSummary, ScenarioSummary } from '@/api/types'
+import type { Engagement, LeadSummary } from '@/api/types'
 
 // mock hooks and shared components for tests
 vi.mock('@/api/hooks/useEngagements', () => ({
