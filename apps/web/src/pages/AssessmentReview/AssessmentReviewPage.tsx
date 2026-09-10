@@ -9,6 +9,7 @@ import { resolveEngagementRoute } from '@/api/engagementRouting'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
+import styles from './AssessmentReviewPage.module.scss'
 
 type OutcomePresentation = {
   label: string
@@ -44,12 +45,12 @@ function CompetencyBar({ name, score, evidenceNote }: { name: string; score: num
   return (
     <Tile>
       <Stack gap={2}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <h5 style={{ color: '#161616' }}>{name}</h5>
-          <span style={{ color: '#525252' }}>{score}/100</span>
+        <div className={styles.competencyHeader}>
+          <h5 className={styles.competencyName}>{name}</h5>
+          <span className={styles.competencyScore}>{score}/100</span>
         </div>
         <ProgressBar label="" hideLabel value={score} max={100} size="small" />
-        {evidenceNote && <p style={{ color: '#525252', fontSize: '0.75rem' }}>{evidenceNote}</p>}
+        {evidenceNote && <p className={styles.evidenceNote}>{evidenceNote}</p>}
       </Stack>
     </Tile>
   )
@@ -132,39 +133,39 @@ export default function AssessmentReviewPage() {
   const outcome = describeOutcome(result.outcome)
 
   return (
-    <Grid fullWidth narrow style={{ padding: '2rem' }}>
+    <Grid fullWidth narrow className={styles.pageGrid}>
       <Column lg={16} md={8} sm={4}>
         <Stack gap={6}>
           <div>
             <Heading>Engagement Assessment</Heading>
-            <p style={{ color: '#525252', marginTop: '0.5rem' }}>
+            <p className={styles.pageDescription}>
               Coaching feedback generated from your research, outreach, meeting and proposal.
             </p>
           </div>
 
           <Tile>
             <Stack gap={3}>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div className={styles.outcomeHeader}>
                 <Tag type="blue" size="lg">
                   ENGAGEMENT COMPLETE
                 </Tag>
                 <Tag type={outcome.tagType} size="lg">
                   {outcome.label}
                 </Tag>
-                <span style={{ color: '#161616', fontSize: '1.5rem' }}>{result.overallScore}/100</span>
+                <span className={styles.overallScore}>{result.overallScore}/100</span>
               </div>
-              <p style={{ color: '#525252' }}><strong>{outcome.contractStatus}</strong></p>
+              <p className={styles.contractStatus}><strong>{outcome.contractStatus}</strong></p>
               {result.coachingPending ? (
                 <InlineLoading description="Preparing personalised AI coaching..." status="active" />
               ) : (
-                <p style={{ color: '#525252' }}>{result.feedbackSummary}</p>
+                <p className={styles.feedbackSummary}>{result.feedbackSummary}</p>
               )}
             </Stack>
           </Tile>
 
           <Grid narrow>
             {result.competencyScores.map((c) => (
-              <Column key={c.name} lg={8} md={4} sm={4} style={{ marginBottom: '1rem' }}>
+              <Column key={c.name} lg={8} md={4} sm={4} className={styles.competencyColumn}>
                 <CompetencyBar name={c.name} score={c.score} evidenceNote={c.evidenceNote} />
               </Column>
             ))}
@@ -174,30 +175,30 @@ export default function AssessmentReviewPage() {
             <Column lg={8} md={4} sm={4}>
               <Tile>
                 <Stack gap={2}>
-                  <h5 style={{ color: '#161616' }}>Strengths</h5>
-                  <ol style={{ margin: 0, paddingLeft: '1.5rem', listStyleType: 'decimal' }}>
+                  <h5 className={styles.sectionTitle}>Strengths</h5>
+                  <ol className={styles.orderedList}>
                     {result.strengths.map((s, i) => (
-                      <li key={i} style={{ marginBottom: '0.75rem' }}>
+                      <li key={i} className={styles.listItem}>
                         {s}
                       </li>
                     ))}
                   </ol>
-                  {result.strengths.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
+                  {result.strengths.length === 0 && <p className={styles.emptyText}>None recorded.</p>}
                 </Stack>
               </Tile>
             </Column>
             <Column lg={8} md={4} sm={4}>
               <Tile>
                 <Stack gap={2}>
-                  <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
-                  <ol style={{ margin: 0, paddingLeft: '1.5rem', listStyleType: 'decimal'}}>
+                  <h5 className={styles.sectionTitle}>Areas for Improvement</h5>
+                  <ol className={styles.orderedList}>
                     {result.improvementAreas.map((s, i) => (
-                      <li key={i} style={{ marginBottom: '0.75rem' }}>
+                      <li key={i} className={styles.listItem}>
                         {s}
                       </li>
                     ))}
                   </ol>
-                  {result.improvementAreas.length === 0 && <p style={{ color: '#525252' }}>None recorded.</p>}
+                  {result.improvementAreas.length === 0 && <p className={styles.emptyText}>None recorded.</p>}
                 </Stack>
               </Tile>
             </Column>
