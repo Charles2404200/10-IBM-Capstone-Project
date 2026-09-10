@@ -417,7 +417,7 @@ export default function PortfolioPage() {
                   </Column>
                 ))}
               </Grid>
-              {portfolio.competencyTrends.some((trend) => trend.points.length > 1) ? (
+              {portfolio.completedEngagements >= 2 ? (
                 <CompetencyTrendGraph trends={portfolio.competencyTrends} />
               ) : (
                 <Tile className={styles.combinedTrendTile} >

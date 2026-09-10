@@ -175,7 +175,7 @@ export default function AssessmentReviewPage() {
               <Tile>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Strengths</h5>
-                  <ol style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                  <ol style={{ margin: 0, paddingLeft: '1.5rem', listStyleType: 'decimal' }}>
                     {result.strengths.map((s, i) => (
                       <li key={i} style={{ marginBottom: '0.75rem' }}>
                         {s}
@@ -190,7 +190,7 @@ export default function AssessmentReviewPage() {
               <Tile>
                 <Stack gap={2}>
                   <h5 style={{ color: '#161616' }}>Areas for Improvement</h5>
-                  <ol style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                  <ol style={{ margin: 0, paddingLeft: '1.5rem', listStyleType: 'decimal'}}>
                     {result.improvementAreas.map((s, i) => (
                       <li key={i} style={{ marginBottom: '0.75rem' }}>
                         {s}

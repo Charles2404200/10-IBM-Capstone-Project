@@ -33,6 +33,7 @@ function makeTrend( competencyName: string, points: CompetencyTrend['points']): 
 
 const basePortfolio = {
   totalEngagements: 3,
+  completedEngagements: 2,
   contractsWon: 2,
   contractsLost: 1,
   averageOverallScore: 75,
@@ -41,10 +42,11 @@ const basePortfolio = {
 }
 
 // helper function to set up the mocked portfolio data for tests
-function setupPortfolio(trends: CompetencyTrend[]) {
+function setupPortfolio(trends: CompetencyTrend[], completedEngagements = 2) {
   mockedUsePortfolioSummary.mockReturnValue({
     data: {
       ...basePortfolio,
+      completedEngagements,
       competencyTrends: trends,
     },
     isLoading: false,
@@ -387,5 +389,42 @@ describe('PortfolioPage competency progression', () => {
 
     render(<PortfolioPage />)
     expect(screen.getByRole('button', { name: 'View history' })).toBeInTheDocument()
+  })
+
+  // for competency trend graph
+  it('renders graph empty state when user has completed less than 2 engagements', () => {
+    setupPortfolio([
+      makeTrend('Communication', [{ engagementId: 'engagement-1', generatedAt: '2026-08-01T10:00:00Z', score: 70, },]),
+    ],
+    1,
+    )
+ 
+    render(<PortfolioPage />)
+ 
+    expect(screen.getByText('Competency Progression')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Progress Across Attempts' })).toBeInTheDocument()
+    expect(screen.getByText('Track your competency across your completed engagements. Complete at least 2 engagements to see your progress.'),).toBeInTheDocument()
+ 
+    // graph elements and history toggle should not be rendered
+    expect(screen.queryByRole('checkbox', { name: 'Communication' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'View history' })).not.toBeInTheDocument()
+  })
+ 
+  it('render graph when there is data for two engagements, regardless of missing competency score(s)', () => {
+    setupPortfolio([
+      makeTrend('Communication', [
+        { engagementId: 'engagement-1', generatedAt: '2026-08-01T10:00:00Z', score: 60 },
+        { engagementId: 'engagement-2', generatedAt: '2026-08-10T10:00:00Z', score: 80 },
+      ]),
+      makeTrend('Negotiation', [
+        { engagementId: 'engagement-1', generatedAt: '2026-08-01T10:00:00Z', score: 70 },
+      ]),
+    ])
+ 
+    render(<PortfolioPage />)
+ 
+    expect(screen.getByText('Progress Across Attempts')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Communication' })).toBeInTheDocument()
+    expect(screen.queryByText('Track your competency across your completed engagements. Complete at least 2 engagements to see your progress.'),).not.toBeInTheDocument()
   })
 })
