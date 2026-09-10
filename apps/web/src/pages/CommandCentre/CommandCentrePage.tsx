@@ -828,7 +828,7 @@ export default function CommandCentrePage() {
                   className={styles.cataloguePagination}
                   page={cataloguePage}
                   pageSize={scenarioCatalogue.size}
-                  pageSizes={Array.from({ length: 100 }, (_, i) => i + 1)}
+                  pageSizes={[8, 16, 24]}
                   totalItems={scenarioCatalogue.totalElements}
                   onChange={({ page, pageSize }) => {
                     setCataloguePage(pageSize !== cataloguePageSize ? 1 : page)
