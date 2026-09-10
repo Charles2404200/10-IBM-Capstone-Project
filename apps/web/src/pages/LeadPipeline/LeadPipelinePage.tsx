@@ -143,23 +143,27 @@ export default function LeadPipelinePage() {
           )}
 
           {selectionLocked && (
-            <Stack gap={4}>
-              <InlineNotification
-                kind="info"
-                title="Lead already selected"
-                subtitle={`This engagement has already locked in a lead — continue to ${PHASE_LABEL.CLIENT_INTELLIGENCE} to keep researching it.`}
-                hideCloseButton
-                lowContrast
-              />
-              <Button
-                kind="ghost"
-                size="sm"
-                renderIcon={ArrowRight}
-                onClick={() => navigate(`/dashboard/engagements/${engagementId}/intelligence`)}
-              >
-                Continue to {PHASE_LABEL.CLIENT_INTELLIGENCE}
-              </Button>
-            </Stack>
+            <Grid narrow>
+              <Column lg={15} md={8} sm={4}>
+                <Stack gap={4}>
+                  <InlineNotification
+                    kind="info"
+                    title="Lead already selected"
+                    subtitle={`This engagement has already locked in a lead — continue to ${PHASE_LABEL.CLIENT_INTELLIGENCE} to keep researching it.`}
+                    hideCloseButton
+                    lowContrast
+                  />
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    renderIcon={ArrowRight}
+                    onClick={() => navigate(`/dashboard/engagements/${engagementId}/intelligence`)}
+                  >
+                    Continue to {PHASE_LABEL.CLIENT_INTELLIGENCE}
+                  </Button>
+                </Stack>
+              </Column>
+            </Grid>
           )}
 
           {!canSelect && !alreadySelected && (
