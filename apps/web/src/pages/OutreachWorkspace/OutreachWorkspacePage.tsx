@@ -49,7 +49,7 @@ const OUTREACH_WORKSPACE_OBJECTIVES = [
   {
     id: 'evidence',
     objective: 'Use your evidence base',
-    description: 'Utilise your collected evidence to write an outreach email.',
+    description: 'Utilise your collected evidence to write an outreach email. Scroll down this section for further assistance, as you can use the evidence assistant to add to your outreach email.',
     targets: ['.objective-evidence'],
   },
   {
@@ -69,12 +69,6 @@ const OUTREACH_WORKSPACE_OBJECTIVES = [
     objective: 'Complete the outreach checklist',
     description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
     targets: ['.objective-checklist'],
-  },
-  {
-    id: 'assistance',
-    objective: 'Possible assistance',
-    description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
-    targets: ['.objective-assistance'],
   },
   {
     id: 'send',
@@ -445,7 +439,7 @@ export default function OutreachWorkspacePage() {
                   </form>
                 </Tile>
 
-                <Tile className={`${styles.assistPanel} objective-assistance objective-evidence`}>
+                <Tile className={`${styles.assistPanel} objective-evidence`}>
                   <p className={styles.eyebrow}>Evidence assistant</p>
                   <h3>Build your message with evidence</h3>
                   <p>Use verified client signals to make your outreach specific and relevant.</p>

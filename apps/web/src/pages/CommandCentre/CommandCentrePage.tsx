@@ -47,30 +47,30 @@ const STATUS_META: Record<EngagementStatus, { label: string; tag: 'blue' | 'cyan
 const COMMAND_CENTRE_OBJECTIVES = [
   {
     id: 'orientation',
-    objective: 'This is your Command Centre',
+    objective: 'This is your command centre',
     description:
-      'Every engagement starts and finishes here. Whatever you have in flight, this page is where you pick it back up.',
+      'Every engagement starts and finishes here. Your progress and details on other available clients and scenarios can be viewed on this page.',
     targets: ['.objective-command-centre'],
   },
   {
     id: 'arc',
     objective: 'How an engagement runs',
     description:
-      'Research the client, earn a meeting and run it, then put a proposal to them. Each stage feeds the next, and the client reacts to what you actually write.',
+      'Research the client, reach out to them via email and live meeting, then present a proposal to them. Each stage will follow the next, and the client reacts to your responses.',
     targets: ['.objective-engagement-arc'],
   },
   {
     id: 'start',
     objective: 'Start your first engagement',
     description:
-      'One client to begin with. You can change who you work with, but you do not have to decide that yet.',
+      'This is a suggested client you can being with, however, you can view more clients before deciding.',
     targets: ['.objective-start-engagement'],
   },
   {
     id: 'catalogue',
     objective: 'Every other client lives here',
     description:
-      'Browse the full catalogue when you want a different industry or difficulty. It is always at the bottom of this page.',
+      'Browse the full catalogue of clients when you want a different industry or difficulty.',
     targets: ['.objective-scenario-catalogue'],
   },
 ]
