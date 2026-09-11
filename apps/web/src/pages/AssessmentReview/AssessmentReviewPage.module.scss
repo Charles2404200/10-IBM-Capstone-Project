@@ -1,0 +1,67 @@
+.pageGrid {
+  padding: 2rem;
+}
+
+.pageDescription {
+  color: #525252;
+  margin-top: 0.5rem;
+}
+
+.competencyHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.competencyName {
+  color: #161616;
+}
+
+.competencyScore {
+  color: #525252;
+}
+
+.evidenceNote {
+  color: #525252;
+  font-size: 0.75rem;
+}
+
+.outcomeHeader {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.overallScore {
+  color: #161616;
+  font-size: 1.5rem;
+}
+
+.contractStatus {
+  color: #525252;
+}
+
+.feedbackSummary {
+  color: #525252;
+}
+
+.competencyColumn {
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  color: #161616;
+}
+
+.orderedList {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style-type: decimal;
+}
+
+.listItem {
+  margin-bottom: 0.75rem;
+}
+
+.emptyText {
+  color: #525252;
+}

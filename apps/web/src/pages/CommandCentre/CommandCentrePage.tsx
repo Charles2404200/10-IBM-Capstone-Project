@@ -8,11 +8,10 @@ import {
   Pagination,
   RadioButton,
   RadioButtonGroup,
-  Select,
-  SelectItem,
   Stack,
   Tag,
   TextInput,
+  Dropdown,
 } from '@carbon/react'
 import { Add, ArrowRight, Renew, Search } from '@carbon/icons-react'
 import { useMyEngagements, useStartEngagement } from '@/api/hooks/useEngagements'
@@ -48,30 +47,30 @@ const STATUS_META: Record<EngagementStatus, { label: string; tag: 'blue' | 'cyan
 const COMMAND_CENTRE_OBJECTIVES = [
   {
     id: 'orientation',
-    objective: 'This is your Command Centre',
+    objective: 'This is your command centre',
     description:
-      'Every engagement starts and finishes here. Whatever you have in flight, this page is where you pick it back up.',
+      'Every engagement starts and finishes here. Your progress and details on other available clients and scenarios can be viewed on this page.',
     targets: ['.objective-command-centre'],
   },
   {
     id: 'arc',
     objective: 'How an engagement runs',
     description:
-      'Research the client, earn a meeting and run it, then put a proposal to them. Each stage feeds the next, and the client reacts to what you actually write.',
+      'Research the client, reach out to them via email and live meeting, then present a proposal to them. Each stage will follow the next, and the client reacts to your responses.',
     targets: ['.objective-engagement-arc'],
   },
   {
     id: 'start',
     objective: 'Start your first engagement',
     description:
-      'One client to begin with. You can change who you work with, but you do not have to decide that yet.',
+      'This is a suggested client you can being with, however, you can view more clients before deciding.',
     targets: ['.objective-start-engagement'],
   },
   {
     id: 'catalogue',
     objective: 'Every other client lives here',
     description:
-      'Browse the full catalogue when you want a different industry or difficulty. It is always at the bottom of this page.',
+      'Browse the full catalogue of clients when you want a different industry or difficulty.',
     targets: ['.objective-scenario-catalogue'],
   },
 ]
@@ -120,10 +119,10 @@ function EngagementStatusTag({ engagement }: { engagement: Engagement }) {
   return <Tag type={meta.tag} size="sm">{meta.label}</Tag>
 }
 
-function StarRating({ value }: { value: number }) {
+function StarRating({ value, max = 5 }: { value: number; max?: number }) {
   return (
     <span className={styles.difficultyStars}>
-      {'*'.repeat(value)}{'-'.repeat(Math.max(0, 5 - value))}
+      {value}/{max}
     </span>
   )
 }
@@ -163,8 +162,15 @@ function FeaturedEngagement({
           </div>
 
           <div className={styles.nextActionBlock}>
-            <span className={styles.blockLabel}>Next action</span>
-            <p>{engagement.nextAction}</p>
+            <div>
+              <span className={styles.blockLabel}>Next action</span>
+              <p>{engagement.nextAction}</p>
+            </div>
+            <div className={styles.featuredCta}>
+              <Button renderIcon={ArrowRight} onClick={() => navigate(resolveEngagementRoute(engagement))}>
+                Continue engagement
+              </Button>
+            </div>
           </div>
 
           <div className={styles.featuredFacts}>
@@ -173,11 +179,7 @@ function FeaturedEngagement({
           </div>
         </div>
 
-        <div className={styles.featuredCta}>
-          <Button renderIcon={ArrowRight} onClick={() => navigate(resolveEngagementRoute(engagement))}>
-            Continue engagement
-          </Button>
-        </div>
+        
       </div>
     </section>
   )
@@ -262,7 +264,7 @@ function ScenarioCard({
     <div className={styles.scenarioCard}>
       <div className={styles.scenarioTags}>
         <Tag type="cyan" size="sm">{scenario.industry}</Tag>
-        <Tag type="gray" size="sm"><StarRating value={scenario.difficulty} /></Tag>
+        <Tag type="gray" size="sm">Complexity: <StarRating value={scenario.difficulty} /></Tag>
       </div>
       <h4>{scenario.title}</h4>
       <p>{scenario.description}</p>
@@ -390,18 +392,18 @@ function FirstRunPanel({
       </h2>
       <ol className={`${styles.firstRunArc} objective-engagement-arc`}>
         <li>
-          <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence before you say anything.
+          <strong>{PHASE_LABEL.CLIENT_INTELLIGENCE}</strong> — gather evidence on the client before interacting with them.
         </li>
         <li>
-          <strong>{PHASE_LABEL.OUTREACH}</strong> — earn a meeting, then run it.
+          <strong>{PHASE_LABEL.OUTREACH}</strong> — reach out to client to discuss and further understand their needs.
         </li>
         <li>
-          <strong>{PHASE_LABEL.PROPOSAL}</strong> — put a case to them and live with their answer.
+          <strong>{PHASE_LABEL.PROPOSAL}</strong> — build and present your case to them and receive their feedback.
         </li>
       </ol>
       <p className={styles.firstRunNote}>
-        Nothing here is undoable practice with a safety net — the client reacts to what you actually
-        write, and your review at the end is built from those reactions.
+        Your interactions have consequences. The client responds to your decisions, and those responses shape your final review. 
+        Pay close attention to each step and approach every interaction as you would with a real client.
       </p>
 
       {scenario ? (
@@ -422,7 +424,7 @@ function FirstRunPanel({
       <button
         type="button"
         className={styles.firstRunAlt}
-        onClick={() => document.getElementById('available-scenarios')?.scrollIntoView({ behavior: 'smooth' })}
+        onClick={() => document.getElementById('scenario-catalogue')?.scrollIntoView({ behavior: 'smooth' })}
       >
         Or choose a different client
       </button>
@@ -446,13 +448,14 @@ export default function CommandCentrePage() {
   const [catalogueIndustry, setCatalogueIndustry] = useState('')
   const [catalogueDifficulty, setCatalogueDifficulty] = useState<number | ''>('')
   const [cataloguePage, setCataloguePage] = useState(1)
+  const [cataloguePageSize, setCataloguePageSize] = useState(8)
   const catalogueFilters = useMemo(() => ({
     search: catalogueSearch.trim() || undefined,
     industry: catalogueIndustry || undefined,
     difficulty: catalogueDifficulty || undefined,
     page: cataloguePage - 1,
-    size: 9,
-  }), [catalogueDifficulty, catalogueIndustry, cataloguePage, catalogueSearch])
+    size: cataloguePageSize,
+  }), [catalogueDifficulty, catalogueIndustry, cataloguePage, cataloguePageSize, catalogueSearch])
   const { data: scenarioCatalogue, isLoading: scenLoading, isFetching: catalogueLoading, isError: scenarioError } = useScenarioCatalog(catalogueFilters)
   const { data: catalogIndustries = [] } = useScenarioCatalogIndustries()
 
@@ -641,41 +644,54 @@ export default function CommandCentrePage() {
                   <h3>Active Engagements</h3>
                   <p>Compact view of everything still in flight.</p>
                 </div>
-                <div className={styles.controls}>
-                  <TextInput
-                    id="engagement-search"
-                    labelText="Search engagements"
-                    hideLabel
-                    placeholder="Search engagements"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                  />
-                  <Select
-                    id="status-filter"
-                    labelText="Filter"
-                    hideLabel
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                  >
-                    <SelectItem value="ALL" text="All active" />
-                    <SelectItem value="ACTION_REQUIRED" text="Action required" />
-                    <SelectItem value="AWAITING_RESPONSE" text="Awaiting response" />
-                    <SelectItem value="READY_FOR_REVIEW" text="Ready for review" />
-                  </Select>
-                  <Select
-                    id="sort-mode"
-                    labelText="Sort"
-                    hideLabel
-                    value={sortMode}
-                    onChange={(event) => setSortMode(event.target.value as SortMode)}
-                  >
-                    <SelectItem value="RECENT" text="Recently active" />
-                    <SelectItem value="PROGRESS" text="Progress" />
-                    <SelectItem value="SCENARIO" text="Scenario" />
-                  </Select>
-                </div>
               </div>
-
+              
+              <div className={styles.controls}>
+                <TextInput
+                  id="engagement-search"
+                  labelText="Search engagements"
+                  hideLabel
+                  placeholder="Search engagements"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+                <Dropdown
+                  id="status-filter"
+                  titleText="Filter"
+                  hideLabel
+                  label="All active"
+                  items={['All active', 'Action required', 'Awaiting response', 'Ready for review']}
+                  selectedItem={
+                    statusFilter === 'ALL' ? 'All active' : 
+                    statusFilter === 'ACTION_REQUIRED' ? 'Action required' : 
+                    statusFilter === 'AWAITING_RESPONSE' ? 'Awaiting response' : 'Ready for review'
+                  }
+                  onChange={({ selectedItem }) => {
+                    setStatusFilter(
+                      selectedItem === 'Action required' ? 'ACTION_REQUIRED' : 
+                      selectedItem === 'Awaiting response' ? 'AWAITING_RESPONSE' : 
+                      selectedItem === 'Ready for review' ? 'READY_FOR_REVIEW' : 'ALL',
+                    )
+                  }}
+                />
+                <Dropdown
+                  id="sort-mode"
+                  titleText="Sort"
+                  hideLabel
+                  label="Recently active"
+                  items={['Recently active', 'Progress', 'Scenario']}
+                  selectedItem={
+                    sortMode === 'RECENT' ? 'Recently active' : 
+                    sortMode === 'PROGRESS' ? 'Progress' : 'Scenario'
+                  }
+                  onChange={({ selectedItem }) => {
+                    setSortMode(
+                      selectedItem === 'Progress' ? 'PROGRESS' : 
+                      selectedItem === 'Scenario' ? 'SCENARIO' : 'RECENT',
+                    )
+                  }}
+                />
+              </div>
               <div className={styles.compactList}>
                 {filteredActiveEngagements.length > 0 ? (
                   filteredActiveEngagements.map((engagement) => (
@@ -719,7 +735,7 @@ export default function CommandCentrePage() {
                     <h3>{scenarioCatalogue.items[0].title}</h3>
                     <p>Practise stakeholder discovery and commercial evidence gathering in a fresh industry context.</p>
                   </div>
-                  <Button kind="secondary" size="sm" renderIcon={Renew} onClick={() => handleStart(scenarioCatalogue.items[0])}>
+                  <Button kind="secondary" size="sm" renderIcon={Renew} style={{ height: 'fit-content', alignSelf: 'flex-start' }} onClick={() => handleStart(scenarioCatalogue.items[0])}>
                     Start scenario
                   </Button>
                 </section>
@@ -772,19 +788,36 @@ export default function CommandCentrePage() {
                 value={catalogueSearch}
                 onChange={(event) => setCatalogueSearch(event.target.value)}
               />
-              <Select id="scenario-catalogue-industry" labelText="Industry" hideLabel value={catalogueIndustry} onChange={(event) => setCatalogueIndustry(event.target.value)}>
-                <SelectItem value="" text="All industries" />
-                {catalogIndustries.map((industry) => <SelectItem key={industry} value={industry} text={industry} />)}
-              </Select>
-              <Select id="scenario-catalogue-difficulty" labelText="Difficulty" hideLabel value={String(catalogueDifficulty)} onChange={(event) => setCatalogueDifficulty(event.target.value ? Number(event.target.value) : '')}>
-                <SelectItem value="" text="All difficulty" />
-                <SelectItem value="2" text="Guided" />
-                <SelectItem value="3" text="Standard" />
-                <SelectItem value="4" text="Advanced" />
-              </Select>
-              <span className={styles.catalogueLoading}>{catalogueLoading ? 'Updating results...' : 'Cached catalogue'}</span>
+              <Dropdown id="scenario-catalogue-industry" titleText="Industry" hideLabel label="All industries" 
+                items={['All industries', ...catalogIndustries]} 
+                selectedItem={catalogueIndustry || 'All industries'}
+                onChange={({ selectedItem }) => {
+                  setCatalogueIndustry(
+                    selectedItem === 'All industries' ? '' : selectedItem ?? '',
+                  )
+                }}
+              />
+              <Dropdown id="scenario-catalogue-difficulty" titleText="Difficulty" hideLabel label="All difficulty"
+                items={['All difficulty', 'Guided', 'Standard', 'Advanced']}
+                selectedItem={
+                  catalogueDifficulty === 2 ? 'Guided' : 
+                  catalogueDifficulty === 3 ? 'Standard' : 
+                  catalogueDifficulty === 4 ? 'Advanced' : 'All difficulty'
+                }
+                onChange={({ selectedItem }) => {
+                  setCatalogueDifficulty(
+                    selectedItem === 'Guided' ? 2 : 
+                    selectedItem === 'Standard' ? 3 : 
+                    selectedItem === 'Advanced' ? 4 : '',
+                  )
+                }}
+              />
             </div>
-            {scenarioCatalogue?.items.length ? (
+            {catalogueLoading ? (
+              <div className={styles.catalogueLoadingState}>
+                <LoadingState />
+              </div>
+            ) : scenarioCatalogue?.items.length ? (
               <>
                 <div className={styles.scenarioGrid}>
                   {scenarioCatalogue.items.map((scenario) => (
@@ -795,9 +828,12 @@ export default function CommandCentrePage() {
                   className={styles.cataloguePagination}
                   page={cataloguePage}
                   pageSize={scenarioCatalogue.size}
-                  pageSizes={[9]}
+                  pageSizes={[8, 16, 24]}
                   totalItems={scenarioCatalogue.totalElements}
-                  onChange={({ page }) => setCataloguePage(page)}
+                  onChange={({ page, pageSize }) => {
+                    setCataloguePage(pageSize !== cataloguePageSize ? 1 : page)
+                    setCataloguePageSize(pageSize)
+                  }}
                 />
               </>
             ) : (

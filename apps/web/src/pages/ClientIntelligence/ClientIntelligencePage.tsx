@@ -4,17 +4,16 @@ import {
   Grid,
   Column,
   Heading,
-  Stack,
   Button,
   Tag,
   Tile,
   TextInput,
   TextArea,
-  Select,
-  SelectItem,
+  Dropdown,
   Checkbox,
   Modal,
   InlineNotification,
+  Stack
 } from '@carbon/react'
 import {
   Add, ArrowRight, Locked, Link as LinkIcon, Search,
@@ -29,52 +28,52 @@ import type { ConfidenceLevel, EvidenceType, ResearchArtifact, ResearchEvidence 
 import styles from './ClientIntelligencePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
+import { useEffect } from 'react'
 
 const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'readiness',
     objective: 'Understand outreach readiness',
-    description: 'These requirements show what you need to complete before you can move into outreach.',
+    description: 'These are the requirements you must meet before proceeding to the next step of client outreach.',
     targets: ['.objective-readiness'],
   },
   {
     id: 'actions',
     objective: 'Where research comes from',
-    description: 'Each button runs one line of research on this client. Nothing is gathered until you ask for it, and what comes back depends on which area you choose.',
+    description: 'Each research area relates to what you may want to know about the client. Choose one to view it in your research workspace.',
     targets: ['.objective-evidence'],
   },
   {
     id: 'evidence-board',
     objective: 'Build your evidence base',
-    description: 'Everything you gather or add by hand collects here. This is the base your outreach and your proposal are later judged against, so it is worth reading rather than skimming.',
+    description: 'Any evidence collected will be displayed in this section, your evidence board. This evidence is crucial for your client outreach in the next step, so ensure you understand and analyse your collected evidence.',
     targets: ['.objective-evidence-board'],
   },
   {
     id: 'evidence-card',
     objective: 'Where a finding came from',
-    description: 'Each card carries a reference code, the source it came from, how reliable that source is, and how closely it relates to this client. Those tell you what a finding is worth citing for \u2014 they are not marks, and a low one is still yours to use if it fits.',
+    description: 'Each card carries a reference code, the source it came from, how reliable that source is, and how closely it relates to this client. Those tell you what a finding is worth citing for — they are not marks, and a low one is still yours to use if it fits.',
     targets: ['.objective-evidence-board'],
   },
   {
     id: 'stakeholder',
     objective: 'Identify your stakeholder',
-    description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
+    description: 'Research and identify a relevant stakeholder. This is one of the requirements you must meet before being able to proceed to the next step of client outreach.',
     targets: ['.objective-stakeholder-research'],
   },
   {
     id: 'hypothesis',
     objective: 'Form a grounded hypothesis',
-    description: 'Use the evidence you collected to explain the client\u2019s underlying problem and likely business impact.',
+    description: 'Use the collected evidence to form a hypothesis about the client\'s possible pain points or underlying problems and the relevant business impacts.',
     targets: ['.objective-hypothesis'],
   },
   {
     id: 'gate',
     objective: 'Moving on',
-    description: 'Outreach opens once every requirement above is met. You can keep researching after that if you want more to work with \u2014 the gate is a floor, not a target.',
+    description: 'Outreach opens once every requirement above is met. You may continue to research after that, if you want more evidence to work with in later stages.',
     targets: ['.objective-gate'],
   },
 ]
-
 
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
@@ -375,7 +374,16 @@ function HypothesisWorkspace({
               <div className={styles.citationGrid}>{visibleCitations.map((e) => <Controller key={e.id} control={control} name="supportingEvidenceIds" render={({ field }) => <Checkbox id={`support-${e.id}`} labelText={`${evidenceCode(e.sequenceNo)} — ${e.note.slice(0, 74)}`} checked={field.value?.includes(e.id) ?? false} onChange={(_, { checked }) => { const current = field.value ?? []; field.onChange(checked ? [...current, e.id] : current.filter((id) => id !== e.id)) }} />} />)}</div>
             </div>
           )}
-          <Select id="hypothesis-confidence" labelText="How confident are you?" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select>
+          <Controller control={control} name="confidence" render={({ field }) => (
+            <Dropdown
+              id="hypothesis-confidence"
+              label="Confidence"
+              titleText="How confident are you?"
+              items={CONFIDENCE_LEVELS}
+              selectedItem={field.value}
+              onChange={({ selectedItem }) => field.onChange(selectedItem)}
+            />
+          )} />
         </form>
       </Modal>
     </div>
@@ -396,12 +404,13 @@ export default function ClientIntelligencePage() {
   const [findingsPage, setFindingsPage] = useState(0)
   const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, setValue, control, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       evidenceType: 'COMPANY_NEWS',
       confidence: 'MEDIUM',
     },
   })
+
   const {
     register: registerExternalContext,
     handleSubmit: handleExternalContextSubmit,
@@ -418,12 +427,14 @@ export default function ClientIntelligencePage() {
     () => citableEvidence.filter((e) => e.evidenceType !== 'HYPOTHESIS'),
     [citableEvidence]
   )
-  const evidencePageSize = 4
-  const findingsPageSize = 3
-  const visibleEvidence = nonHypothesisEvidence.slice(evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize)
-  const visibleFindings = researchResults.slice(findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize)
+  const evidencePageSize = 3
+  const findingsPageSize = 2
+  const visibleEvidence = nonHypothesisEvidence.slice( evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize,)
+  const visibleFindings = researchResults.slice( findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize,)
   const evidencePageCount = Math.max(1, Math.ceil(nonHypothesisEvidence.length / evidencePageSize))
   const findingsPageCount = Math.max(1, Math.ceil(researchResults.length / findingsPageSize))
+  useEffect(() => { setEvidencePage((page) => Math.min(page, evidencePageCount - 1))}, [evidencePageCount])
+  useEffect(() => { setFindingsPage((page) => Math.min(page, findingsPageCount - 1)) }, [findingsPageCount])
   const readinessCompleteCount = [
     gate ? gate.evidenceCount >= gate.requiredEvidenceCount : false,
     gate?.hasStakeholderEvidence ?? false,
@@ -462,7 +473,7 @@ export default function ClientIntelligencePage() {
           setResearchResults((items) => items.filter((item) => item.id !== artifact.id))
           setEvidencePage(0)
         },
-      }
+      },
     )
   }
 
@@ -495,7 +506,7 @@ export default function ClientIntelligencePage() {
           setManualEvidenceOpen(false)
           setEvidencePage(0)
         },
-      }
+      },
     )
   }
 
@@ -506,13 +517,8 @@ export default function ClientIntelligencePage() {
 
   return (
     <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
-    <Grid fullWidth className={styles.page}>
+    <Grid fullWidth narrow className={styles.page}>
       <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
-        <nav className={styles.breadcrumbs} aria-label="Workflow path">
-          <span>Research workflow</span><ChevronRight size={16} />
-          <span>Build evidence and test a hypothesis</span><ChevronRight size={16} />
-          <strong>Research the client</strong>
-        </nav>
         <header className={styles.pageHeader}>
           <div className={styles.titleBlock}>
             <div className={styles.titleIcon}><Search size={26} /></div>
@@ -538,41 +544,55 @@ export default function ClientIntelligencePage() {
         </section>
       </Column>
 
-      <Column lg={3} md={3} sm={4} className={styles.workColumn}>
-        <aside className={`${styles.researchActions} objective-evidence`}>
-          <h2>Research areas</h2>
-          {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
-            const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
-            return (
-              <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={generateResearch.isPending || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
-                <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '')}</small></span>
-                {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
-              </button>
-            )
-          })}
-        </aside>
-      </Column>
+      <Column lg={12} md={8} sm={4} className={styles.mainAreaColumn}>
+        <div className={styles.mainArea}>
+          <div className={styles.topRow}>
+            <aside className={`${styles.researchActions} objective-evidence`}>
+              <h2>Research areas</h2>
+              {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
+                const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
+                return (
+                  <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={generateResearch.isPending || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
+                    <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong>
+                    <small>
+                      {(() => {
+                        const description = prompt.replace('Research this area to ', '')
+                        return description.charAt(0).toUpperCase() + description.slice(1)
+                      })()}
+                    </small></span>
+                    {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
+                  </button>
+                )
+              })}
+            </aside>
 
-      <Column lg={9} md={5} sm={4} className={styles.workColumn}>
-        <main className={styles.workspace}>
-          <section className={styles.researchWorkspace}>
-            <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
-            {activeResearchAction ? (
-              <div className={styles.researchMethods}>
-                <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
-                <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Add external context</h3><p>AI correlates your input without changing canonical scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button></Tile></form>
-              </div>
-            ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
-            {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}
-            {generateResearch.isError && <InlineNotification kind="error" lowContrast title="Research could not be generated" subtitle="Retry this research action." hideCloseButton className={styles.researchError} />}
-            {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
-          </section>
-
+            <main className={styles.workspace}>
+              <section className={styles.researchWorkspace}>
+                <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
+                {activeResearchAction ? (
+                  <div className={styles.researchMethods}>
+                    <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag style={{ marginTop: '8px' }} type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" style={{ marginTop: '20px' }} onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
+                    <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
+                      <Tile className={styles.researchMethod}>
+                        <h3>Add external context</h3>
+                        <p>AI correlates your input without changing canonical scenario truth.</p>
+                        <TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} />
+                        <Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button>
+                      </Tile>
+                    </form>
+                  </div>
+                ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
+                {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}
+                {generateResearch.isError && <InlineNotification kind="error" lowContrast title="Research could not be generated" subtitle="Retry this research action." hideCloseButton className={styles.researchError} />}
+                {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div key={`findings-page-${findingsPage}`} className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
+              </section>
+            </main>
+          </div>
           <section className={`${styles.evidenceBoard} objective-evidence-board`}>
             <div className={styles.compactSectionHeader}><div><p className={styles.sectionEyebrow}>Evidence board</p><h2>Collected evidence ({nonHypothesisEvidence.length})</h2></div><div className={styles.evidenceTools}><Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => setManualEvidenceOpen(true)}>Add source</Button>{nonHypothesisEvidence.length > evidencePageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous evidence" disabled={evidencePage === 0} onClick={() => setEvidencePage((page) => page - 1)} /><span>{evidencePage + 1} / {evidencePageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next evidence" disabled={evidencePage >= evidencePageCount - 1} onClick={() => setEvidencePage((page) => page + 1)} /></div>}</div></div>
-            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
+            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div key={`evidence-page-${evidencePage}`} className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
           </section>
-        </main>
+        </div>
       </Column>
 
       <Column lg={4} md={8} sm={4} className={styles.workColumn}>
@@ -584,9 +604,9 @@ export default function ClientIntelligencePage() {
 
       <Modal open={manualEvidenceOpen} modalHeading="Add a source to the evidence board" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" onRequestClose={() => setManualEvidenceOpen(false)} onRequestSubmit={handleSubmit(onSubmit)} primaryButtonDisabled={saveResearch.isPending}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.manualEvidenceForm}>
-          <Select id="evidenceType" labelText="Research area" {...register('evidenceType')} onChange={(event) => { register('evidenceType').onChange(event); setActiveAction(null) }}>{EVIDENCE_TYPES.map((type) => <SelectItem key={type} value={type} text={type.replace(/_/g, ' ')} />)}</Select>
+          <Controller control={control} name="evidenceType" render={({ field }) => (<Dropdown id="evidenceType" label="Research area" titleText="Research area" items={EVIDENCE_TYPES} itemToString={(item) => item ? item.replace(/_/g, ' ') : ''} selectedItem={field.value} onChange={({ selectedItem }) => { field.onChange(selectedItem); setActiveAction(null) }} />)} />
           <TextArea id="note" labelText="Finding" rows={3} invalid={Boolean(errors.note)} invalidText="A finding is required" {...register('note', { required: true })} />
-          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Select id="confidence" labelText="Reliability" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select></div>
+          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Controller control={control} name="confidence" render={({ field }) => (<Dropdown id="confidence" label="Reliability" titleText="Reliability" items={CONFIDENCE_LEVELS} selectedItem={field.value} onChange={({ selectedItem }) => field.onChange(selectedItem)} />)} /></div>
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
       </Modal>
