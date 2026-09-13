@@ -164,18 +164,29 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
   const captureSelection = () => {
     const selection = window.getSelection()
     const selected = selection?.toString().replace(/\s+/g, ' ').trim() ?? ''
-    const selectableBlock = (node: Node | null) => {
-      const element = node instanceof Element ? node : node?.parentElement
-      return element?.closest<HTMLElement>('[data-selectable="true"]')
+    const reader = documentRef.current
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !reader) {
+      onSelectionChange('')
+      return
     }
-    const anchorBlock = selectableBlock(selection?.anchorNode ?? null)
-    const focusBlock = selectableBlock(selection?.focusNode ?? null)
-    const isSingleSelectableBlock = Boolean(anchorBlock && anchorBlock === focusBlock && documentRef.current?.contains(anchorBlock))
-    onSelectionChange(isSingleSelectableBlock && selected.length >= 8 ? selected : '')
+    const range = selection.getRangeAt(0)
+    if (!reader.contains(range.commonAncestorContainer)) {
+      onSelectionChange('')
+      return
+    }
+    // Browser anchor/focus nodes are unreliable around multi-column text and nested
+    // labels. Validate the actual range against every document block instead.
+    const selectedBlocks = Array.from(reader.querySelectorAll<HTMLElement>('[data-evidence-block="true"]'))
+      .filter((block) => range.intersectsNode(block))
+    const isEvidenceSelection = selectedBlocks.length > 0
+      && selectedBlocks.every((block) => block.dataset.selectable === 'true')
+    onSelectionChange(isEvidenceSelection && selected.length >= 8 ? selected : '')
   }
 
+  const scheduleSelectionCapture = () => window.requestAnimationFrame(captureSelection)
+
   return (
-    <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={captureSelection} onKeyUp={captureSelection}>
+    <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={scheduleSelectionCapture} onPointerUp={scheduleSelectionCapture} onKeyUp={scheduleSelectionCapture}>
       {isNewspaper && <div className={styles.documentMasthead} data-selectable="false"><strong>{documentLabel}</strong><span>Client intelligence edition</span><span>{artifact.publishedOn}</span></div>}
       {!isNewspaper && <p className={styles.sourceTemplateLabel} data-selectable="false">{documentLabel}</p>}
       <header className={styles.sourceDocumentHeader} data-selectable="false">
@@ -201,14 +212,16 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
       {isTechnology && <div className={styles.signalBanner} data-selectable="false"><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
       <div className={styles.sourceDocumentBody}>
         {blocks.map((block) => {
-          const selectable = block.selectable !== false
+          // Older source packs marked fact blocks non-selectable. Fact purpose is
+          // authoritative, while context and uncertainty remain deliberately locked.
+          const selectable = block.purpose === 'FACT' || block.purpose === 'INTERPRETATION' || block.selectable === true
           const className = `${styles.sourceBlock} ${selectable ? styles.sourceBlockSelectable : styles.sourceBlockReference} ${block.purpose === 'INTERPRETATION' ? styles.sourceBlockInterpretation : ''} ${block.purpose === 'UNCERTAINTY' ? styles.sourceBlockUncertainty : ''}`
           const label = block.purpose === 'INTERPRETATION' ? 'Derived interpretation' : block.purpose === 'UNCERTAINTY' ? 'Not yet confirmed' : block.purpose === 'CONTEXT' ? 'Context' : undefined
           const content = <>{label && <span className={styles.sourceBlockLabel}>{label}</span>}{block.content}{block.attribution && <cite>{block.attribution}</cite>}</>
-          if (block.type === 'QUOTE') return <blockquote key={block.id} className={className} data-selectable={selectable}>{content}</blockquote>
-          if (block.type === 'METRIC') return <div key={block.id} className={`${styles.sourceMetric} ${className}`} data-selectable={selectable}>{content}</div>
-          if (block.type === 'CAPTION') return <p key={block.id} className={`${styles.sourceCaption} ${className}`} data-selectable={selectable}>{content}</p>
-          return <p key={block.id} className={className} data-selectable={selectable}>{content}</p>
+          if (block.type === 'QUOTE') return <blockquote key={block.id} className={className} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</blockquote>
+          if (block.type === 'METRIC') return <div key={block.id} className={`${styles.sourceMetric} ${className}`} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</div>
+          if (block.type === 'CAPTION') return <p key={block.id} className={`${styles.sourceCaption} ${className}`} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</p>
+          return <p key={block.id} className={className} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</p>
         })}
       </div>
       <p className={styles.selectionInstruction} data-selectable="false">Only fact and clearly labelled interpretation blocks can be added to the evidence board.</p>
