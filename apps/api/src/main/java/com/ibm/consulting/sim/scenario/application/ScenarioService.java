@@ -33,6 +33,7 @@ import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_CACH
 import static com.ibm.consulting.sim.shared.config.CacheConfig.LEAD_CATALOG_FACETS_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_PLATFORM_OVERVIEW_CACHE;
 import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_SCENARIO_CATALOG_CACHE;
+import static com.ibm.consulting.sim.shared.config.CacheConfig.CLIENT_INTELLIGENCE_CACHE;
 
 @Service
 public class ScenarioService {
@@ -202,12 +203,18 @@ public class ScenarioService {
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = CLIENT_INTELLIGENCE_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView updateBlueprint(UUID scenarioId, UpdateScenarioBlueprintRequest request) {
         Scenario scenario = findScenario(scenarioId);
         scenario.updateMetadata(request.title(), request.industry(), request.description(), request.difficulty());
         scenario.updateBriefing(request.consultantRole(), request.objective(), request.successCriteria(), request.simulatedDays());
+        scenario.updateProblemBriefing(
+                firstProvided(request.businessSituation(), scenario.getDescription()),
+                firstProvided(request.observableSymptom(), scenario.getDescription()),
+                firstProvided(request.consultingMandate(), scenario.getObjective()),
+                request.unknownsToValidate() == null ? scenario.getSuccessCriteria() : request.unknownsToValidate());
         scenario.updateDifficultyDimensions(request.informationAmbiguity(), request.stakeholderComplexity(), request.commercialPressure());
         scenarioRepository.save(scenario);
         return authoringView(scenarioId);
@@ -219,7 +226,8 @@ public class ScenarioService {
             @CacheEvict(cacheNames = SCENARIO_CATALOG_CACHE, allEntries = true),
             @CacheEvict(cacheNames = SCENARIO_CATALOG_FACETS_CACHE, allEntries = true),
             @CacheEvict(cacheNames = ADMIN_PLATFORM_OVERVIEW_CACHE, allEntries = true),
-            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
+            @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true),
+            @CacheEvict(cacheNames = CLIENT_INTELLIGENCE_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView updateAuthoringConfig(UUID scenarioId, ScenarioAuthoringConfig config) {
         Scenario scenario = findScenario(scenarioId);
@@ -321,6 +329,10 @@ public class ScenarioService {
         if (personas == 0) blockers.add("Add at least one client persona.");
         if (leads == 0) blockers.add("Add at least one lead definition.");
         if (scenario.getObjective() == null || scenario.getObjective().isBlank()) blockers.add("Define the learner objective.");
+        if (scenario.getBusinessSituation() == null || scenario.getBusinessSituation().isBlank()) blockers.add("Define the client business situation.");
+        if (scenario.getObservableSymptom() == null || scenario.getObservableSymptom().isBlank()) blockers.add("Define the observable client symptom.");
+        if (scenario.getConsultingMandate() == null || scenario.getConsultingMandate().isBlank()) blockers.add("Define the consulting mandate.");
+        if (scenario.getUnknownsToValidate().isEmpty()) blockers.add("Define the unknowns learners must validate.");
         if (config.canonicalFacts().isEmpty()) blockers.add("Add scenario-approved canonical facts.");
         if (config.revealRules().isEmpty()) blockers.add("Define intelligence reveal rules.");
         if (scenario.getRubricWeights().isEmpty()) blockers.add("Save competency rubric weights.");
@@ -344,5 +356,9 @@ public class ScenarioService {
 
     private ScenarioSummary summary(Scenario scenario) {
         return ScenarioSummary.from(scenario, difficultyProfileService.forScenario(scenario));
+    }
+
+    private String firstProvided(String candidate, String fallback) {
+        return candidate == null || candidate.isBlank() ? fallback : candidate;
     }
 }

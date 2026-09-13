@@ -297,7 +297,17 @@ function ScenarioBriefingModal({
       </div>
 
       <div className={styles.briefingSection}>
-        <h5>Objective</h5>
+        <h5>Client problem briefing</h5>
+        <div className={styles.problemBriefGrid}>
+          <div><span>Business situation</span><p>{briefing.businessSituation}</p></div>
+          <div><span>Observable symptom</span><p>{briefing.observableSymptom}</p></div>
+          <div><span>Consulting mandate</span><p>{briefing.consultingMandate}</p></div>
+          <div><span>Unknowns to validate</span><ul>{briefing.unknownsToValidate.map((unknown) => <li key={unknown}>{unknown}</li>)}</ul></div>
+        </div>
+      </div>
+
+      <div className={styles.briefingSection}>
+        <h5>Learning objective</h5>
         <p>{briefing.objective}</p>
       </div>
 

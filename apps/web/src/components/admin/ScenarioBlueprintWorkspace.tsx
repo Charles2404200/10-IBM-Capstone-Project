@@ -53,6 +53,10 @@ function blueprintFrom(scenario: ScenarioSummary): UpdateScenarioBlueprintReques
     objective: scenario.briefing.objective,
     successCriteria: scenario.briefing.successCriteria,
     simulatedDays: scenario.briefing.simulatedDays,
+    businessSituation: scenario.briefing.businessSituation ?? scenario.description,
+    observableSymptom: scenario.briefing.observableSymptom ?? scenario.description,
+    consultingMandate: scenario.briefing.consultingMandate ?? scenario.briefing.objective,
+    unknownsToValidate: scenario.briefing.unknownsToValidate ?? scenario.briefing.successCriteria,
     informationAmbiguity: scenario.difficultyProfile.informationAmbiguity,
     stakeholderComplexity: scenario.difficultyProfile.stakeholderComplexity,
     commercialPressure: scenario.difficultyProfile.commercialPressure,
@@ -164,11 +168,15 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
             <TextInput id={`${scenario.id}-blueprint-role`} labelText="Learner role" value={blueprint.consultantRole} onChange={(event) => setBlueprint({ ...blueprint, consultantRole: event.target.value })} />
             <NumberInput id={`${scenario.id}-blueprint-days`} label="Simulated days" min={1} max={90} value={blueprint.simulatedDays} onChange={(_event, state) => setBlueprint({ ...blueprint, simulatedDays: Number(state?.value ?? 10) })} />
             <TextArea id={`${scenario.id}-blueprint-description`} className={styles.fullWidth} labelText="Scenario description" rows={3} value={blueprint.description} onChange={(event) => setBlueprint({ ...blueprint, description: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-business-situation`} className={styles.fullWidth} labelText="Business situation" rows={2} value={blueprint.businessSituation} onChange={(event) => setBlueprint({ ...blueprint, businessSituation: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-observable-symptom`} className={styles.fullWidth} labelText="Observable symptom" rows={2} value={blueprint.observableSymptom} onChange={(event) => setBlueprint({ ...blueprint, observableSymptom: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-consulting-mandate`} className={styles.fullWidth} labelText="Consulting mandate" rows={2} value={blueprint.consultingMandate} onChange={(event) => setBlueprint({ ...blueprint, consultingMandate: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-unknowns`} className={styles.fullWidth} labelText="Unknowns to validate (one per line)" rows={3} value={blueprint.unknownsToValidate.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, unknownsToValidate: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
             <TextArea id={`${scenario.id}-blueprint-objective`} className={styles.fullWidth} labelText="Learning objective" rows={3} value={blueprint.objective} onChange={(event) => setBlueprint({ ...blueprint, objective: event.target.value })} />
             <TextArea id={`${scenario.id}-blueprint-criteria`} className={styles.fullWidth} labelText="Success criteria (one per line)" rows={4} value={blueprint.successCriteria.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, successCriteria: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
           </div>
           {updateBlueprint.isError && <InlineNotification kind="error" title="Blueprint could not be saved" subtitle="Only draft versions can be edited. Review the required fields and try again." />}
-          <Button size="sm" disabled={updateBlueprint.isPending || !blueprint.title || !blueprint.industry || !blueprint.description || !blueprint.objective} onClick={saveBlueprint}>Save blueprint</Button>
+          <Button size="sm" disabled={updateBlueprint.isPending || !blueprint.title || !blueprint.industry || !blueprint.description || !blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate || blueprint.unknownsToValidate.length === 0 || !blueprint.objective} onClick={saveBlueprint}>Save blueprint</Button>
         </section>
 
         <section className={styles.authoringSection}>

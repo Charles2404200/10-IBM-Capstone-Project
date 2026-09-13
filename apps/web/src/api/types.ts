@@ -113,6 +113,10 @@ export interface ScenarioBriefing {
   objective: string
   successCriteria: string[]
   simulatedDays: number
+  businessSituation: string
+  observableSymptom: string
+  consultingMandate: string
+  unknownsToValidate: string[]
 }
 
 export interface ScenarioSummary {
@@ -800,6 +804,10 @@ export interface UpdateScenarioBlueprintRequest {
   objective: string
   successCriteria: string[]
   simulatedDays: number
+  businessSituation: string
+  observableSymptom: string
+  consultingMandate: string
+  unknownsToValidate: string[]
   informationAmbiguity: number
   stakeholderComplexity: number
   commercialPressure: number
