@@ -170,9 +170,9 @@ public class ResearchIntelligenceService {
                                                             ScenarioAuthoringConfig authoringConfig) {
         List<ResearchArtifactResponse> base = switch (type) {
             case COMPANY_NEWS -> companyNews(lead, scenario);
-            case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead);
-            case FINANCIAL_SIGNAL -> financialSignals(lead, profile.budgetVisible());
-            case TECHNOLOGY_INDICATOR -> technologySignals(lead);
+            case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead, scenario);
+            case FINANCIAL_SIGNAL -> financialSignals(lead, scenario, profile.budgetVisible());
+            case TECHNOLOGY_INDICATOR -> technologySignals(lead, scenario);
             case MARKET_TREND -> marketTrends(lead);
             case OTHER, HYPOTHESIS -> List.of();
         };
@@ -420,20 +420,24 @@ public class ResearchIntelligenceService {
                 EvidenceType.COMPANY_NEWS, ConfidenceLevel.HIGH, "business_situation", blocks("company-news-1",
                         scenario.getBusinessSituation(),
                         "The current observable signal is: " + scenario.getObservableSymptom(),
+                        availableSignalsParagraph(lead),
                         "The consulting mandate is to " + scenario.getConsultingMandate(),
                         unknownsParagraph(scenario),
                         "This briefing establishes the business frame, but it does not prove a root cause, identify a buyer, or validate a solution. A strong evidence note should preserve that distinction.")));
-        artifacts.add(artifact("company-news-2", "Leadership team faces execution pressure",
-                "Industry press", "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
+        artifacts.add(artifact("company-news-2", "Operating response under review at " + lead.getCompanyName(),
+                "Industry press", "A scenario-backed account of how the observable operating signal affects the client mandate.",
                 EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure", blocks("company-news-2",
-                        "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
-                        "This is a directional signal, not a confirmed diagnosis. A consultant should connect it back to the operating situation before proposing a response.",
+                        "The operating situation is described as: " + scenario.getBusinessSituation(),
+                        "The visible signal that deserves investigation is: " + scenario.getObservableSymptom(),
+                        availableSignalsParagraph(lead),
+                        "For the client, the immediate test is whether this signal is causing a material operational, customer, risk or financial consequence. The source alone cannot establish that consequence.",
+                        "Any response needs to support this mandate: " + scenario.getConsultingMandate(),
                         "Look for a direct link between the visible signal and a client-specific consequence. Without that link, this source is useful context rather than decisive evidence.",
                         unknownsParagraph(scenario))));
         return artifacts;
     }
 
-    private List<ResearchArtifactResponse> stakeholderProfiles(Lead lead) {
+    private List<ResearchArtifactResponse> stakeholderProfiles(Lead lead, Scenario scenario) {
         return List.of(
                 artifact("stakeholder-1", lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "Potential executive sponsor",
                         "Stakeholder profile",
@@ -443,9 +447,12 @@ public class ResearchIntelligenceService {
                                 "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
                                         .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
                                 "The client is described publicly as: " + valueOr(lead.getPublicDescription(), "a business with operating priorities still to be explored"),
+                                "The operating question to validate is: " + scenario.getObservableSymptom(),
+                                availableSignalsParagraph(lead),
                                 "Use the first conversation to distinguish stated priorities from the constraints that shape the decision process.",
                                 "A senior title can indicate access, but it does not by itself establish decision authority, budget ownership, or willingness to sponsor change.",
-                                "Capture the stakeholder's exact priority, success measure and concern before treating this profile as corroborated evidence.")),
+                                "Capture the stakeholder's exact priority, success measure and concern before treating this profile as corroborated evidence.",
+                                "A useful discovery question connects the visible operating signal to the mandate: " + scenario.getConsultingMandate())),
                 artifact("stakeholder-2", "Commercial stakeholder influence",
                         "Stakeholder map",
                         "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
@@ -453,10 +460,11 @@ public class ResearchIntelligenceService {
                                 "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
                                 "Treat the relationship map as a hypothesis: identify who can sponsor action, who may challenge it, and who controls the evidence needed for a decision.",
                                 "Do not assume that a visible executive is the only stakeholder with influence.",
-                                "For a practical next step, separate operational users, technical gatekeepers, commercial approvers and executive sponsors. Their incentives may not be aligned.")));
+                                "For a practical next step, separate operational users, technical gatekeepers, commercial approvers and executive sponsors. Their incentives may not be aligned.",
+                                unknownsParagraph(scenario))));
     }
 
-    private List<ResearchArtifactResponse> financialSignals(Lead lead, boolean budgetVisible) {
+    private List<ResearchArtifactResponse> financialSignals(Lead lead, Scenario scenario, boolean budgetVisible) {
         if (!budgetVisible) {
             return List.of(
                     artifact("financial-visibility-1", "Funding signals require discovery",
@@ -466,7 +474,8 @@ public class ResearchIntelligenceService {
                                     "No client-confirmed budget detail is available in the research phase.",
                                     "Use discovery to validate commercial priorities and investment appetite before treating any value case as funded.",
                                     "A useful next question is whether the operating issue has a measurable cost, service, risk or growth consequence.",
-                                    "Absence of budget evidence is not evidence of no budget. Record it as an unknown and avoid inventing a figure or approval date.")),
+                                    "Absence of budget evidence is not evidence of no budget. Record it as an unknown and avoid inventing a figure or approval date.",
+                                "The operating signal to quantify is: " + scenario.getObservableSymptom())),
                     artifact("financial-visibility-2", "Opportunity sizing remains provisional",
                             "Commercial analysis", "Public context suggests an opportunity, but no approved budget range is available. "
                                     + "Treat any estimate as a consultant assumption until the client validates it.",
@@ -474,7 +483,8 @@ public class ResearchIntelligenceService {
                                     "Public context suggests an opportunity, but no approved budget range is available.",
                                     "Treat any estimate as a consultant assumption until the client validates it.",
                                     "Prioritize a baseline metric and a low-risk next step over a premature investment recommendation.",
-                                    "The quality of this source improves only when an accountable stakeholder confirms the baseline, the materiality of the problem and the decision path.")));
+                                    "The quality of this source improves only when an accountable stakeholder confirms the baseline, the materiality of the problem and the decision path.",
+                                    "The resulting case should support the consulting mandate: " + scenario.getConsultingMandate())));
         }
         return List.of(
                 artifact("financial-1", "Funding signal under review",
@@ -485,7 +495,8 @@ public class ResearchIntelligenceService {
                                 valueOr(lead.getBudgetSignal(), "Budget is not yet confirmed"),
                                 "Any proposal should connect spend to measurable operational or risk reduction outcomes.",
                                 "Validate the owner, timing, approval route and conditions attached to any funding signal.",
-                                "A funding signal can support an exploratory conversation; it is not permission to promise scope, benefits or a delivery date.")),
+                                "A funding signal can support an exploratory conversation; it is not permission to promise scope, benefits or a delivery date.",
+                                "Anchor any proposed outcome to the visible operating signal: " + scenario.getObservableSymptom())),
                 artifact("financial-2", "Potential opportunity sizing",
                         "Commercial analysis",
                         "The likely opportunity range is %s, but this should be validated through discovery before proposal."
@@ -494,10 +505,11 @@ public class ResearchIntelligenceService {
                                 "The likely opportunity range is %s, but this should be validated through discovery before proposal."
                                         .formatted(valueOr(lead.getPotentialValueRange(), "not yet confirmed")),
                                 "An initial case is stronger when it identifies a credible baseline, a measurable outcome and the assumptions that still need client confirmation.",
-                                "Use this range as a question to test with the client, not as a result to present as already achieved.")));
+                                "Use this range as a question to test with the client, not as a result to present as already achieved.",
+                                unknownsParagraph(scenario))));
     }
 
-    private List<ResearchArtifactResponse> technologySignals(Lead lead) {
+    private List<ResearchArtifactResponse> technologySignals(Lead lead, Scenario scenario) {
         return List.of(
                 artifact("technology-1", "Current technology environment",
                         "Technology research",
@@ -507,14 +519,16 @@ public class ResearchIntelligenceService {
                                 valueOr(lead.getTechnologyStack(), "Technology stack is not yet confirmed"),
                                 "This may create integration, change-management and rollout risk.",
                                 "Use discovery to establish the current operating workflow, dependencies and constraints before recommending a target architecture.",
-                                "Technology names alone do not reveal data quality, ownership, security controls or the operational hand-offs that can make a change difficult.")),
+                                "Technology names alone do not reveal data quality, ownership, security controls or the operational hand-offs that can make a change difficult.",
+                                "The technology investigation should explain how the environment may contribute to: " + scenario.getObservableSymptom())),
                 artifact("technology-2", "Implementation risk indicator",
                         "Architecture note",
                         "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
                         EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, "implementation_risk", blocks("technology-2",
                                 "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
                                 "This is an implementation question to validate, not a prescribed solution. Confirm where teams currently experience friction and which dependencies cannot be disrupted.",
-                                "Document whether the constraint affects reliability, speed, compliance, cost or adoption. Those distinctions shape the right next question in the meeting.")));
+                                "Document whether the constraint affects reliability, speed, compliance, cost or adoption. Those distinctions shape the right next question in the meeting.",
+                                "The appropriate next step must still support the mandate: " + scenario.getConsultingMandate())));
     }
 
     private List<ResearchArtifactResponse> marketTrends(Lead lead) {
@@ -558,6 +572,16 @@ public class ResearchIntelligenceService {
 
     private String valueOr(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String availableSignalsParagraph(Lead lead) {
+        List<String> signals = lead.getSignals().stream()
+                .map(signal -> signal.getCategory() + ": " + signal.getLabel())
+                .filter(value -> !value.isBlank())
+                .toList();
+        return signals.isEmpty()
+                ? "No additional scenario-approved signal is available in this source. Treat the remaining question as open."
+                : "Scenario-approved signals available for cross-checking: " + String.join("; ", signals) + ".";
     }
 
     private int relevanceFor(ConfidenceLevel confidence) {

@@ -677,7 +677,7 @@ export default function ClientIntelligencePage() {
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
       </Modal>
-      <Modal className={styles.readerModal} open={Boolean(readerArtifact)} modalHeading="Source reader" primaryButtonText="Close source" onRequestClose={() => setReaderArtifact(null)} onRequestSubmit={() => setReaderArtifact(null)} size="lg">
+      <Modal className={styles.readerModal} open={Boolean(readerArtifact)} modalHeading="Source reader" primaryButtonText="Close source" onRequestClose={() => setReaderArtifact(null)} onRequestSubmit={() => setReaderArtifact(null)} size="lg" isFullWidth>
         {readerArtifact && <div className={styles.readerModalBody}>
           <div className={styles.readerNavigator}>
             <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous source" disabled={activeSources.length < 2} onClick={() => moveReader(-1)} />

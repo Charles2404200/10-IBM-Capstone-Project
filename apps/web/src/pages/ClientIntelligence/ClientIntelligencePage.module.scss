@@ -2044,6 +2044,20 @@ $accent-blue-dark: #0043ce;
   max-inline-size: min(94vw, 84rem) !important;
 }
 
+// Carbon attaches `className` to a wrapper in some versions and to the
+// container in others. Cover both render trees so this remains a full reader.
+.readerModal :global(.cds--modal-container),
+:global(.cds--modal).readerModal :global(.cds--modal-container) {
+  inline-size: min(96vw, 90rem) !important;
+  max-block-size: 94vh !important;
+  max-inline-size: min(96vw, 90rem) !important;
+}
+
+.readerModal :global(.cds--modal-content),
+:global(.cds--modal).readerModal :global(.cds--modal-content) {
+  max-block-size: none;
+}
+
 .readerModalBody {
   background: #f4f4f4;
   display: flex;
