@@ -2,7 +2,9 @@ package com.ibm.consulting.sim.identity.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.consulting.sim.identity.application.AdminUserService;
+import com.ibm.consulting.sim.identity.application.AdminUserPage;
 import com.ibm.consulting.sim.identity.application.UserSummary;
+import com.ibm.consulting.sim.identity.domain.UserDirectoryQuery;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
@@ -15,9 +17,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -70,8 +72,10 @@ class AdminUserControllerSecurityTest {
     @Test
     @WithMockUser(roles = "ADMINISTRATOR")
     void administratorCanListUsers() throws Exception {
-        when(adminUserService.listUsers()).thenReturn(
-                List.of(new UserSummary(UUID.randomUUID(), "a@ibm.com", "A", UserRole.LEARNER, true)));
+        when(adminUserService.listUsers(any(UserDirectoryQuery.class))).thenReturn(
+                new AdminUserPage(
+                        java.util.List.of(new UserSummary(UUID.randomUUID(), "a@ibm.com", "A", UserRole.LEARNER, true)),
+                        1, 0, 25, 1));
 
         mockMvc.perform(get("/api/v1/admin/users"))
                 .andExpect(status().isOk());

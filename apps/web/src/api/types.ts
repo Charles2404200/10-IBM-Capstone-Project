@@ -40,6 +40,14 @@ export interface AdminUserSummary {
   active: boolean
 }
 
+export interface AdminUserPage {
+  items: AdminUserSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
+}
+
 export interface AiProviderStat {
   providerId: string
   available: boolean
