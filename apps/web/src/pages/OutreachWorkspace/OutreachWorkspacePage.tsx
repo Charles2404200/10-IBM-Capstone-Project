@@ -516,18 +516,20 @@ export default function OutreachWorkspacePage() {
             )}
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
-            <section className={`${styles.evidenceStrip} objective-evidence`} aria-label="Evidence you can reference">
-              <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
-              {evidenceForReference.length > 0 ? (
-                <div className={styles.evidenceCards}>
-                  {evidenceForReference.slice(0, 4).map((item) => (
-                    <button type="button" key={item.id} onClick={() => appendEvidenceReference(item)}>
-                      <LinkIcon size={18} /><strong>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</strong><p>{item.note}</p><small>Add to email <ArrowRight size={14} /></small>
-                    </button>
-                  ))}
-                </div>
-              ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
-            </section>
+            {!meetingSecured && (
+              <section className={`${styles.evidenceStrip} objective-evidence`} aria-label="Evidence you can reference">
+                <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
+                {evidenceForReference.length > 0 ? (
+                  <div className={styles.evidenceCards}>
+                    {evidenceForReference.slice(0, 4).map((item) => (
+                      <button type="button" key={item.id} onClick={() => appendEvidenceReference(item)}>
+                        <LinkIcon size={18} /><strong>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</strong><p>{item.note}</p><small>Add to email <ArrowRight size={14} /></small>
+                      </button>
+                    ))}
+                  </div>
+                ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
+              </section>
+            )}
         </section>
 
         <aside className={styles.decisionRail}>

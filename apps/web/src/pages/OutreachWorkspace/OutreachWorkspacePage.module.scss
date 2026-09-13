@@ -294,7 +294,15 @@
   .clientDetails div { grid-template-columns: 5.5rem minmax(0, 1fr); }
   .clientResponse { padding: $spacing-03 $spacing-04; }
   .clientResponse blockquote { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 5; }
-  .clientResponse.clientResponseExpanded blockquote { display: block; height: 100%; margin-bottom: 0; overflow-y: auto; -webkit-line-clamp: unset; }
+  .clientResponse.clientResponseExpanded blockquote {
+    display: block !important;
+    height: 100%;
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+    overflow-y: auto !important;
+    -webkit-box-orient: initial !important;
+    -webkit-line-clamp: unset !important;
+  }
   .responseGuidance { margin-top: $spacing-02; padding: $spacing-02 $spacing-03; }
   .meetingOutcome { gap: $spacing-03; }
   .meetingOutcome .successPanel { padding: $spacing-04; }
