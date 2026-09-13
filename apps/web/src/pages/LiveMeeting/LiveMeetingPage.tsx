@@ -13,7 +13,7 @@ import {
   TextArea,
   Tile,
 } from '@carbon/react'
-import { ArrowRight, Send } from '@carbon/icons-react'
+import { ArrowRight, Idea, Send } from '@carbon/icons-react'
 import { useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
@@ -171,6 +171,7 @@ export default function LiveMeetingPage() {
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [terminationDismissed, setTerminationDismissed] = useState(false)
+  const [hintOpen, setHintOpen] = useState(false)
   const transcriptRef = useRef<HTMLDivElement>(null)
 
   const turns = useMemo(() => transcript ?? [], [transcript])
@@ -197,6 +198,7 @@ export default function LiveMeetingPage() {
     setMessage('')
     setPendingMessage(null)
     setTerminationDismissed(false)
+    setHintOpen(false)
   }, [meetingId])
 
   if (meetingLoading || transcriptLoading || personaStateLoading) return <LoadingState />
@@ -265,6 +267,26 @@ export default function LiveMeetingPage() {
       <Grid fullWidth className={styles.workspaceGrid}>
         <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
           <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
+            {!isCompleted && hint.length > 0 && (
+              <div className={styles.meetingHint}>
+                <Button
+                  hasIconOnly
+                  kind="ghost"
+                  size="sm"
+                  renderIcon={Idea}
+                  iconDescription="Show response hint"
+                  aria-expanded={hintOpen}
+                  aria-controls="meeting-response-hint"
+                  onClick={() => setHintOpen((open) => !open)}
+                />
+                {hintOpen && (
+                  <section className={styles.hintPopover} id="meeting-response-hint" aria-label="Response hint">
+                    <p className={styles.eyebrow}>Next-turn hint</p>
+                    <p>{hint[0]}</p>
+                  </section>
+                )}
+              </div>
+            )}
             <div className={styles.transcriptViewport} ref={transcriptRef}>
               {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
@@ -417,14 +439,6 @@ export default function LiveMeetingPage() {
                 <RelationshipMeter label="Patience" value={currentState.patience} threshold={meetingThreshold} />
               </Stack>
             </section>
-
-            {!isCompleted && hint.length > 0 && (
-              <Tile className={styles.hintPanel}>
-                <p className={styles.eyebrow}>Response-based hint</p>
-                <h3>Focus your next turn</h3>
-                <ul>{hint.map((item) => <li key={item}>{item}</li>)}</ul>
-              </Tile>
-            )}
 
             {(currentBehaviourFeedback || currentState.disclosedFacts.length > 0 || (!isCompleted && (meetingGateMet || clientReadyToClose))) && (
               <MeetingIntelligence
