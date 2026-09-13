@@ -1718,3 +1718,220 @@ $accent-blue-dark: #0043ce;
   }
 }
 
+// Persistent document intelligence workspace. Source data changes by scenario,
+// while the reading and evidence-capture interaction remains familiar.
+.sourceDeck {
+  background: $layer-white;
+  border: 1px solid #c6d7f5;
+  border-radius: 8px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sourceDeckHeader {
+  align-items: center;
+  border-bottom: 1px solid $border-subtle;
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-04;
+  padding: $spacing-04 $spacing-05;
+}
+
+.sourceDeckTitle {
+  align-items: center;
+  display: flex;
+  gap: $spacing-03;
+
+  > svg { color: $accent-blue; flex-shrink: 0; }
+
+  h2 { font-size: 1.125rem; margin: 0; }
+  p { color: $text-secondary; font-size: 0.75rem; line-height: 1.35; margin: $spacing-01 0 0; }
+}
+
+.sourceDeckCount {
+  background: #e8f0ff;
+  color: $accent-blue-dark;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: $spacing-02 $spacing-03;
+}
+
+.sourceDeckContent {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(11rem, 31%) minmax(0, 1fr);
+  min-height: 0;
+}
+
+.sourceList {
+  background: #f8fbff;
+  border-right: 1px solid $border-subtle;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-02;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-03;
+}
+
+.sourceListItem {
+  align-items: flex-start;
+  background: transparent;
+  border: 1px solid transparent;
+  color: $text-primary;
+  cursor: pointer;
+  display: flex;
+  gap: $spacing-03;
+  min-height: 5.25rem;
+  padding: $spacing-03;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+
+  &:hover { background: #edf5ff; border-color: #a6c8ff; }
+}
+
+.sourceListItemActive {
+  background: $layer-white;
+  border-color: $accent-blue;
+  box-shadow: inset 3px 0 0 $accent-blue;
+}
+
+.sourceListVisual {
+  align-items: center;
+  background: #d0e2ff;
+  color: $accent-blue-dark;
+  display: flex;
+  flex: 0 0 2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  height: 2.5rem;
+  justify-content: center;
+}
+
+.sourceListCopy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+
+  strong {
+    display: -webkit-box;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  small { color: $text-secondary; font-size: 0.625rem; line-height: 1.3; }
+  :global(.cds--tag) { align-self: flex-start; margin-top: 0.125rem; }
+}
+
+.sourceReader {
+  background: #f4f4f4;
+  min-height: 0;
+  overflow: hidden;
+  padding: $spacing-04;
+  position: relative;
+}
+
+.sourceReader .sourceDocument {
+  height: 100%;
+  margin: 0;
+  max-height: none;
+}
+
+.sourceDeckFooter {
+  align-items: center;
+  background: #edf5ff;
+  border-top: 1px solid #c6d7f5;
+  color: $accent-blue-dark;
+  display: grid;
+  font-size: 0.75rem;
+  gap: $spacing-04;
+  grid-template-columns: repeat(3, 1fr);
+  padding: $spacing-03 $spacing-05;
+
+  span { align-items: center; display: flex; gap: $spacing-02; }
+  b { align-items: center; background: $accent-blue; border-radius: 50%; color: #fff; display: inline-flex; font-size: 0.6875rem; height: 1.25rem; justify-content: center; width: 1.25rem; }
+}
+
+.newspaperTemplate { border-top-color: #0f62fe; }
+.stakeholderTemplate { border-top-color: #8a3ffc; }
+.financialTemplate { border-top-color: #198038; }
+.technologyTemplate { border-top-color: #ff832b; }
+
+.newspaperTemplate .sourceDocumentHeader h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.65rem;
+}
+
+.stakeholderTemplate .sourceDocumentHeader { border-bottom-color: #d4bbff; }
+.financialTemplate .sourceDocumentHeader { border-bottom-color: #a7f0ba; }
+.technologyTemplate .sourceDocumentHeader { border-bottom-color: #ffd7b5; }
+
+.signalBanner {
+  align-items: baseline;
+  background: #edf5ff;
+  border-left: 3px solid $accent-blue;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-03;
+  margin: 0 0 $spacing-04;
+  padding: $spacing-03;
+
+  span { color: $text-secondary; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+  strong { font-size: 0.75rem; font-weight: 500; }
+}
+
+.financialTemplate .signalBanner { background: #defbe6; border-left-color: #198038; }
+.technologyTemplate .signalBanner { background: #fff2e8; border-left-color: #ff832b; }
+
+.sourceReader .selectionToolbar {
+  align-items: center;
+  background: #f6f2ff;
+  border: 1px solid #a56eff;
+  bottom: $spacing-05;
+  box-shadow: 0 4px 14px rgba(22, 22, 22, 0.16);
+  display: flex;
+  justify-content: space-between;
+  left: $spacing-05;
+  padding: $spacing-03;
+  position: absolute;
+  right: $spacing-05;
+  z-index: 2;
+
+  > div { align-items: center; display: flex; gap: $spacing-03; min-width: 0; }
+  span { display: block; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :global(.cds--btn) { flex-shrink: 0; min-height: 2rem; }
+}
+
+@media (min-width: 1056px) {
+  .researchWorkspace { overflow: hidden; }
+  .workspace { grid-template-rows: minmax(0, 1.38fr) minmax(0, 0.62fr); }
+  .sourceDocument { padding: $spacing-05; }
+  .sourceDocumentHeader { margin-bottom: $spacing-04; padding-bottom: $spacing-03; }
+  .sourceDocumentHeader h3 { font-size: 1.3rem; }
+  .sourceDocumentBody { font-size: 0.875rem; line-height: 1.5; }
+  .sourceDocumentBody p { margin-bottom: $spacing-03; }
+  .sourceDocumentBody blockquote { margin: $spacing-03 0; padding: $spacing-03 $spacing-04; }
+  .dossierStrip { margin-bottom: $spacing-03; padding: $spacing-03; }
+  .selectionInstruction { margin-top: $spacing-03; }
+}
+
+@media (max-width: 1055px) {
+  .sourceDeck { min-height: 40rem; }
+}
+
+@media (max-width: 671px) {
+  .sourceDeckContent { grid-template-columns: 1fr; }
+  .sourceList { border-bottom: 1px solid $border-subtle; border-right: 0; max-height: 14rem; }
+  .sourceDeckFooter { grid-template-columns: 1fr; }
+  .sourceReader .selectionToolbar span { max-width: 9rem; }
+}
+

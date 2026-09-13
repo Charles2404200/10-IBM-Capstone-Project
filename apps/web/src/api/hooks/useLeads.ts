@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { EvidenceType, LeadCatalogPage, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, SaveResearchPayload } from '@/api/types'
+import type { LeadCatalogPage, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, ResearchSourceDeck, SaveResearchPayload } from '@/api/types'
 
 export interface LeadCatalogFilters {
   scenarioId?: string
@@ -114,15 +114,12 @@ export function useSaveResearch(engagementId: string) {
   })
 }
 
-/** Immutable scenario-authored source deck, cached per engagement and research area. */
-export function useResearchSourceDeck(engagementId: string, evidenceType: EvidenceType) {
+/** Immutable scenario-authored source deck. The API fans out lanes concurrently. */
+export function useResearchSourceDeck(engagementId: string) {
   return useQuery({
-    queryKey: ['research-source-deck', engagementId, evidenceType],
+    queryKey: ['research-source-deck', engagementId],
     queryFn: async () => {
-      const res = await apiClient.post<ResearchArtifact[]>(
-        `/api/v1/engagements/${engagementId}/research-intelligence`,
-        { evidenceType }
-      )
+      const res = await apiClient.get<ResearchSourceDeck>(`/api/v1/engagements/${engagementId}/research-source-deck`)
       return res.data
     },
     enabled: Boolean(engagementId),

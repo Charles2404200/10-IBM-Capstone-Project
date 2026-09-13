@@ -24,7 +24,7 @@ import {
   CheckmarkFilled, CircleDash, ChevronLeft, ChevronRight,
 } from '@carbon/icons-react'
 import { useForm, Controller } from 'react-hook-form'
-import { useAnalyzeUserContext, useResearch, useResearchGateStatus, useCompleteResearch, useResearchSourceDeck, useSaveResearch } from '@/api/hooks/useLeads'
+import { useResearch, useResearchGateStatus, useCompleteResearch, useResearchSourceDeck, useSaveResearch } from '@/api/hooks/useLeads'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { ConfidenceLevel, EvidenceType, EvidenceVerificationStatus, ReasoningLane, ResearchArtifact, ResearchEvidence } from '@/api/types'
@@ -93,10 +93,6 @@ interface HypothesisFormValues {
   supportingEvidenceIds: string[]
 }
 
-interface ExternalContextFormValues {
-  context: string
-}
-
 const REASONING_LANES: Array<{ value: ReasoningLane; label: string }> = [
   { value: 'SYMPTOM', label: 'Observable symptom' },
   { value: 'LIKELY_CAUSE', label: 'Likely cause' },
@@ -140,42 +136,18 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
   )
 }
 
-function ResearchArtifactCard({
-  artifact,
-  onAdd,
-  isAdding,
-}: {
-  artifact: ResearchArtifact
-  onAdd: (artifact: ResearchArtifact) => void
-  isAdding: boolean
-}) {
-  return (
-    <Tile className={styles.evidenceCard}>
-      <div className={styles.evidenceCardHeader}>
-        <Tag type={artifact.origin === 'USER_SUPPLIED' ? 'warm-gray' : 'cyan'} size="sm">
-          {artifact.origin.replace(/_/g, ' ')}
-        </Tag>
-        <Tag type={CONFIDENCE_TAG_TYPE[artifact.confidence]} size="sm">{artifact.confidence}</Tag>
-      </div>
-      <p className={styles.evidenceTitle}>{artifact.title}</p>
-      <p className={styles.evidenceNote}>{artifact.summary}</p>
-      <div className={styles.artifactCardFooter}>
-        <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
-          {artifact.relevanceScore}% relevant
-        </Tag>
-        <Button size="sm" kind="ghost" renderIcon={Add} iconDescription="Review source" disabled={isAdding} onClick={() => onAdd(artifact)}>
-          Open source
-        </Button>
-      </div>
-    </Tile>
-  )
-}
-
 function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArtifact; onSelectionChange: (text: string) => void }) {
   const blocks = artifact.blocks?.length
     ? artifact.blocks
     : [{ id: 'summary', type: 'PARAGRAPH' as const, content: artifact.summary, attribution: null }]
   const sourceKind = artifact.evidenceType.replace(/_/g, ' ').toLowerCase()
+  const templateClass = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
+    ? styles.stakeholderTemplate
+    : artifact.evidenceType === 'FINANCIAL_SIGNAL'
+      ? styles.financialTemplate
+      : artifact.evidenceType === 'TECHNOLOGY_INDICATOR'
+        ? styles.technologyTemplate
+        : styles.newspaperTemplate
 
   const captureSelection = () => {
     const selected = window.getSelection()?.toString().replace(/\s+/g, ' ').trim() ?? ''
@@ -183,7 +155,7 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
   }
 
   return (
-    <article className={styles.sourceDocument} onMouseUp={captureSelection} onKeyUp={captureSelection}>
+    <article className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={captureSelection} onKeyUp={captureSelection}>
       <header className={styles.sourceDocumentHeader}>
         <div>
           <p className={styles.sectionEyebrow}>{sourceKind} · {artifact.sourceType}</p>
@@ -197,11 +169,12 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
       {artifact.evidenceType === 'STAKEHOLDER_PROFILE' && (
         <div className={styles.dossierStrip}>
           <span aria-hidden="true">{artifact.title.slice(0, 1).toUpperCase()}</span>
-          <div><strong>Stakeholder dossier</strong><p>Review stated priorities, constraints and influence signals before drawing a conclusion.</p></div>
+          <div><strong>Stakeholder dossier</strong><p>Review priorities, constraints and influence signals before drawing a conclusion.</p></div>
+          <Tag type="purple" size="sm">Influence signal</Tag>
         </div>
       )}
-      {artifact.evidenceType === 'FINANCIAL_SIGNAL' && <p className={styles.sourceTemplateLabel}>Analyst signal brief</p>}
-      {artifact.evidenceType === 'TECHNOLOGY_INDICATOR' && <p className={styles.sourceTemplateLabel}>Technology landscape note</p>}
+      {artifact.evidenceType === 'FINANCIAL_SIGNAL' && <div className={styles.signalBanner}><span>Financial analysis</span><strong>Validate commercial materiality before assuming budget.</strong></div>}
+      {artifact.evidenceType === 'TECHNOLOGY_INDICATOR' && <div className={styles.signalBanner}><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
       <div className={styles.sourceDocumentBody}>
         {blocks.map((block) => {
           if (block.type === 'QUOTE') return <blockquote key={block.id}>{block.content}{block.attribution && <cite>{block.attribution}</cite>}</blockquote>
@@ -210,12 +183,62 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
           return <p key={block.id}>{block.content}</p>
         })}
       </div>
-      <p className={styles.selectionInstruction}>Select a meaningful sentence or phrase, then add it to your evidence board.</p>
+      <p className={styles.selectionInstruction}>Highlight a meaningful sentence or phrase. Your selected text stays traceable to this source.</p>
     </article>
   )
 }
 
 /** Requirement row for {@link ResearchGateChecklist} — met (✓ blue) or unmet (○ gray). */
+function SourceDeck({
+  sources,
+  selectedSource,
+  onSelectSource,
+  selectedSnippet,
+  onSelectionChange,
+  onAddSelection,
+  isLoading,
+}: {
+  sources: ResearchArtifact[]
+  selectedSource: ResearchArtifact | null
+  onSelectSource: (source: ResearchArtifact) => void
+  selectedSnippet: string
+  onSelectionChange: (text: string) => void
+  onAddSelection: () => void
+  isLoading: boolean
+}) {
+  if (isLoading && sources.length === 0) {
+    return <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing your scenario source deck...</span></div>
+  }
+
+  if (!selectedSource) {
+    return <div className={styles.workspaceEmpty}><Search size={24} /><span>No sources are available for this research area yet.</span></div>
+  }
+
+  return (
+    <section className={styles.sourceDeck} aria-label="Scenario research source deck">
+      <header className={styles.sourceDeckHeader}>
+        <div className={styles.sourceDeckTitle}><Document size={24} /><div><h2>Source Deck</h2><p>Read the source, highlight a signal, then explain why it matters.</p></div></div>
+        <span className={styles.sourceDeckCount}>{sources.length} sources</span>
+      </header>
+      <div className={styles.sourceDeckContent}>
+        <aside className={styles.sourceList} aria-label="Available sources">
+          {sources.map((source, index) => (
+            <button key={source.id} type="button" className={`${styles.sourceListItem} ${selectedSource.id === source.id ? styles.sourceListItemActive : ''}`} onClick={() => onSelectSource(source)}>
+              <span className={styles.sourceListVisual} aria-hidden="true">{index + 1}</span>
+              <span className={styles.sourceListCopy}><strong>{source.title}</strong><small>{source.sourceType} | {source.publishedOn}</small><Tag type={source.relevanceScore >= 70 ? 'green' : 'warm-gray'} size="sm">{source.confidence.toLowerCase()} trust</Tag></span>
+            </button>
+          ))}
+        </aside>
+        <div className={styles.sourceReader}>
+          <SourceDocument artifact={selectedSource} onSelectionChange={onSelectionChange} />
+          {selectedSnippet && <div className={styles.selectionToolbar}><div><Tag type="purple">Evidence selected</Tag><span>{selectedSnippet.length > 116 ? `${selectedSnippet.slice(0, 116)}...` : selectedSnippet}</span></div><Button size="sm" renderIcon={Add} onClick={onAddSelection}>Add evidence</Button></div>}
+        </div>
+      </div>
+      <footer className={styles.sourceDeckFooter}><span><b>1</b> Browse sources</span><span><b>2</b> Highlight evidence</span><span><b>3</b> Add to your board</span></footer>
+    </section>
+  )
+}
+
 function GateRequirement({ met, label, className }: { met: boolean; label: string; className?: string }) {
   return (
     <div className={`${styles.gateRequirement} ${className ?? ''}`}>
@@ -440,21 +463,18 @@ export default function ClientIntelligencePage() {
   const navigate = useNavigate()
   const { data: evidence, isLoading, isError } = useResearch(engagementId!)
   const saveResearch = useSaveResearch(engagementId!)
-  const analyzeUserContext = useAnalyzeUserContext(engagementId!)
   const { data: gate } = useResearchGateStatus(engagementId!)
   const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>('COMPANY_NEWS')
-  const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null)
   const [evidencePage, setEvidencePage] = useState(0)
-  const [findingsPage, setFindingsPage] = useState(0)
   const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
   const [reviewingArtifact, setReviewingArtifact] = useState<ResearchArtifact | null>(null)
   const [selectedSnippet, setSelectedSnippet] = useState('')
-  const [capturingEvidence, setCapturingEvidence] = useState(false)
   const [reviewTakeaway, setReviewTakeaway] = useState('')
   const [reviewLane, setReviewLane] = useState<ReasoningLane>('SYMPTOM')
   const [reviewConfidence, setReviewConfidence] = useState<ConfidenceLevel>('MEDIUM')
   const [reviewVerification, setReviewVerification] = useState<EvidenceVerificationStatus>('CORROBORATED')
-  const sourceDeck = useResearchSourceDeck(engagementId!, activeAction ?? 'COMPANY_NEWS')
+  const sourceDeck = useResearchSourceDeck(engagementId!)
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -462,13 +482,6 @@ export default function ClientIntelligencePage() {
       confidence: 'MEDIUM',
     },
   })
-  const {
-    register: registerExternalContext,
-    handleSubmit: handleExternalContextSubmit,
-    reset: resetExternalContext,
-    formState: { errors: externalContextErrors },
-  } = useForm<ExternalContextFormValues>()
-
   const citableEvidence = useMemo(() => evidence ?? [], [evidence])
   const codeById = useMemo(
     () => new Map(citableEvidence.map((e) => [e.id, evidenceCode(e.sequenceNo)])),
@@ -479,11 +492,14 @@ export default function ClientIntelligencePage() {
     [citableEvidence]
   )
   const evidencePageSize = 4
-  const findingsPageSize = 3
   const visibleEvidence = nonHypothesisEvidence.slice(evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize)
-  const visibleFindings = researchResults.slice(findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize)
   const evidencePageCount = Math.max(1, Math.ceil(nonHypothesisEvidence.length / evidencePageSize))
-  const findingsPageCount = Math.max(1, Math.ceil(researchResults.length / findingsPageSize))
+  const activeSources = useMemo(() => {
+    if (!activeAction) return []
+    const scenarioSources = sourceDeck.data?.sourcesByType[activeAction] ?? []
+    return scenarioSources
+  }, [activeAction, sourceDeck.data])
+  const selectedSource = activeSources.find((source) => source.id === selectedSourceId) ?? activeSources[0] ?? null
   const readinessCompleteCount = [
     gate ? gate.evidenceCount >= gate.requiredEvidenceCount : false,
     gate?.hasStakeholderEvidence ?? false,
@@ -493,29 +509,20 @@ export default function ClientIntelligencePage() {
   ].filter(Boolean).length
 
   useEffect(() => {
-    if (!sourceDeck.data) return
-    setResearchResults(sourceDeck.data)
-    setFindingsPage(0)
-  }, [sourceDeck.data])
+    if (selectedSource && selectedSource.id === selectedSourceId) return
+    setSelectedSourceId(activeSources[0]?.id ?? null)
+  }, [activeSources, selectedSource, selectedSourceId])
 
   const selectResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
     if (type === activeAction) return
     setActiveAction(type)
     setValue('evidenceType', type)
-    setResearchResults([])
+    setSelectedSourceId(null)
     setSelectedSnippet('')
-    setFindingsPage(0)
-    analyzeUserContext.reset()
   }
 
-  const generateSelectedResearch = () => {
-    void sourceDeck.refetch()
-  }
-
-  const addArtifactToEvidence = (artifact: ResearchArtifact) => {
+  const beginEvidenceAssessment = (artifact: ResearchArtifact) => {
     setReviewingArtifact(artifact)
-    setSelectedSnippet('')
-    setCapturingEvidence(false)
     setReviewTakeaway('')
     setReviewLane('SYMPTOM')
     setReviewConfidence(artifact.confidence)
@@ -539,11 +546,9 @@ export default function ClientIntelligencePage() {
       },
       {
         onSuccess: () => {
-          setResearchResults((items) => items.filter((item) => item.id !== reviewingArtifact.id))
           setEvidencePage(0)
           setReviewingArtifact(null)
           setSelectedSnippet('')
-          setCapturingEvidence(false)
         },
       }
     )
@@ -552,23 +557,6 @@ export default function ClientIntelligencePage() {
   const closeSourceReview = () => {
     setReviewingArtifact(null)
     setSelectedSnippet('')
-    setCapturingEvidence(false)
-  }
-
-  const continueToEvidenceCapture = () => {
-    if (selectedSnippet) setCapturingEvidence(true)
-  }
-
-  const onExternalContextSubmit = (data: ExternalContextFormValues) => {
-    analyzeUserContext.mutate(data.context, {
-      onSuccess: (artifact) => {
-        const inferredType = artifact.evidenceType === 'HYPOTHESIS' ? 'OTHER' : artifact.evidenceType
-        setActiveAction(inferredType as Exclude<EvidenceType, 'HYPOTHESIS'>)
-        setResearchResults([artifact])
-        setFindingsPage(0)
-        resetExternalContext()
-      },
-    })
   }
 
   const onSubmit = (data: FormValues) => {
@@ -584,7 +572,7 @@ export default function ClientIntelligencePage() {
       {
         onSuccess: () => {
           reset({ evidenceType: 'COMPANY_NEWS', confidence: 'MEDIUM' })
-          setActiveAction(null)
+          setActiveAction(data.evidenceType === 'HYPOTHESIS' ? 'OTHER' : data.evidenceType)
           setManualEvidenceOpen(false)
           setEvidencePage(0)
         },
@@ -637,7 +625,7 @@ export default function ClientIntelligencePage() {
           {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
             const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
             return (
-              <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={sourceDeck.isFetching || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
+              <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={sourceDeck.isFetching} onClick={() => selectResearchAction(type)}>
                 <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '')}</small></span>
                 {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
               </button>
@@ -650,15 +638,8 @@ export default function ClientIntelligencePage() {
         <main className={styles.workspace}>
           <section className={styles.researchWorkspace}>
             <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
-            {activeResearchAction ? (
-              <div className={styles.researchMethods}>
-                <Tile className={styles.researchMethod}><h3>How to investigate</h3><p>Open a source card, highlight a meaningful sentence, then classify why it matters before adding evidence.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">1. Read</Tag><Tag type="purple" size="sm">2. Highlight</Tag><Tag type="blue" size="sm">3. Assess</Tag></div><Button size="sm" kind="ghost" onClick={generateSelectedResearch} disabled={sourceDeck.isFetching || analyzeUserContext.isPending}>Reload sources</Button></Tile>
-                <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Bring external intelligence</h3><p>Use this only for unverified context. It cannot replace scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || sourceDeck.isFetching}>{analyzeUserContext.isPending ? 'Reviewing...' : 'Review context'}</Button></Tile></form>
-              </div>
-            ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
-            {sourceDeck.isFetching && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Loading cached scenario sources...</span></div>}
+            {activeResearchAction ? <SourceDeck sources={activeSources} selectedSource={selectedSource} onSelectSource={(source) => { setSelectedSourceId(source.id); setSelectedSnippet('') }} selectedSnippet={selectedSnippet} onSelectionChange={setSelectedSnippet} onAddSelection={() => selectedSource && beginEvidenceAssessment(selectedSource)} isLoading={sourceDeck.isFetching} /> : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
             {sourceDeck.isError && <InlineNotification kind="error" lowContrast title="Sources could not be opened" subtitle="Check your connection, then retry. Your existing evidence is unchanged." hideCloseButton className={styles.researchError} />}
-            {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>Client source deck</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous sources" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next sources" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
           </section>
 
           <section className={`${styles.evidenceBoard} objective-evidence-board`}>
@@ -683,8 +664,8 @@ export default function ClientIntelligencePage() {
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
       </Modal>
-      <Modal open={Boolean(reviewingArtifact)} modalHeading={capturingEvidence ? 'Assess selected evidence' : 'Read client source'} primaryButtonText={saveResearch.isPending ? 'Saving...' : capturingEvidence ? 'Add evidence' : 'Add selection as evidence'} secondaryButtonText={capturingEvidence ? 'Back to source' : 'Cancel'} primaryButtonDisabled={saveResearch.isPending || !selectedSnippet || (capturingEvidence && !reviewTakeaway.trim())} onRequestClose={closeSourceReview} onSecondarySubmit={() => capturingEvidence ? setCapturingEvidence(false) : closeSourceReview()} onRequestSubmit={capturingEvidence ? saveReviewedArtifact : continueToEvidenceCapture} size="lg">
-        {reviewingArtifact && (capturingEvidence ? <Stack gap={5}>
+      <Modal open={Boolean(reviewingArtifact)} modalHeading="Assess selected evidence" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending || !selectedSnippet || !reviewTakeaway.trim()} onRequestClose={closeSourceReview} onSecondarySubmit={closeSourceReview} onRequestSubmit={saveReviewedArtifact} size="lg">
+        {reviewingArtifact && <Stack gap={5}>
           <div className={styles.selectedEvidencePreview}><p className={styles.sectionEyebrow}>Selected from {reviewingArtifact.title}</p><p>{selectedSnippet}</p></div>
           <div><p className={styles.sectionEyebrow}>{reviewingArtifact.sourceType} · {reviewingArtifact.confidence} reliability</p><h3>{reviewingArtifact.title}</h3><p>{reviewingArtifact.summary}</p></div>
           <Select id="source-reasoning-lane" labelText="What does this source help you explain?" value={reviewLane} onChange={(event) => setReviewLane(event.target.value as ReasoningLane)}>{REASONING_LANES.map((lane) => <SelectItem key={lane.value} value={lane.value} text={lane.label} />)}</Select>
@@ -693,10 +674,7 @@ export default function ClientIntelligencePage() {
             <Select id="source-verification" labelText="Verification status" value={reviewVerification} onChange={(event) => setReviewVerification(event.target.value as EvidenceVerificationStatus)}>{VERIFICATION_STATUSES.map((status) => <SelectItem key={status} value={status} text={status.replace(/_/g, ' ')} />)}</Select>
           </div>
           <TextArea id="source-takeaway" labelText="Your consulting takeaway" placeholder="Explain what this means for the client problem, and keep uncertainty explicit." rows={3} value={reviewTakeaway} onChange={(event) => setReviewTakeaway(event.target.value)} />
-        </Stack> : <Stack gap={4}>
-          <SourceDocument artifact={reviewingArtifact} onSelectionChange={setSelectedSnippet} />
-          {selectedSnippet && <div className={styles.selectionToolbar}><Tag type="purple">Selection ready</Tag><span>{selectedSnippet.length > 150 ? `${selectedSnippet.slice(0, 150)}...` : selectedSnippet}</span></div>}
-        </Stack>)}
+        </Stack>}
       </Modal>
     </Grid>
   </ObjectiveTourProvider>

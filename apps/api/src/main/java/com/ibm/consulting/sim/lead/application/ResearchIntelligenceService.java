@@ -22,6 +22,7 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ResearchSource;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Service
 public class ResearchIntelligenceService {
@@ -50,9 +53,14 @@ public class ResearchIntelligenceService {
             .maximumSize(2_000)
             .expireAfterWrite(Duration.ofMinutes(10))
             .build();
+    private final Cache<String, ResearchSourceDeckResponse> completeDeckCache = Caffeine.newBuilder()
+            .maximumSize(500)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
     private final DifficultyProfileService difficultyProfileService;
     private final ScenarioRepository scenarioRepository;
     private final ScenarioAuthoringConfigService authoringConfigService;
+    private final ExecutorService researchSourceDeckExecutor;
 
     public ResearchIntelligenceService(EngagementRepository engagementRepository,
                                        LeadRepository leadRepository,
@@ -61,7 +69,8 @@ public class ResearchIntelligenceService {
                                        ObjectMapper objectMapper,
                                        DifficultyProfileService difficultyProfileService,
                                        ScenarioRepository scenarioRepository,
-                                       ScenarioAuthoringConfigService authoringConfigService) {
+                                       ScenarioAuthoringConfigService authoringConfigService,
+                                       @Qualifier("researchSourceDeckExecutor") ExecutorService researchSourceDeckExecutor) {
         this.engagementRepository = engagementRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
@@ -70,6 +79,39 @@ public class ResearchIntelligenceService {
         this.difficultyProfileService = difficultyProfileService;
         this.scenarioRepository = scenarioRepository;
         this.authoringConfigService = authoringConfigService;
+        this.researchSourceDeckExecutor = researchSourceDeckExecutor;
+    }
+
+    /** Opens all learner-facing document lanes concurrently and caches the assembled deck. */
+    @Transactional(readOnly = true)
+    public ResearchSourceDeckResponse generateDeck(UUID engagementId, UUID userId) {
+        Engagement engagement = loadOwnedEngagement(engagementId, userId);
+        Lead lead = loadLead(engagement);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        Scenario scenario = loadScenario(engagement);
+        List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
+        String deckKey = "deck:" + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile);
+        ResearchSourceDeckResponse cached = completeDeckCache.getIfPresent(deckKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<EvidenceType> lanes = List.of(
+                EvidenceType.COMPANY_NEWS,
+                EvidenceType.STAKEHOLDER_PROFILE,
+                EvidenceType.FINANCIAL_SIGNAL,
+                EvidenceType.TECHNOLOGY_INDICATOR);
+        Map<EvidenceType, CompletableFuture<List<ResearchArtifactResponse>>> futures = new java.util.LinkedHashMap<>();
+        for (EvidenceType lane : lanes) {
+            futures.put(lane, CompletableFuture.supplyAsync(() -> generate(engagementId, userId, lane), researchSourceDeckExecutor));
+        }
+        CompletableFuture.allOf(futures.values().toArray(CompletableFuture[]::new)).join();
+
+        Map<String, List<ResearchArtifactResponse>> sourcesByType = new java.util.LinkedHashMap<>();
+        futures.forEach((lane, future) -> sourcesByType.put(lane.name(), future.join()));
+        ResearchSourceDeckResponse response = new ResearchSourceDeckResponse(sourcesByType);
+        completeDeckCache.put(deckKey, response);
+        return response;
     }
 
     @Transactional(readOnly = true)

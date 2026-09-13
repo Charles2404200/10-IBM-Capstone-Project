@@ -11,6 +11,7 @@ import com.ibm.consulting.sim.lead.application.ResearchArtifactResponse;
 import com.ibm.consulting.sim.lead.application.ResearchEvidenceSummary;
 import com.ibm.consulting.sim.lead.application.ResearchGateStatus;
 import com.ibm.consulting.sim.lead.application.ResearchIntelligenceService;
+import com.ibm.consulting.sim.lead.application.ResearchSourceDeckResponse;
 import com.ibm.consulting.sim.lead.domain.ConfidenceLevel;
 import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
 import com.ibm.consulting.sim.lead.domain.EvidenceVerificationStatus;
@@ -128,6 +129,12 @@ public class LeadController {
                                                     @Valid @RequestBody GenerateResearchRequest req,
                                                     @AuthenticationPrincipal User user) {
         return researchIntelligenceService.generate(engagementId, user.getId(), req.evidenceType());
+    }
+
+    @GetMapping("/engagements/{engagementId}/research-source-deck")
+    ResearchSourceDeckResponse getResearchSourceDeck(@PathVariable UUID engagementId,
+                                                     @AuthenticationPrincipal User user) {
+        return researchIntelligenceService.generateDeck(engagementId, user.getId());
     }
 
     @PostMapping("/engagements/{engagementId}/research-intelligence/user-context")

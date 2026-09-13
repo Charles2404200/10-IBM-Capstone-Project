@@ -260,6 +260,11 @@ export interface ResearchArtifact {
   blocks: ResearchSourceBlock[]
 }
 
+/** Immutable source documents grouped for the persistent research workspace. */
+export interface ResearchSourceDeck {
+  sourcesByType: Partial<Record<EvidenceType, ResearchArtifact[]>>
+}
+
 export type ResearchSourceBlockType = 'PARAGRAPH' | 'QUOTE' | 'METRIC' | 'CAPTION'
 
 export interface ResearchSourceBlock {
