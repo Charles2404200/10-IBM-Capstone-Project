@@ -56,7 +56,7 @@ UPDATE leads l
 SET public_description = p.lead_description,
     pain_severity = p.operating_signal,
     updated_at = NOW(),
-    version = version + 1
+    version = l.version + 1
 FROM scenarios s
 JOIN v45_problem_profiles p ON p.industry = s.industry
 WHERE l.scenario_id = s.id
