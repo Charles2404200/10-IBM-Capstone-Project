@@ -8,8 +8,18 @@
 .pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
 .eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; margin: 0 0 $spacing-02; }
 
-.conversationPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); border: 1px solid $border-subtle; background: $layer-01; }
-.transcriptViewport { overflow-y: auto; padding: $spacing-05; }
+.conversationPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); min-height: 0; overflow: hidden; border: 1px solid $border-subtle; background: $layer-01; }
+.transcriptViewport {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: $spacing-05;
+  scrollbar-gutter: stable;
+
+  &::-webkit-scrollbar { width: .5rem; }
+  &::-webkit-scrollbar-thumb { background: #a8a8a8; border-radius: 999px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+}
 .emptyTranscript { color: $text-secondary; text-align: center; margin: $spacing-10 0; }
 .learnerTurn, .personaTurn { display: flex; margin-bottom: $spacing-04; }
 .learnerTurn { justify-content: flex-end; }
@@ -129,8 +139,12 @@
   }
 
   .conversationPanel {
-    flex: 1 1 auto;
-    height: auto;
+    /* The composer has a variable height. Pin the full panel to the canvas so
+       the transcript takes the remaining space and scrolls instead of pushing
+       the composer below the viewport. */
+    flex: 0 0 auto;
+    height: calc(100vh - 10rem);
+    max-height: 48rem;
     min-height: 0;
   }
 
