@@ -1,6 +1,8 @@
 package com.ibm.consulting.sim.lead.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.ibm.consulting.sim.ai.application.AiOrchestrationService;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
@@ -11,7 +13,6 @@ import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
-import com.ibm.consulting.sim.shared.config.CacheConfig;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
@@ -21,14 +22,13 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ResearchSource;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -45,7 +45,11 @@ public class ResearchIntelligenceService {
     private final ResearchEvidenceRepository evidenceRepository;
     private final AiOrchestrationService aiOrchestrationService;
     private final ObjectMapper objectMapper;
-    private final CacheManager cacheManager;
+    /** L1 cache keeps the document deck interactive even if a distributed cache is degraded. */
+    private final Cache<String, List<ResearchArtifactResponse>> sourceDeckCache = Caffeine.newBuilder()
+            .maximumSize(2_000)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
     private final DifficultyProfileService difficultyProfileService;
     private final ScenarioRepository scenarioRepository;
     private final ScenarioAuthoringConfigService authoringConfigService;
@@ -55,7 +59,7 @@ public class ResearchIntelligenceService {
                                        ResearchEvidenceRepository evidenceRepository,
                                        AiOrchestrationService aiOrchestrationService,
                                        ObjectMapper objectMapper,
-                                       CacheManager cacheManager, DifficultyProfileService difficultyProfileService,
+                                       DifficultyProfileService difficultyProfileService,
                                        ScenarioRepository scenarioRepository,
                                        ScenarioAuthoringConfigService authoringConfigService) {
         this.engagementRepository = engagementRepository;
@@ -63,7 +67,6 @@ public class ResearchIntelligenceService {
         this.evidenceRepository = evidenceRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.objectMapper = objectMapper;
-        this.cacheManager = cacheManager;
         this.difficultyProfileService = difficultyProfileService;
         this.scenarioRepository = scenarioRepository;
         this.authoringConfigService = authoringConfigService;
@@ -96,19 +99,11 @@ public class ResearchIntelligenceService {
 
     @SuppressWarnings("unchecked")
     private List<ResearchArtifactResponse> cachedArtifacts(String key) {
-        Cache cache = cacheManager.getCache(CacheConfig.CLIENT_INTELLIGENCE_CACHE);
-        if (cache == null) {
-            return null;
-        }
-        Cache.ValueWrapper wrapper = cache.get(key);
-        return wrapper == null ? null : (List<ResearchArtifactResponse>) wrapper.get();
+        return sourceDeckCache.getIfPresent(key);
     }
 
     private void cacheArtifacts(String key, List<ResearchArtifactResponse> artifacts) {
-        Cache cache = cacheManager.getCache(CacheConfig.CLIENT_INTELLIGENCE_CACHE);
-        if (cache != null) {
-            cache.put(key, artifacts);
-        }
+        sourceDeckCache.put(key, List.copyOf(artifacts));
     }
 
     private String cacheKey(Lead lead, Scenario scenario, EvidenceType type, List<ResearchEvidence> discovered, DifficultyProfile profile) {

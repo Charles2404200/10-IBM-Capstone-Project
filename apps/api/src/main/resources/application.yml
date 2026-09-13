@@ -223,6 +223,8 @@ app:
     upstash:
       rest-url: ${UPSTASH_REDIS_REST_URL:}
       rest-token: ${UPSTASH_REDIS_REST_TOKEN:}
+      # A distributed cache is never allowed to hold an interactive learner flow.
+      timeout-ms: ${UPSTASH_REDIS_TIMEOUT_MS:750}
 
 logging:
   level:

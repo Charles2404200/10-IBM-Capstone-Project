@@ -14,6 +14,7 @@ export interface LeadCatalogFilters {
 
 const LEAD_CATALOG_STALE_TIME = 60_000
 const LEADS_BY_SCENARIO_STALE_TIME = 10 * 60_000
+const RESEARCH_SOURCE_DECK_STALE_TIME = 10 * 60_000
 
 async function fetchLeadCatalog(filters: LeadCatalogFilters) {
   const res = await apiClient.get<LeadCatalogPage>('/api/v1/lead-catalog', { params: filters })
@@ -113,15 +114,22 @@ export function useSaveResearch(engagementId: string) {
   })
 }
 
-export function useGenerateResearchIntelligence(engagementId: string) {
-  return useMutation({
-    mutationFn: async (evidenceType: EvidenceType) => {
+/** Immutable scenario-authored source deck, cached per engagement and research area. */
+export function useResearchSourceDeck(engagementId: string, evidenceType: EvidenceType) {
+  return useQuery({
+    queryKey: ['research-source-deck', engagementId, evidenceType],
+    queryFn: async () => {
       const res = await apiClient.post<ResearchArtifact[]>(
         `/api/v1/engagements/${engagementId}/research-intelligence`,
         { evidenceType }
       )
       return res.data
     },
+    enabled: Boolean(engagementId),
+    staleTime: RESEARCH_SOURCE_DECK_STALE_TIME,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   })
 }
 
