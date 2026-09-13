@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
@@ -443,8 +443,10 @@ export default function ClientIntelligencePage() {
   const generateResearch = useGenerateResearchIntelligence(engagementId!)
   const analyzeUserContext = useAnalyzeUserContext(engagementId!)
   const { data: gate } = useResearchGateStatus(engagementId!)
-  const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
+  const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>('COMPANY_NEWS')
   const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
+  const [openArtifact, setOpenArtifact] = useState<ResearchArtifact | null>(null)
+  const loadedResearchArea = useRef<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
   const [evidencePage, setEvidencePage] = useState(0)
   const [findingsPage, setFindingsPage] = useState(0)
   const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
@@ -493,9 +495,12 @@ export default function ClientIntelligencePage() {
   ].filter(Boolean).length
 
   const selectResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
+    if (type === activeAction) return
     setActiveAction(type)
     setValue('evidenceType', type)
     setResearchResults([])
+    setOpenArtifact(null)
+    setSelectedSnippet('')
     setFindingsPage(0)
     generateResearch.reset()
     analyzeUserContext.reset()
@@ -503,7 +508,18 @@ export default function ClientIntelligencePage() {
 
   const generateSelectedResearch = () => {
     if (!activeAction) return
-    generateResearch.mutate(activeAction, { onSuccess: (results) => { setResearchResults(results); setFindingsPage(0) } })
+    generateResearch.mutate(activeAction, { onSuccess: (results) => { setResearchResults(results); setOpenArtifact(results[0] ?? null); setFindingsPage(0) } })
+  }
+
+  useEffect(() => {
+    if (!activeAction || loadedResearchArea.current === activeAction) return
+    loadedResearchArea.current = activeAction
+    generateResearch.mutate(activeAction, { onSuccess: (results) => { setResearchResults(results); setOpenArtifact(results[0] ?? null); setFindingsPage(0) } })
+  }, [activeAction, generateResearch])
+
+  const openSource = (artifact: ResearchArtifact) => {
+    setOpenArtifact(artifact)
+    setSelectedSnippet('')
   }
 
   const addArtifactToEvidence = (artifact: ResearchArtifact) => {
@@ -514,6 +530,13 @@ export default function ClientIntelligencePage() {
     setReviewLane('SYMPTOM')
     setReviewConfidence(artifact.confidence)
     setReviewVerification(artifact.origin === 'SCENARIO_CURATED' ? 'CORROBORATED' : 'UNVERIFIED')
+  }
+
+  const addSelectedEvidence = () => {
+    if (!openArtifact || !selectedSnippet) return
+    addArtifactToEvidence(openArtifact)
+    setSelectedSnippet(selectedSnippet)
+    setCapturingEvidence(true)
   }
 
   const saveReviewedArtifact = () => {
@@ -645,13 +668,14 @@ export default function ClientIntelligencePage() {
             <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
             {activeResearchAction ? (
               <div className={styles.researchMethods}>
-                <Tile className={styles.researchMethod}><h3>Scenario source deck</h3><p>Open curated client sources, assess their reliability and decide what they mean for the problem.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">Scenario-authored</Tag><Tag type="blue" size="sm">Consulting judgement</Tag></div><Button size="sm" onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Opening sources...' : `Open ${activeResearchAction.label}`}</Button></Tile>
+                <Tile className={styles.researchMethod}><h3>How to investigate</h3><p>Read the source, highlight a meaningful sentence, then classify why it matters before adding evidence.</p><div className={styles.methodTags}><Tag type="cyan" size="sm">1. Read</Tag><Tag type="purple" size="sm">2. Highlight</Tag><Tag type="blue" size="sm">3. Assess</Tag></div><Button size="sm" kind="ghost" onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>Reload sources</Button></Tile>
                 <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}><Tile className={styles.researchMethod}><h3>Bring external intelligence</h3><p>Use this only for unverified context. It cannot replace scenario truth.</p><TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} /><Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Reviewing...' : 'Review context'}</Button></Tile></form>
               </div>
             ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
             {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Opening scenario sources...</span></div>}
             {generateResearch.isError && <InlineNotification kind="error" lowContrast title="Sources could not be opened" subtitle="Retry this research area." hideCloseButton className={styles.researchError} />}
-            {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>Client source deck</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous sources" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next sources" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
+            {openArtifact && <div className={styles.documentWorkspace}><div className={styles.documentWorkspaceHeader}><div><p className={styles.sectionEyebrow}>Open source</p><h3>Highlight evidence directly from the document</h3></div><Tag type="cyan">{openArtifact.origin.replace(/_/g, ' ')}</Tag></div><SourceDocument artifact={openArtifact} onSelectionChange={setSelectedSnippet} />{selectedSnippet && <div className={styles.inlineSelectionAction}><div><Tag type="purple">Selection ready</Tag><span>{selectedSnippet.length > 180 ? `${selectedSnippet.slice(0, 180)}...` : selectedSnippet}</span></div><Button size="sm" renderIcon={Add} onClick={addSelectedEvidence}>Add as evidence</Button></div>}</div>}
+            {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>Other sources in this area</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous sources" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next sources" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={openSource} isAdding={saveResearch.isPending} />)}</div></div>}
           </section>
 
           <section className={`${styles.evidenceBoard} objective-evidence-board`}>
