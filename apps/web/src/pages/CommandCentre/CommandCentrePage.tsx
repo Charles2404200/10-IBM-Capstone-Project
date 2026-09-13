@@ -269,6 +269,14 @@ function ScenarioBriefingModal({
   isPending: boolean
 }) {
   const { briefing, difficultyProfile } = scenario
+  // Local/dev API instances can still return the pre-problem-frame briefing while
+  // a rolling backend deploy is in progress. Keep the start flow usable for both shapes.
+  const problemBrief = {
+    businessSituation: briefing.businessSituation || scenario.description,
+    observableSymptom: briefing.observableSymptom || scenario.description,
+    consultingMandate: briefing.consultingMandate || briefing.objective,
+    unknownsToValidate: briefing.unknownsToValidate ?? briefing.successCriteria ?? [],
+  }
   return (
     <Modal
       open
@@ -299,10 +307,10 @@ function ScenarioBriefingModal({
       <div className={styles.briefingSection}>
         <h5>Client problem briefing</h5>
         <div className={styles.problemBriefGrid}>
-          <div><span>Business situation</span><p>{briefing.businessSituation}</p></div>
-          <div><span>Observable symptom</span><p>{briefing.observableSymptom}</p></div>
-          <div><span>Consulting mandate</span><p>{briefing.consultingMandate}</p></div>
-          <div><span>Unknowns to validate</span><ul>{briefing.unknownsToValidate.map((unknown) => <li key={unknown}>{unknown}</li>)}</ul></div>
+          <div><span>Business situation</span><p>{problemBrief.businessSituation}</p></div>
+          <div><span>Observable symptom</span><p>{problemBrief.observableSymptom}</p></div>
+          <div><span>Consulting mandate</span><p>{problemBrief.consultingMandate}</p></div>
+          <div><span>Unknowns to validate</span><ul>{problemBrief.unknownsToValidate.map((unknown) => <li key={unknown}>{unknown}</li>)}</ul></div>
         </div>
       </div>
 
