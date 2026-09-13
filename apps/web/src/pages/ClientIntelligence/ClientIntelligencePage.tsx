@@ -14,6 +14,8 @@ import {
   SelectItem,
   Checkbox,
   Modal,
+  RadioButton,
+  RadioButtonGroup,
   InlineNotification,
 } from '@carbon/react'
 import {
@@ -356,7 +358,23 @@ function HypothesisWorkspace({
               <div className={styles.citationGrid}>{visibleCitations.map((e) => <Controller key={e.id} control={control} name="supportingEvidenceIds" render={({ field }) => <Checkbox id={`support-${e.id}`} labelText={`${evidenceCode(e.sequenceNo)} — ${e.note.slice(0, 74)}`} checked={field.value?.includes(e.id) ?? false} onChange={(_, { checked }) => { const current = field.value ?? []; field.onChange(checked ? [...current, e.id] : current.filter((id) => id !== e.id)) }} />} />)}</div>
             </div>
           )}
-          <Select id="hypothesis-confidence" labelText="How confident are you?" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select>
+          <Controller
+            control={control}
+            name="confidence"
+            render={({ field }) => (
+              <RadioButtonGroup
+                legendText="How confident are you?"
+                name="hypothesis-confidence"
+                orientation="horizontal"
+                valueSelected={field.value}
+                onChange={(value) => field.onChange(value as ConfidenceLevel)}
+              >
+                {CONFIDENCE_LEVELS.map((confidence) => (
+                  <RadioButton key={confidence} id={`hypothesis-confidence-${confidence}`} value={confidence} labelText={confidence} />
+                ))}
+              </RadioButtonGroup>
+            )}
+          />
         </form>
       </Modal>
     </div>
