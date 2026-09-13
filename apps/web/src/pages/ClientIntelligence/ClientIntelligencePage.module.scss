@@ -1462,6 +1462,16 @@ $accent-blue-dark: #0043ce;
   max-width: 52rem;
 }
 
+.sourceHeadingSelectable,
+.sourceDekSelectable {
+  cursor: text;
+
+  &:hover {
+    background: #edf5ff;
+    outline: 1px solid #a6c8ff;
+  }
+}
+
 .documentMasthead {
   align-items: baseline;
   border-bottom: 3px double #393939;

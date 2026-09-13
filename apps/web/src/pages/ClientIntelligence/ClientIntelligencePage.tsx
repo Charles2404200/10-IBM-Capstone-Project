@@ -192,8 +192,8 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
       <header className={styles.sourceDocumentHeader} data-selectable="false">
         <div>
           <p className={styles.sectionEyebrow}>{sourceKind} · {artifact.sourceType}</p>
-          <h3>{artifact.title}</h3>
-          <p className={styles.sourceDocumentDek}>{artifact.summary}</p>
+          <h3 className={styles.sourceHeadingSelectable} data-evidence-block="true" data-selectable="true">{artifact.title}</h3>
+          <p className={`${styles.sourceDocumentDek} ${styles.sourceDekSelectable}`} data-evidence-block="true" data-selectable="true">{artifact.summary}</p>
           <p className={styles.sourceDocumentMeta}>{artifact.origin.replace(/_/g, ' ').toLowerCase()} · {artifact.publishedOn} · {artifact.confidence.toLowerCase()} reliability</p>
         </div>
         <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'}>
