@@ -270,15 +270,17 @@ export default function LiveMeetingPage() {
             {!isCompleted && hint.length > 0 && (
               <div className={styles.meetingHint}>
                 <Button
-                  hasIconOnly
                   kind="ghost"
                   size="sm"
                   renderIcon={Idea}
                   iconDescription="Show response hint"
+                  className={styles.hintTrigger}
                   aria-expanded={hintOpen}
                   aria-controls="meeting-response-hint"
                   onClick={() => setHintOpen((open) => !open)}
-                />
+                >
+                  Stuck? Get a hint
+                </Button>
                 {hintOpen && (
                   <section className={styles.hintPopover} id="meeting-response-hint" aria-label="Response hint">
                     <p className={styles.eyebrow}>Next-turn hint</p>
