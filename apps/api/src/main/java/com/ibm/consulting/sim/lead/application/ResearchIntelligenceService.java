@@ -22,6 +22,8 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ResearchSource;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -398,7 +400,11 @@ public class ResearchIntelligenceService {
                     EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(7 + index),
                     ambiguity ? 25 : 15,
                     List.of("public_description"), List.of(),
-                    "Context only: test relevance against client evidence before adding it to the evidence board."));
+                    "Context only: test relevance against client evidence before adding it to the evidence board.",
+                    blocks("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
+                            summary,
+                            "This source is deliberately non-decisive. Compare it with client-specific signals before using it to support a hypothesis.",
+                            "Record uncertainty explicitly when evidence is adjacent rather than directly corroborated.")));
         }
         return List.copyOf(shaped);
     }
@@ -407,10 +413,17 @@ public class ResearchIntelligenceService {
         List<ResearchArtifactResponse> artifacts = new ArrayList<>();
         artifacts.add(artifact("company-news-1", "Operating situation at " + lead.getCompanyName(),
                 "Scenario-approved briefing", scenario.getBusinessSituation(),
-                EvidenceType.COMPANY_NEWS, ConfidenceLevel.HIGH, "business_situation"));
+                EvidenceType.COMPANY_NEWS, ConfidenceLevel.HIGH, "business_situation", blocks("company-news-1",
+                        scenario.getBusinessSituation(),
+                        "The current observable signal is: " + scenario.getObservableSymptom(),
+                        "The consulting mandate is to " + scenario.getConsultingMandate(),
+                        unknownsParagraph(scenario))));
         artifacts.add(artifact("company-news-2", "Leadership team faces execution pressure",
                 "Industry press", "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
-                EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure"));
+                EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure", blocks("company-news-2",
+                        "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
+                        "This is a directional signal, not a confirmed diagnosis. A consultant should connect it back to the operating situation before proposing a response.",
+                        unknownsParagraph(scenario))));
         return artifacts;
     }
 
@@ -420,11 +433,18 @@ public class ResearchIntelligenceService {
                         "Stakeholder profile",
                         "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
                                 .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
-                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, "decision_maker"),
+                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, "decision_maker", blocks("stakeholder-1",
+                                "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
+                                        .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
+                                "The client is described publicly as: " + valueOr(lead.getPublicDescription(), "a business with operating priorities still to be explored"),
+                                "Use the first conversation to distinguish stated priorities from the constraints that shape the decision process.")),
                 artifact("stakeholder-2", "Commercial stakeholder influence",
                         "Stakeholder map",
                         "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
-                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, "stakeholder_complexity"));
+                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, "stakeholder_complexity", blocks("stakeholder-2",
+                                "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
+                                "Treat the relationship map as a hypothesis: identify who can sponsor action, who may challenge it, and who controls the evidence needed for a decision.",
+                                "Do not assume that a visible executive is the only stakeholder with influence.")));
     }
 
     private List<ResearchArtifactResponse> financialSignals(Lead lead, boolean budgetVisible) {
@@ -433,23 +453,35 @@ public class ResearchIntelligenceService {
                     artifact("financial-visibility-1", "Funding signals require discovery",
                             "Financial intelligence", "No client-confirmed budget detail is available in the research phase. "
                                     + "Use discovery to validate commercial priorities and investment appetite.",
-                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description"),
+                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description", blocks("financial-visibility-1",
+                                    "No client-confirmed budget detail is available in the research phase.",
+                                    "Use discovery to validate commercial priorities and investment appetite before treating any value case as funded.",
+                                    "A useful next question is whether the operating issue has a measurable cost, service, risk or growth consequence.")),
                     artifact("financial-visibility-2", "Opportunity sizing remains provisional",
                             "Commercial analysis", "Public context suggests an opportunity, but no approved budget range is available. "
                                     + "Treat any estimate as a consultant assumption until the client validates it.",
-                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description"));
+                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description", blocks("financial-visibility-2",
+                                    "Public context suggests an opportunity, but no approved budget range is available.",
+                                    "Treat any estimate as a consultant assumption until the client validates it.",
+                                    "Prioritize a baseline metric and a low-risk next step over a premature investment recommendation.")));
         }
         return List.of(
                 artifact("financial-1", "Funding signal under review",
                         "Financial intelligence",
                         "%s. Any proposal should connect spend to measurable operational or risk reduction outcomes."
                                 .formatted(lead.getBudgetSignal() != null ? lead.getBudgetSignal() : "Budget is not yet confirmed"),
-                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "budget_signal"),
+                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "budget_signal", blocks("financial-1",
+                                valueOr(lead.getBudgetSignal(), "Budget is not yet confirmed"),
+                                "Any proposal should connect spend to measurable operational or risk reduction outcomes.",
+                                "Validate the owner, timing, approval route and conditions attached to any funding signal.")),
                 artifact("financial-2", "Potential opportunity sizing",
                         "Commercial analysis",
                         "The likely opportunity range is %s, but this should be validated through discovery before proposal."
                                 .formatted(lead.getPotentialValueRange() != null ? lead.getPotentialValueRange() : "not yet confirmed"),
-                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "potential_value_range"));
+                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "potential_value_range", blocks("financial-2",
+                                "The likely opportunity range is %s, but this should be validated through discovery before proposal."
+                                        .formatted(valueOr(lead.getPotentialValueRange(), "not yet confirmed")),
+                                "An initial case is stronger when it identifies a credible baseline, a measurable outcome and the assumptions that still need client confirmation.")));
     }
 
     private List<ResearchArtifactResponse> technologySignals(Lead lead) {
@@ -458,11 +490,16 @@ public class ResearchIntelligenceService {
                         "Technology research",
                         "%s. This may create integration, change-management and rollout risk."
                                 .formatted(lead.getTechnologyStack() != null ? lead.getTechnologyStack() : "Technology stack is not yet confirmed"),
-                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.HIGH, "technology_stack"),
+                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.HIGH, "technology_stack", blocks("technology-1",
+                                valueOr(lead.getTechnologyStack(), "Technology stack is not yet confirmed"),
+                                "This may create integration, change-management and rollout risk.",
+                                "Use discovery to establish the current operating workflow, dependencies and constraints before recommending a target architecture.")),
                 artifact("technology-2", "Implementation risk indicator",
                         "Architecture note",
                         "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
-                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, "implementation_risk"));
+                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, "implementation_risk", blocks("technology-2",
+                                "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
+                                "This is an implementation question to validate, not a prescribed solution. Confirm where teams currently experience friction and which dependencies cannot be disrupted.")));
     }
 
     private List<ResearchArtifactResponse> marketTrends(Lead lead) {
@@ -475,7 +512,37 @@ public class ResearchIntelligenceService {
                                               EvidenceType type, ConfidenceLevel confidence, String factKey) {
         return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
                 EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
-                "Generated from scenario-approved facts only; learner must decide whether it is relevant.");
+                "Generated from scenario-approved facts only; learner must decide whether it is relevant.", blocks(id, summary));
+    }
+
+    private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
+                                              EvidenceType type, ConfidenceLevel confidence, String factKey,
+                                              List<ResearchSourceBlock> blocks) {
+        return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
+                EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
+                "Generated from scenario-approved facts only; learner must decide whether it is relevant.", blocks);
+    }
+
+    private List<ResearchSourceBlock> blocks(String sourceId, String... paragraphs) {
+        List<ResearchSourceBlock> blocks = new ArrayList<>();
+        for (int index = 0; index < paragraphs.length; index++) {
+            String paragraph = paragraphs[index];
+            if (paragraph == null || paragraph.isBlank()) continue;
+            blocks.add(new ResearchSourceBlock(sourceId + "-block-" + (index + 1), ResearchSourceBlockType.PARAGRAPH, paragraph, null));
+        }
+        blocks.add(new ResearchSourceBlock(sourceId + "-record", ResearchSourceBlockType.CAPTION,
+                "Scenario research record. Treat this source as evidence to assess, not a final client diagnosis.", null));
+        return List.copyOf(blocks);
+    }
+
+    private String unknownsParagraph(Scenario scenario) {
+        return scenario.getUnknownsToValidate().isEmpty()
+                ? "The root cause, stakeholder constraints and viable next step still require validation."
+                : "Questions still open for validation: " + String.join("; ", scenario.getUnknownsToValidate()) + ".";
+    }
+
+    private String valueOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private int relevanceFor(ConfidenceLevel confidence) {

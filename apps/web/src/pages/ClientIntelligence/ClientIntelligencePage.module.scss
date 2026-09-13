@@ -1761,10 +1761,90 @@ $accent-blue-dark: #0043ce;
 }
 
 .sourceDeckContent {
-  display: grid;
   flex: 1 1 auto;
-  grid-template-columns: minmax(11rem, 31%) minmax(0, 1fr);
   min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-04;
+}
+
+.sourceDeckGrid {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.sourceDeckCard {
+  background: #fcfcfc;
+  border: 1px solid $border-subtle;
+  color: $text-primary;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  min-height: 11.5rem;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+
+  &:hover {
+    border-color: $accent-blue;
+    box-shadow: 0 4px 12px rgba(15, 98, 254, 0.16);
+    transform: translateY(-2px);
+  }
+}
+
+.sourceDeckVisual {
+  align-items: center;
+  background: #d0e2ff;
+  color: $accent-blue-dark;
+  display: flex;
+  justify-content: space-between;
+  min-height: 3.25rem;
+  padding: $spacing-03 $spacing-04;
+
+  b { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; }
+}
+
+.sourceDeckVisualSTAKEHOLDER_PROFILE { background: #e8daff; color: #6929c4; }
+.sourceDeckVisualFINANCIAL_SIGNAL { background: #defbe6; color: #0e6027; }
+.sourceDeckVisualTECHNOLOGY_INDICATOR { background: #fff2e8; color: #a84400; }
+
+.sourceDeckCardCopy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: $spacing-02;
+  padding: $spacing-04;
+
+  > strong {
+    display: -webkit-box;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  > small { color: $text-secondary; font-size: 0.6875rem; }
+}
+
+.sourceDeckCardMeta {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-02;
+
+  small { color: $text-secondary; font-size: 0.625rem; white-space: nowrap; }
+}
+
+.openSourceLabel {
+  align-items: center;
+  color: $accent-blue-dark;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: $spacing-02;
+  margin-top: auto;
 }
 
 .sourceList {
@@ -1911,6 +1991,99 @@ $accent-blue-dark: #0043ce;
   :global(.cds--btn) { flex-shrink: 0; min-height: 2rem; }
 }
 
+.readerModal {
+  max-width: min(94vw, 74rem);
+  width: min(94vw, 74rem);
+
+  :global(.cds--modal-content) { overflow: hidden; padding: 0; }
+}
+
+.readerModalBody {
+  background: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  height: min(70vh, 48rem);
+  min-height: 32rem;
+  padding: $spacing-05;
+  position: relative;
+}
+
+.readerNavigator {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: $spacing-03;
+
+  span { color: $text-secondary; font-size: 0.75rem; min-width: 7rem; text-align: center; }
+  :global(.cds--btn) { min-height: 2rem; min-width: 2rem; padding: 0; }
+}
+
+.readerModalBody .sourceDocument {
+  background: #fff;
+  flex: 1 1 auto;
+  height: auto;
+  margin: 0;
+  max-height: none;
+  padding: clamp(1.5rem, 3vw, 3rem);
+}
+
+.readerModalBody .newspaperTemplate {
+  background: #fffdf8;
+  border-color: #393939;
+  border-top-width: 5px;
+}
+
+.readerModalBody .newspaperTemplate .sourceDocumentHeader {
+  border-bottom: 3px double #393939;
+}
+
+.readerModalBody .newspaperTemplate .sourceDocumentHeader h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2rem, 3.3vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.readerModalBody .sourceDocumentBody {
+  column-count: 2;
+  column-gap: 2.5rem;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+.readerModalBody .sourceDocumentBody blockquote,
+.readerModalBody .sourceMetric,
+.readerModalBody .dossierStrip,
+.readerModalBody .signalBanner,
+.readerModalBody .selectionInstruction { break-inside: avoid; }
+
+.readerModalBody .stakeholderTemplate .sourceDocumentBody,
+.readerModalBody .financialTemplate .sourceDocumentBody,
+.readerModalBody .technologyTemplate .sourceDocumentBody {
+  column-count: 1;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.readerSelectionToolbar {
+  align-items: center;
+  background: #f6f2ff;
+  border: 1px solid #a56eff;
+  bottom: $spacing-06;
+  box-shadow: 0 4px 14px rgba(22, 22, 22, 0.16);
+  display: flex;
+  gap: $spacing-03;
+  justify-content: space-between;
+  left: $spacing-06;
+  padding: $spacing-03 $spacing-04;
+  position: absolute;
+  right: $spacing-06;
+
+  > div { align-items: center; display: flex; gap: $spacing-03; min-width: 0; }
+  span { color: $text-secondary; display: block; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :global(.cds--btn) { flex-shrink: 0; min-height: 2.25rem; }
+}
+
 @media (min-width: 1056px) {
   .researchWorkspace { overflow: hidden; }
   .workspace { grid-template-rows: minmax(0, 1.38fr) minmax(0, 0.62fr); }
@@ -1933,5 +2106,11 @@ $accent-blue-dark: #0043ce;
   .sourceList { border-bottom: 1px solid $border-subtle; border-right: 0; max-height: 14rem; }
   .sourceDeckFooter { grid-template-columns: 1fr; }
   .sourceReader .selectionToolbar span { max-width: 9rem; }
+  .sourceDeckGrid { grid-template-columns: 1fr; }
+  .readerModal { max-width: 100vw; width: 100vw; }
+  .readerModalBody { height: 75vh; min-height: 0; padding: $spacing-03; }
+  .readerModalBody .sourceDocumentBody { column-count: 1; font-size: 0.9375rem; }
+  .readerSelectionToolbar { bottom: $spacing-04; left: $spacing-04; right: $spacing-04; }
+  .readerSelectionToolbar span { max-width: 9rem; }
 }
 

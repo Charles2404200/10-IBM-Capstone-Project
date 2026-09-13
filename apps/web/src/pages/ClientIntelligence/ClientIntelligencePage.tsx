@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
@@ -191,26 +191,18 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
 /** Requirement row for {@link ResearchGateChecklist} — met (✓ blue) or unmet (○ gray). */
 function SourceDeck({
   sources,
-  selectedSource,
-  onSelectSource,
-  selectedSnippet,
-  onSelectionChange,
-  onAddSelection,
+  onOpenSource,
   isLoading,
 }: {
   sources: ResearchArtifact[]
-  selectedSource: ResearchArtifact | null
-  onSelectSource: (source: ResearchArtifact) => void
-  selectedSnippet: string
-  onSelectionChange: (text: string) => void
-  onAddSelection: () => void
+  onOpenSource: (source: ResearchArtifact) => void
   isLoading: boolean
 }) {
   if (isLoading && sources.length === 0) {
     return <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing your scenario source deck...</span></div>
   }
 
-  if (!selectedSource) {
+  if (sources.length === 0) {
     return <div className={styles.workspaceEmpty}><Search size={24} /><span>No sources are available for this research area yet.</span></div>
   }
 
@@ -221,17 +213,16 @@ function SourceDeck({
         <span className={styles.sourceDeckCount}>{sources.length} sources</span>
       </header>
       <div className={styles.sourceDeckContent}>
-        <aside className={styles.sourceList} aria-label="Available sources">
+        <div className={styles.sourceDeckGrid} aria-label="Available research sources">
           {sources.map((source, index) => (
-            <button key={source.id} type="button" className={`${styles.sourceListItem} ${selectedSource.id === source.id ? styles.sourceListItemActive : ''}`} onClick={() => onSelectSource(source)}>
-              <span className={styles.sourceListVisual} aria-hidden="true">{index + 1}</span>
-              <span className={styles.sourceListCopy}><strong>{source.title}</strong><small>{source.sourceType} | {source.publishedOn}</small><Tag type={source.relevanceScore >= 70 ? 'green' : 'warm-gray'} size="sm">{source.confidence.toLowerCase()} trust</Tag></span>
+            <button key={source.id} type="button" className={styles.sourceDeckCard} onClick={() => onOpenSource(source)}>
+              <span className={`${styles.sourceDeckVisual} ${styles[`sourceDeckVisual${source.evidenceType}`] ?? ''}`} aria-hidden="true"><Document size={22} /><b>{index + 1}</b></span>
+              <span className={styles.sourceDeckCardCopy}>
+                <span className={styles.sourceDeckCardMeta}><Tag type={source.relevanceScore >= 70 ? 'green' : 'warm-gray'} size="sm">{source.confidence.toLowerCase()} trust</Tag><small>{source.publishedOn}</small></span>
+                <strong>{source.title}</strong><small>{source.sourceType}</small><span className={styles.openSourceLabel}>Open document <ArrowRight size={16} /></span>
+              </span>
             </button>
           ))}
-        </aside>
-        <div className={styles.sourceReader}>
-          <SourceDocument artifact={selectedSource} onSelectionChange={onSelectionChange} />
-          {selectedSnippet && <div className={styles.selectionToolbar}><div><Tag type="purple">Evidence selected</Tag><span>{selectedSnippet.length > 116 ? `${selectedSnippet.slice(0, 116)}...` : selectedSnippet}</span></div><Button size="sm" renderIcon={Add} onClick={onAddSelection}>Add evidence</Button></div>}
         </div>
       </div>
       <footer className={styles.sourceDeckFooter}><span><b>1</b> Browse sources</span><span><b>2</b> Highlight evidence</span><span><b>3</b> Add to your board</span></footer>
@@ -465,7 +456,7 @@ export default function ClientIntelligencePage() {
   const saveResearch = useSaveResearch(engagementId!)
   const { data: gate } = useResearchGateStatus(engagementId!)
   const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>('COMPANY_NEWS')
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null)
+  const [readerArtifact, setReaderArtifact] = useState<ResearchArtifact | null>(null)
   const [evidencePage, setEvidencePage] = useState(0)
   const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
   const [reviewingArtifact, setReviewingArtifact] = useState<ResearchArtifact | null>(null)
@@ -499,7 +490,7 @@ export default function ClientIntelligencePage() {
     const scenarioSources = sourceDeck.data?.sourcesByType[activeAction] ?? []
     return scenarioSources
   }, [activeAction, sourceDeck.data])
-  const selectedSource = activeSources.find((source) => source.id === selectedSourceId) ?? activeSources[0] ?? null
+  const readerIndex = readerArtifact ? activeSources.findIndex((source) => source.id === readerArtifact.id) : -1
   const readinessCompleteCount = [
     gate ? gate.evidenceCount >= gate.requiredEvidenceCount : false,
     gate?.hasStakeholderEvidence ?? false,
@@ -508,16 +499,11 @@ export default function ClientIntelligencePage() {
     gate ? gate.confidencePercent >= gate.requiredConfidencePercent : false,
   ].filter(Boolean).length
 
-  useEffect(() => {
-    if (selectedSource && selectedSource.id === selectedSourceId) return
-    setSelectedSourceId(activeSources[0]?.id ?? null)
-  }, [activeSources, selectedSource, selectedSourceId])
-
   const selectResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
     if (type === activeAction) return
     setActiveAction(type)
     setValue('evidenceType', type)
-    setSelectedSourceId(null)
+    setReaderArtifact(null)
     setSelectedSnippet('')
   }
 
@@ -556,6 +542,18 @@ export default function ClientIntelligencePage() {
 
   const closeSourceReview = () => {
     setReviewingArtifact(null)
+    setSelectedSnippet('')
+  }
+
+  const openSourceReader = (artifact: ResearchArtifact) => {
+    setReaderArtifact(artifact)
+    setSelectedSnippet('')
+  }
+
+  const moveReader = (direction: -1 | 1) => {
+    if (readerIndex < 0 || activeSources.length < 2) return
+    const nextIndex = (readerIndex + direction + activeSources.length) % activeSources.length
+    setReaderArtifact(activeSources[nextIndex])
     setSelectedSnippet('')
   }
 
@@ -638,7 +636,7 @@ export default function ClientIntelligencePage() {
         <main className={styles.workspace}>
           <section className={styles.researchWorkspace}>
             <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
-            {activeResearchAction ? <SourceDeck sources={activeSources} selectedSource={selectedSource} onSelectSource={(source) => { setSelectedSourceId(source.id); setSelectedSnippet('') }} selectedSnippet={selectedSnippet} onSelectionChange={setSelectedSnippet} onAddSelection={() => selectedSource && beginEvidenceAssessment(selectedSource)} isLoading={sourceDeck.isFetching} /> : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
+            {activeResearchAction ? <SourceDeck sources={activeSources} onOpenSource={openSourceReader} isLoading={sourceDeck.isFetching} /> : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
             {sourceDeck.isError && <InlineNotification kind="error" lowContrast title="Sources could not be opened" subtitle="Check your connection, then retry. Your existing evidence is unchanged." hideCloseButton className={styles.researchError} />}
           </section>
 
@@ -663,6 +661,17 @@ export default function ClientIntelligencePage() {
           <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Select id="confidence" labelText="Reliability" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select></div>
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
+      </Modal>
+      <Modal className={styles.readerModal} open={Boolean(readerArtifact)} modalHeading="Source reader" primaryButtonText="Close source" onRequestClose={() => setReaderArtifact(null)} onRequestSubmit={() => setReaderArtifact(null)} size="lg">
+        {readerArtifact && <div className={styles.readerModalBody}>
+          <div className={styles.readerNavigator}>
+            <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous source" disabled={activeSources.length < 2} onClick={() => moveReader(-1)} />
+            <span>Source {readerIndex + 1} of {activeSources.length}</span>
+            <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next source" disabled={activeSources.length < 2} onClick={() => moveReader(1)} />
+          </div>
+          <SourceDocument artifact={readerArtifact} onSelectionChange={setSelectedSnippet} />
+          {selectedSnippet && <div className={styles.readerSelectionToolbar}><div><Tag type="purple">Evidence selected</Tag><span>{selectedSnippet.length > 170 ? `${selectedSnippet.slice(0, 170)}...` : selectedSnippet}</span></div><Button size="sm" renderIcon={Add} onClick={() => { beginEvidenceAssessment(readerArtifact); setReaderArtifact(null) }}>Assess evidence</Button></div>}
+        </div>}
       </Modal>
       <Modal open={Boolean(reviewingArtifact)} modalHeading="Assess selected evidence" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending || !selectedSnippet || !reviewTakeaway.trim()} onRequestClose={closeSourceReview} onSecondarySubmit={closeSourceReview} onRequestSubmit={saveReviewedArtifact} size="lg">
         {reviewingArtifact && <Stack gap={5}>
