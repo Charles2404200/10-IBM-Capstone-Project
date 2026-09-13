@@ -86,6 +86,54 @@ function newResearchSourceBlock(): ResearchSourceBlock {
   return { id: `block-${crypto.randomUUID().slice(0, 8)}`, type: 'PARAGRAPH', content: '', attribution: null }
 }
 
+function sourceFromBriefing(
+  evidenceType: ResearchSource['evidenceType'],
+  title: string,
+  sourceType: string,
+  confidence: ResearchSource['confidence'],
+  relevanceScore: number,
+  summary: string,
+  paragraphs: string[],
+): ResearchSource {
+  const source = newResearchSource()
+  return {
+    ...source,
+    title,
+    sourceType,
+    evidenceType,
+    confidence,
+    relevanceScore,
+    summary,
+    blocks: paragraphs.filter(Boolean).map((content, index) => ({
+      id: `${source.id}-block-${index + 1}`,
+      type: index === paragraphs.length - 1 ? 'CAPTION' : 'PARAGRAPH',
+      content,
+      attribution: null,
+    })),
+  }
+}
+
+/** Creates an editable, schema-valid first draft. Authors remain responsible for every scenario fact. */
+function starterResearchPack(blueprint: UpdateScenarioBlueprintRequest): ResearchSource[] {
+  const openQuestions = blueprint.unknownsToValidate.length > 0
+    ? `Open questions for validation: ${blueprint.unknownsToValidate.join('; ')}.`
+    : 'Open questions for validation should be confirmed through research and client discovery.'
+  return [
+    sourceFromBriefing('COMPANY_NEWS', `Operating context: ${blueprint.title}`, 'Scenario business journal', 'HIGH', 90,
+      blueprint.businessSituation,
+      [blueprint.businessSituation, `Observed signal: ${blueprint.observableSymptom}`, `The consulting mandate is to ${blueprint.consultingMandate}`, openQuestions, 'Scenario-authored public context. Review and edit before publishing.']),
+    sourceFromBriefing('STAKEHOLDER_PROFILE', 'Stakeholder decision context', 'Stakeholder dossier', 'MEDIUM', 74,
+      'A stakeholder profile designed to separate decision influence from unverified assumptions.',
+      [`The business context is ${blueprint.businessSituation}`, `The observable issue is ${blueprint.observableSymptom}`, 'Identify who owns the operating problem, who can sponsor a next step, and who may impose delivery or commercial constraints.', openQuestions, 'Scenario-authored stakeholder research prompt.']),
+    sourceFromBriefing('FINANCIAL_SIGNAL', 'Commercial signal review', 'Analyst financial brief', 'MEDIUM', 68,
+      'A commercial briefing that keeps value assumptions explicitly provisional.',
+      [`The scenario pressure is ${blueprint.observableSymptom}`, `Any value case should support this mandate: ${blueprint.consultingMandate}`, 'Do not treat a visible signal as a confirmed budget, approval path, or business case until a stakeholder validates it.', openQuestions, 'Scenario-authored commercial analysis.']),
+    sourceFromBriefing('TECHNOLOGY_INDICATOR', 'Operating systems briefing', 'Technology landscape note', 'MEDIUM', 66,
+      'A technology research brief focused on constraints that must be validated before solutioning.',
+      [`The operating context is ${blueprint.businessSituation}`, `The symptom to investigate is ${blueprint.observableSymptom}`, 'Research the current workflow, dependencies, data flow, security obligations and adoption constraints before proposing a technical response.', openQuestions, 'Scenario-authored technology research prompt.']),
+  ]
+}
+
 export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: ScenarioSummary }) {
   const authoring = useScenarioAuthoring(scenario.id)
   const leads = useScenarioAuthoringLeads(scenario.id)
@@ -115,6 +163,13 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   const editable = scenario.status === 'DRAFT'
   const saveBlueprint = () => updateBlueprint.mutate(blueprint)
   const saveConfig = () => updateConfig.mutate(config)
+  const addStarterResearchPack = () => {
+    const existingTypes = new Set(config.researchSources.map((source) => source.evidenceType))
+    const newSources = starterResearchPack(blueprint).filter((source) => !existingTypes.has(source.evidenceType))
+    if (newSources.length > 0) {
+      setConfig({ ...config, researchSources: [...config.researchSources, ...newSources] })
+    }
+  }
   const startEditingLead = (item: LeadAuthoringView) => {
     setEditingLeadId(item.id)
     setLead({
@@ -191,6 +246,9 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
 
         <section className={styles.authoringSection}>
           <div><p className={styles.sectionEyebrow}>02 · Evidence deck</p><h5>Sources learners must assess</h5><p className={styles.sectionHelp}>These are fixed, versioned scenario sources. Learners must review a source and write their own takeaway before it enters the evidence board.</p></div>
+          <Button size="sm" kind="secondary" renderIcon={CopyFile} disabled={!blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate} onClick={addStarterResearchPack}>
+            Create starter source pack
+          </Button>
           <Stack gap={3}>
             {config.researchSources.map((source, index) => (
               <div className={styles.factRow} key={source.id}>

@@ -1454,6 +1454,29 @@ $accent-blue-dark: #0043ce;
   line-height: 1.5;
 }
 
+.sourceDocumentDek {
+  color: $text-secondary;
+  font-size: 1rem;
+  line-height: 1.45;
+  margin: $spacing-03 0 0;
+  max-width: 52rem;
+}
+
+.documentMasthead {
+  align-items: baseline;
+  border-bottom: 3px double #393939;
+  color: #262626;
+  display: flex;
+  font-family: Georgia, 'Times New Roman', serif;
+  gap: $spacing-04;
+  justify-content: space-between;
+  margin: 0 0 $spacing-05;
+  padding: 0 0 $spacing-03;
+
+  strong { font-size: clamp(1.35rem, 2.2vw, 2.25rem); letter-spacing: 0; text-transform: uppercase; }
+  span { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.6875rem; text-transform: uppercase; }
+}
+
 .sourceTemplateLabel {
   border-left: 3px solid #8a3ffc;
   margin: 0 0 $spacing-04;
@@ -1515,6 +1538,21 @@ $accent-blue-dark: #0043ce;
 
   strong, p { margin: 0; }
   p { color: $text-secondary; font-size: 0.8125rem; margin-top: $spacing-02; }
+}
+
+.documentLens {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 0 $spacing-04;
+  overflow: hidden;
+
+  span {
+    background: #f6f2ff;
+    color: #525252;
+    font-size: 0.75rem;
+    padding: $spacing-03;
+  }
 }
 
 .selectionInstruction {
@@ -1998,6 +2036,14 @@ $accent-blue-dark: #0043ce;
   :global(.cds--modal-content) { overflow: hidden; padding: 0; }
 }
 
+// Carbon's large breakpoint otherwise constrains every modal to 48% of the
+// viewport. A source reader is a document surface, not a small confirmation.
+:global(.cds--modal-container).readerModal {
+  inline-size: min(94vw, 84rem) !important;
+  max-block-size: 92vh !important;
+  max-inline-size: min(94vw, 84rem) !important;
+}
+
 .readerModalBody {
   background: #f4f4f4;
   display: flex;
@@ -2024,7 +2070,10 @@ $accent-blue-dark: #0043ce;
   height: auto;
   margin: 0;
   max-height: none;
+  min-height: 0;
+  overflow-y: auto;
   padding: clamp(1.5rem, 3vw, 3rem);
+  padding-bottom: 6rem;
 }
 
 .readerModalBody .newspaperTemplate {
@@ -2039,7 +2088,7 @@ $accent-blue-dark: #0043ce;
 
 .readerModalBody .newspaperTemplate .sourceDocumentHeader h3 {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(2rem, 3.3vw, 3.25rem);
+  font-size: clamp(1.75rem, 2.5vw, 2.75rem);
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -2050,6 +2099,11 @@ $accent-blue-dark: #0043ce;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.0625rem;
   line-height: 1.65;
+}
+
+.readerModalBody .sourceDocumentDek {
+  font-size: 1.125rem;
+  line-height: 1.5;
 }
 
 .readerModalBody .sourceDocumentBody blockquote,
@@ -2110,6 +2164,8 @@ $accent-blue-dark: #0043ce;
   .readerModal { max-width: 100vw; width: 100vw; }
   .readerModalBody { height: 75vh; min-height: 0; padding: $spacing-03; }
   .readerModalBody .sourceDocumentBody { column-count: 1; font-size: 0.9375rem; }
+  .documentMasthead { align-items: flex-start; flex-direction: column; gap: $spacing-02; }
+  .documentLens { grid-template-columns: 1fr; }
   .readerSelectionToolbar { bottom: $spacing-04; left: $spacing-04; right: $spacing-04; }
   .readerSelectionToolbar span { max-width: 9rem; }
 }

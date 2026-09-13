@@ -148,6 +148,17 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
       : artifact.evidenceType === 'TECHNOLOGY_INDICATOR'
         ? styles.technologyTemplate
         : styles.newspaperTemplate
+  const isNewspaper = artifact.evidenceType === 'COMPANY_NEWS'
+  const isStakeholder = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
+  const isFinancial = artifact.evidenceType === 'FINANCIAL_SIGNAL'
+  const isTechnology = artifact.evidenceType === 'TECHNOLOGY_INDICATOR'
+  const documentLabel = isNewspaper
+    ? 'The Client Observer'
+    : isStakeholder
+      ? 'Stakeholder intelligence dossier'
+      : isFinancial
+        ? 'Commercial intelligence note'
+        : 'Technology due diligence brief'
 
   const captureSelection = () => {
     const selected = window.getSelection()?.toString().replace(/\s+/g, ' ').trim() ?? ''
@@ -156,25 +167,29 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
 
   return (
     <article className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={captureSelection} onKeyUp={captureSelection}>
+      {isNewspaper && <div className={styles.documentMasthead}><strong>{documentLabel}</strong><span>Client intelligence edition</span><span>{artifact.publishedOn}</span></div>}
+      {!isNewspaper && <p className={styles.sourceTemplateLabel}>{documentLabel}</p>}
       <header className={styles.sourceDocumentHeader}>
         <div>
           <p className={styles.sectionEyebrow}>{sourceKind} · {artifact.sourceType}</p>
           <h3>{artifact.title}</h3>
+          <p className={styles.sourceDocumentDek}>{artifact.summary}</p>
           <p className={styles.sourceDocumentMeta}>Scenario-curated source · {artifact.publishedOn} · {artifact.confidence.toLowerCase()} reliability</p>
         </div>
         <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'}>
           {artifact.relevanceScore}% relevant
         </Tag>
       </header>
-      {artifact.evidenceType === 'STAKEHOLDER_PROFILE' && (
+      {isStakeholder && (
         <div className={styles.dossierStrip}>
           <span aria-hidden="true">{artifact.title.slice(0, 1).toUpperCase()}</span>
           <div><strong>Stakeholder dossier</strong><p>Review priorities, constraints and influence signals before drawing a conclusion.</p></div>
           <Tag type="purple" size="sm">Influence signal</Tag>
         </div>
       )}
-      {artifact.evidenceType === 'FINANCIAL_SIGNAL' && <div className={styles.signalBanner}><span>Financial analysis</span><strong>Validate commercial materiality before assuming budget.</strong></div>}
-      {artifact.evidenceType === 'TECHNOLOGY_INDICATOR' && <div className={styles.signalBanner}><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
+      {isStakeholder && <div className={styles.documentLens}><span>Read for: stated priority</span><span>Influence: validate</span><span>Decision role: unconfirmed</span></div>}
+      {isFinancial && <div className={styles.signalBanner}><span>Financial analysis</span><strong>Validate commercial materiality before assuming budget.</strong></div>}
+      {isTechnology && <div className={styles.signalBanner}><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
       <div className={styles.sourceDocumentBody}>
         {blocks.map((block) => {
           if (block.type === 'QUOTE') return <blockquote key={block.id}>{block.content}{block.attribution && <cite>{block.attribution}</cite>}</blockquote>

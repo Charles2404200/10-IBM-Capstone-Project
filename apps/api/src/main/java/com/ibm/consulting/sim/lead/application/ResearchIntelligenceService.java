@@ -135,6 +135,10 @@ public class ResearchIntelligenceService {
                 .toList();
         if (sources.isEmpty()) {
             sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
+        } else {
+            // Authored source packs stay canonical, while difficulty still supplies
+            // bounded low-reliability context that learners must assess critically.
+            sources = shapeForDifficulty(lead, type, sources, profile);
         }
         List<ResearchArtifactResponse> filtered = removeDuplicates(sources, discovered);
         cacheArtifacts(cacheKey, filtered);
@@ -417,12 +421,14 @@ public class ResearchIntelligenceService {
                         scenario.getBusinessSituation(),
                         "The current observable signal is: " + scenario.getObservableSymptom(),
                         "The consulting mandate is to " + scenario.getConsultingMandate(),
-                        unknownsParagraph(scenario))));
+                        unknownsParagraph(scenario),
+                        "This briefing establishes the business frame, but it does not prove a root cause, identify a buyer, or validate a solution. A strong evidence note should preserve that distinction.")));
         artifacts.add(artifact("company-news-2", "Leadership team faces execution pressure",
                 "Industry press", "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
                 EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure", blocks("company-news-2",
                         "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
                         "This is a directional signal, not a confirmed diagnosis. A consultant should connect it back to the operating situation before proposing a response.",
+                        "Look for a direct link between the visible signal and a client-specific consequence. Without that link, this source is useful context rather than decisive evidence.",
                         unknownsParagraph(scenario))));
         return artifacts;
     }
@@ -437,14 +443,17 @@ public class ResearchIntelligenceService {
                                 "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
                                         .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
                                 "The client is described publicly as: " + valueOr(lead.getPublicDescription(), "a business with operating priorities still to be explored"),
-                                "Use the first conversation to distinguish stated priorities from the constraints that shape the decision process.")),
+                                "Use the first conversation to distinguish stated priorities from the constraints that shape the decision process.",
+                                "A senior title can indicate access, but it does not by itself establish decision authority, budget ownership, or willingness to sponsor change.",
+                                "Capture the stakeholder's exact priority, success measure and concern before treating this profile as corroborated evidence.")),
                 artifact("stakeholder-2", "Commercial stakeholder influence",
                         "Stakeholder map",
                         "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
                         EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, "stakeholder_complexity", blocks("stakeholder-2",
                                 "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
                                 "Treat the relationship map as a hypothesis: identify who can sponsor action, who may challenge it, and who controls the evidence needed for a decision.",
-                                "Do not assume that a visible executive is the only stakeholder with influence.")));
+                                "Do not assume that a visible executive is the only stakeholder with influence.",
+                                "For a practical next step, separate operational users, technical gatekeepers, commercial approvers and executive sponsors. Their incentives may not be aligned.")));
     }
 
     private List<ResearchArtifactResponse> financialSignals(Lead lead, boolean budgetVisible) {
@@ -456,14 +465,16 @@ public class ResearchIntelligenceService {
                             EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description", blocks("financial-visibility-1",
                                     "No client-confirmed budget detail is available in the research phase.",
                                     "Use discovery to validate commercial priorities and investment appetite before treating any value case as funded.",
-                                    "A useful next question is whether the operating issue has a measurable cost, service, risk or growth consequence.")),
+                                    "A useful next question is whether the operating issue has a measurable cost, service, risk or growth consequence.",
+                                    "Absence of budget evidence is not evidence of no budget. Record it as an unknown and avoid inventing a figure or approval date.")),
                     artifact("financial-visibility-2", "Opportunity sizing remains provisional",
                             "Commercial analysis", "Public context suggests an opportunity, but no approved budget range is available. "
                                     + "Treat any estimate as a consultant assumption until the client validates it.",
                             EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description", blocks("financial-visibility-2",
                                     "Public context suggests an opportunity, but no approved budget range is available.",
                                     "Treat any estimate as a consultant assumption until the client validates it.",
-                                    "Prioritize a baseline metric and a low-risk next step over a premature investment recommendation.")));
+                                    "Prioritize a baseline metric and a low-risk next step over a premature investment recommendation.",
+                                    "The quality of this source improves only when an accountable stakeholder confirms the baseline, the materiality of the problem and the decision path.")));
         }
         return List.of(
                 artifact("financial-1", "Funding signal under review",
@@ -473,7 +484,8 @@ public class ResearchIntelligenceService {
                         EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "budget_signal", blocks("financial-1",
                                 valueOr(lead.getBudgetSignal(), "Budget is not yet confirmed"),
                                 "Any proposal should connect spend to measurable operational or risk reduction outcomes.",
-                                "Validate the owner, timing, approval route and conditions attached to any funding signal.")),
+                                "Validate the owner, timing, approval route and conditions attached to any funding signal.",
+                                "A funding signal can support an exploratory conversation; it is not permission to promise scope, benefits or a delivery date.")),
                 artifact("financial-2", "Potential opportunity sizing",
                         "Commercial analysis",
                         "The likely opportunity range is %s, but this should be validated through discovery before proposal."
@@ -481,7 +493,8 @@ public class ResearchIntelligenceService {
                         EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "potential_value_range", blocks("financial-2",
                                 "The likely opportunity range is %s, but this should be validated through discovery before proposal."
                                         .formatted(valueOr(lead.getPotentialValueRange(), "not yet confirmed")),
-                                "An initial case is stronger when it identifies a credible baseline, a measurable outcome and the assumptions that still need client confirmation.")));
+                                "An initial case is stronger when it identifies a credible baseline, a measurable outcome and the assumptions that still need client confirmation.",
+                                "Use this range as a question to test with the client, not as a result to present as already achieved.")));
     }
 
     private List<ResearchArtifactResponse> technologySignals(Lead lead) {
@@ -493,13 +506,15 @@ public class ResearchIntelligenceService {
                         EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.HIGH, "technology_stack", blocks("technology-1",
                                 valueOr(lead.getTechnologyStack(), "Technology stack is not yet confirmed"),
                                 "This may create integration, change-management and rollout risk.",
-                                "Use discovery to establish the current operating workflow, dependencies and constraints before recommending a target architecture.")),
+                                "Use discovery to establish the current operating workflow, dependencies and constraints before recommending a target architecture.",
+                                "Technology names alone do not reveal data quality, ownership, security controls or the operational hand-offs that can make a change difficult.")),
                 artifact("technology-2", "Implementation risk indicator",
                         "Architecture note",
                         "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
                         EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, "implementation_risk", blocks("technology-2",
                                 "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
-                                "This is an implementation question to validate, not a prescribed solution. Confirm where teams currently experience friction and which dependencies cannot be disrupted.")));
+                                "This is an implementation question to validate, not a prescribed solution. Confirm where teams currently experience friction and which dependencies cannot be disrupted.",
+                                "Document whether the constraint affects reliability, speed, compliance, cost or adoption. Those distinctions shape the right next question in the meeting.")));
     }
 
     private List<ResearchArtifactResponse> marketTrends(Lead lead) {
