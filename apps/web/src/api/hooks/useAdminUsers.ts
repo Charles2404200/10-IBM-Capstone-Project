@@ -17,6 +17,14 @@ export interface AdminUserDirectoryFilters {
   size: number
 }
 
+export interface CreateAdminUserInput {
+  email: string
+  password: string
+  displayName: string
+  role: UserRole
+  skipEmailVerification: boolean
+}
+
 async function fetchAdminUserDirectory(filters: AdminUserDirectoryFilters) {
   return (await apiClient.get<AdminUserPage>('/api/v1/admin/users', { params: filters })).data
 }
@@ -59,6 +67,23 @@ export function useSetUserActive() {
   return useMutation({
     mutationFn: async ({ userId, active }: { userId: string; active: boolean }) =>
       (await apiClient.patch<AdminUserSummary>(`/api/v1/admin/users/${userId}/${active ? 'reactivate' : 'deactivate'}`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminUserKeys.all }),
+  })
+}
+
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: CreateAdminUserInput) =>
+      (await apiClient.post<AdminUserSummary>('/api/v1/admin/users', input)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminUserKeys.all }),
+  })
+}
+
+export function useDeleteAdminUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (userId: string) => apiClient.delete(`/api/v1/admin/users/${userId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: adminUserKeys.all }),
   })
 }

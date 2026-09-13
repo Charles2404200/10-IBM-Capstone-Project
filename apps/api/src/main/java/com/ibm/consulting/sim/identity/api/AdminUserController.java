@@ -5,9 +5,16 @@ import com.ibm.consulting.sim.identity.application.AdminUserPage;
 import com.ibm.consulting.sim.identity.application.UserSummary;
 import com.ibm.consulting.sim.identity.domain.UserDirectoryQuery;
 import com.ibm.consulting.sim.identity.domain.UserRole;
+import com.ibm.consulting.sim.identity.domain.User;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +39,12 @@ public class AdminUserController {
     }
 
     record ChangeRoleRequest(@NotNull UserRole role) {}
+    record CreateUserRequest(
+            @NotBlank @Email String email,
+            @NotBlank @Size(min = 8, max = 128) String password,
+            @NotBlank @Size(min = 2, max = 80) String displayName,
+            @NotNull UserRole role,
+            boolean skipEmailVerification) {}
 
     @GetMapping
     AdminUserPage listUsers(
@@ -41,6 +54,13 @@ public class AdminUserController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "25") @Min(1) @Max(100) int size) {
         return adminUserService.listUsers(new UserDirectoryQuery(search, role, active, page, size));
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    UserSummary createUser(@Valid @RequestBody CreateUserRequest req) {
+        return adminUserService.createUser(req.email(), req.password(), req.displayName(), req.role(),
+                req.skipEmailVerification());
     }
 
     @PatchMapping("/{userId}/role")
@@ -56,5 +76,11 @@ public class AdminUserController {
     @PatchMapping("/{userId}/reactivate")
     UserSummary reactivate(@PathVariable UUID userId) {
         return adminUserService.reactivate(userId);
+    }
+
+    @DeleteMapping("/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteUser(@PathVariable UUID userId, @AuthenticationPrincipal User requestingUser) {
+        adminUserService.deleteUser(userId, requestingUser.getId());
     }
 }

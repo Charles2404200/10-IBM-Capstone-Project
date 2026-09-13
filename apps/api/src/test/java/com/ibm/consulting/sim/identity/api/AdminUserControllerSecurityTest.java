@@ -74,7 +74,7 @@ class AdminUserControllerSecurityTest {
     void administratorCanListUsers() throws Exception {
         when(adminUserService.listUsers(any(UserDirectoryQuery.class))).thenReturn(
                 new AdminUserPage(
-                        java.util.List.of(new UserSummary(UUID.randomUUID(), "a@ibm.com", "A", UserRole.LEARNER, true)),
+                        java.util.List.of(new UserSummary(UUID.randomUUID(), "a@ibm.com", "A", UserRole.LEARNER, true, true)),
                         1, 0, 25, 1));
 
         mockMvc.perform(get("/api/v1/admin/users"))

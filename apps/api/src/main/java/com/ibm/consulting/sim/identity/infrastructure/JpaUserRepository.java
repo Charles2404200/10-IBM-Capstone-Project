@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserDirectoryPage;
 import com.ibm.consulting.sim.identity.domain.UserDirectoryQuery;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
+import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -22,6 +23,7 @@ import java.util.UUID;
 interface SpringDataUserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    long countByRoleAndActive(UserRole role, boolean active);
 }
 
 @Repository
@@ -37,7 +39,9 @@ class JpaUserRepository implements UserRepository {
     @Override public Optional<User> findById(UUID id) { return repo.findById(id); }
     @Override public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
     @Override public boolean existsByEmail(String email) { return repo.existsByEmail(email); }
+    @Override public long countByRoleAndActive(UserRole role, boolean active) { return repo.countByRoleAndActive(role, active); }
     @Override public List<User> findAll() { return repo.findAll(); }
+    @Override public void delete(User user) { repo.delete(user); }
     @Override public UserDirectoryPage findDirectory(UserDirectoryQuery query) {
         Page<User> page = repo.findAll(directorySpecification(query),
                 PageRequest.of(query.page(), query.size(), Sort.by(Sort.Direction.DESC, "createdAt")));

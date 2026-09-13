@@ -38,6 +38,7 @@ export interface AdminUserSummary {
   displayName: string
   role: UserRole
   active: boolean
+  emailVerified: boolean
 }
 
 export interface AdminUserPage {
