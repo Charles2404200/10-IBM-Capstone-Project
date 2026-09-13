@@ -33,11 +33,11 @@ class ClientIntelligenceResponseParserTest {
                     "relevance": 0.82,
                     "confidence": 0.78,
                     "blocks": [
-                      {"type": "PARAGRAPH", "content": "The board is reviewing a technology budget in the next quarter, which is a concrete commercial signal but not an approval to commit to a scope."},
-                      {"type": "PARAGRAPH", "content": "A consultant should separate this review from a confirmed investment decision and validate the owner, the approval route and the operating outcome expected from any spend."},
-                      {"type": "PARAGRAPH", "content": "The signal can justify a discovery conversation because it creates a window to understand which client problem may be prioritised, rather than a reason to promise a solution."},
-                      {"type": "PARAGRAPH", "content": "Before using this source in a value case, the learner should establish a baseline, identify the relevant stakeholder and test whether the timing aligns with the client need."},
-                      {"type": "CAPTION", "content": "Corroborate the budget review with the accountable stakeholder before treating it as a funded opportunity."}
+                      {"type": "PARAGRAPH", "content": "The board is reviewing a technology budget in the next quarter, providing a confirmed commercial signal for the current research record.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "The review indicates that investment appetite may be emerging, while the record does not establish a funded scope, owner, amount or approval decision.", "purpose": "INTERPRETATION", "selectable": true, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "This financial note is limited to the budget-review signal supplied in the scenario and contains no separate confirmation of business-case timing or investment authority.", "purpose": "CONTEXT", "selectable": false, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "No accountable sponsor, approval route, baseline measure or committed investment date has been confirmed in the available client facts.", "purpose": "UNCERTAINTY", "selectable": false, "factIds": []},
+                      {"type": "CAPTION", "content": "Funding status remains unconfirmed in this source.", "purpose": "UNCERTAINTY", "selectable": false, "factIds": []}
                     ]
                   }]
                 }
@@ -115,7 +115,9 @@ class ClientIntelligenceResponseParserTest {
                         "company_name", "Horizon Hotels",
                         "business_situation", "Horizon Hotels is pursuing a brand-experience initiative across its properties.",
                         "observable_symptom", "Guest satisfaction varies across properties because service issues are not resolved consistently.",
-                        "consulting_mandate", "Identify the operating hand-offs behind service variation and agree a low-risk pilot."),
+                        "consulting_mandate", "Identify the operating hand-offs behind service variation and agree a low-risk pilot.",
+                        "signal_executive_priority", "The brand-experience initiative depends on consistent guest service.",
+                        "signal_operating_signal", "Guest satisfaction varies across properties."),
                 EvidenceType.COMPANY_NEWS);
 
         var artifacts = companyNewsParser.parse(raw);
@@ -126,6 +128,8 @@ class ClientIntelligenceResponseParserTest {
             assertThat(artifact.blocks().stream().map(block -> block.content()).collect(java.util.stream.Collectors.joining(" ")))
                     .contains("Guest satisfaction varies");
             assertThat(artifact.allowedFactKeys()).contains("company_name", "observable_symptom");
+            assertThat(artifact.blocks().stream().filter(block -> block.selectable()).allMatch(block ->
+                    block.purpose().name().equals("FACT") || block.purpose().name().equals("INTERPRETATION"))).isTrue();
         });
     }
 }

@@ -23,6 +23,7 @@ import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ResearchSource;
 import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockPurpose;
 import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
@@ -133,9 +134,11 @@ public class ResearchIntelligenceService {
                 .filter(source -> source.evidenceType() == type)
                 .map(this::toArtifact)
                 .toList();
-        if (sources.isEmpty()) {
+        if (sources.isEmpty() || sources.stream().anyMatch(source -> !hasGroundedBlocks(source.blocks()))) {
             // The document surface is AI-authored from the scenario's canonical
-            // facts. The deterministic pack is an availability fallback only.
+            // facts. Legacy source packs without block-level fact provenance are
+            // intentionally bypassed: otherwise old coaching copy can masquerade
+            // as learner-selectable evidence.
             sources = synthesizeSourceDeck(engagementId, engagement, lead, scenario, type, profile, authoringConfig, discovered);
         } else {
             // Authored source packs stay canonical, while difficulty still supplies
@@ -207,6 +210,12 @@ public class ResearchIntelligenceService {
                 source.evidenceType().name(), source.confidence().name(), EvidenceOrigin.SCENARIO_CURATED.name(),
                 LocalDate.now().minusDays(14), source.relevanceScore(), List.of("source-" + source.id()), List.of(),
                 "Assess this source against the client problem before using it in your case.", source.effectiveBlocks());
+    }
+
+    private boolean hasGroundedBlocks(List<ResearchSourceBlock> blocks) {
+        return blocks.stream().anyMatch(block -> Boolean.TRUE.equals(block.selectable())
+                && !block.factIds().isEmpty()
+                && block.factIds().stream().noneMatch("scenario_source"::equals));
     }
 
     private List<ResearchArtifactResponse> removeDuplicates(List<ResearchArtifactResponse> artifacts,
@@ -431,6 +440,8 @@ public class ResearchIntelligenceService {
                 - Do not restate the whole scenario description. Select and connect the facts that matter for this lane.
                 - A "QUOTE" block may only repeat a canonical fact word-for-word and must have no invented attribution.
                 - Include one low-confidence or ambiguous context source only when the difficulty requires a distractor.
+                - Never write consultant instructions, recommended next steps, hypotheses, source-record notices, or meta commentary
+                  inside a source document. The source is client intelligence, not a coaching response.
                 - Return JSON only. No markdown and no prose outside the JSON.
 
                 Required JSON schema:
@@ -447,9 +458,9 @@ public class ResearchIntelligenceService {
                       "relevance": 0.0,
                       "confidence": 0.0,
                       "blocks": [
-                        {"type": "PARAGRAPH", "content": "..."},
-                        {"type": "METRIC", "content": "..."},
-                        {"type": "CAPTION", "content": "..."}
+                        {"type": "PARAGRAPH", "content": "...", "purpose": "FACT", "selectable": true, "factIds": ["exact-fact-key"]},
+                        {"type": "PARAGRAPH", "content": "...", "purpose": "INTERPRETATION", "selectable": true, "factIds": ["exact-fact-key"]},
+                        {"type": "CAPTION", "content": "...", "purpose": "UNCERTAINTY", "selectable": false, "factIds": []}
                       ]
                     }
                   ]
@@ -457,8 +468,12 @@ public class ResearchIntelligenceService {
 
                 Document requirements:
                 - Return exactly 2 artifacts, each with 6 to 9 blocks and at least 450 characters across its blocks.
+                - Each artifact must have 3 to 6 selectable blocks. Only FACT and INTERPRETATION blocks may be selectable.
+                - Every selectable block must include one or more exact factIds. CONTEXT and UNCERTAINTY blocks are never selectable.
+                - Use CONTEXT only for factual background and UNCERTAINTY only for an explicitly unresolved scenario fact.
+                - Do not use GUIDANCE blocks in this response. Never turn the consulting mandate into an instruction to the learner.
                 - COMPANY_NEWS: write an industry-news analysis with a headline, a client-specific operating signal,
-                  likely business implication, and an explicitly open question.
+                  a clearly-labelled fact-linked interpretation, and an explicitly open question.
                 - STAKEHOLDER_PROFILE: write a credible dossier that separates known role/context from priorities,
                   decision influence, and questions to validate.
                 - FINANCIAL_SIGNAL: write an analyst or internal finance brief that separates confirmed commercial
@@ -466,8 +481,8 @@ public class ResearchIntelligenceService {
                 - TECHNOLOGY_INDICATOR: write a technical briefing that explains known systems, possible operational
                   implications, dependencies to validate, and the appropriate discovery focus.
                 - Use METRIC only for a numeric fact present in the canonical facts; otherwise use PARAGRAPH or CAPTION.
-                - Add exactly one CAPTION per artifact that tells the learner what must be corroborated before this
-                  source can support a grounded hypothesis.
+                - Add exactly one non-selectable CAPTION per artifact that states the unresolved client uncertainty only.
+                - The second source must offer a different evidence angle; do not paraphrase or repeat the first source.
 
                 Engagement state: %s
                 Research lane: %s
@@ -525,121 +540,110 @@ public class ResearchIntelligenceService {
     }
 
     private List<ResearchArtifactResponse> companyNews(Lead lead, Scenario scenario) {
-        List<ResearchArtifactResponse> artifacts = new ArrayList<>();
-        artifacts.add(artifact("company-news-1", lead.getCompanyName() + " reviews the operating conditions behind " + conciseSymptom(scenario),
-                "Scenario-grounded operations analysis", scenario.getObservableSymptom(),
-                EvidenceType.COMPANY_NEWS, ConfidenceLevel.HIGH, "business_situation", blocks("company-news-1",
-                        scenario.getBusinessSituation(),
-                        "The visible operating signal is clear: " + scenario.getObservableSymptom(),
-                        availableSignalsParagraph(lead),
-                        "For the consulting team, the immediate task is to " + lowerCaseFirst(scenario.getConsultingMandate()),
-                        unknownsParagraph(scenario),
-                        "This analysis identifies a client-specific operating issue. It does not prove root cause or approve a solution; use it to form a precise question for the client.")));
-        artifacts.add(artifact("company-news-2", lead.getCompanyName() + " faces a decision point on " + conciseMandate(scenario),
-                "Client operations desk", "A client-specific review of the decision pressure, operating signal and evidence still needed.",
-                EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure", blocks("company-news-2",
-                        "The decision context is shaped by " + scenario.getBusinessSituation(),
-                        "The signal requiring investigation is " + lowerCaseFirst(scenario.getObservableSymptom()),
-                        availableSignalsParagraph(lead),
-                        "The immediate research test is whether that signal is creating a material service, reliability, cost or risk consequence for this client. The source does not establish that consequence by itself.",
-                        "A defensible next step needs to support this mandate: " + lowerCaseFirst(scenario.getConsultingMandate()),
-                        "Look for an explicit connection between the operating signal, the stakeholder who experiences it and the measure that would show improvement.",
-                        unknownsParagraph(scenario))));
-        return artifacts;
+        List<ResearchSourceBlock> operatingStory = documentBlocks("company-news-1",
+                fact(scenario.getBusinessSituation(), "business_situation"),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
+                signalFact(lead, 0),
+                interpretation("Taken together, the reported operating signal may be limiting the client's ability to deliver the stated business priority.", "business_situation", "observable_symptom"),
+                context(scenario.getConsultingMandate(), "consulting_mandate"),
+                uncertainty(unknownsParagraph(scenario)));
+        List<ResearchSourceBlock> contextStory = documentBlocks("company-news-2",
+                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
+                        "No public company description has been confirmed for this scenario."),
+                signalFact(lead, 1),
+                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
+                        "No confirmed technology environment is available in this source."),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
+                interpretation("The available client signals point to an operating issue, but do not establish its root cause or a preferred response.", "observable_symptom"),
+                uncertainty(unknownsParagraph(scenario)));
+        return List.of(
+                artifact("company-news-1", lead.getCompanyName() + " reviews service consistency across its operations",
+                        "Industry operations journal", scenario.getObservableSymptom(), EvidenceType.COMPANY_NEWS,
+                        ConfidenceLevel.HIGH, operatingStory),
+                artifact("company-news-2", "Client context places the operating signal under scrutiny",
+                        "Client observer", "A second view of the client context, visible signal and unresolved constraints.",
+                        EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, contextStory));
     }
 
     private List<ResearchArtifactResponse> stakeholderProfiles(Lead lead, Scenario scenario) {
+        List<ResearchSourceBlock> namedProfile = documentBlocks("stakeholder-1",
+                optionalFact(valueOr(lead.getDecisionMaker(), ""), "decision_maker",
+                        "No named stakeholder has been confirmed for this scenario."),
+                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
+                        "No public company description has been confirmed for this scenario."),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
+                signalFact(lead, 0),
+                interpretation("The available role and operating context identify a relevant contact for validating the client signal; decision authority is not established.", "observable_symptom"),
+                uncertainty("Decision authority, sponsorship and the stakeholder's success measure remain unconfirmed."));
+        List<ResearchSourceBlock> influenceContext = documentBlocks("stakeholder-2",
+                fact(scenario.getBusinessSituation(), "business_situation"),
+                fact(scenario.getConsultingMandate(), "consulting_mandate"),
+                signalFact(lead, 1),
+                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
+                        "No confirmed technology owner or environment is available in this source."),
+                interpretation("The stated mandate may involve operational, commercial and technical stakeholders, but the approval path is not yet known.", "business_situation", "consulting_mandate"),
+                uncertainty(unknownsParagraph(scenario)));
         return List.of(
-                artifact("stakeholder-1", lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "Potential executive sponsor",
-                        "Stakeholder profile",
-                        "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
-                                .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
-                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, "decision_maker", blocks("stakeholder-1",
-                                "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
-                                        .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
-                                "The client is described publicly as: " + valueOr(lead.getPublicDescription(), "a business with operating priorities still to be explored"),
-                                "The operating question to validate is: " + scenario.getObservableSymptom(),
-                                availableSignalsParagraph(lead),
-                                "Use the first conversation to distinguish stated priorities from the constraints that shape the decision process.",
-                                "A senior title can indicate access, but it does not by itself establish decision authority, budget ownership, or willingness to sponsor change.",
-                                "Capture the stakeholder's exact priority, success measure and concern before treating this profile as corroborated evidence.",
-                                "A useful discovery question connects the visible operating signal to the mandate: " + scenario.getConsultingMandate())),
-                artifact("stakeholder-2", "Commercial stakeholder influence",
-                        "Stakeholder map",
-                        "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
-                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, "stakeholder_complexity", blocks("stakeholder-2",
-                                "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
-                                "Treat the relationship map as a hypothesis: identify who can sponsor action, who may challenge it, and who controls the evidence needed for a decision.",
-                                "Do not assume that a visible executive is the only stakeholder with influence.",
-                                "For a practical next step, separate operational users, technical gatekeepers, commercial approvers and executive sponsors. Their incentives may not be aligned.",
-                                unknownsParagraph(scenario))));
+                artifact("stakeholder-1", valueOr(lead.getDecisionMaker(), "Stakeholder context under review"),
+                        "Stakeholder dossier", "Known role and client signals, separated from the decisions still to validate.",
+                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, namedProfile),
+                artifact("stakeholder-2", "Influence context around the operating mandate",
+                        "Stakeholder landscape", "Client priorities and unresolved decision ownership.",
+                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, influenceContext));
     }
 
     private List<ResearchArtifactResponse> financialSignals(Lead lead, Scenario scenario, boolean budgetVisible) {
-        if (!budgetVisible) {
-            return List.of(
-                    artifact("financial-visibility-1", "Funding signals require discovery",
-                            "Financial intelligence", "No client-confirmed budget detail is available in the research phase. "
-                                    + "Use discovery to validate commercial priorities and investment appetite.",
-                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description", blocks("financial-visibility-1",
-                                    "No client-confirmed budget detail is available in the research phase.",
-                                    "Use discovery to validate commercial priorities and investment appetite before treating any value case as funded.",
-                                    "A useful next question is whether the operating issue has a measurable cost, service, risk or growth consequence.",
-                                    "Absence of budget evidence is not evidence of no budget. Record it as an unknown and avoid inventing a figure or approval date.",
-                                "The operating signal to quantify is: " + scenario.getObservableSymptom())),
-                    artifact("financial-visibility-2", "Opportunity sizing remains provisional",
-                            "Commercial analysis", "Public context suggests an opportunity, but no approved budget range is available. "
-                                    + "Treat any estimate as a consultant assumption until the client validates it.",
-                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description", blocks("financial-visibility-2",
-                                    "Public context suggests an opportunity, but no approved budget range is available.",
-                                    "Treat any estimate as a consultant assumption until the client validates it.",
-                                    "Prioritize a baseline metric and a low-risk next step over a premature investment recommendation.",
-                                    "The quality of this source improves only when an accountable stakeholder confirms the baseline, the materiality of the problem and the decision path.",
-                                    "The resulting case should support the consulting mandate: " + scenario.getConsultingMandate())));
-        }
+        List<ResearchSourceBlock> funding = documentBlocks("financial-1",
+                budgetVisible ? fact(valueOr(lead.getBudgetSignal(), ""), "budget_signal")
+                        : uncertainty("No client-confirmed budget signal is available at this stage."),
+                optionalFact(valueOr(lead.getPotentialValueRange(), ""), "potential_value_range",
+                        "No confirmed value range is available at this stage."),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
+                signalFact(lead, 0),
+                interpretation("The available commercial context may justify further sizing, but it does not establish an approved investment or quantified impact.", "observable_symptom"),
+                uncertainty(unknownsParagraph(scenario)));
+        List<ResearchSourceBlock> commercialContext = documentBlocks("financial-2",
+                fact(scenario.getBusinessSituation(), "business_situation"),
+                fact(scenario.getConsultingMandate(), "consulting_mandate"),
+                signalFact(lead, 1),
+                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
+                        "No public commercial context has been confirmed for this scenario."),
+                interpretation("The operating issue may have commercial implications, but no baseline, funding owner or approval route is confirmed in this source.", "observable_symptom"),
+                uncertainty("Commercial materiality and investment timing remain to be validated."));
         return List.of(
-                artifact("financial-1", "Funding signal under review",
-                        "Financial intelligence",
-                        "%s. Any proposal should connect spend to measurable operational or risk reduction outcomes."
-                                .formatted(lead.getBudgetSignal() != null ? lead.getBudgetSignal() : "Budget is not yet confirmed"),
-                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "budget_signal", blocks("financial-1",
-                                valueOr(lead.getBudgetSignal(), "Budget is not yet confirmed"),
-                                "Any proposal should connect spend to measurable operational or risk reduction outcomes.",
-                                "Validate the owner, timing, approval route and conditions attached to any funding signal.",
-                                "A funding signal can support an exploratory conversation; it is not permission to promise scope, benefits or a delivery date.",
-                                "Anchor any proposed outcome to the visible operating signal: " + scenario.getObservableSymptom())),
-                artifact("financial-2", "Potential opportunity sizing",
-                        "Commercial analysis",
-                        "The likely opportunity range is %s, but this should be validated through discovery before proposal."
-                                .formatted(lead.getPotentialValueRange() != null ? lead.getPotentialValueRange() : "not yet confirmed"),
-                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "potential_value_range", blocks("financial-2",
-                                "The likely opportunity range is %s, but this should be validated through discovery before proposal."
-                                        .formatted(valueOr(lead.getPotentialValueRange(), "not yet confirmed")),
-                                "An initial case is stronger when it identifies a credible baseline, a measurable outcome and the assumptions that still need client confirmation.",
-                                "Use this range as a question to test with the client, not as a result to present as already achieved.",
-                                unknownsParagraph(scenario))));
+                artifact("financial-1", budgetVisible ? "Funding signal under review" : "Commercial visibility remains limited",
+                        "Financial intelligence", "Confirmed commercial signals and explicit gaps in the available record.",
+                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, funding),
+                artifact("financial-2", "Operating pressure and commercial context",
+                        "Commercial analysis", "A separate view of the client priority, operating signal and unresolved materiality.",
+                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, commercialContext));
     }
 
     private List<ResearchArtifactResponse> technologySignals(Lead lead, Scenario scenario) {
+        List<ResearchSourceBlock> environment = documentBlocks("technology-1",
+                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
+                        "No confirmed technology environment is available in this source."),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
+                signalFact(lead, 0),
+                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
+                        "No public operating-system context has been confirmed for this scenario."),
+                interpretation("The stated technology environment may be relevant to the operating signal, but a technical root cause has not been established.", "observable_symptom"),
+                uncertainty(unknownsParagraph(scenario)));
+        List<ResearchSourceBlock> operatingDependency = documentBlocks("technology-2",
+                fact(scenario.getBusinessSituation(), "business_situation"),
+                fact(scenario.getConsultingMandate(), "consulting_mandate"),
+                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
+                        "No named system dependency has been confirmed in this source."),
+                signalFact(lead, 1),
+                interpretation("The relationship between the current environment and the client outcome remains an evidence question rather than a confirmed architecture diagnosis.", "business_situation", "consulting_mandate"),
+                uncertainty("System ownership, data flow and non-disruptable dependencies remain unconfirmed."));
         return List.of(
-                artifact("technology-1", "Current technology environment",
-                        "Technology research",
-                        "%s. This may create integration, change-management and rollout risk."
-                                .formatted(lead.getTechnologyStack() != null ? lead.getTechnologyStack() : "Technology stack is not yet confirmed"),
-                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.HIGH, "technology_stack", blocks("technology-1",
-                                valueOr(lead.getTechnologyStack(), "Technology stack is not yet confirmed"),
-                                "This may create integration, change-management and rollout risk.",
-                                "Use discovery to establish the current operating workflow, dependencies and constraints before recommending a target architecture.",
-                                "Technology names alone do not reveal data quality, ownership, security controls or the operational hand-offs that can make a change difficult.",
-                                "The technology investigation should explain how the environment may contribute to: " + scenario.getObservableSymptom())),
-                artifact("technology-2", "Implementation risk indicator",
-                        "Architecture note",
-                        "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
-                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, "implementation_risk", blocks("technology-2",
-                                "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
-                                "This is an implementation question to validate, not a prescribed solution. Confirm where teams currently experience friction and which dependencies cannot be disrupted.",
-                                "Document whether the constraint affects reliability, speed, compliance, cost or adoption. Those distinctions shape the right next question in the meeting.",
-                                "The appropriate next step must still support the mandate: " + scenario.getConsultingMandate())));
+                artifact("technology-1", "Current technology environment", "Technology due diligence brief",
+                        "Known system context and the operating signal it may relate to.", EvidenceType.TECHNOLOGY_INDICATOR,
+                        ConfidenceLevel.HIGH, environment),
+                artifact("technology-2", "Operating dependency context", "Architecture research note",
+                        "Client mandate, available technical context and explicitly unresolved dependencies.",
+                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, operatingDependency));
     }
 
     private List<ResearchArtifactResponse> marketTrends(Lead lead) {
@@ -663,16 +667,74 @@ public class ResearchIntelligenceService {
                 "Generated from scenario-approved facts only; learner must decide whether it is relevant.", blocks);
     }
 
-    private List<ResearchSourceBlock> blocks(String sourceId, String... paragraphs) {
+    private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
+                                              EvidenceType type, ConfidenceLevel confidence,
+                                              List<ResearchSourceBlock> blocks) {
+        List<String> factIds = blocks.stream()
+                .flatMap(block -> block.factIds().stream())
+                .filter(factId -> !factId.isBlank())
+                .distinct()
+                .toList();
+        return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
+                EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence),
+                factIds.isEmpty() ? List.of("business_situation") : factIds, List.of(),
+                "Source content is grounded in scenario facts; unresolved items are marked separately.", blocks);
+    }
+
+    private List<ResearchSourceBlock> documentBlocks(String sourceId, SourceBlockSeed... seeds) {
         List<ResearchSourceBlock> blocks = new ArrayList<>();
+        for (int index = 0; index < seeds.length; index++) {
+            SourceBlockSeed seed = seeds[index];
+            if (seed.content() == null || seed.content().isBlank()) continue;
+            blocks.add(new ResearchSourceBlock(sourceId + "-block-" + (index + 1),
+                    seed.type(), seed.content(), null, seed.factIds(), seed.selectable(), seed.purpose()));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private SourceBlockSeed fact(String content, String... factIds) {
+        return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), true, ResearchSourceBlockPurpose.FACT);
+    }
+
+    private SourceBlockSeed optionalFact(String content, String factId, String unavailableMessage) {
+        return content == null || content.isBlank()
+                ? context(unavailableMessage)
+                : fact(content, factId);
+    }
+
+    private SourceBlockSeed signalFact(Lead lead, int index) {
+        List<com.ibm.consulting.sim.lead.domain.LeadSignal> signals = lead.getSignals().stream()
+                .filter(signal -> signal.getLabel() != null && !signal.getLabel().isBlank())
+                .toList();
+        if (signals.isEmpty()) return context("No additional client signal is available in this source.");
+        var signal = signals.get(Math.floorMod(index, signals.size()));
+        return fact(signal.getLabel(), "signal_" + signal.getCategory().toLowerCase(Locale.ROOT));
+    }
+
+    private SourceBlockSeed interpretation(String content, String... factIds) {
+        return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), true,
+                ResearchSourceBlockPurpose.INTERPRETATION);
+    }
+
+    private SourceBlockSeed context(String content, String... factIds) {
+        return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), false,
+                ResearchSourceBlockPurpose.CONTEXT);
+    }
+
+    private SourceBlockSeed uncertainty(String content) {
+        return new SourceBlockSeed(ResearchSourceBlockType.CAPTION, content, List.of(), false,
+                ResearchSourceBlockPurpose.UNCERTAINTY);
+    }
+
+    private List<ResearchSourceBlock> blocks(String sourceId, String... paragraphs) {
+        List<ResearchSourceBlock> fallbackBlocks = new ArrayList<>();
         for (int index = 0; index < paragraphs.length; index++) {
             String paragraph = paragraphs[index];
             if (paragraph == null || paragraph.isBlank()) continue;
-            blocks.add(new ResearchSourceBlock(sourceId + "-block-" + (index + 1), ResearchSourceBlockType.PARAGRAPH, paragraph, null));
+            fallbackBlocks.add(new ResearchSourceBlock(sourceId + "-block-" + (index + 1), ResearchSourceBlockType.PARAGRAPH,
+                    paragraph, null, List.of(), false, ResearchSourceBlockPurpose.CONTEXT));
         }
-        blocks.add(new ResearchSourceBlock(sourceId + "-record", ResearchSourceBlockType.CAPTION,
-                "Scenario research record. Treat this source as evidence to assess, not a final client diagnosis.", null));
-        return List.copyOf(blocks);
+        return List.copyOf(fallbackBlocks);
     }
 
     private String unknownsParagraph(Scenario scenario) {
@@ -685,15 +747,8 @@ public class ResearchIntelligenceService {
         return value == null || value.isBlank() ? fallback : value;
     }
 
-    private String availableSignalsParagraph(Lead lead) {
-        List<String> signals = lead.getSignals().stream()
-                .map(signal -> signal.getLabel())
-                .filter(value -> !value.isBlank())
-                .toList();
-        return signals.isEmpty()
-                ? "No additional client signal is available in this source. Treat the remaining question as open."
-                : "The available client signals point to a connected research trail: " + String.join(" ", signals) + ".";
-    }
+    private record SourceBlockSeed(ResearchSourceBlockType type, String content, List<String> factIds,
+                                   boolean selectable, ResearchSourceBlockPurpose purpose) {}
 
     private String conciseSymptom(Scenario scenario) {
         return truncateAtWord(scenario.getObservableSymptom(), 88);

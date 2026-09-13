@@ -172,7 +172,10 @@ public class MockAiGateway implements AiModelGateway {
         String unknowns = lineValue(prompt, "- Unknowns to validate:");
         String decisionMaker = factValue(prompt, "decision_maker", "the accountable operational leader");
         String technology = factValue(prompt, "technology_stack", "the current operating systems");
+        String publicDescription = factValue(prompt, "public_description", "The client is assessing its current operating model.");
+        String budgetSignal = factValue(prompt, "budget_signal", "No client-confirmed budget detail is visible in this research lane.");
         String signals = signalValues(prompt);
+        List<String> signalFactIds = signalFactIds(prompt);
 
         if (situation.isBlank()) situation = factValue(prompt, "business_situation", "The operating context needs validation.");
         if (symptom.isBlank()) symptom = factValue(prompt, "observable_symptom", "The visible operating signal needs validation.");
@@ -181,6 +184,15 @@ public class MockAiGateway implements AiModelGateway {
         if (signals.isBlank()) signals = "No additional client signal has been supplied; treat the remaining questions as open.";
 
         String sourceType = sourceTypeFor(lane);
+        String laneFactId = laneFactId(lane);
+        boolean laneFactAvailable = hasFact(prompt, laneFactId);
+        boolean publicDescriptionAvailable = hasFact(prompt, "public_description");
+        DocumentBlock laneSpecificBlock = laneFactAvailable
+                ? fact(laneFact(lane, decisionMaker, technology, budgetSignal), laneFactId)
+                : context("No client-confirmed signal is available for this research lane.", "business_situation");
+        DocumentBlock publicDescriptionBlock = publicDescriptionAvailable
+                ? fact(publicDescription, "public_description")
+                : context("No public company description is available in this source.", "business_situation");
         String firstTitle = switch (lane) {
             case "STAKEHOLDER_PROFILE" -> "Stakeholder dossier: " + decisionMaker;
             case "FINANCIAL_SIGNAL" -> "Commercial readiness review for " + company;
@@ -197,39 +209,51 @@ public class MockAiGateway implements AiModelGateway {
         String first = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-1", firstTitle, lane, sourceType,
                 "HIGH", 0.9, situation,
                 List.of(
-                        situation,
-                        "The client-specific operating signal is: " + symptom,
-                        "The available scenario evidence points to this research trail: " + signals,
-                        laneNarrative(lane, company, decisionMaker, technology, symptom),
-                        "The consulting mandate is to " + lowerCaseFirst(mandate),
-                        "Questions that still need client validation: " + unknowns),
-                "Corroborate the operating signal with the accountable client owner and a measurable baseline before treating it as a confirmed diagnosis.");
+                        fact(situation, "business_situation"),
+                        fact(symptom, "observable_symptom"),
+                        fact(signals, signalFactIds),
+                        interpretation(interpretedSignal(lane, company, symptom, technology), "business_situation", "observable_symptom"),
+                        context(mandate, "consulting_mandate"),
+                        uncertainty(unknowns)),
+                "The root cause, accountable owner and measurement baseline remain unconfirmed.");
         String second = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-2", secondTitle, lane, sourceType,
-                "MEDIUM", 0.74, symptom,
+                "MEDIUM", 0.74, publicDescription,
                 List.of(
-                        "This source examines the decision pressure around " + lowerCaseFirst(situation),
-                        "It does not assume a solution. Instead, it directs the learner to test how " + lowerCaseFirst(symptom),
-                        "Known context includes " + signals,
-                        "For this research lane, " + laneQuestion(lane, decisionMaker, technology),
-                        "A credible next step should support " + lowerCaseFirst(mandate),
-                        "The unresolved validation work is: " + unknowns),
-                "Use this document as contextual evidence only after linking it to a client-specific consequence and an accountable stakeholder.");
+                        publicDescriptionBlock,
+                        laneSpecificBlock,
+                        fact(signals, signalFactIds),
+                        laneFactAvailable
+                                ? interpretation(secondInterpretation(lane, symptom, technology), "observable_symptom", laneFactId)
+                                : interpretation(secondInterpretation(lane, symptom, technology), "observable_symptom"),
+                        context(situation, "business_situation"),
+                        uncertainty(unknowns)),
+                "The relationship between these signals and a confirmed client outcome remains to be validated.");
         return "{\"artifacts\":[" + first + "," + second + "]}";
     }
 
     private static String documentJson(String id, String title, String lane, String sourceType, String reliability,
-                                       double relevance, String summary, List<String> paragraphs, String caption) {
+                                       double relevance, String summary, List<DocumentBlock> documentBlocks, String caption) {
         StringBuilder blocks = new StringBuilder();
-        for (String paragraph : paragraphs) {
+        List<String> artifactFactIds = new java.util.ArrayList<>(List.of("company_name"));
+        for (DocumentBlock block : documentBlocks) {
             if (!blocks.isEmpty()) blocks.append(',');
-            blocks.append("{\"type\":\"PARAGRAPH\",\"content\":\"").append(escapeJson(paragraph)).append("\"}");
+            blocks.append(blockJson("PARAGRAPH", block));
+            block.factIds().forEach(factId -> { if (!artifactFactIds.contains(factId)) artifactFactIds.add(factId); });
         }
-        blocks.append(",{\"type\":\"CAPTION\",\"content\":\"").append(escapeJson(caption)).append("\"}");
+        blocks.append(',').append(blockJson("CAPTION", uncertainty(caption)));
         return "{\"id\":\"" + escapeJson(id) + "\",\"title\":\"" + escapeJson(title)
                 + "\",\"category\":\"" + escapeJson(lane) + "\",\"content\":\"" + escapeJson(summary)
                 + "\",\"sourceType\":\"" + sourceType + "\",\"reliability\":\"" + reliability
-                + "\",\"supportedFactIds\":[\"company_name\",\"business_situation\",\"observable_symptom\",\"consulting_mandate\"]"
+                + "\",\"supportedFactIds\": [" + artifactFactIds.stream().map(factId -> "\"" + escapeJson(factId) + "\"").collect(java.util.stream.Collectors.joining(",")) + "]"
                 + ",\"relevance\":" + relevance + ",\"confidence\":" + relevance + ",\"blocks\":[" + blocks + "]}";
+    }
+
+    private static String blockJson(String type, DocumentBlock block) {
+        String factIds = block.factIds().stream().map(factId -> "\"" + escapeJson(factId) + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
+        return "{\"type\":\"" + type + "\",\"content\":\"" + escapeJson(block.content())
+                + "\",\"purpose\":\"" + block.purpose() + "\",\"selectable\":" + block.selectable()
+                + ",\"factIds\": [" + factIds + "]}";
     }
 
     private static String lineValue(String prompt, String marker) {
@@ -242,6 +266,10 @@ public class MockAiGateway implements AiModelGateway {
 
     private static String factValue(String prompt, String factKey, String fallback) {
         return valueOr(lineValue(prompt, "- " + factKey + ":"), fallback);
+    }
+
+    private static boolean hasFact(String prompt, String factKey) {
+        return !lineValue(prompt, "- " + factKey + ":").isBlank();
     }
 
     private static String signalValues(String prompt) {
@@ -257,6 +285,17 @@ public class MockAiGateway implements AiModelGateway {
         return values.toString();
     }
 
+    private static List<String> signalFactIds(String prompt) {
+        List<String> ids = new java.util.ArrayList<>();
+        for (String line : prompt.split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith("- signal_")) continue;
+            int separator = trimmed.indexOf(':');
+            if (separator > 2) ids.add(trimmed.substring(2, separator).trim());
+        }
+        return ids.isEmpty() ? List.of("business_situation") : List.copyOf(ids);
+    }
+
     private static String sourceTypeFor(String lane) {
         return switch (lane) {
             case "STAKEHOLDER_PROFILE" -> "STAKEHOLDER_PROFILE";
@@ -266,23 +305,63 @@ public class MockAiGateway implements AiModelGateway {
         };
     }
 
-    private static String laneNarrative(String lane, String company, String decisionMaker, String technology, String symptom) {
+    private static String interpretedSignal(String lane, String company, String symptom, String technology) {
         return switch (lane) {
-            case "STAKEHOLDER_PROFILE" -> decisionMaker + " is the visible starting point for validating priorities, authority and the conditions under which teams can change the current workflow.";
-            case "FINANCIAL_SIGNAL" -> "The commercial case should connect " + symptom + " to a measurable operating consequence before any funding assumption is treated as confirmed.";
-            case "TECHNOLOGY_INDICATOR" -> "The current environment includes " + technology + ". Research should test which dependency contributes to the operating signal before recommending a target state.";
-            default -> company + " needs evidence that connects the visible signal to a real client consequence, rather than a generic modernisation narrative.";
+            case "STAKEHOLDER_PROFILE" -> "The available stakeholder context identifies a potential source of validation, but does not confirm decision authority or sponsorship.";
+            case "FINANCIAL_SIGNAL" -> "The available commercial signals indicate an operating issue that may have material consequences; no funding decision is confirmed here.";
+            case "TECHNOLOGY_INDICATOR" -> "The current systems may contribute to the observed operating signal, but the specific dependency has not been confirmed.";
+            default -> "The stated business context and observable operating signal may be connected, but this source does not establish the causal mechanism.";
         };
     }
 
-    private static String laneQuestion(String lane, String decisionMaker, String technology) {
+    private static String laneFact(String lane, String decisionMaker, String technology, String budgetSignal) {
         return switch (lane) {
-            case "STAKEHOLDER_PROFILE" -> "the learner should confirm what " + decisionMaker + " can sponsor, who may challenge the change and whose evidence is needed for a decision";
-            case "FINANCIAL_SIGNAL" -> "the learner should establish the baseline, materiality and approval conditions instead of assuming a funded value case";
-            case "TECHNOLOGY_INDICATOR" -> "the learner should validate dependencies within " + technology + " and identify what cannot be disrupted during a pilot";
-            default -> "the learner should link the operating issue to the stakeholder, consequence and measurement that make it decision-relevant";
+            case "STAKEHOLDER_PROFILE" -> decisionMaker;
+            case "FINANCIAL_SIGNAL" -> budgetSignal;
+            case "TECHNOLOGY_INDICATOR" -> technology;
+            default -> technology;
         };
     }
+
+    private static String laneFactId(String lane) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "decision_maker";
+            case "FINANCIAL_SIGNAL" -> "budget_signal";
+            case "TECHNOLOGY_INDICATOR" -> "technology_stack";
+            default -> "technology_stack";
+        };
+    }
+
+    private static String secondInterpretation(String lane, String symptom, String technology) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "The available role information identifies a potential source of validation, but not a confirmed decision maker.";
+            case "FINANCIAL_SIGNAL" -> "The available commercial signal is not enough to establish a funded value case or quantify the client impact.";
+            case "TECHNOLOGY_INDICATOR" -> "The stated technology environment and the operating symptom may be connected, but the evidence does not confirm a root technical cause.";
+            default -> "The operating signal and current technology environment may be connected, but this source does not establish a root cause.";
+        };
+    }
+
+    private static DocumentBlock fact(String content, String factId) {
+        return fact(content, List.of(factId));
+    }
+
+    private static DocumentBlock fact(String content, List<String> factIds) {
+        return new DocumentBlock(content, "FACT", factIds, true);
+    }
+
+    private static DocumentBlock interpretation(String content, String... factIds) {
+        return new DocumentBlock(content, "INTERPRETATION", List.of(factIds), true);
+    }
+
+    private static DocumentBlock context(String content, String factId) {
+        return new DocumentBlock(content, "CONTEXT", List.of(factId), false);
+    }
+
+    private static DocumentBlock uncertainty(String content) {
+        return new DocumentBlock(content, "UNCERTAINTY", List.of(), false);
+    }
+
+    private record DocumentBlock(String content, String purpose, List<String> factIds, boolean selectable) {}
 
     private static String shorten(String value, int maximumLength) {
         if (value.length() <= maximumLength) return value;

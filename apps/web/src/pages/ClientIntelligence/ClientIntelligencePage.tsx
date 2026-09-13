@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
@@ -137,9 +137,10 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
 }
 
 function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArtifact; onSelectionChange: (text: string) => void }) {
+  const documentRef = useRef<HTMLElement>(null)
   const blocks = artifact.blocks?.length
     ? artifact.blocks
-    : [{ id: 'summary', type: 'PARAGRAPH' as const, content: artifact.summary, attribution: null }]
+    : [{ id: 'summary', type: 'PARAGRAPH' as const, content: artifact.summary, attribution: null, factIds: [], selectable: false, purpose: 'CONTEXT' as const }]
   const sourceKind = artifact.evidenceType.replace(/_/g, ' ').toLowerCase()
   const templateClass = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
     ? styles.stakeholderTemplate
@@ -161,44 +162,56 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
         : 'Technology due diligence brief'
 
   const captureSelection = () => {
-    const selected = window.getSelection()?.toString().replace(/\s+/g, ' ').trim() ?? ''
-    onSelectionChange(selected.length >= 8 ? selected : '')
+    const selection = window.getSelection()
+    const selected = selection?.toString().replace(/\s+/g, ' ').trim() ?? ''
+    const selectableBlock = (node: Node | null) => {
+      const element = node instanceof Element ? node : node?.parentElement
+      return element?.closest<HTMLElement>('[data-selectable="true"]')
+    }
+    const anchorBlock = selectableBlock(selection?.anchorNode ?? null)
+    const focusBlock = selectableBlock(selection?.focusNode ?? null)
+    const isSingleSelectableBlock = Boolean(anchorBlock && anchorBlock === focusBlock && documentRef.current?.contains(anchorBlock))
+    onSelectionChange(isSingleSelectableBlock && selected.length >= 8 ? selected : '')
   }
 
   return (
-    <article className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={captureSelection} onKeyUp={captureSelection}>
-      {isNewspaper && <div className={styles.documentMasthead}><strong>{documentLabel}</strong><span>Client intelligence edition</span><span>{artifact.publishedOn}</span></div>}
-      {!isNewspaper && <p className={styles.sourceTemplateLabel}>{documentLabel}</p>}
-      <header className={styles.sourceDocumentHeader}>
+    <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={captureSelection} onKeyUp={captureSelection}>
+      {isNewspaper && <div className={styles.documentMasthead} data-selectable="false"><strong>{documentLabel}</strong><span>Client intelligence edition</span><span>{artifact.publishedOn}</span></div>}
+      {!isNewspaper && <p className={styles.sourceTemplateLabel} data-selectable="false">{documentLabel}</p>}
+      <header className={styles.sourceDocumentHeader} data-selectable="false">
         <div>
           <p className={styles.sectionEyebrow}>{sourceKind} · {artifact.sourceType}</p>
           <h3>{artifact.title}</h3>
           <p className={styles.sourceDocumentDek}>{artifact.summary}</p>
-          <p className={styles.sourceDocumentMeta}>Scenario-curated source · {artifact.publishedOn} · {artifact.confidence.toLowerCase()} reliability</p>
+          <p className={styles.sourceDocumentMeta}>{artifact.origin.replace(/_/g, ' ').toLowerCase()} · {artifact.publishedOn} · {artifact.confidence.toLowerCase()} reliability</p>
         </div>
         <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'}>
           {artifact.relevanceScore}% relevant
         </Tag>
       </header>
       {isStakeholder && (
-        <div className={styles.dossierStrip}>
+        <div className={styles.dossierStrip} data-selectable="false">
           <span aria-hidden="true">{artifact.title.slice(0, 1).toUpperCase()}</span>
           <div><strong>Stakeholder dossier</strong><p>Review priorities, constraints and influence signals before drawing a conclusion.</p></div>
           <Tag type="purple" size="sm">Influence signal</Tag>
         </div>
       )}
-      {isStakeholder && <div className={styles.documentLens}><span>Read for: stated priority</span><span>Influence: validate</span><span>Decision role: unconfirmed</span></div>}
-      {isFinancial && <div className={styles.signalBanner}><span>Financial analysis</span><strong>Validate commercial materiality before assuming budget.</strong></div>}
-      {isTechnology && <div className={styles.signalBanner}><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
+      {isStakeholder && <div className={styles.documentLens} data-selectable="false"><span>Read for: stated priority</span><span>Influence: validate</span><span>Decision role: unconfirmed</span></div>}
+      {isFinancial && <div className={styles.signalBanner} data-selectable="false"><span>Financial analysis</span><strong>Validate commercial materiality before assuming budget.</strong></div>}
+      {isTechnology && <div className={styles.signalBanner} data-selectable="false"><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
       <div className={styles.sourceDocumentBody}>
         {blocks.map((block) => {
-          if (block.type === 'QUOTE') return <blockquote key={block.id}>{block.content}{block.attribution && <cite>{block.attribution}</cite>}</blockquote>
-          if (block.type === 'METRIC') return <div key={block.id} className={styles.sourceMetric}>{block.content}{block.attribution && <small>{block.attribution}</small>}</div>
-          if (block.type === 'CAPTION') return <p key={block.id} className={styles.sourceCaption}>{block.content}</p>
-          return <p key={block.id}>{block.content}</p>
+          const selectable = block.selectable !== false
+          const className = `${styles.sourceBlock} ${selectable ? styles.sourceBlockSelectable : styles.sourceBlockReference} ${block.purpose === 'INTERPRETATION' ? styles.sourceBlockInterpretation : ''} ${block.purpose === 'UNCERTAINTY' ? styles.sourceBlockUncertainty : ''}`
+          const label = block.purpose === 'INTERPRETATION' ? 'Derived interpretation' : block.purpose === 'UNCERTAINTY' ? 'Not yet confirmed' : block.purpose === 'CONTEXT' ? 'Context' : undefined
+          const content = <>{label && <span className={styles.sourceBlockLabel}>{label}</span>}{block.content}{block.attribution && <cite>{block.attribution}</cite>}</>
+          if (block.type === 'QUOTE') return <blockquote key={block.id} className={className} data-selectable={selectable}>{content}</blockquote>
+          if (block.type === 'METRIC') return <div key={block.id} className={`${styles.sourceMetric} ${className}`} data-selectable={selectable}>{content}</div>
+          if (block.type === 'CAPTION') return <p key={block.id} className={`${styles.sourceCaption} ${className}`} data-selectable={selectable}>{content}</p>
+          return <p key={block.id} className={className} data-selectable={selectable}>{content}</p>
         })}
       </div>
-      <p className={styles.selectionInstruction}>Highlight a meaningful sentence or phrase. Your selected text stays traceable to this source.</p>
+      <p className={styles.selectionInstruction} data-selectable="false">Only fact and clearly labelled interpretation blocks can be added to the evidence board.</p>
     </article>
   )
 }

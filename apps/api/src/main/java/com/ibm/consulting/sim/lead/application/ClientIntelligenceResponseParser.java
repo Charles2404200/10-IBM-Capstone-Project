@@ -9,6 +9,7 @@ import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
 import com.ibm.consulting.sim.lead.domain.EvidenceType;
 import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
 import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockType;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockPurpose;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -61,7 +62,7 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                         factIds,
                         List.of(),
                         "AI-synthesized from canonical fact ids: " + String.join(", ", factIds),
-                        parseBlocks(node.path("blocks"), artifactId, requiredText(node, "content"))));
+                        parseBlocks(node.path("blocks"), artifactId, requiredText(node, "content"), factIds)));
             }
             ClientIntelligenceFactGuard.validate(artifacts, allowedFacts);
             return artifacts;
@@ -93,7 +94,8 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
         return values;
     }
 
-    private static List<ResearchSourceBlock> parseBlocks(JsonNode blocksNode, String artifactId, String summary) {
+    private static List<ResearchSourceBlock> parseBlocks(JsonNode blocksNode, String artifactId, String summary,
+                                                         List<String> artifactFactIds) {
         List<ResearchSourceBlock> blocks = new ArrayList<>();
         if (blocksNode.isArray()) {
             int index = 1;
@@ -105,11 +107,20 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                 ResearchSourceBlockType type = parseEnum(ResearchSourceBlockType.class,
                         textOrDefault(block, "type", ResearchSourceBlockType.PARAGRAPH.name()));
                 String id = textOrDefault(block, "id", artifactId + "-block-" + index++);
-                blocks.add(new ResearchSourceBlock(id, type, content, textOrDefault(block, "attribution", null)));
+                if (!block.hasNonNull("purpose") || !block.hasNonNull("selectable") || !block.has("factIds")) {
+                    throw new AiValidationException("AI source block must declare purpose, selectable state and fact ids");
+                }
+                ResearchSourceBlockPurpose purpose = parseEnum(ResearchSourceBlockPurpose.class,
+                        block.get("purpose").asText());
+                Boolean selectable = block.get("selectable").asBoolean();
+                List<String> blockFactIds = stringList(block.path("factIds"));
+                blocks.add(new ResearchSourceBlock(id, type, content, textOrDefault(block, "attribution", null),
+                        blockFactIds, selectable, purpose));
             }
         }
         if (blocks.isEmpty()) {
-            blocks.add(new ResearchSourceBlock(artifactId + "-summary", ResearchSourceBlockType.PARAGRAPH, summary, null));
+            blocks.add(new ResearchSourceBlock(artifactId + "-summary", ResearchSourceBlockType.PARAGRAPH, summary, null,
+                    artifactFactIds, false, ResearchSourceBlockPurpose.CONTEXT));
         }
         return List.copyOf(blocks);
     }

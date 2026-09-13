@@ -83,7 +83,15 @@ function newResearchSource(): ResearchSource {
 }
 
 function newResearchSourceBlock(): ResearchSourceBlock {
-  return { id: `block-${crypto.randomUUID().slice(0, 8)}`, type: 'PARAGRAPH', content: '', attribution: null }
+  return {
+    id: `block-${crypto.randomUUID().slice(0, 8)}`,
+    type: 'PARAGRAPH',
+    content: '',
+    attribution: null,
+    factIds: ['scenario_source'],
+    selectable: true,
+    purpose: 'FACT',
+  }
 }
 
 function sourceFromBriefing(
@@ -109,6 +117,9 @@ function sourceFromBriefing(
       type: index === paragraphs.length - 1 ? 'CAPTION' : 'PARAGRAPH',
       content,
       attribution: null,
+      factIds: ['scenario_source'],
+      selectable: index !== paragraphs.length - 1,
+      purpose: index === paragraphs.length - 1 ? 'CONTEXT' : 'FACT',
     })),
   }
 }
@@ -265,8 +276,21 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
                     <Select id={`${scenario.id}-source-block-type-${index}-${blockIndex}`} labelText="Block type" value={block.type} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, type: event.target.value as ResearchSourceBlock['type'] } : entry) } : item) })}>
                       {(['PARAGRAPH', 'QUOTE', 'METRIC', 'CAPTION'] as const).map((type) => <SelectItem key={type} value={type} text={label(type)} />)}
                     </Select>
+                    <Select id={`${scenario.id}-source-block-purpose-${index}-${blockIndex}`} labelText="Content role" value={block.purpose} onChange={(event) => {
+                      const purpose = event.target.value as ResearchSourceBlock['purpose']
+                      const selectable = purpose === 'FACT' || purpose === 'INTERPRETATION'
+                      setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, purpose, selectable } : entry) } : item) })
+                    }}>
+                      <SelectItem value="FACT" text="Scenario fact" />
+                      <SelectItem value="INTERPRETATION" text="Derived interpretation" />
+                      <SelectItem value="CONTEXT" text="Context only" />
+                      <SelectItem value="UNCERTAINTY" text="Unresolved" />
+                      <SelectItem value="GUIDANCE" text="Guidance (not selectable)" />
+                    </Select>
                     <TextArea id={`${scenario.id}-source-block-content-${index}-${blockIndex}`} labelText="Content" rows={2} value={block.content} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, content: event.target.value } : entry) } : item) })} />
+                    <TextInput id={`${scenario.id}-source-block-facts-${index}-${blockIndex}`} labelText="Canonical fact IDs (comma separated)" value={block.factIds.join(', ')} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, factIds: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } : entry) } : item) })} />
                     <TextInput id={`${scenario.id}-source-block-attribution-${index}-${blockIndex}`} labelText="Attribution (optional)" value={block.attribution ?? ''} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, attribution: event.target.value || null } : entry) } : item) })} />
+                    <Checkbox id={`${scenario.id}-source-block-selectable-${index}-${blockIndex}`} labelText="Learner can add as evidence" checked={block.selectable} disabled={block.purpose !== 'FACT' && block.purpose !== 'INTERPRETATION'} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, selectable: Boolean(state.checked) } : entry) } : item) })} />
                     <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription="Remove document block" onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.filter((_entry, entryIndex) => entryIndex !== blockIndex) } : item) })} />
                   </div>)}
                   <Button size="sm" kind="ghost" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: [...item.blocks, newResearchSourceBlock()] } : item) })}>Add document block</Button>

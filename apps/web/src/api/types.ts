@@ -266,12 +266,16 @@ export interface ResearchSourceDeck {
 }
 
 export type ResearchSourceBlockType = 'PARAGRAPH' | 'QUOTE' | 'METRIC' | 'CAPTION'
+export type ResearchSourceBlockPurpose = 'FACT' | 'INTERPRETATION' | 'CONTEXT' | 'UNCERTAINTY' | 'GUIDANCE'
 
 export interface ResearchSourceBlock {
   id: string
   type: ResearchSourceBlockType
   content: string
   attribution: string | null
+  factIds: string[]
+  selectable: boolean
+  purpose: ResearchSourceBlockPurpose
 }
 
 /** Requirements checklist gating "Proceed to Outreach" — mirrors backend `ResearchGateStatus`. */
