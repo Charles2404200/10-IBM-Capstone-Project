@@ -1,6 +1,7 @@
 package com.ibm.consulting.sim.lead.application;
 
 import com.ibm.consulting.sim.ai.domain.AiValidationException;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,14 @@ public final class ClientIntelligenceFactGuard {
                 if (!allowedIds.contains(factId)) {
                     throw new AiValidationException("Unsupported fact id emitted by AI: " + factId);
                 }
+            }
+            List<ResearchSourceBlock> blocks = artifact.blocks();
+            if (blocks == null || blocks.size() < 5) {
+                throw new AiValidationException("Client intelligence document must contain at least five readable blocks");
+            }
+            int characterCount = blocks.stream().mapToInt(block -> block.content().length()).sum();
+            if (characterCount < 450) {
+                throw new AiValidationException("Client intelligence document is too short for evidence review");
             }
         }
     }

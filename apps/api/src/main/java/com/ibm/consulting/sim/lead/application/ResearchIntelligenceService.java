@@ -134,7 +134,9 @@ public class ResearchIntelligenceService {
                 .map(this::toArtifact)
                 .toList();
         if (sources.isEmpty()) {
-            sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
+            // The document surface is AI-authored from the scenario's canonical
+            // facts. The deterministic pack is an availability fallback only.
+            sources = synthesizeSourceDeck(engagementId, engagement, lead, scenario, type, profile, authoringConfig, discovered);
         } else {
             // Authored source packs stay canonical, while difficulty still supplies
             // bounded low-reliability context that learners must assess critically.
@@ -143,6 +145,21 @@ public class ResearchIntelligenceService {
         List<ResearchArtifactResponse> filtered = removeDuplicates(sources, discovered);
         cacheArtifacts(cacheKey, filtered);
         return filtered;
+    }
+
+    private List<ResearchArtifactResponse> synthesizeSourceDeck(UUID engagementId, Engagement engagement, Lead lead,
+                                                                  Scenario scenario, EvidenceType type,
+                                                                  DifficultyProfile profile,
+                                                                  ScenarioAuthoringConfig authoringConfig,
+                                                                  List<ResearchEvidence> discovered) {
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, scenario, type);
+        return aiOrchestrationService.execute(
+                "client_intelligence",
+                engagementId,
+                buildSourceDeckPrompt(engagement, lead, scenario, type, profile, facts, discovered),
+                3,
+                new ClientIntelligenceResponseParser(objectMapper, facts, type),
+                () -> templateGenerate(lead, scenario, type, profile, authoringConfig));
     }
 
     @SuppressWarnings("unchecked")
@@ -382,6 +399,100 @@ public class ResearchIntelligenceService {
                 factLines,
                 discoveredLines.isBlank() ? "None" : discoveredLines,
                 userContext == null || userContext.isBlank() ? "None" : userContext);
+    }
+
+    /**
+     * Creates the content for the immersive source reader. Presentation is
+     * deliberately handled by React templates; this prompt produces research
+     * substance only, anchored to the exact scenario facts visible to the lane.
+     */
+    private String buildSourceDeckPrompt(Engagement engagement, Lead lead, Scenario scenario, EvidenceType type,
+                                         DifficultyProfile profile, Map<String, String> facts,
+                                         List<ResearchEvidence> discovered) {
+        String factLines = facts.entrySet().stream()
+                .map(entry -> "- " + entry.getKey() + ": " + entry.getValue())
+                .collect(java.util.stream.Collectors.joining("\n"));
+        String discoveredLines = discovered.stream()
+                .map(evidence -> "- E-%02d [%s]: %s".formatted(
+                        evidence.getSequenceNo(), evidence.getEvidenceType(), evidence.getNote()))
+                .collect(java.util.stream.Collectors.joining("\n"));
+
+        return """
+                You write simulated, enterprise research documents for a consulting training product.
+                Produce TWO substantial source documents for the requested research lane. The learner will read,
+                highlight, and assess them before forming a hypothesis, so every document must contain useful,
+                client-specific signals rather than generic consulting advice.
+
+                NON-NEGOTIABLE GROUNDING RULES:
+                - Use ONLY the canonical facts provided below. Never invent names, companies, figures, budgets,
+                  dates, systems, causes, outcomes, URLs, stakeholders, or quotations.
+                - A source may explain implications and open questions, but must clearly distinguish them from facts.
+                - Every artifact must cite the exact canonical fact keys it uses in supportedFactIds.
+                - Do not restate the whole scenario description. Select and connect the facts that matter for this lane.
+                - A "QUOTE" block may only repeat a canonical fact word-for-word and must have no invented attribution.
+                - Include one low-confidence or ambiguous context source only when the difficulty requires a distractor.
+                - Return JSON only. No markdown and no prose outside the JSON.
+
+                Required JSON schema:
+                {
+                  "artifacts": [
+                    {
+                      "id": "short-stable-id",
+                      "title": "specific, reader-facing title",
+                      "category": "%s",
+                      "content": "a concise, factual deck preview",
+                      "sourceType": "COMPANY_NEWS|STAKEHOLDER_PROFILE|FINANCIAL_REPORT|TECHNOLOGY_NOTE|MARKET_BRIEF|SIMULATED_REPORT",
+                      "reliability": "LOW|MEDIUM|HIGH",
+                      "supportedFactIds": ["exact-fact-key"],
+                      "relevance": 0.0,
+                      "confidence": 0.0,
+                      "blocks": [
+                        {"type": "PARAGRAPH", "content": "..."},
+                        {"type": "METRIC", "content": "..."},
+                        {"type": "CAPTION", "content": "..."}
+                      ]
+                    }
+                  ]
+                }
+
+                Document requirements:
+                - Return exactly 2 artifacts, each with 6 to 9 blocks and at least 450 characters across its blocks.
+                - COMPANY_NEWS: write an industry-news analysis with a headline, a client-specific operating signal,
+                  likely business implication, and an explicitly open question.
+                - STAKEHOLDER_PROFILE: write a credible dossier that separates known role/context from priorities,
+                  decision influence, and questions to validate.
+                - FINANCIAL_SIGNAL: write an analyst or internal finance brief that separates confirmed commercial
+                  signals from assumptions, baseline questions, and approval uncertainty.
+                - TECHNOLOGY_INDICATOR: write a technical briefing that explains known systems, possible operational
+                  implications, dependencies to validate, and the appropriate discovery focus.
+                - Use METRIC only for a numeric fact present in the canonical facts; otherwise use PARAGRAPH or CAPTION.
+                - Add exactly one CAPTION per artifact that tells the learner what must be corroborated before this
+                  source can support a grounded hypothesis.
+
+                Engagement state: %s
+                Research lane: %s
+                Difficulty: %s; distractor allowance: %d
+                Company: %s
+
+                Problem frame:
+                - Business situation: %s
+                - Observable symptom: %s
+                - Consulting mandate: %s
+                - Unknowns to validate: %s
+
+                Canonical facts (the complete allowed truth):
+                %s
+
+                Evidence already captured by the learner:
+                %s
+                """.formatted(
+                type.name(),
+                engagement.getState().name(), type.name(), profile.level().name(), profile.distractorArtifactsPerAction(),
+                lead.getCompanyName(),
+                scenario.getBusinessSituation(), scenario.getObservableSymptom(), scenario.getConsultingMandate(),
+                scenario.getUnknownsToValidate().isEmpty() ? "None specified" : String.join("; ", scenario.getUnknownsToValidate()),
+                factLines,
+                discoveredLines.isBlank() ? "None" : discoveredLines);
     }
 
     /** Adds controlled non-decisive context; the model never chooses game truth or distractor volume. */

@@ -7,6 +7,8 @@ import com.ibm.consulting.sim.ai.domain.AiValidationException;
 import com.ibm.consulting.sim.lead.domain.ConfidenceLevel;
 import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
 import com.ibm.consulting.sim.lead.domain.EvidenceType;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockType;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -45,8 +47,9 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                 ConfidenceLevel reliability = parseEnum(ConfidenceLevel.class,
                         node.hasNonNull("reliability") ? node.get("reliability").asText() : requiredText(node, "confidence"));
                 List<String> factIds = stringList(node.path("supportedFactIds"));
+                String artifactId = textOrDefault(node, "id", "ai-artifact-" + index++);
                 artifacts.add(new ResearchArtifactResponse(
-                        textOrDefault(node, "id", "ai-artifact-" + index++),
+                        artifactId,
                         requiredText(node, "title"),
                         requiredText(node, "sourceType"),
                         requiredText(node, "content"),
@@ -57,7 +60,8 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                         relevancePercent(node.path("relevance").asDouble(0.8d)),
                         factIds,
                         List.of(),
-                        "AI-synthesized from canonical fact ids: " + String.join(", ", factIds)));
+                        "AI-synthesized from canonical fact ids: " + String.join(", ", factIds),
+                        parseBlocks(node.path("blocks"), artifactId, requiredText(node, "content"))));
             }
             ClientIntelligenceFactGuard.validate(artifacts, allowedFacts);
             return artifacts;
@@ -87,6 +91,27 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
         List<String> values = new ArrayList<>();
         node.forEach(item -> values.add(item.asText()));
         return values;
+    }
+
+    private static List<ResearchSourceBlock> parseBlocks(JsonNode blocksNode, String artifactId, String summary) {
+        List<ResearchSourceBlock> blocks = new ArrayList<>();
+        if (blocksNode.isArray()) {
+            int index = 1;
+            for (JsonNode block : blocksNode) {
+                String content = textOrDefault(block, "content", null);
+                if (content == null || content.isBlank()) {
+                    continue;
+                }
+                ResearchSourceBlockType type = parseEnum(ResearchSourceBlockType.class,
+                        textOrDefault(block, "type", ResearchSourceBlockType.PARAGRAPH.name()));
+                String id = textOrDefault(block, "id", artifactId + "-block-" + index++);
+                blocks.add(new ResearchSourceBlock(id, type, content, textOrDefault(block, "attribution", null)));
+            }
+        }
+        if (blocks.isEmpty()) {
+            blocks.add(new ResearchSourceBlock(artifactId + "-summary", ResearchSourceBlockType.PARAGRAPH, summary, null));
+        }
+        return List.copyOf(blocks);
     }
 
     private static int relevancePercent(double relevance) {

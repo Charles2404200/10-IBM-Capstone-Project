@@ -2030,9 +2030,6 @@ $accent-blue-dark: #0043ce;
 }
 
 .readerModal {
-  max-width: min(94vw, 74rem);
-  width: min(94vw, 74rem);
-
   :global(.cds--modal-content) { overflow: hidden; padding: 0; }
 }
 
@@ -2063,7 +2060,9 @@ $accent-blue-dark: #0043ce;
 :global(.cds--modal).readerModal {
   align-items: center;
   box-sizing: border-box;
+  inline-size: 100vw !important;
   justify-content: center;
+  max-inline-size: none !important;
   padding-inline: 2vw;
 }
 
@@ -2191,7 +2190,6 @@ $accent-blue-dark: #0043ce;
   .sourceDeckFooter { grid-template-columns: 1fr; }
   .sourceReader .selectionToolbar span { max-width: 9rem; }
   .sourceDeckGrid { grid-template-columns: 1fr; }
-  .readerModal { max-width: 100vw; width: 100vw; }
   .readerModalBody { height: 75vh; min-height: 0; padding: $spacing-03; }
   .readerModalBody .sourceDocumentBody { column-count: 1; font-size: 0.9375rem; }
   .documentMasthead { align-items: flex-start; flex-direction: column; gap: $spacing-02; }

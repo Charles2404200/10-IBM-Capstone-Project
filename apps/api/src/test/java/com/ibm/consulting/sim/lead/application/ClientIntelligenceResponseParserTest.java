@@ -30,7 +30,14 @@ class ClientIntelligenceResponseParserTest {
                     "reliability": "MEDIUM",
                     "supportedFactIds": ["budget_signal"],
                     "relevance": 0.82,
-                    "confidence": 0.78
+                    "confidence": 0.78,
+                    "blocks": [
+                      {"type": "PARAGRAPH", "content": "The board is reviewing a technology budget in the next quarter, which is a concrete commercial signal but not an approval to commit to a scope."},
+                      {"type": "PARAGRAPH", "content": "A consultant should separate this review from a confirmed investment decision and validate the owner, the approval route and the operating outcome expected from any spend."},
+                      {"type": "PARAGRAPH", "content": "The signal can justify a discovery conversation because it creates a window to understand which client problem may be prioritised, rather than a reason to promise a solution."},
+                      {"type": "PARAGRAPH", "content": "Before using this source in a value case, the learner should establish a baseline, identify the relevant stakeholder and test whether the timing aligns with the client need."},
+                      {"type": "CAPTION", "content": "Corroborate the budget review with the accountable stakeholder before treating it as a funded opportunity."}
+                    ]
                   }]
                 }
                 """);
@@ -38,6 +45,7 @@ class ClientIntelligenceResponseParserTest {
         assertThat(artifacts).hasSize(1);
         assertThat(artifacts.get(0).origin()).isEqualTo("AI_SYNTHESIZED");
         assertThat(artifacts.get(0).allowedFactKeys()).containsExactly("budget_signal");
+        assertThat(artifacts.get(0).blocks()).hasSize(5);
     }
 
     @Test
