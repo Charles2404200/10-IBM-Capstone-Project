@@ -67,7 +67,7 @@ function scoreDelta(value: number) {
 function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback }) {
   const positive = feedback.trustDelta >= 0 && feedback.interestDelta >= 0 && feedback.patienceDelta >= 0
   return (
-    <Tile className={`${styles.behaviourPanel} ${positive ? styles.behaviourPositive : styles.behaviourRecovery}`}>
+    <section className={`${styles.behaviourPanel} ${positive ? styles.behaviourPositive : styles.behaviourRecovery}`}>
       <p className={styles.eyebrow}>Simulation Director</p>
       <div className={styles.behaviourHeading}>
         <h3>{feedback.quality.replaceAll('_', ' ').toLowerCase()}</h3>
@@ -87,6 +87,36 @@ function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback })
         <strong>Next best action</strong>
         <span>{feedback.nextBestAction}</span>
       </div>
+    </section>
+  )
+}
+
+function MeetingIntelligence({
+  feedback,
+  disclosedFacts,
+  readyToClose,
+}: {
+  feedback: MeetingBehaviourFeedback | null
+  disclosedFacts: string[]
+  readyToClose: boolean
+}) {
+  return (
+    <Tile className={styles.liveIntelligencePanel}>
+      {disclosedFacts.length > 0 && (
+        <section className={styles.validatedFacts}>
+          <p className={styles.eyebrow}>Validated during meeting</p>
+          <h3>Facts disclosed</h3>
+          <ul>{disclosedFacts.map((fact) => <li key={fact}>{fact.replace(/_/g, ' ')}</li>)}</ul>
+        </section>
+      )}
+      {readyToClose && (
+        <section className={styles.readyToClosePanel}>
+          <p className={styles.eyebrow}>Client readiness</p>
+          <h3>Ready to conclude</h3>
+          <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
+        </section>
+      )}
+      {feedback && <BehaviourFeedback feedback={feedback} />}
     </Tile>
   )
 }
@@ -396,22 +426,12 @@ export default function LiveMeetingPage() {
               </Tile>
             )}
 
-            {currentBehaviourFeedback && <BehaviourFeedback feedback={currentBehaviourFeedback} />}
-
-            {!isCompleted && (meetingGateMet || clientReadyToClose) && (
-              <Tile className={styles.readyToClosePanel}>
-                <p className={styles.eyebrow}>Client readiness</p>
-                <h3>Ready to conclude</h3>
-                <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
-              </Tile>
-            )}
-
-            {currentState.disclosedFacts.length > 0 && (
-              <Tile className={styles.factsPanel}>
-                <p className={styles.eyebrow}>Validated during meeting</p>
-                <h3>Facts disclosed</h3>
-                <ul>{currentState.disclosedFacts.map((fact) => <li key={fact}>{fact.replace(/_/g, ' ')}</li>)}</ul>
-              </Tile>
+            {(currentBehaviourFeedback || currentState.disclosedFacts.length > 0 || (!isCompleted && (meetingGateMet || clientReadyToClose))) && (
+              <MeetingIntelligence
+                feedback={currentBehaviourFeedback}
+                disclosedFacts={currentState.disclosedFacts}
+                readyToClose={!isCompleted && (meetingGateMet || clientReadyToClose)}
+              />
             )}
           </aside>
         </Column>

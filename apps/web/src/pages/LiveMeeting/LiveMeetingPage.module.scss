@@ -69,13 +69,17 @@
 .hintPanel ul, .factsPanel ul, .debriefTips { margin: $spacing-04 0 0; padding-left: $spacing-05; }
 .hintPanel li, .factsPanel li, .debriefTips li { margin-bottom: $spacing-03; color: $text-primary; @include type-style('body-compact-01'); }
 .factsPanel li { text-transform: capitalize; }
-.readyToClosePanel { padding: $spacing-05; border-top: 3px solid $support-success; background: $layer-01; }
-.readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0 0 $spacing-03; }
+.liveIntelligencePanel { min-height: 0; padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
+.validatedFacts h3, .readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0; }
+.validatedFacts ul { display: grid; gap: $spacing-02; margin: $spacing-03 0 0; padding-left: $spacing-05; }
+.validatedFacts li { color: $text-primary; text-transform: capitalize; @include type-style('body-compact-01'); }
+.readyToClosePanel { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 3px solid $support-success; }
+.readyToClosePanel h3 { margin-bottom: $spacing-03; }
 .readyToClosePanel p:last-child { margin: 0; color: $text-secondary; }
 
-.behaviourPanel { padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
-.behaviourPositive { border-left: 3px solid $support-success; }
-.behaviourRecovery { border-left: 3px solid $support-warning; }
+.behaviourPanel { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 1px solid $border-subtle; }
+.behaviourPositive { border-left: 3px solid $support-success; padding-left: $spacing-03; }
+.behaviourRecovery { border-left: 3px solid $support-warning; padding-left: $spacing-03; }
 .behaviourHeading { display: flex; justify-content: space-between; gap: $spacing-03; align-items: flex-start; }
 .behaviourHeading h3 { @include type-style('heading-compact-02'); margin: 0; text-transform: capitalize; }
 .behaviourDeltas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $spacing-02; }
@@ -249,6 +253,10 @@
 
   .decisionRail {
     position: static;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 13rem);
+    max-height: 45rem;
     min-height: 0;
     overflow: hidden;
     gap: $spacing-03;
@@ -258,9 +266,24 @@
   .hintPanel,
   .factsPanel,
   .readyToClosePanel,
-  .behaviourPanel {
+  .liveIntelligencePanel {
     padding: $spacing-03 $spacing-04;
   }
+
+  .liveIntelligencePanel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+
+    &::-webkit-scrollbar { width: .5rem; }
+    &::-webkit-scrollbar-thumb { background: #a8a8a8; border-radius: 999px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+  }
+
+  .validatedFacts ul { margin-top: $spacing-02; }
+  .readyToClosePanel, .behaviourPanel { margin-top: $spacing-03; padding-top: $spacing-03; }
 
   .railHeading {
     margin-bottom: $spacing-04;
