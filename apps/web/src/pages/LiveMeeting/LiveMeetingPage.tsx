@@ -23,7 +23,7 @@ import type { ConversationTurn, MeetingBehaviourFeedback, MeetingTermination, Pe
 import styles from './LiveMeetingPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
-const MEETING_THRESHOLD = 70
+const DEFAULT_MEETING_THRESHOLD = 70
 
 const LIVE_MEETING_OBJECTIVES = [
   {
@@ -46,8 +46,8 @@ const LIVE_MEETING_OBJECTIVES = [
   },
 ]
 
-function RelationshipMeter({ label, value }: { label: string; value: number }) {
-  const tone = value >= MEETING_THRESHOLD ? styles.meterPass : value >= 50 ? styles.meterWatch : styles.meterRisk
+function RelationshipMeter({ label, value, threshold }: { label: string; value: number; threshold: number }) {
+  const tone = value >= threshold ? styles.meterPass : value >= 50 ? styles.meterWatch : styles.meterRisk
   return (
     <div className={styles.relationshipMetric}>
       <div>
@@ -55,7 +55,7 @@ function RelationshipMeter({ label, value }: { label: string; value: number }) {
         <strong>{value}<small>/100</small></strong>
       </div>
       <div className={styles.meterTrack}><div className={tone} style={{ width: `${value}%` }} /></div>
-      <p>{value >= MEETING_THRESHOLD ? 'Meeting threshold met' : `${MEETING_THRESHOLD - value} points to threshold`}</p>
+      <p>{value >= threshold ? 'Meeting threshold met' : `${threshold - value} points to threshold`}</p>
     </div>
   )
 }
@@ -102,7 +102,7 @@ function TurnBubble({ turn, isStreaming = false }: { turn: ConversationTurn; isS
   )
 }
 
-function deriveHint(transcript: ConversationTurn[], signals: string[], state: PersonaState) {
+function deriveHint(transcript: ConversationTurn[], signals: string[], state: PersonaState, threshold: number) {
   const latestPersonaTurn = [...transcript].reverse().find((turn) => turn.actor === 'PERSONA')
   const question = latestPersonaTurn?.content.match(/[^?.!]*\?/)?.[0]?.trim()
   const signal = signals.find((item) => item.startsWith('objection:'))?.replace('objection:', '').trim()
@@ -111,9 +111,9 @@ function deriveHint(transcript: ConversationTurn[], signals: string[], state: Pe
   if (question) guidance.push(`Answer the client’s specific question: “${question}”`)
   else if (latestPersonaTurn) guidance.push('Acknowledge the client’s latest point before moving to your next question.')
   if (signal) guidance.push(`Address this concern directly: ${signal}`)
-  if (state.patience < MEETING_THRESHOLD) guidance.push('Keep the next response focused: one point, one question.')
-  if (state.trust < MEETING_THRESHOLD) guidance.push('Use a concrete detail from what the client has already shared.')
-  if (state.interest < MEETING_THRESHOLD) guidance.push('Connect the next question to a business outcome the client cares about.')
+  if (state.patience < threshold) guidance.push('Keep the next response focused: one point, one question.')
+  if (state.trust < threshold) guidance.push('Use a concrete detail from what the client has already shared.')
+  if (state.interest < threshold) guidance.push('Connect the next question to a business outcome the client cares about.')
 
   return guidance.slice(0, 3)
 }
@@ -131,7 +131,10 @@ export default function LiveMeetingPage() {
   const { data: meeting, isLoading: meetingLoading, isError: meetingError } = useMeeting(meetingId!)
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
-  const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
+  const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(
+    meetingId!,
+    meeting?.status === 'IN_PROGRESS' && meeting.interactionMode !== 'FREEFORM',
+  )
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
   const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
@@ -144,9 +147,10 @@ export default function LiveMeetingPage() {
   const currentState = personaState ?? persistedPersonaState
   const latestPersistedFeedback = meeting?.behaviourLedger?.[meeting.behaviourLedger.length - 1] ?? null
   const currentBehaviourFeedback = behaviourFeedback ?? latestPersistedFeedback
+  const meetingThreshold = meeting?.meetingThreshold ?? DEFAULT_MEETING_THRESHOLD
   const hint = useMemo(
-    () => currentState ? deriveHint(turns, latestSignals, currentState) : [],
-    [turns, latestSignals, currentState]
+    () => currentState ? deriveHint(turns, latestSignals, currentState, meetingThreshold) : [],
+    [turns, latestSignals, currentState, meetingThreshold]
   )
 
   useEffect(() => {
@@ -170,6 +174,8 @@ export default function LiveMeetingPage() {
   if (!currentState) return <ErrorState />
 
   const isCompleted = meeting.status === 'COMPLETED'
+  const isFreeformMeeting = meeting.interactionMode === 'FREEFORM'
+  const isGuidedMeeting = !isFreeformMeeting
   const debriefTips = meeting.debriefTips ?? []
   const automaticTermination = termination ?? toTermination(
     meeting.terminationReason,
@@ -180,8 +186,8 @@ export default function LiveMeetingPage() {
   )
   const canRetryMeeting = automaticTermination?.meetingRetryAvailable ?? meeting.meetingRetryAvailable
   const meetingRetriesRemaining = automaticTermination?.meetingRetriesRemaining ?? meeting.meetingRetriesRemaining
-  const meetingGateMet = currentState.trust >= MEETING_THRESHOLD
-    && currentState.interest >= MEETING_THRESHOLD && currentState.patience >= MEETING_THRESHOLD
+  const meetingGateMet = currentState.trust >= meetingThreshold
+    && currentState.interest >= meetingThreshold && currentState.patience >= meetingThreshold
   const clientReadyToClose = latestSignals.includes('client_ready_to_close')
     || latestSignals.includes('client_committed_next_step')
   const pendingIsPersisted = pendingMessage !== null
@@ -242,7 +248,7 @@ export default function LiveMeetingPage() {
 
             {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
-            {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
+            {!isCompleted && isGuidedMeeting && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
               <section className={styles.guidedComposer} aria-label="Guided response choices">
                 <div className={styles.guidedHeading}>
                   <div>
@@ -290,28 +296,40 @@ export default function LiveMeetingPage() {
               </section>
             )}
 
-            {!isCompleted && responseOptions?.interactionMode === 'FREEFORM' && (
-              <div className={styles.composer}>
-                <TextArea
-                  id="message"
-                  labelText="Response"
-                  hideLabel
-                  rows={3}
-                  placeholder="Respond to the client..."
-                  value={message}
-                  disabled={isStreaming}
-                  onChange={(event) => setMessage(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault()
-                      void handleSend()
-                    }
-                  }}
-                />
-                <Button renderIcon={Send} disabled={isStreaming || !message.trim()} onClick={() => void handleSend()}>
-                  {isStreaming ? 'Client is responding...' : 'Send'}
-                </Button>
-              </div>
+            {!isCompleted && isFreeformMeeting && (
+              <section className={styles.freeformComposer} aria-label="Freeform meeting response">
+                <div className={styles.freeformHeading}>
+                  <div>
+                    <p className={styles.eyebrow}>Hard mode · live dialogue</p>
+                    <h3>{meetingGateMet ? 'Bring the conversation to a natural close' : 'Respond in your own words'}</h3>
+                  </div>
+                  <Tag type="purple">Freeform</Tag>
+                </div>
+                <p>{meetingGateMet
+                  ? 'The client is ready to wrap up. Confirm the shared next step, owner and timing in one concise response.'
+                  : 'Listen carefully, address the client’s actual concern, and move the conversation forward without scripted choices.'}</p>
+                <div className={styles.composer}>
+                  <TextArea
+                    id="message"
+                    labelText="Response"
+                    hideLabel
+                    rows={3}
+                    placeholder={meetingGateMet ? 'Confirm the agreed next step, owner and timing...' : 'Respond to the client in your own words...'}
+                    value={message}
+                    disabled={isStreaming}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault()
+                        void handleSend()
+                      }
+                    }}
+                  />
+                  <Button renderIcon={Send} disabled={isStreaming || !message.trim()} onClick={() => void handleSend()}>
+                    {isStreaming ? 'Client is responding...' : meetingGateMet ? 'Confirm next step' : 'Send response'}
+                  </Button>
+                </div>
+              </section>
             )}
           </section>
 
@@ -359,14 +377,14 @@ export default function LiveMeetingPage() {
                   <p className={styles.eyebrow}>Relationship state</p>
                   <h2>Meeting gate</h2>
                 </div>
-                <Tag type={currentState.trust >= MEETING_THRESHOLD && currentState.interest >= MEETING_THRESHOLD && currentState.patience >= MEETING_THRESHOLD ? 'green' : 'gray'}>
-                  All metrics {MEETING_THRESHOLD}+
+                <Tag type={meetingGateMet ? 'green' : 'gray'}>
+                  All metrics {meetingThreshold}+
                 </Tag>
               </div>
               <Stack gap={5}>
-                <RelationshipMeter label="Trust" value={currentState.trust} />
-                <RelationshipMeter label="Interest" value={currentState.interest} />
-                <RelationshipMeter label="Patience" value={currentState.patience} />
+                <RelationshipMeter label="Trust" value={currentState.trust} threshold={meetingThreshold} />
+                <RelationshipMeter label="Interest" value={currentState.interest} threshold={meetingThreshold} />
+                <RelationshipMeter label="Patience" value={currentState.patience} threshold={meetingThreshold} />
               </Stack>
             </section>
 

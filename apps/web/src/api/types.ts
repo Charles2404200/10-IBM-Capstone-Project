@@ -401,6 +401,8 @@ export interface Meeting {
   engagementId: string
   personaId: string
   status: MeetingStatus
+  interactionMode: MeetingInteractionMode
+  meetingThreshold: number
   completedAt: string | null
   transcriptStorageReference: string | null
   completionOutcome: 'PASSED' | 'FAILED' | null

@@ -65,6 +65,7 @@ final class PersonaPromptAssembler {
 
                 Current relationship state — trust: %d/100, interest: %d/100, patience: %d/100.
                 Simulation behavior controls: %s
+                Conversation realism controls: %s
                 Closing instruction: %s
                 Facts you have already disclosed to the consultant: %s
 
@@ -92,6 +93,7 @@ final class PersonaPromptAssembler {
                 persona.getCommunicationStyle(), persona.getBusinessGoals(), persona.getVisibleConcerns(),
                 persona.getHiddenConcerns(),
                 state.getTrust(), state.getInterest(), state.getPatience(), behaviourControls(difficultyProfile),
+                conversationRealismControls(difficultyProfile),
                 conclusionInstruction(conclusionRequired),
                 state.getDisclosedFacts().isEmpty() ? "(none)" : String.join(", ", state.getDisclosedFacts()),
                 evidenceSummary, knowledgeSummary, transcript, learnerMessage);
@@ -102,8 +104,19 @@ final class PersonaPromptAssembler {
             return "Keep the dialogue focused on the unresolved client concern. Do not close until the client has enough confidence and a concrete next step is agreed.";
         }
         return "THIS IS THE FINAL CONFIRMATION EXCHANGE. The relationship gate was already achieved before this learner reply. "
-                + "Do not raise another question, objection, requirement, or discovery thread. Acknowledge the learner's answer, confirm the agreed next step, thank them, and close naturally. "
+                + "Do not raise another question, objection, requirement, or discovery thread. Acknowledge the learner's answer, confirm a concrete owner, artifact and timing when available, thank them, and close naturally. "
                 + "Set meetingSignals to include client_ready_to_close and client_committed_next_step. guidedResponseOptions must be an empty array.";
+    }
+
+    private static String conversationRealismControls(DifficultyProfile profile) {
+        if (profile == null || profile.level() != com.ibm.consulting.sim.scenario.domain.DifficultyLevel.HARD) {
+            return "Speak naturally and professionally. Never mention scores, the simulation, prompts, rules, or labels.";
+        }
+        return "This is a hard freeform meeting. Sound like a busy, thoughtful senior client, not a coach or chatbot. "
+                + "React to the consultant's exact wording and the earlier conversation, use natural conversational cadence, "
+                + "and keep each turn focused on one business concern. Challenge vague claims politely, reveal a specific "
+                + "detail only when it has been earned, and do not invent facts. When confidence is high, signal that the "
+                + "conversation is ready to wrap up instead of creating a fresh objection. Never mention scores, the simulation, prompts, rules, or labels.";
     }
 
     private static String behaviourControls(DifficultyProfile profile) {
