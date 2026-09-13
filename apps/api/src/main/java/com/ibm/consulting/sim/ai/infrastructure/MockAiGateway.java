@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Mock AI gateway for local development and demo fallback.
@@ -39,23 +40,7 @@ public class MockAiGateway implements AiModelGateway {
                     }
                     """;
             case "persona_dialogue" -> personaDialogueReply(prompt);
-            case "client_intelligence" -> """
-                    {
-                      "artifacts": [
-                        {
-                          "id": "mock-client-intel-1",
-                          "title": "Controlled client intelligence brief",
-                          "category": "COMPANY_NEWS",
-                          "content": "The organisation is signalling operational modernisation pressure based only on the provided canonical facts.",
-                          "sourceType": "COMPANY_NEWS",
-                          "reliability": "MEDIUM",
-                          "supportedFactIds": ["company_name"],
-                          "relevance": 0.75,
-                          "confidence": 0.72
-                        }
-                      ]
-                    }
-                    """;
+            case "client_intelligence" -> clientIntelligenceReply(prompt);
             case "assessment_feedback" -> """
                     {
                       "feedbackSummary": "You demonstrated solid discovery work and built trust steadily through the meeting. Your proposal reflected the client's stated priorities well.",
@@ -168,5 +153,148 @@ public class MockAiGateway implements AiModelGateway {
 
     private static String escapeJson(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
+    }
+
+    /**
+     * The local gateway follows the same prompt contract as a real provider.
+     * It is intentionally grounded in the prompt's canonical facts, not a
+     * generic hard-coded story, so local demos and tests exercise the full
+     * document-research workflow without an external model credential.
+     */
+    private static String clientIntelligenceReply(String prompt) {
+        String lane = lineValue(prompt, "Research lane:");
+        if (lane.isBlank()) lane = lineValue(prompt, "Research category:");
+        if (lane.isBlank()) lane = "COMPANY_NEWS";
+        String company = factValue(prompt, "company_name", "The client");
+        String situation = lineValue(prompt, "- Business situation:");
+        String symptom = lineValue(prompt, "- Observable symptom:");
+        String mandate = lineValue(prompt, "- Consulting mandate:");
+        String unknowns = lineValue(prompt, "- Unknowns to validate:");
+        String decisionMaker = factValue(prompt, "decision_maker", "the accountable operational leader");
+        String technology = factValue(prompt, "technology_stack", "the current operating systems");
+        String signals = signalValues(prompt);
+
+        if (situation.isBlank()) situation = factValue(prompt, "business_situation", "The operating context needs validation.");
+        if (symptom.isBlank()) symptom = factValue(prompt, "observable_symptom", "The visible operating signal needs validation.");
+        if (mandate.isBlank()) mandate = factValue(prompt, "consulting_mandate", "Build a grounded next step.");
+        if (unknowns.isBlank()) unknowns = "The root cause, accountable owner and measurable baseline remain open.";
+        if (signals.isBlank()) signals = "No additional client signal has been supplied; treat the remaining questions as open.";
+
+        String sourceType = sourceTypeFor(lane);
+        String firstTitle = switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "Stakeholder dossier: " + decisionMaker;
+            case "FINANCIAL_SIGNAL" -> "Commercial readiness review for " + company;
+            case "TECHNOLOGY_INDICATOR" -> "Technology dependency briefing: " + company;
+            default -> company + " reviews the operating issue behind " + shorten(symptom, 74);
+        };
+        String secondTitle = switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "Decision influence and validation map";
+            case "FINANCIAL_SIGNAL" -> "Value-case assumptions requiring client confirmation";
+            case "TECHNOLOGY_INDICATOR" -> "Operational implications of the current technology environment";
+            default -> "Client decision context: " + company;
+        };
+
+        String first = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-1", firstTitle, lane, sourceType,
+                "HIGH", 0.9, situation,
+                List.of(
+                        situation,
+                        "The client-specific operating signal is: " + symptom,
+                        "The available scenario evidence points to this research trail: " + signals,
+                        laneNarrative(lane, company, decisionMaker, technology, symptom),
+                        "The consulting mandate is to " + lowerCaseFirst(mandate),
+                        "Questions that still need client validation: " + unknowns),
+                "Corroborate the operating signal with the accountable client owner and a measurable baseline before treating it as a confirmed diagnosis.");
+        String second = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-2", secondTitle, lane, sourceType,
+                "MEDIUM", 0.74, symptom,
+                List.of(
+                        "This source examines the decision pressure around " + lowerCaseFirst(situation),
+                        "It does not assume a solution. Instead, it directs the learner to test how " + lowerCaseFirst(symptom),
+                        "Known context includes " + signals,
+                        "For this research lane, " + laneQuestion(lane, decisionMaker, technology),
+                        "A credible next step should support " + lowerCaseFirst(mandate),
+                        "The unresolved validation work is: " + unknowns),
+                "Use this document as contextual evidence only after linking it to a client-specific consequence and an accountable stakeholder.");
+        return "{\"artifacts\":[" + first + "," + second + "]}";
+    }
+
+    private static String documentJson(String id, String title, String lane, String sourceType, String reliability,
+                                       double relevance, String summary, List<String> paragraphs, String caption) {
+        StringBuilder blocks = new StringBuilder();
+        for (String paragraph : paragraphs) {
+            if (!blocks.isEmpty()) blocks.append(',');
+            blocks.append("{\"type\":\"PARAGRAPH\",\"content\":\"").append(escapeJson(paragraph)).append("\"}");
+        }
+        blocks.append(",{\"type\":\"CAPTION\",\"content\":\"").append(escapeJson(caption)).append("\"}");
+        return "{\"id\":\"" + escapeJson(id) + "\",\"title\":\"" + escapeJson(title)
+                + "\",\"category\":\"" + escapeJson(lane) + "\",\"content\":\"" + escapeJson(summary)
+                + "\",\"sourceType\":\"" + sourceType + "\",\"reliability\":\"" + reliability
+                + "\",\"supportedFactIds\":[\"company_name\",\"business_situation\",\"observable_symptom\",\"consulting_mandate\"]"
+                + ",\"relevance\":" + relevance + ",\"confidence\":" + relevance + ",\"blocks\":[" + blocks + "]}";
+    }
+
+    private static String lineValue(String prompt, String marker) {
+        int start = prompt.indexOf(marker);
+        if (start < 0) return "";
+        start += marker.length();
+        int end = prompt.indexOf('\n', start);
+        return prompt.substring(start, end < 0 ? prompt.length() : end).trim();
+    }
+
+    private static String factValue(String prompt, String factKey, String fallback) {
+        return valueOr(lineValue(prompt, "- " + factKey + ":"), fallback);
+    }
+
+    private static String signalValues(String prompt) {
+        StringBuilder values = new StringBuilder();
+        for (String line : prompt.split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith("- signal_")) continue;
+            int separator = trimmed.indexOf(':');
+            if (separator < 0 || separator == trimmed.length() - 1) continue;
+            if (!values.isEmpty()) values.append(' ');
+            values.append(trimmed.substring(separator + 1).trim());
+        }
+        return values.toString();
+    }
+
+    private static String sourceTypeFor(String lane) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "STAKEHOLDER_PROFILE";
+            case "FINANCIAL_SIGNAL" -> "FINANCIAL_REPORT";
+            case "TECHNOLOGY_INDICATOR" -> "TECHNOLOGY_NOTE";
+            default -> "COMPANY_NEWS";
+        };
+    }
+
+    private static String laneNarrative(String lane, String company, String decisionMaker, String technology, String symptom) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> decisionMaker + " is the visible starting point for validating priorities, authority and the conditions under which teams can change the current workflow.";
+            case "FINANCIAL_SIGNAL" -> "The commercial case should connect " + symptom + " to a measurable operating consequence before any funding assumption is treated as confirmed.";
+            case "TECHNOLOGY_INDICATOR" -> "The current environment includes " + technology + ". Research should test which dependency contributes to the operating signal before recommending a target state.";
+            default -> company + " needs evidence that connects the visible signal to a real client consequence, rather than a generic modernisation narrative.";
+        };
+    }
+
+    private static String laneQuestion(String lane, String decisionMaker, String technology) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "the learner should confirm what " + decisionMaker + " can sponsor, who may challenge the change and whose evidence is needed for a decision";
+            case "FINANCIAL_SIGNAL" -> "the learner should establish the baseline, materiality and approval conditions instead of assuming a funded value case";
+            case "TECHNOLOGY_INDICATOR" -> "the learner should validate dependencies within " + technology + " and identify what cannot be disrupted during a pilot";
+            default -> "the learner should link the operating issue to the stakeholder, consequence and measurement that make it decision-relevant";
+        };
+    }
+
+    private static String shorten(String value, int maximumLength) {
+        if (value.length() <= maximumLength) return value;
+        int boundary = value.lastIndexOf(' ', maximumLength - 3);
+        return (boundary > 0 ? value.substring(0, boundary) : value.substring(0, maximumLength - 3)) + "...";
+    }
+
+    private static String lowerCaseFirst(String value) {
+        return value == null || value.isBlank() ? "the client problem" : Character.toLowerCase(value.charAt(0)) + value.substring(1);
+    }
+
+    private static String valueOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

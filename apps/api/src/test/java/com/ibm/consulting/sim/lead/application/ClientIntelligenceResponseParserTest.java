@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.lead.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.consulting.sim.ai.domain.AiValidationException;
+import com.ibm.consulting.sim.ai.infrastructure.MockAiGateway;
 import com.ibm.consulting.sim.lead.domain.EvidenceType;
 import org.junit.jupiter.api.Test;
 
@@ -89,5 +90,42 @@ class ClientIntelligenceResponseParserTest {
         assertThatThrownBy(() -> parser.parse("{not json"))
                 .isInstanceOf(AiValidationException.class)
                 .hasMessageContaining("Malformed client intelligence JSON");
+    }
+
+    @Test
+    void mockGatewayBuildsGroundedMultiBlockDocumentsFromTheSourceDeckPrompt() {
+        String raw = new MockAiGateway().complete("client_intelligence", """
+                Research lane: COMPANY_NEWS
+                Problem frame:
+                - Business situation: Horizon Hotels is pursuing a brand-experience initiative across its properties.
+                - Observable symptom: Guest satisfaction varies across properties because service issues are not resolved consistently.
+                - Consulting mandate: Identify the operating hand-offs behind service variation and agree a low-risk pilot.
+                - Unknowns to validate: Which guest journey varies most|Which property teams own the response
+                Canonical facts (the complete allowed truth):
+                - company_name: Horizon Hotels
+                - business_situation: Horizon Hotels is pursuing a brand-experience initiative across its properties.
+                - observable_symptom: Guest satisfaction varies across properties because service issues are not resolved consistently.
+                - consulting_mandate: Identify the operating hand-offs behind service variation and agree a low-risk pilot.
+                - signal_executive_priority: The brand-experience initiative depends on consistent guest service.
+                - signal_operating_signal: Guest satisfaction varies across properties.
+                """);
+        ClientIntelligenceResponseParser companyNewsParser = new ClientIntelligenceResponseParser(
+                new ObjectMapper(),
+                Map.of(
+                        "company_name", "Horizon Hotels",
+                        "business_situation", "Horizon Hotels is pursuing a brand-experience initiative across its properties.",
+                        "observable_symptom", "Guest satisfaction varies across properties because service issues are not resolved consistently.",
+                        "consulting_mandate", "Identify the operating hand-offs behind service variation and agree a low-risk pilot."),
+                EvidenceType.COMPANY_NEWS);
+
+        var artifacts = companyNewsParser.parse(raw);
+
+        assertThat(artifacts).hasSize(2);
+        assertThat(artifacts).allSatisfy(artifact -> {
+            assertThat(artifact.blocks()).hasSize(7);
+            assertThat(artifact.blocks().stream().map(block -> block.content()).collect(java.util.stream.Collectors.joining(" ")))
+                    .contains("Guest satisfaction varies");
+            assertThat(artifact.allowedFactKeys()).contains("company_name", "observable_symptom");
+        });
     }
 }
