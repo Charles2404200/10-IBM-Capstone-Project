@@ -230,13 +230,51 @@ public class ResearchIntelligenceService {
             case MARKET_TREND -> marketTrends(lead);
             case OTHER, HYPOTHESIS -> List.of();
         };
-        List<ResearchArtifactResponse> withAuthoredFacts = new ArrayList<>(base);
-        authoringConfig.canonicalFacts().stream()
+        List<CanonicalFact> researchFacts = authoringConfig.canonicalFacts().stream()
                 .filter(CanonicalFact::availableInResearch)
                 .filter(fact -> fact.evidenceType() == type)
-                .forEach(fact -> withAuthoredFacts.add(artifact("author-" + fact.id(), fact.label(), "Scenario-approved source",
-                        fact.value(), type, ConfidenceLevel.HIGH, fact.id())));
-        return shapeForDifficulty(lead, type, withAuthoredFacts, profile);
+                .toList();
+        return incorporateCanonicalFacts(base, researchFacts);
+    }
+
+    /**
+     * Author-written facts strengthen the primary document for a research lane.
+     * They are not emitted as short, generic pseudo-sources: that undermines the
+     * learner's job of judging a coherent piece of client evidence.
+     */
+    private List<ResearchArtifactResponse> incorporateCanonicalFacts(List<ResearchArtifactResponse> artifacts,
+                                                                       List<CanonicalFact> facts) {
+        if (artifacts.isEmpty() || facts.isEmpty()) return List.copyOf(artifacts);
+
+        ResearchArtifactResponse primary = artifacts.getFirst();
+        List<ResearchSourceBlock> enrichedBlocks = new ArrayList<>(primary.blocks());
+        int blockOffset = enrichedBlocks.size();
+        for (int index = 0; index < facts.size(); index++) {
+            CanonicalFact fact = facts.get(index);
+            enrichedBlocks.add(new ResearchSourceBlock(
+                    primary.id() + "-fact-" + (blockOffset + index + 1),
+                    ResearchSourceBlockType.PARAGRAPH,
+                    fact.value(),
+                    fact.label(),
+                    List.of(fact.id()),
+                    true,
+                    ResearchSourceBlockPurpose.FACT));
+        }
+        ResearchArtifactResponse enrichedPrimary = new ResearchArtifactResponse(
+                primary.id(), primary.title(), primary.sourceType(), primary.summary(), primary.evidenceType(),
+                primary.confidence(), primary.origin(), primary.publishedOn(), primary.relevanceScore(),
+                mergeFactIds(primary.allowedFactKeys(), facts), primary.correlatesWithEvidence(),
+                primary.relevanceRationale(), enrichedBlocks);
+
+        List<ResearchArtifactResponse> enriched = new ArrayList<>(artifacts);
+        enriched.set(0, enrichedPrimary);
+        return List.copyOf(enriched);
+    }
+
+    private List<String> mergeFactIds(List<String> existing, List<CanonicalFact> additions) {
+        return java.util.stream.Stream.concat(existing.stream(), additions.stream().map(CanonicalFact::id))
+                .distinct()
+                .toList();
     }
 
     private ResearchArtifactResponse toArtifact(ResearchSource source) {
@@ -544,33 +582,15 @@ public class ResearchIntelligenceService {
                 discoveredLines.isBlank() ? "None" : discoveredLines);
     }
 
-    /** Adds controlled non-decisive context; the model never chooses game truth or distractor volume. */
+    /**
+     * Difficulty must be authored as a scenario fact or a scenario-specific contradiction.
+     * Generic distractor documents train learners to collect filler, so this layer now
+     * deliberately preserves only the sources grounded in the current scenario.
+     */
     private List<ResearchArtifactResponse> shapeForDifficulty(Lead lead, EvidenceType type,
                                                                 List<ResearchArtifactResponse> artifacts,
                                                                 DifficultyProfile profile) {
-        if (type == EvidenceType.OTHER || type == EvidenceType.HYPOTHESIS) return List.copyOf(artifacts);
-        List<ResearchArtifactResponse> shaped = new ArrayList<>(artifacts.stream()
-                .limit(Math.max(1, profile.researchArtifactsPerAction() - profile.distractorArtifactsPerAction()))
-                .toList());
-        for (int index = 0; index < profile.distractorArtifactsPerAction(); index++) {
-            boolean ambiguity = index < Math.max(1, profile.contradictionCount() / 2);
-            String title = ambiguity ? "Context signal requires validation" : "Adjacent industry signal";
-            String summary = ambiguity
-                    ? "A public signal suggests change activity, but does not confirm that the operating problem is resolved or funded."
-                    : "%s organisations are discussing adjacent priorities that may not be material to this client decision."
-                    .formatted(lead.getIndustry());
-            shaped.add(new ResearchArtifactResponse("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
-                    title, "Controlled market context", summary, type.name(), ConfidenceLevel.LOW.name(),
-                    EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(7 + index),
-                    ambiguity ? 25 : 15,
-                    List.of("public_description"), List.of(),
-                    "Context only: test relevance against client evidence before adding it to the evidence board.",
-                    blocks("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
-                            summary,
-                            "This source is deliberately non-decisive. Compare it with client-specific signals before using it to support a hypothesis.",
-                            "Record uncertainty explicitly when evidence is adjacent rather than directly corroborated.")));
-        }
-        return List.copyOf(shaped);
+        return List.copyOf(artifacts);
     }
 
     private List<ResearchArtifactResponse> companyNews(Lead lead, Scenario scenario) {
@@ -578,8 +598,9 @@ public class ResearchIntelligenceService {
                 fact(scenario.getBusinessSituation(), "business_situation"),
                 fact(scenario.getObservableSymptom(), "observable_symptom"),
                 signalFact(lead, 0),
+                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
+                        "No confirmed technology environment is available in this source."),
                 interpretation("Taken together, the reported operating signal may be limiting the client's ability to deliver the stated business priority.", "business_situation", "observable_symptom"),
-                context(scenario.getConsultingMandate(), "consulting_mandate"),
                 uncertainty(unknownsParagraph(scenario)));
         List<ResearchSourceBlock> contextStory = documentBlocks("company-news-2",
                 optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
@@ -591,11 +612,11 @@ public class ResearchIntelligenceService {
                 interpretation("The available client signals point to an operating issue, but do not establish its root cause or a preferred response.", "observable_symptom"),
                 uncertainty(unknownsParagraph(scenario)));
         return List.of(
-                artifact("company-news-1", lead.getCompanyName() + " reviews service consistency across its operations",
+                artifact("company-news-1", sourceHeadline(scenario.getObservableSymptom()),
                         "Industry operations journal", scenario.getObservableSymptom(), EvidenceType.COMPANY_NEWS,
                         ConfidenceLevel.HIGH, operatingStory),
-                artifact("company-news-2", "Client context places the operating signal under scrutiny",
-                        "Client observer", "A second view of the client context, visible signal and unresolved constraints.",
+                artifact("company-news-2", sourceHeadline(scenario.getBusinessSituation()),
+                        "Client operations review", "A fact-grounded view of the business situation and operating signal.",
                         EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, contextStory));
     }
 
@@ -611,18 +632,18 @@ public class ResearchIntelligenceService {
                 uncertainty("Decision authority, sponsorship and the stakeholder's success measure remain unconfirmed."));
         List<ResearchSourceBlock> influenceContext = documentBlocks("stakeholder-2",
                 fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getConsultingMandate(), "consulting_mandate"),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
                 signalFact(lead, 1),
                 optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
                         "No confirmed technology owner or environment is available in this source."),
-                interpretation("The stated mandate may involve operational, commercial and technical stakeholders, but the approval path is not yet known.", "business_situation", "consulting_mandate"),
+                interpretation("The available client facts identify operating context for stakeholder research, but do not establish the approval path.", "business_situation", "observable_symptom"),
                 uncertainty(unknownsParagraph(scenario)));
         return List.of(
                 artifact("stakeholder-1", valueOr(lead.getDecisionMaker(), "Stakeholder context under review"),
                         "Stakeholder dossier", "Known role and client signals, separated from the decisions still to validate.",
                         EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, namedProfile),
-                artifact("stakeholder-2", "Influence context around the operating mandate",
-                        "Stakeholder landscape", "Client priorities and unresolved decision ownership.",
+                artifact("stakeholder-2", sourceHeadline(scenario.getBusinessSituation()),
+                        "Stakeholder landscape", "Known client context and unresolved decision ownership.",
                         EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, influenceContext));
     }
 
@@ -638,18 +659,18 @@ public class ResearchIntelligenceService {
                 uncertainty(unknownsParagraph(scenario)));
         List<ResearchSourceBlock> commercialContext = documentBlocks("financial-2",
                 fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getConsultingMandate(), "consulting_mandate"),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
                 signalFact(lead, 1),
                 optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
                         "No public commercial context has been confirmed for this scenario."),
                 interpretation("The operating issue may have commercial implications, but no baseline, funding owner or approval route is confirmed in this source.", "observable_symptom"),
                 uncertainty("Commercial materiality and investment timing remain to be validated."));
         return List.of(
-                artifact("financial-1", budgetVisible ? "Funding signal under review" : "Commercial visibility remains limited",
+                artifact("financial-1", budgetVisible ? sourceHeadline(valueOr(lead.getBudgetSignal(), scenario.getObservableSymptom())) : sourceHeadline(scenario.getObservableSymptom()),
                         "Financial intelligence", "Confirmed commercial signals and explicit gaps in the available record.",
                         EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, funding),
-                artifact("financial-2", "Operating pressure and commercial context",
-                        "Commercial analysis", "A separate view of the client priority, operating signal and unresolved materiality.",
+                artifact("financial-2", sourceHeadline(scenario.getBusinessSituation()),
+                        "Commercial analysis", "A fact-grounded view of the commercial and operating context.",
                         EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, commercialContext));
     }
 
@@ -665,18 +686,18 @@ public class ResearchIntelligenceService {
                 uncertainty(unknownsParagraph(scenario)));
         List<ResearchSourceBlock> operatingDependency = documentBlocks("technology-2",
                 fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getConsultingMandate(), "consulting_mandate"),
+                fact(scenario.getObservableSymptom(), "observable_symptom"),
                 optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
                         "No named system dependency has been confirmed in this source."),
                 signalFact(lead, 1),
-                interpretation("The relationship between the current environment and the client outcome remains an evidence question rather than a confirmed architecture diagnosis.", "business_situation", "consulting_mandate"),
+                interpretation("The relationship between the current environment and the client outcome remains an evidence question rather than a confirmed architecture diagnosis.", "business_situation", "observable_symptom"),
                 uncertainty("System ownership, data flow and non-disruptable dependencies remain unconfirmed."));
         return List.of(
-                artifact("technology-1", "Current technology environment", "Technology due diligence brief",
+                artifact("technology-1", sourceHeadline(valueOr(lead.getTechnologyStack(), scenario.getObservableSymptom())), "Technology due diligence brief",
                         "Known system context and the operating signal it may relate to.", EvidenceType.TECHNOLOGY_INDICATOR,
                         ConfidenceLevel.HIGH, environment),
-                artifact("technology-2", "Operating dependency context", "Architecture research note",
-                        "Client mandate, available technical context and explicitly unresolved dependencies.",
+                artifact("technology-2", sourceHeadline(scenario.getBusinessSituation()), "Architecture research note",
+                        "Available technical context and explicitly unresolved dependencies.",
                         EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, operatingDependency));
     }
 
@@ -786,6 +807,11 @@ public class ResearchIntelligenceService {
 
     private String conciseSymptom(Scenario scenario) {
         return truncateAtWord(scenario.getObservableSymptom(), 88);
+    }
+
+    /** A deck headline may abbreviate a fact, but may never introduce a new claim. */
+    private String sourceHeadline(String fact) {
+        return truncateAtWord(fact, 112);
     }
 
     private String conciseMandate(Scenario scenario) {
