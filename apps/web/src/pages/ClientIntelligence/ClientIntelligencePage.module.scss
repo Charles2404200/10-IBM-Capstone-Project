@@ -2058,6 +2058,22 @@ $accent-blue-dark: #0043ce;
   max-block-size: none;
 }
 
+// Keep the generous reader width while reserving symmetrical space on both
+// sides of the viewport. This also prevents a scrollbar from nudging it left.
+:global(.cds--modal).readerModal {
+  align-items: center;
+  box-sizing: border-box;
+  justify-content: center;
+  padding-inline: 2vw;
+}
+
+:global(.cds--modal).readerModal > :global(.cds--modal-container) {
+  flex: 0 1 min(92vw, 84rem);
+  inline-size: min(92vw, 84rem) !important;
+  margin: 0 !important;
+  max-inline-size: min(92vw, 84rem) !important;
+}
+
 .readerModalBody {
   background: #f4f4f4;
   display: flex;
