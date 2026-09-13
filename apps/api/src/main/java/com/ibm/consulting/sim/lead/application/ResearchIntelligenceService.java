@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutorService;
 public class ResearchIntelligenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ResearchIntelligenceService.class);
+    private static final String SOURCE_DECK_TEMPLATE_VERSION = "v4-long-form-fact-guarded";
 
     private final EngagementRepository engagementRepository;
     private final LeadRepository leadRepository;
@@ -93,7 +94,7 @@ public class ResearchIntelligenceService {
     /** Opens all learner-facing document lanes concurrently and caches the assembled deck. */
     @Transactional(readOnly = true)
     public ResearchSourceDeckResponse generateDeck(UUID engagementId, UUID userId) {
-        String hotDeckKey = "deck:hot:" + engagementId + ":" + userId;
+        String hotDeckKey = "deck:hot:" + SOURCE_DECK_TEMPLATE_VERSION + ":" + engagementId + ":" + userId;
         ResearchSourceDeckResponse hotCached = hotDeckCache.getIfPresent(hotDeckKey);
         if (hotCached != null) {
             return hotCached;
@@ -104,7 +105,8 @@ public class ResearchIntelligenceService {
         Scenario scenario = loadScenario(engagement);
         ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
-        String deckKey = "deck:" + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile)
+        String deckKey = "deck:" + SOURCE_DECK_TEMPLATE_VERSION + ":"
+                + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile)
                 + ":" + Integer.toHexString(authoringConfig.hashCode());
         ResearchSourceDeckResponse cached = completeDeckCache.getIfPresent(deckKey);
         if (cached != null) {
@@ -159,26 +161,16 @@ public class ResearchIntelligenceService {
                                                                 DifficultyProfile profile,
                                                                 ScenarioAuthoringConfig authoringConfig,
                                                                 List<ResearchEvidence> discovered) {
-        String cacheKey = cacheKey(lead, scenario, type, discovered, profile)
+        String cacheKey = SOURCE_DECK_TEMPLATE_VERSION + ":" + cacheKey(lead, scenario, type, discovered, profile)
                 + ":" + Integer.toHexString(authoringConfig.hashCode());
         List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
         if (cached != null) {
             return cached;
         }
-        List<ResearchArtifactResponse> sources = authoringConfig.researchSources().stream()
-                .filter(source -> source.evidenceType() == type)
-                .map(this::toArtifact)
-                .toList();
-        if (sources.isEmpty() || sources.stream().anyMatch(source -> !hasGroundedBlocks(source.blocks()))) {
-            // Legacy packs without block-level fact provenance cannot masquerade as
-            // evidence. The structured fallback is deterministic and immediately
-            // available from the same canonical scenario facts.
-            sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
-        } else {
-            // Authored source packs stay canonical, while difficulty still supplies
-            // bounded low-reliability context that learners must assess critically.
-            sources = shapeForDifficulty(lead, type, sources, profile);
-        }
+        // Scenario configs created before the source-reader redesign contain short,
+        // generic cards. Rebuilding the deck from current canonical facts prevents
+        // legacy AI output from being presented as client evidence.
+        List<ResearchArtifactResponse> sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
         List<ResearchArtifactResponse> filtered = removeDuplicates(sources, discovered);
         cacheArtifacts(cacheKey, filtered);
         return filtered;
@@ -595,21 +587,32 @@ public class ResearchIntelligenceService {
 
     private List<ResearchArtifactResponse> companyNews(Lead lead, Scenario scenario) {
         List<ResearchSourceBlock> operatingStory = documentBlocks("company-news-1",
-                fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                signalFact(lead, 0),
-                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
-                        "No confirmed technology environment is available in this source."),
-                interpretation("Taken together, the reported operating signal may be limiting the client's ability to deliver the stated business priority.", "business_situation", "observable_symptom"),
+                factualNarrative("The commercial setting described in the current record is clear: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The operating condition now drawing attention is equally specific: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                narratedSignal(lead, 0, "A related client signal reported alongside the operating picture is: "),
+                factualNarrative("The available system context is recorded as follows: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology environment is available in this report."),
+                factualNarrative("The client is described in the available background as: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public company description has been confirmed for this report."),
+                interpretation("Read together, the reported commercial priority, operating symptom and system context describe a possible chain of pressure. They do not, however, establish which process step or decision is the root cause. That distinction matters before a response is treated as a client need.",
+                        "business_situation", "observable_symptom", "technology_stack"),
+                interpretation("The reported symptom is material because it is attached to an explicit business outcome rather than an isolated operational complaint. The current evidence supports investigating the connection; it does not support claiming that the connection has been proven.",
+                        "business_situation", "observable_symptom"),
                 uncertainty(unknownsParagraph(scenario)));
         List<ResearchSourceBlock> contextStory = documentBlocks("company-news-2",
-                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
-                        "No public company description has been confirmed for this scenario."),
-                signalFact(lead, 1),
-                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
-                        "No confirmed technology environment is available in this source."),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                interpretation("The available client signals point to an operating issue, but do not establish its root cause or a preferred response.", "observable_symptom"),
+                factualNarrative("The wider company context in the source material is: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public company description has been confirmed for this report."),
+                factualNarrative("Against that backdrop, leaders are dealing with this operating reality: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 1, "A second reported signal is: "),
+                factualNarrative("The visible performance or operating symptom is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The systems and data context currently available is: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology environment is available in this report."),
+                interpretation("This account gives a coherent reason to investigate the operating signal in more detail. It should not be read as proof of a technical failure, an approved initiative, or a preferred solution, because none of those conclusions appears in the verified record.",
+                        "business_situation", "observable_symptom", "technology_stack"),
                 uncertainty(unknownsParagraph(scenario)));
         return List.of(
                 artifact("company-news-1", sourceHeadline(scenario.getObservableSymptom()),
@@ -622,21 +625,32 @@ public class ResearchIntelligenceService {
 
     private List<ResearchArtifactResponse> stakeholderProfiles(Lead lead, Scenario scenario) {
         List<ResearchSourceBlock> namedProfile = documentBlocks("stakeholder-1",
-                optionalFact(valueOr(lead.getDecisionMaker(), ""), "decision_maker",
-                        "No named stakeholder has been confirmed for this scenario."),
-                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
-                        "No public company description has been confirmed for this scenario."),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                signalFact(lead, 0),
-                interpretation("The available role and operating context identify a relevant contact for validating the client signal; decision authority is not established.", "observable_symptom"),
+                factualNarrative("The named contact in the available client record is: ", valueOr(lead.getDecisionMaker(), ""),
+                        "decision_maker", "No named stakeholder has been confirmed for this dossier."),
+                factualNarrative("The organisation associated with this role is described as: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public company description has been confirmed for this dossier."),
+                factualNarrative("The operating concern in the stakeholder's reported context is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The stated business context around that concern is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 0, "A related signal in the client record is: "),
+                interpretation("The role and operating context make this a relevant profile for understanding the client situation. That is an assessment of relevance, not confirmation that this person owns a budget, signs off a decision, or will sponsor change.",
+                        "decision_maker", "business_situation", "observable_symptom"),
+                interpretation("The record links this role to a live business issue, but it does not state the stakeholder's success measure, concerns, or authority. Those are separate facts that must be established through subsequent discovery rather than inferred from a senior title.",
+                        "decision_maker", "observable_symptom"),
                 uncertainty("Decision authority, sponsorship and the stakeholder's success measure remain unconfirmed."));
         List<ResearchSourceBlock> influenceContext = documentBlocks("stakeholder-2",
-                fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                signalFact(lead, 1),
-                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
-                        "No confirmed technology owner or environment is available in this source."),
-                interpretation("The available client facts identify operating context for stakeholder research, but do not establish the approval path.", "business_situation", "observable_symptom"),
+                factualNarrative("The business situation that frames the stakeholder landscape is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The evidence currently visible at operating level is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                narratedSignal(lead, 1, "A further reported client signal is: "),
+                factualNarrative("The available technology or data context is: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology owner or environment is available in this dossier."),
+                factualNarrative("The financial context visible at this stage is: ", valueOr(lead.getBudgetSignal(), ""),
+                        "budget_signal", "No client-confirmed budget owner or funding decision is available in this dossier."),
+                interpretation("The available facts identify several domains that may shape the decision process. They do not identify the approval path, and they should not be used to assign influence or decision rights to a stakeholder without direct evidence.",
+                        "business_situation", "observable_symptom", "technology_stack"),
                 uncertainty(unknownsParagraph(scenario)));
         return List.of(
                 artifact("stakeholder-1", valueOr(lead.getDecisionMaker(), "Stakeholder context under review"),
@@ -649,21 +663,32 @@ public class ResearchIntelligenceService {
 
     private List<ResearchArtifactResponse> financialSignals(Lead lead, Scenario scenario, boolean budgetVisible) {
         List<ResearchSourceBlock> funding = documentBlocks("financial-1",
-                budgetVisible ? fact(valueOr(lead.getBudgetSignal(), ""), "budget_signal")
+                budgetVisible ? factualNarrative("The client-confirmed budget signal currently available is: ", valueOr(lead.getBudgetSignal(), ""), "budget_signal")
                         : uncertainty("No client-confirmed budget signal is available at this stage."),
-                optionalFact(valueOr(lead.getPotentialValueRange(), ""), "potential_value_range",
-                        "No confirmed value range is available at this stage."),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                signalFact(lead, 0),
-                interpretation("The available commercial context may justify further sizing, but it does not establish an approved investment or quantified impact.", "observable_symptom"),
+                factualNarrative("The potential value range recorded for this opportunity is: ", valueOr(lead.getPotentialValueRange(), ""),
+                        "potential_value_range", "No confirmed value range is available at this stage."),
+                factualNarrative("The operating symptom with possible commercial consequences is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The business context that makes the signal material is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 0, "A related commercial or operating signal is: "),
+                interpretation("The available facts support further sizing because an operating symptom is connected to a stated business priority. They do not establish a financial baseline, a funded business case, or an approved investment; those are materially different claims.",
+                        "business_situation", "observable_symptom", "potential_value_range"),
+                interpretation("The value range should be treated as an opportunity frame, not as realised benefit. The source does not specify the baseline, the accountable owner, or the timing assumptions needed to convert that range into a credible impact estimate.",
+                        "potential_value_range"),
                 uncertainty(unknownsParagraph(scenario)));
         List<ResearchSourceBlock> commercialContext = documentBlocks("financial-2",
-                fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                signalFact(lead, 1),
-                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
-                        "No public commercial context has been confirmed for this scenario."),
-                interpretation("The operating issue may have commercial implications, but no baseline, funding owner or approval route is confirmed in this source.", "observable_symptom"),
+                factualNarrative("The commercial priority described in the client record is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The operating condition affecting that priority is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                narratedSignal(lead, 1, "Another signal relevant to commercial materiality is: "),
+                factualNarrative("The available company background is: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public commercial context has been confirmed for this report."),
+                factualNarrative("The current range or budget context is: ", valueOr(lead.getPotentialValueRange(), ""),
+                        "potential_value_range", "No confirmed value range is available at this stage."),
+                interpretation("The operating issue may have commercial implications, but the record provides neither an agreed baseline nor an approval route. It therefore supports a financial research question, not a claim that funding or payback is already secured.",
+                        "business_situation", "observable_symptom", "potential_value_range"),
                 uncertainty("Commercial materiality and investment timing remain to be validated."));
         return List.of(
                 artifact("financial-1", budgetVisible ? sourceHeadline(valueOr(lead.getBudgetSignal(), scenario.getObservableSymptom())) : sourceHeadline(scenario.getObservableSymptom()),
@@ -676,21 +701,29 @@ public class ResearchIntelligenceService {
 
     private List<ResearchArtifactResponse> technologySignals(Lead lead, Scenario scenario) {
         List<ResearchSourceBlock> environment = documentBlocks("technology-1",
-                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
-                        "No confirmed technology environment is available in this source."),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                signalFact(lead, 0),
-                optionalFact(valueOr(lead.getPublicDescription(), ""), "public_description",
-                        "No public operating-system context has been confirmed for this scenario."),
-                interpretation("The stated technology environment may be relevant to the operating signal, but a technical root cause has not been established.", "observable_symptom"),
+                factualNarrative("The current technology and data environment is described as: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology environment is available in this brief."),
+                factualNarrative("The business-facing symptom that this environment may relate to is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The wider business situation is: ", scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 0, "A related client signal is: "),
+                factualNarrative("The available company background is: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public operating-system context has been confirmed for this brief."),
+                interpretation("The environment may be relevant because the operating symptom sits alongside the stated data and system context. The available record does not establish a technical root cause, integration failure, or target architecture, so each of those remains a hypothesis rather than a source fact.",
+                        "technology_stack", "observable_symptom", "business_situation"),
+                interpretation("The source is useful for locating the technical questions inside the client context. It is not evidence that technology alone caused the commercial outcome, because the relationship has not yet been demonstrated in the scenario facts.",
+                        "technology_stack", "observable_symptom"),
                 uncertainty(unknownsParagraph(scenario)));
         List<ResearchSourceBlock> operatingDependency = documentBlocks("technology-2",
-                fact(scenario.getBusinessSituation(), "business_situation"),
-                fact(scenario.getObservableSymptom(), "observable_symptom"),
-                optionalFact(valueOr(lead.getTechnologyStack(), ""), "technology_stack",
-                        "No named system dependency has been confirmed in this source."),
-                signalFact(lead, 1),
-                interpretation("The relationship between the current environment and the client outcome remains an evidence question rather than a confirmed architecture diagnosis.", "business_situation", "observable_symptom"),
+                factualNarrative("The client is operating within this business context: ", scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The signal that requires investigation is: ", scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The named systems or data conditions are: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No named system dependency has been confirmed in this brief."),
+                narratedSignal(lead, 1, "An additional signal associated with the operating environment is: "),
+                factualNarrative("The commercial context currently available is: ", valueOr(lead.getBudgetSignal(), ""),
+                        "budget_signal", "No client-confirmed investment decision is available in this brief."),
+                interpretation("The relationship between the environment and the client outcome remains an evidence question rather than a confirmed architecture diagnosis. The facts justify tracing the relevant hand-offs and data dependencies, but they do not identify a system owner or prescribe a technical response.",
+                        "business_situation", "observable_symptom", "technology_stack"),
                 uncertainty("System ownership, data flow and non-disruptable dependencies remain unconfirmed."));
         return List.of(
                 artifact("technology-1", sourceHeadline(valueOr(lead.getTechnologyStack(), scenario.getObservableSymptom())), "Technology due diligence brief",
@@ -751,6 +784,16 @@ public class ResearchIntelligenceService {
         return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), true, ResearchSourceBlockPurpose.FACT);
     }
 
+    private SourceBlockSeed factualNarrative(String leadIn, String content, String factId) {
+        return factualNarrative(leadIn, content, factId, "No verified detail is available in this document.");
+    }
+
+    private SourceBlockSeed factualNarrative(String leadIn, String content, String factId, String unavailableMessage) {
+        return content == null || content.isBlank()
+                ? context(unavailableMessage)
+                : fact(leadIn + content, factId);
+    }
+
     private SourceBlockSeed optionalFact(String content, String factId, String unavailableMessage) {
         return content == null || content.isBlank()
                 ? context(unavailableMessage)
@@ -764,6 +807,15 @@ public class ResearchIntelligenceService {
         if (signals.isEmpty()) return context("No additional client signal is available in this source.");
         var signal = signals.get(Math.floorMod(index, signals.size()));
         return fact(signal.getLabel(), "signal_" + signal.getCategory().toLowerCase(Locale.ROOT));
+    }
+
+    private SourceBlockSeed narratedSignal(Lead lead, int index, String leadIn) {
+        List<com.ibm.consulting.sim.lead.domain.LeadSignal> signals = lead.getSignals().stream()
+                .filter(signal -> signal.getLabel() != null && !signal.getLabel().isBlank())
+                .toList();
+        if (signals.isEmpty()) return context("No additional client signal is available in this document.");
+        var signal = signals.get(Math.floorMod(index, signals.size()));
+        return fact(leadIn + signal.getLabel(), "signal_" + signal.getCategory().toLowerCase(Locale.ROOT));
     }
 
     private SourceBlockSeed interpretation(String content, String... factIds) {
