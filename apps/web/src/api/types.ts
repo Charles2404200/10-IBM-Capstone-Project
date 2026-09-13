@@ -199,6 +199,7 @@ export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
 export type EvidenceOrigin = 'SCENARIO_CURATED' | 'AI_SYNTHESIZED' | 'USER_SUPPLIED' | 'MEETING_DISCOVERY'
 export type EvidenceVerificationStatus = 'VERIFIED' | 'CORROBORATED' | 'UNVERIFIED' | 'CONTRADICTED'
+export type ReasoningLane = 'SYMPTOM' | 'LIKELY_CAUSE' | 'STAKEHOLDER_CONSTRAINT' | 'BUSINESS_IMPACT' | 'OPEN_QUESTION'
 
 export interface ResearchEvidence {
   id: string
@@ -213,6 +214,7 @@ export interface ResearchEvidence {
   occurredOn: string | null
   confidence: ConfidenceLevel
   relevanceScore: number
+  reasoningLane: ReasoningLane | null
   sequenceNo: number
   supportingEvidenceIds: string[]
   createdAt: string
@@ -229,6 +231,7 @@ export interface SaveResearchPayload {
   occurredOn?: string
   confidence?: ConfidenceLevel
   relevanceScore?: number
+  reasoningLane?: ReasoningLane
   supportingEvidenceIds?: string[]
 }
 
@@ -254,6 +257,16 @@ export interface ResearchArtifact {
   allowedFactKeys: string[]
   correlatesWithEvidence: string[]
   relevanceRationale: string
+  blocks: ResearchSourceBlock[]
+}
+
+export type ResearchSourceBlockType = 'PARAGRAPH' | 'QUOTE' | 'METRIC' | 'CAPTION'
+
+export interface ResearchSourceBlock {
+  id: string
+  type: ResearchSourceBlockType
+  content: string
+  attribution: string | null
 }
 
 /** Requirements checklist gating "Proceed to Outreach" — mirrors backend `ResearchGateStatus`. */
@@ -777,6 +790,18 @@ export interface RevealRule {
 export interface ScenarioAuthoringConfig {
   canonicalFacts: CanonicalFact[]
   revealRules: RevealRule[]
+  researchSources: ResearchSource[]
+}
+
+export interface ResearchSource {
+  id: string
+  title: string
+  sourceType: string
+  summary: string
+  evidenceType: EvidenceType
+  confidence: ConfidenceLevel
+  relevanceScore: number
+  blocks: ResearchSourceBlock[]
 }
 
 export interface ScenarioPublishReadiness {

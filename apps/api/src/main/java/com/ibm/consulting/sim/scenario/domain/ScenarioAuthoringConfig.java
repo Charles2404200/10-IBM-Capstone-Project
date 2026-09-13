@@ -8,10 +8,12 @@ import java.util.List;
 import java.util.Set;
 
 /** Structured, versioned truth and reveal configuration owned by a scenario revision. */
-public record ScenarioAuthoringConfig(List<CanonicalFact> canonicalFacts, List<RevealRule> revealRules) {
+public record ScenarioAuthoringConfig(List<CanonicalFact> canonicalFacts, List<RevealRule> revealRules,
+                                      List<ResearchSource> researchSources) {
     public ScenarioAuthoringConfig {
         canonicalFacts = canonicalFacts == null ? List.of() : List.copyOf(canonicalFacts);
         revealRules = revealRules == null ? List.of() : List.copyOf(revealRules);
+        researchSources = researchSources == null ? List.of() : List.copyOf(researchSources);
         Set<String> ids = new HashSet<>();
         for (CanonicalFact fact : canonicalFacts) {
             if (!ids.add(fact.id())) throw new InvalidScenarioAuthoringConfigException("Canonical fact ids must be unique");
@@ -20,9 +22,17 @@ public record ScenarioAuthoringConfig(List<CanonicalFact> canonicalFacts, List<R
         for (RevealRule rule : revealRules) {
             if (!targets.add(rule.target())) throw new InvalidScenarioAuthoringConfigException("Reveal targets must be unique");
         }
+        Set<String> sourceIds = new HashSet<>();
+        for (ResearchSource source : researchSources) {
+            if (!sourceIds.add(source.id())) throw new InvalidScenarioAuthoringConfigException("Research source ids must be unique");
+        }
     }
 
-    public static ScenarioAuthoringConfig empty() { return new ScenarioAuthoringConfig(List.of(), List.of()); }
+    public ScenarioAuthoringConfig(List<CanonicalFact> canonicalFacts, List<RevealRule> revealRules) {
+        this(canonicalFacts, revealRules, List.of());
+    }
+
+    public static ScenarioAuthoringConfig empty() { return new ScenarioAuthoringConfig(List.of(), List.of(), List.of()); }
 
     /** Legacy-safe reveal defaults used for seeded scenarios without an authoring config. */
     public static ScenarioAuthoringConfig defaults() {
@@ -32,7 +42,7 @@ public record ScenarioAuthoringConfig(List<CanonicalFact> canonicalFacts, List<R
                 new RevealRule(RevealTarget.TECHNOLOGY_STACK, Set.of(EvidenceType.TECHNOLOGY_INDICATOR), 1),
                 new RevealRule(RevealTarget.BUDGET_SIGNAL, Set.of(EvidenceType.FINANCIAL_SIGNAL), 1),
                 new RevealRule(RevealTarget.POTENTIAL_VALUE,
-                        Set.of(EvidenceType.STAKEHOLDER_PROFILE, EvidenceType.FINANCIAL_SIGNAL), 2)));
+                        Set.of(EvidenceType.STAKEHOLDER_PROFILE, EvidenceType.FINANCIAL_SIGNAL), 2)), List.of());
     }
 
     public RevealRule ruleFor(RevealTarget target) {

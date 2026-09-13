@@ -20,6 +20,7 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ResearchSource;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.slf4j.Logger;
@@ -75,30 +76,22 @@ public class ResearchIntelligenceService {
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
         Scenario scenario = loadScenario(engagement);
         ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
-        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, scenario, type);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
         String cacheKey = cacheKey(lead, scenario, type, discovered, profile);
-        try {
-            List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
-            if (cached != null) {
-                return cached;
-            }
-            ClientIntelligenceResponseParser parser = new ClientIntelligenceResponseParser(objectMapper, facts, type);
-            List<ResearchArtifactResponse> artifacts = aiOrchestrationService.execute(
-                    "client_intelligence",
-                    engagementId,
-                    buildPrompt(lead, engagement, scenario, type, facts, discovered, null, profile),
-                    1,
-                    parser,
-                    () -> templateGenerate(lead, scenario, type, profile, authoringConfig));
-            List<ResearchArtifactResponse> filtered = removeDuplicates(shapeForDifficulty(lead, type, artifacts, profile), discovered);
-            cacheArtifacts(cacheKey, filtered);
-            return filtered;
-        } catch (RuntimeException e) {
-            log.warn("Client intelligence AI path failed for engagement {} and type {}; using scenario-safe fallback",
-                    engagementId, type, e);
-            return removeDuplicates(templateGenerate(lead, scenario, type, profile, authoringConfig), discovered);
+        List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
+        if (cached != null) {
+            return cached;
         }
+        List<ResearchArtifactResponse> sources = authoringConfig.researchSources().stream()
+                .filter(source -> source.evidenceType() == type)
+                .map(this::toArtifact)
+                .toList();
+        if (sources.isEmpty()) {
+            sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
+        }
+        List<ResearchArtifactResponse> filtered = removeDuplicates(sources, discovered);
+        cacheArtifacts(cacheKey, filtered);
+        return filtered;
     }
 
     @SuppressWarnings("unchecked")
@@ -147,6 +140,13 @@ public class ResearchIntelligenceService {
                 .forEach(fact -> withAuthoredFacts.add(artifact("author-" + fact.id(), fact.label(), "Scenario-approved source",
                         fact.value(), type, ConfidenceLevel.HIGH, fact.id())));
         return shapeForDifficulty(lead, type, withAuthoredFacts, profile);
+    }
+
+    private ResearchArtifactResponse toArtifact(ResearchSource source) {
+        return new ResearchArtifactResponse("source-" + source.id(), source.title(), source.sourceType(), source.summary(),
+                source.evidenceType().name(), source.confidence().name(), EvidenceOrigin.SCENARIO_CURATED.name(),
+                LocalDate.now().minusDays(14), source.relevanceScore(), List.of("source-" + source.id()), List.of(),
+                "Assess this source against the client problem before using it in your case.", source.effectiveBlocks());
     }
 
     private List<ResearchArtifactResponse> removeDuplicates(List<ResearchArtifactResponse> artifacts,
@@ -358,7 +358,7 @@ public class ResearchIntelligenceService {
                     .formatted(lead.getIndustry());
             shaped.add(new ResearchArtifactResponse("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
                     title, "Controlled market context", summary, type.name(), ConfidenceLevel.LOW.name(),
-                    EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(7 + index),
+                    EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(7 + index),
                     ambiguity ? 25 : 15,
                     List.of("public_description"), List.of(),
                     "Context only: test relevance against client evidence before adding it to the evidence board."));
@@ -437,7 +437,7 @@ public class ResearchIntelligenceService {
     private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
                                               EvidenceType type, ConfidenceLevel confidence, String factKey) {
         return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
-                EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
+                EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
                 "Generated from scenario-approved facts only; learner must decide whether it is relevant.");
     }
 

@@ -1358,6 +1358,135 @@ $accent-blue-dark: #0043ce;
   .findingsGrid, .evidenceGrid { grid-template-columns: 1fr; }
 }
 
+.sourceDocument {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-top: 4px solid $accent-blue;
+  margin: 0;
+  max-height: 28rem;
+  overflow-y: auto;
+  padding: $spacing-06;
+  user-select: text;
+}
+
+.sourceDocumentHeader {
+  align-items: flex-start;
+  border-bottom: 1px solid $border-subtle;
+  display: flex;
+  gap: $spacing-04;
+  justify-content: space-between;
+  margin-bottom: $spacing-05;
+  padding-bottom: $spacing-04;
+
+  h3 {
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+}
+
+.sourceDocumentMeta,
+.sourceTemplateLabel,
+.sourceCaption,
+.selectionInstruction {
+  color: $text-secondary;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.sourceTemplateLabel {
+  border-left: 3px solid #8a3ffc;
+  margin: 0 0 $spacing-04;
+  padding-left: $spacing-03;
+  text-transform: uppercase;
+}
+
+.sourceDocumentBody {
+  color: $text-primary;
+  font-size: 1rem;
+  line-height: 1.6;
+
+  p { margin: 0 0 $spacing-04; }
+
+  blockquote {
+    border-left: 3px solid $accent-blue;
+    margin: $spacing-05 0;
+    padding: $spacing-03 $spacing-05;
+
+    cite {
+      color: $text-secondary;
+      display: block;
+      font-size: 0.8125rem;
+      font-style: normal;
+      margin-top: $spacing-03;
+    }
+  }
+}
+
+.sourceMetric {
+  background: #edf5ff;
+  border-left: 3px solid $accent-blue;
+  font-weight: 600;
+  margin: $spacing-04 0;
+  padding: $spacing-04;
+
+  small { color: $text-secondary; display: block; font-weight: 400; margin-top: $spacing-02; }
+}
+
+.dossierStrip {
+  align-items: center;
+  background: #f4f4f4;
+  display: flex;
+  gap: $spacing-04;
+  margin-bottom: $spacing-05;
+  padding: $spacing-04;
+
+  > span {
+    align-items: center;
+    background: #0f62fe;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    font-weight: 600;
+    height: 2.5rem;
+    justify-content: center;
+    width: 2.5rem;
+  }
+
+  strong, p { margin: 0; }
+  p { color: $text-secondary; font-size: 0.8125rem; margin-top: $spacing-02; }
+}
+
+.selectionInstruction {
+  background: #fff8e1;
+  border-left: 3px solid #f1c21b;
+  margin: $spacing-05 0 0;
+  padding: $spacing-03 $spacing-04;
+}
+
+.selectionToolbar,
+.selectedEvidencePreview {
+  background: #f6f2ff;
+  border: 1px solid #d4bbff;
+  padding: $spacing-04;
+}
+
+.selectionToolbar {
+  align-items: center;
+  display: flex;
+  gap: $spacing-03;
+
+  span { color: $text-secondary; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.selectedEvidencePreview p:last-child { line-height: 1.5; margin: 0; }
+
+.sourceAssessmentGrid {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 // Desktop research canvas. The workflow HUD consumes the space above this
 // page, so the canvas must use the remaining viewport rather than independently
 // sizing the header and each work column. Results and evidence are paged in the

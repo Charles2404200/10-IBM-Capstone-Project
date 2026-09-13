@@ -95,6 +95,7 @@ public class LeadService {
                                                 EvidenceOrigin origin, EvidenceVerificationStatus verificationStatus,
                                                 LocalDate occurredOn, ConfidenceLevel confidence,
                                                 Integer relevanceScore,
+                                                ReasoningLane reasoningLane,
                                                 Set<UUID> supportingEvidenceIds) {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
@@ -119,6 +120,7 @@ public class LeadService {
                 .occurredOn(occurredOn)
                 .confidence(confidence)
                 .relevanceScore(normalizeRelevance(origin, relevanceScore))
+                .reasoningLane(reasoningLane)
                 .sequenceNo(nextSequence)
                 .supportingEvidenceIds(validatedSupportingIds)
                 .build();

@@ -20,6 +20,7 @@ public record ResearchEvidenceSummary(
         LocalDate occurredOn,
         String confidence,
         int relevanceScore,
+        String reasoningLane,
         int sequenceNo,
         Set<UUID> supportingEvidenceIds,
         Instant createdAt) {
@@ -30,6 +31,7 @@ public record ResearchEvidenceSummary(
                 e.getSourceUrl(), e.getSourceTitle(), e.getOrigin().name(), e.getVerificationStatus().name(),
                 e.getOccurredOn(), e.getConfidence().name(),
                 e.getRelevanceScore(),
+                e.getReasoningLane() == null ? null : e.getReasoningLane().name(),
                 e.getSequenceNo(), e.getSupportingEvidenceIds(), e.getCreatedAt());
     }
 }

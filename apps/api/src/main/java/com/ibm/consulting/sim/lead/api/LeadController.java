@@ -15,6 +15,7 @@ import com.ibm.consulting.sim.lead.domain.ConfidenceLevel;
 import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
 import com.ibm.consulting.sim.lead.domain.EvidenceVerificationStatus;
 import com.ibm.consulting.sim.lead.domain.EvidenceType;
+import com.ibm.consulting.sim.lead.domain.ReasoningLane;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -56,6 +57,7 @@ public class LeadController {
             LocalDate occurredOn,
             ConfidenceLevel confidence,
             @Min(0) @Max(100) Integer relevanceScore,
+            ReasoningLane reasoningLane,
             Set<UUID> supportingEvidenceIds) {}
 
     record GenerateResearchRequest(@NotNull EvidenceType evidenceType) {}
@@ -105,6 +107,7 @@ public class LeadController {
                 req.occurredOn(),
                 req.confidence() != null ? req.confidence() : ConfidenceLevel.MEDIUM,
                 req.relevanceScore(),
+                req.reasoningLane(),
                 req.supportingEvidenceIds());
     }
 
