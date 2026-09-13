@@ -80,8 +80,10 @@
 .coachingCallout { display: grid; gap: $spacing-02; margin-top: $spacing-05; padding: $spacing-04; border-left: 3px solid $interactive; background: $layer-01; color: $text-secondary; line-height: 1.4; @include type-style('body-compact-01'); }
 .coachingCallout strong { color: $text-primary; }
 
-.clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel, .briefReview, .successPanel, .evidenceStrip { border: 1px solid $border-subtle; border-radius: 8px; background: $layer-01; }
+.clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel, .briefReview, .successPanel, .evidenceStrip, .meetingSummary { border: 1px solid $border-subtle; border-radius: 8px; background: $layer-01; }
+.meetingOutcome { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); gap: $spacing-04; }
 .clientResponse { padding: $spacing-04 $spacing-05; border: 1px solid #b9d7ff; border-left: 4px solid $interactive; border-radius: 8px; background: #f7faff; box-shadow: 0 1px 2px rgb(15 38 71 / 6%); }
+.clientResponseExpanded { display: grid; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; }
 .responseClientIdentity { display: flex; align-items: center; gap: $spacing-03; padding-bottom: $spacing-03; border-bottom: 1px solid #d0e2ff; }
 .responseClientIdentity strong, .responseClientIdentity span { display: block; }
 .responseClientIdentity strong { @include type-style('body-compact-01'); }
@@ -90,8 +92,13 @@
 .clientResponseHeading h2 { margin: 0; @include type-style('heading-compact-02'); }
 .responseActions { display: flex; align-items: center; gap: $spacing-02; flex: 0 0 auto; }
 .clientResponse blockquote { margin: $spacing-03 0 0; padding: 0 0 0 $spacing-03; border-left: 2px solid #a6c8ff; color: $text-primary; line-height: 1.38; white-space: pre-wrap; @include type-style('body-compact-01'); }
+.clientResponseExpanded blockquote { min-height: 0; overflow-y: auto; padding-right: $spacing-03; }
 .responseGuidance { display: grid; gap: $spacing-02; margin-top: $spacing-03; padding: $spacing-03 $spacing-04; border-radius: 5px; background: $layer-01; color: $text-secondary; @include type-style('label-01'); }
 .responseGuidance strong { color: $text-primary; @include type-style('label-01'); }
+.meetingSummary { display: grid; gap: $spacing-03; padding: $spacing-04 $spacing-05; border-top: 3px solid $support-success; }
+.meetingSummary h2 { margin: 0; @include type-style('heading-compact-02'); }
+.meetingSummary p:not(.eyebrow) { margin: 0; color: $text-secondary; line-height: 1.45; @include type-style('body-compact-01'); }
+.meetingSummary :global(.cds--btn) { justify-self: start; margin-left: -$spacing-03; }
 .clientOverview { min-height: 10.25rem; }
 .clientOverview, .latestReply, .checklistPanel, .nextActionPanel, .hintPanel { padding: $spacing-04 $spacing-05; }
 .overviewHeading, .replyHeading, .stripHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
@@ -287,7 +294,11 @@
   .clientDetails div { grid-template-columns: 5.5rem minmax(0, 1fr); }
   .clientResponse { padding: $spacing-03 $spacing-04; }
   .clientResponse blockquote { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 5; }
+  .clientResponse.clientResponseExpanded blockquote { display: block; height: 100%; margin-bottom: 0; overflow-y: auto; -webkit-line-clamp: unset; }
   .responseGuidance { margin-top: $spacing-02; padding: $spacing-02 $spacing-03; }
+  .meetingOutcome { gap: $spacing-03; }
+  .meetingOutcome .successPanel { padding: $spacing-04; }
+  .meetingSummary { padding: $spacing-03 $spacing-04; }
   .clientReply { -webkit-line-clamp: 3; }
   .checklistRow { padding-top: 2px; }
   .nextActionPanel, .hintPanel { display: none; }
