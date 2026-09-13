@@ -60,6 +60,11 @@ public class ResearchIntelligenceService {
             .maximumSize(500)
             .expireAfterWrite(Duration.ofMinutes(10))
             .build();
+    /** Hot engagement cache avoids database round-trips when learners revisit Research. */
+    private final Cache<String, ResearchSourceDeckResponse> hotDeckCache = Caffeine.newBuilder()
+            .maximumSize(1_000)
+            .expireAfterAccess(Duration.ofMinutes(5))
+            .build();
     private final DifficultyProfileService difficultyProfileService;
     private final ScenarioRepository scenarioRepository;
     private final ScenarioAuthoringConfigService authoringConfigService;
@@ -88,14 +93,22 @@ public class ResearchIntelligenceService {
     /** Opens all learner-facing document lanes concurrently and caches the assembled deck. */
     @Transactional(readOnly = true)
     public ResearchSourceDeckResponse generateDeck(UUID engagementId, UUID userId) {
+        String hotDeckKey = "deck:hot:" + engagementId + ":" + userId;
+        ResearchSourceDeckResponse hotCached = hotDeckCache.getIfPresent(hotDeckKey);
+        if (hotCached != null) {
+            return hotCached;
+        }
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
         Lead lead = loadLead(engagement);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
         Scenario scenario = loadScenario(engagement);
+        ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
-        String deckKey = "deck:" + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile);
+        String deckKey = "deck:" + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile)
+                + ":" + Integer.toHexString(authoringConfig.hashCode());
         ResearchSourceDeckResponse cached = completeDeckCache.getIfPresent(deckKey);
         if (cached != null) {
+            hotDeckCache.put(hotDeckKey, cached);
             return cached;
         }
 
@@ -106,14 +119,23 @@ public class ResearchIntelligenceService {
                 EvidenceType.TECHNOLOGY_INDICATOR);
         Map<EvidenceType, CompletableFuture<List<ResearchArtifactResponse>>> futures = new java.util.LinkedHashMap<>();
         for (EvidenceType lane : lanes) {
-            futures.put(lane, CompletableFuture.supplyAsync(() -> generate(engagementId, userId, lane), researchSourceDeckExecutor));
+            futures.put(lane, CompletableFuture.supplyAsync(
+                    () -> generateImmediately(lead, scenario, lane, profile, authoringConfig, discovered),
+                    researchSourceDeckExecutor));
         }
-        CompletableFuture.allOf(futures.values().toArray(CompletableFuture[]::new)).join();
 
         Map<String, List<ResearchArtifactResponse>> sourcesByType = new java.util.LinkedHashMap<>();
-        futures.forEach((lane, future) -> sourcesByType.put(lane.name(), future.join()));
+        futures.forEach((lane, future) -> {
+            try {
+                sourcesByType.put(lane.name(), future.join());
+            } catch (RuntimeException exception) {
+                log.error("Research deck lane {} failed; returning the deterministic scenario pack", lane, exception);
+                sourcesByType.put(lane.name(), templateGenerate(lead, scenario, lane, profile, authoringConfig));
+            }
+        });
         ResearchSourceDeckResponse response = new ResearchSourceDeckResponse(sourcesByType);
         completeDeckCache.put(deckKey, response);
+        hotDeckCache.put(hotDeckKey, response);
         return response;
     }
 
@@ -125,7 +147,20 @@ public class ResearchIntelligenceService {
         Scenario scenario = loadScenario(engagement);
         ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
-        String cacheKey = cacheKey(lead, scenario, type, discovered, profile);
+        return generateImmediately(lead, scenario, type, profile, authoringConfig, discovered);
+    }
+
+    /**
+     * Research is a reading workflow, so source availability cannot depend on an
+     * external model. The first response is generated from canonical scenario facts
+     * and cached; provider enrichment remains outside this latency-critical path.
+     */
+    private List<ResearchArtifactResponse> generateImmediately(Lead lead, Scenario scenario, EvidenceType type,
+                                                                DifficultyProfile profile,
+                                                                ScenarioAuthoringConfig authoringConfig,
+                                                                List<ResearchEvidence> discovered) {
+        String cacheKey = cacheKey(lead, scenario, type, discovered, profile)
+                + ":" + Integer.toHexString(authoringConfig.hashCode());
         List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
         if (cached != null) {
             return cached;
@@ -135,11 +170,10 @@ public class ResearchIntelligenceService {
                 .map(this::toArtifact)
                 .toList();
         if (sources.isEmpty() || sources.stream().anyMatch(source -> !hasGroundedBlocks(source.blocks()))) {
-            // The document surface is AI-authored from the scenario's canonical
-            // facts. Legacy source packs without block-level fact provenance are
-            // intentionally bypassed: otherwise old coaching copy can masquerade
-            // as learner-selectable evidence.
-            sources = synthesizeSourceDeck(engagementId, engagement, lead, scenario, type, profile, authoringConfig, discovered);
+            // Legacy packs without block-level fact provenance cannot masquerade as
+            // evidence. The structured fallback is deterministic and immediately
+            // available from the same canonical scenario facts.
+            sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
         } else {
             // Authored source packs stay canonical, while difficulty still supplies
             // bounded low-reliability context that learners must assess critically.
