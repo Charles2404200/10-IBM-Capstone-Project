@@ -526,24 +526,24 @@ public class ResearchIntelligenceService {
 
     private List<ResearchArtifactResponse> companyNews(Lead lead, Scenario scenario) {
         List<ResearchArtifactResponse> artifacts = new ArrayList<>();
-        artifacts.add(artifact("company-news-1", "Operating situation at " + lead.getCompanyName(),
-                "Scenario-approved briefing", scenario.getBusinessSituation(),
+        artifacts.add(artifact("company-news-1", lead.getCompanyName() + " reviews the operating conditions behind " + conciseSymptom(scenario),
+                "Scenario-grounded operations analysis", scenario.getObservableSymptom(),
                 EvidenceType.COMPANY_NEWS, ConfidenceLevel.HIGH, "business_situation", blocks("company-news-1",
                         scenario.getBusinessSituation(),
-                        "The current observable signal is: " + scenario.getObservableSymptom(),
+                        "The visible operating signal is clear: " + scenario.getObservableSymptom(),
                         availableSignalsParagraph(lead),
-                        "The consulting mandate is to " + scenario.getConsultingMandate(),
+                        "For the consulting team, the immediate task is to " + lowerCaseFirst(scenario.getConsultingMandate()),
                         unknownsParagraph(scenario),
-                        "This briefing establishes the business frame, but it does not prove a root cause, identify a buyer, or validate a solution. A strong evidence note should preserve that distinction.")));
-        artifacts.add(artifact("company-news-2", "Operating response under review at " + lead.getCompanyName(),
-                "Industry press", "A scenario-backed account of how the observable operating signal affects the client mandate.",
+                        "This analysis identifies a client-specific operating issue. It does not prove root cause or approve a solution; use it to form a precise question for the client.")));
+        artifacts.add(artifact("company-news-2", lead.getCompanyName() + " faces a decision point on " + conciseMandate(scenario),
+                "Client operations desk", "A client-specific review of the decision pressure, operating signal and evidence still needed.",
                 EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure", blocks("company-news-2",
-                        "The operating situation is described as: " + scenario.getBusinessSituation(),
-                        "The visible signal that deserves investigation is: " + scenario.getObservableSymptom(),
+                        "The decision context is shaped by " + scenario.getBusinessSituation(),
+                        "The signal requiring investigation is " + lowerCaseFirst(scenario.getObservableSymptom()),
                         availableSignalsParagraph(lead),
-                        "For the client, the immediate test is whether this signal is causing a material operational, customer, risk or financial consequence. The source alone cannot establish that consequence.",
-                        "Any response needs to support this mandate: " + scenario.getConsultingMandate(),
-                        "Look for a direct link between the visible signal and a client-specific consequence. Without that link, this source is useful context rather than decisive evidence.",
+                        "The immediate research test is whether that signal is creating a material service, reliability, cost or risk consequence for this client. The source does not establish that consequence by itself.",
+                        "A defensible next step needs to support this mandate: " + lowerCaseFirst(scenario.getConsultingMandate()),
+                        "Look for an explicit connection between the operating signal, the stakeholder who experiences it and the measure that would show improvement.",
                         unknownsParagraph(scenario))));
         return artifacts;
     }
@@ -687,12 +687,31 @@ public class ResearchIntelligenceService {
 
     private String availableSignalsParagraph(Lead lead) {
         List<String> signals = lead.getSignals().stream()
-                .map(signal -> signal.getCategory() + ": " + signal.getLabel())
+                .map(signal -> signal.getLabel())
                 .filter(value -> !value.isBlank())
                 .toList();
         return signals.isEmpty()
-                ? "No additional scenario-approved signal is available in this source. Treat the remaining question as open."
-                : "Scenario-approved signals available for cross-checking: " + String.join("; ", signals) + ".";
+                ? "No additional client signal is available in this source. Treat the remaining question as open."
+                : "The available client signals point to a connected research trail: " + String.join(" ", signals) + ".";
+    }
+
+    private String conciseSymptom(Scenario scenario) {
+        return truncateAtWord(scenario.getObservableSymptom(), 88);
+    }
+
+    private String conciseMandate(Scenario scenario) {
+        return truncateAtWord(scenario.getConsultingMandate(), 82);
+    }
+
+    private String truncateAtWord(String value, int maximumLength) {
+        if (value == null || value.isBlank() || value.length() <= maximumLength) return valueOr(value, "client operations");
+        int boundary = value.lastIndexOf(' ', maximumLength - 3);
+        return (boundary > 0 ? value.substring(0, boundary) : value.substring(0, maximumLength - 3)).trim() + "...";
+    }
+
+    private String lowerCaseFirst(String value) {
+        if (value == null || value.isBlank()) return "validate the client problem before proposing a response";
+        return Character.toLowerCase(value.charAt(0)) + value.substring(1);
     }
 
     private int relevanceFor(ConfidenceLevel confidence) {
