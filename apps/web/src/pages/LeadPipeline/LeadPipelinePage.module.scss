@@ -1,0 +1,79 @@
+.leadCard {
+  padding: 1.25rem;
+}
+
+.leadCardSelected {
+  border: 1px solid #0f62fe;
+}
+
+.leadCardHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.leadCompanyName {
+  color: #161616;
+}
+
+.difficultyTag {
+  min-width: 4.5rem;
+  justify-content: center;
+}
+
+.leadDescription {
+  color: #525252;
+  font-size: 0.875rem;
+}
+
+.signalTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.signalTag {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.leadNote {
+  color: #525252;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.scenarioTile {
+  background: #f4f4f4;
+  padding: 1.25rem;
+}
+
+.difficultyDetails {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.difficultyLabel {
+  color: #525252;
+  font-size: 0.75rem;
+  display: block;
+}
+
+.difficultyStars {
+  color: #161616;
+}
+
+.leadList {
+  max-height: 32rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.leadColumn {
+  margin-bottom: 1.5rem;
+}
+
+.pageGrid {
+  padding: 1rem 2rem 2rem;
+}

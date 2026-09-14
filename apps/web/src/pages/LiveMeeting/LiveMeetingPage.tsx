@@ -178,10 +178,14 @@ export default function LiveMeetingPage() {
     const transcriptViewport = transcriptRef.current
     if (!transcriptViewport) return
 
-    transcriptViewport.scrollTo({
-      top: transcriptViewport.scrollHeight,
-      behavior: 'smooth',
-    })
+    if (typeof transcriptViewport.scrollTo === 'function') {
+      transcriptViewport.scrollTo({
+        top: transcriptViewport.scrollHeight,
+        behavior: 'smooth',
+      })
+    } else {
+      transcriptViewport.scrollTop = transcriptViewport.scrollHeight
+    }
   }, [turns.length, streamingText])
 
   useEffect(() => {
@@ -240,32 +244,33 @@ export default function LiveMeetingPage() {
   return (
     <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
     <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
-      <Grid fullWidth className={styles.headerGrid}>
+      <Grid fullWidth narrow className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
             <div>
-              <p className={styles.eyebrow}>Live discovery</p>
               <Heading>Live Client Meeting</Heading>
             </div>
           </div>
         </Column>
       </Grid>
 
-      <Grid fullWidth className={styles.workspaceGrid}>
+      <Grid fullWidth narrow className={styles.workspaceGrid}>
         <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
           <section className={styles.conversationPanel} aria-label="Live client conversation">
-            <div className={`${styles.transcriptViewport} objective-transcript`} ref={transcriptRef}>
-              {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
-              {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
-              {pendingMessage && !pendingIsPersisted && (
-                <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />
-              )}
-              {isStreaming && streamingText && (
-                <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
-              )}
-            </div>
+            {!isCompleted && (
+              <div className={`${styles.transcriptViewport} objective-transcript ${turns.length === 0 && !pendingMessage && !streamingText ? styles.emptyTranscriptViewport : ''}`} ref={transcriptRef} >
+                {turns.length === 0 && !pendingMessage && (<p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>)}
+                {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
+                {pendingMessage && !pendingIsPersisted && (
+                  <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />
+                )}
+                {isStreaming && streamingText && (
+                  <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
+                )}
+              </div>
+            )}
 
-            {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
+            {error && !isCompleted && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
             {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
               <section className={`${styles.guidedComposer} objective-compose`} aria-label="Guided response choices">
