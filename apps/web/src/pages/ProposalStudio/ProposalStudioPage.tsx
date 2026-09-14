@@ -13,7 +13,7 @@ import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
-const SOURCES_PER_PAGE = 3
+const SOURCES_PER_PAGE = 2
 const EDITOR_ITEMS_PER_PAGE = 4
 const PROPOSAL_OBJECTIVES = [
   {
@@ -76,14 +76,17 @@ export default function ProposalStudioPage() {
       <div className={styles.canvas}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Evidence-grounded proposal</p>
           <Heading>{PHASE_LABEL.PROPOSAL}</Heading>
           <p className={styles.subtitle}>Build a concise recommendation from client evidence. The coach reviews your reasoning; it never writes the proposal for you.</p>
         </div>
         <div className={`${styles.headerActions} objective-submit`}>
           {isReviewing ? <InlineLoading description="Reviewing proposal" /> : isSubmitting ? <InlineLoading description="Submitting to client" /> : <SaveStatus state={studio.saveState} />}
-          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={isReviewing || isSubmitting || studio.saveDraft.isPending}>{isReviewing ? 'Reviewing proposal' : 'Review proposal'}</Button>
-          <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={isSubmitting || isReviewing || studio.saveDraft.isPending}>{isSubmitting ? 'Submitting to client' : 'Submit to client'}</Button>
+          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={isReviewing || isSubmitting || studio.saveDraft.isPending}>
+            {isReviewing ? 'Reviewing proposal' : 'Review proposal'}
+          </Button>
+          <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={isSubmitting || isReviewing || studio.saveDraft.isPending}>
+            {isSubmitting ? 'Submitting to client' : 'Submit to client'}
+          </Button>
         </div>
       </header>
 

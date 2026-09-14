@@ -70,6 +70,7 @@ $accent-blue-dark: #0043ce;
   align-items: flex-start;
   gap: $spacing-05;
   margin-bottom: $spacing-04;
+  margin-top: $spacing-04;
 }
 
 .nextActionPanel {
@@ -283,10 +284,10 @@ $accent-blue-dark: #0043ce;
 .actionButton {
   display: flex;
   align-items: center;
-  gap: $spacing-03;
+  gap: $spacing-02;
   width: 100%;
-  padding: $spacing-04;
-  margin-bottom: $spacing-03;
+  padding: $spacing-02 $spacing-03;
+  margin-bottom: $spacing-02;
   background: $layer-bg;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -318,8 +319,27 @@ $accent-blue-dark: #0043ce;
 }
 
 .actionButtonLabel {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
   min-width: 0;
+  width: 100%;
+
+  strong {
+    color: $text-primary;
+    font-size: 0.8125rem;
+  }
+
+  small {
+    color: $text-secondary;
+    display: block;
+    font-size: 0.6875rem;
+    line-height: 1.3;
+    overflow: visible;
+    white-space: normal;
+    width: 100%;
+  }
 }
 
 .actionButtonCheck {
@@ -499,7 +519,7 @@ $accent-blue-dark: #0043ce;
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: $spacing-05;
 }
 
@@ -952,21 +972,43 @@ $accent-blue-dark: #0043ce;
   }
 }
 
+.mainAreaColumn,
 .workColumn {
   height: calc(100vh - 13.5rem);
   min-height: 0;
 }
 
+.mainArea {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 11.5rem;
+  gap: $spacing-04;
+  height: 100%;
+  min-height: 0;
+}
+
+.topRow {
+  display: flex;
+  gap: $spacing-04;
+  min-height: 0;
+  height: 100%;
+}
+
 .researchActions,
 .workspace,
 .decisionRail {
-  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
+.researchActions,
+.workspace {
+  height: 100%;
+}
+
 .researchActions {
+  flex: 0 0 15.5rem;
   padding: $spacing-04;
+  overflow: visible;
 
   h2 {
     color: $text-primary;
@@ -1023,9 +1065,12 @@ $accent-blue-dark: #0043ce;
 }
 
 .workspace {
-  display: grid;
-  gap: $spacing-04;
-  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .researchWorkspace,
@@ -1034,8 +1079,18 @@ $accent-blue-dark: #0043ce;
   border: 1px solid $border-subtle;
   border-radius: 6px;
   min-height: 0;
-  overflow: hidden;
   padding: $spacing-04;
+}
+
+.researchWorkspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.evidenceBoard {
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .workspaceHeading,
@@ -1068,10 +1123,10 @@ $accent-blue-dark: #0043ce;
 .researchMethod {
   background: #fcfcfc;
   border: 1px solid $border-subtle;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: $spacing-02;
-  grid-template-rows: auto auto 1fr auto;
-  height: 10.25rem;
+  min-height: 10.25rem;
   padding: $spacing-04;
 
   h3 {
@@ -1098,6 +1153,10 @@ $accent-blue-dark: #0043ce;
   align-items: end;
   display: flex;
   gap: $spacing-02;
+}
+
+.researchMethod > :global(.cds--btn) {
+  margin-top: auto;
 }
 
 .workspaceEmpty {
@@ -1134,7 +1193,14 @@ $accent-blue-dark: #0043ce;
   margin-top: $spacing-03;
 }
 
-.findingsGrid,
+.findingsGrid {
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: $spacing-03;
+  overflow: hidden;
+}
+
 .evidenceGrid {
   display: grid;
   gap: $spacing-03;
@@ -1147,15 +1213,11 @@ $accent-blue-dark: #0043ce;
   display: block;
 }
 
-.evidenceGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 .evidenceCard {
   border-left: 3px solid $accent-blue;
   display: flex;
   flex-direction: column;
-  height: 8.2rem;
+  height: 7.5rem;
   min-width: 0;
   overflow: hidden;
   padding: $spacing-03;
@@ -1225,6 +1287,8 @@ $accent-blue-dark: #0043ce;
 .pager {
   color: $text-secondary;
   font-size: 0.6875rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pager :global(.cds--btn) {
@@ -1251,20 +1315,19 @@ $accent-blue-dark: #0043ce;
 .decisionRail {
   display: grid;
   gap: $spacing-04;
-  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  overflow: hidden;
+  grid-template-rows: auto auto;
+  align-content: start;
   padding: 0;
 }
 
 .hypothesisWorkspace,
 .researchGate {
-  min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: $spacing-04;
 }
 
 .hypothesisWorkspaceHeader {
-  margin-bottom: $spacing-03;
+  margin-bottom: $spacing-02;
 
   h3 { font-size: 0.9375rem; }
 }
@@ -1284,10 +1347,10 @@ $accent-blue-dark: #0043ce;
   display: -webkit-box;
   font-size: 0.75rem;
   line-height: 1.35;
-  margin-bottom: $spacing-03;
+  margin-bottom: $spacing-02;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .hypothesisMetaRow { font-size: 0.6875rem; }
@@ -1334,9 +1397,9 @@ $accent-blue-dark: #0043ce;
 
 @media (max-width: 1200px), (max-height: 840px) {
   .page { height: auto; min-height: calc(100vh - 3rem); overflow: visible; }
-  .workColumn { height: auto; }
+  .mainAreaColumn, .workColumn { height: auto; }
+  .mainArea, .topRow { height: auto; }
   .workspace, .researchActions, .decisionRail { height: auto; overflow: visible; }
-  .workspace { grid-template-rows: auto auto; }
   .researchWorkspace, .evidenceBoard, .hypothesisWorkspace, .researchGate { overflow: visible; }
 }
 
@@ -1346,6 +1409,8 @@ $accent-blue-dark: #0043ce;
   .readinessBand { grid-template-columns: repeat(2, 1fr); }
   .readinessTitle { grid-column: span 2; }
   .evidenceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .topRow { flex-direction: column; }
+  .researchActions { flex: 0 0 auto; }
 }
 
 @media (max-width: 671px) {
@@ -1356,6 +1421,10 @@ $accent-blue-dark: #0043ce;
   .readinessTitle { grid-column: auto; }
   .readinessBand .gateRequirement { border-left: 0; border-top: 1px solid $border-subtle; padding-left: 0; padding-top: $spacing-03; }
   .findingsGrid, .evidenceGrid { grid-template-columns: 1fr; }
+  .findingsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .findingsGrid .evidenceCard { height: auto; min-height: 7rem; }
+  .findingsGrid .evidenceTitle { -webkit-line-clamp: 2; }
+  .findingsGrid .evidenceNote { -webkit-line-clamp: 3;}
 }
 
 // Desktop research canvas. The workflow HUD consumes the space above this
@@ -1406,8 +1475,14 @@ $accent-blue-dark: #0043ce;
     padding: $spacing-03 $spacing-04;
   }
 
+  .mainAreaColumn,
   .workColumn {
     height: auto;
+    min-height: 0;
+  }
+
+  .mainArea {
+    height: 100%;
     min-height: 0;
   }
 
@@ -1425,9 +1500,9 @@ $accent-blue-dark: #0043ce;
   }
 
   .actionButton {
-    flex: 1 1 0;
+    flex: 0 0 auto;
     margin-bottom: $spacing-02;
-    min-height: 0;
+    min-height: 4.5rem;
     padding: $spacing-03;
   }
 
@@ -1435,15 +1510,18 @@ $accent-blue-dark: #0043ce;
     margin-bottom: 0;
   }
 
-  .workspace {
-    grid-template-rows: minmax(0, 1.12fr) minmax(0, 0.88fr);
-  }
-
-  .researchWorkspace,
-  .evidenceBoard {
+  .researchWorkspace {
     display: flex;
     flex-direction: column;
     padding: $spacing-03;
+  }
+
+  .evidenceBoard {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: $spacing-03;
+    overflow: hidden;
   }
 
   .researchMethods {
@@ -1451,7 +1529,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .researchMethod {
-    height: 7.5rem;
+    min-height: 7.5rem;
     padding: $spacing-03;
   }
 
@@ -1460,7 +1538,6 @@ $accent-blue-dark: #0043ce;
   // it a real layout height rather than letting its submit button escape into
   // the findings below.
   .researchContextForm .researchMethod {
-    height: auto;
     min-height: 10rem;
   }
 
@@ -1487,9 +1564,25 @@ $accent-blue-dark: #0043ce;
     margin-top: $spacing-02;
   }
 
+  .evidenceBoard .compactSectionHeader {
+    flex: 0 0 auto;
+    min-height: 2rem;
+    margin-bottom: $spacing-03;
+  }
+
+  .evidenceGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: 0 0 7.5rem;
+    height: 7.5rem;
+    min-height: 7.5rem;
+    overflow: hidden;
+  }
+
   .evidenceCard {
-    height: 5.5rem;
+    height: 7.5rem;
+    min-width: 0;
     padding: $spacing-03;
+    overflow: hidden;
   }
 
   .evidenceTitle {
@@ -1498,7 +1591,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .evidenceNote {
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
   }
 
   .decisionRail {
@@ -1528,4 +1621,3 @@ $accent-blue-dark: #0043ce;
     margin-top: $spacing-02 !important;
   }
 }
-
