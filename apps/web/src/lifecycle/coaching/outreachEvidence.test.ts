@@ -16,6 +16,7 @@ function evidence(overrides: Partial<ResearchEvidence>): ResearchEvidence {
     occurredOn: null,
     confidence: 'MEDIUM',
     relevanceScore: 50,
+    reasoningLane: null,
     sequenceNo: 1,
     supportingEvidenceIds: [],
     createdAt: '2026-01-01T00:00:00Z',
