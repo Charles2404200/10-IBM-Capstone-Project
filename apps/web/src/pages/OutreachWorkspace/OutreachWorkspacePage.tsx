@@ -170,7 +170,7 @@ function ClientResponseCard({
   onOpenHistory: () => void
 }) {
   return (
-    <section className={`${styles.clientResponse} ${expanded ? styles.clientResponseExpanded : ''}`} aria-label="Latest client response" aria-live="polite">
+    <section className={`${styles.clientResponse} ${expanded ? styles.clientResponseExpanded : ''} objective-client`} aria-label="Latest client response" aria-live="polite">
       <div className={styles.responseClientIdentity}>
         <div className={styles.clientMonogram}>{(companyName ?? 'C').slice(0, 1)}</div>
         <div>
@@ -569,7 +569,7 @@ export default function OutreachWorkspacePage() {
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
             {!meetingSecured && (
-              <section className={`${styles.evidenceStrip} objective-evidence`} aria-label="Evidence you can reference">
+              <section className={styles.evidenceStrip} aria-label="Available evidence">
                 <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
                 {evidenceForReference.length > 0 ? (
                   <div className={styles.evidenceCards}>

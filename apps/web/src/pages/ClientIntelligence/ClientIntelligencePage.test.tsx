@@ -120,13 +120,8 @@ describe('ClientIntelligencePage manual evidence dropdowns', () => {
     await user.click(screen.getByRole('button', { name: /Add source/i }))
     const modal = screen.getByRole('dialog', { name: 'Add a source to the evidence board', })
 
-    // selects a different evidence type from the default value
-    await user.click(within(modal).getByText('COMPANY NEWS'))
-    await user.click(await screen.findByRole('option', { name: 'STAKEHOLDER PROFILE' }),)
-
-    // selects a different confidence level from the default value
-    await user.click(within(modal).getByText('MEDIUM'))
-    await user.click(await screen.findByRole('option', { name: 'HIGH' }))
+    await user.selectOptions(within(modal).getByLabelText('Research area'), 'STAKEHOLDER_PROFILE')
+    await user.selectOptions(within(modal).getByLabelText('Reliability'), 'HIGH')
 
     // type finding mock data and submit
     await user.type(within(modal).getByLabelText('Finding'), 'Test finding.',)

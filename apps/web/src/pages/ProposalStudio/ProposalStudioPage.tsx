@@ -13,7 +13,7 @@ import { getProblemDetail } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
-const SOURCES_PER_PAGE = 3
+const SOURCES_PER_PAGE = 2
 const EDITOR_ITEMS_PER_PAGE = 4
 const PROPOSAL_OBJECTIVES = [
   {

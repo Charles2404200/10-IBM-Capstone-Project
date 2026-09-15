@@ -73,7 +73,7 @@ describe('UserManagementPage', () => {
 
     render(<UserManagementPage />)
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
 
   it('renders a paginated user directory with account verification state', () => {

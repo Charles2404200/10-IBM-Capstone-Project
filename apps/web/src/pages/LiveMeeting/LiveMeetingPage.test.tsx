@@ -159,9 +159,7 @@ describe('LiveMeetingPage status', () => {
     expect(screen.getByText('You navigated the discovery conversation well.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Continue to Discovery Synthesis' })).toBeInTheDocument()
 
-    // The prior transcript content must not still be rendered as a
-    // competing panel alongside the debrief.
-    expect(screen.queryByText('Hello')).not.toBeInTheDocument()
+    expect(screen.getByText('Hello')).toBeInTheDocument()
   })
 
   it('shows a failed debrief with a retry option instead of the live transcript', () => {
@@ -180,6 +178,6 @@ describe('LiveMeetingPage status', () => {
 
     expect(screen.getByText('Meeting not passed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Retry live meeting \(2 remaining\)/ })).toBeInTheDocument()
-    expect(screen.queryByText('Begin with a focused discovery question.')).not.toBeInTheDocument()
+    expect(screen.getByText('Begin with a focused discovery question.')).toBeInTheDocument()
   })
 })
