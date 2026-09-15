@@ -6,6 +6,8 @@ import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.identity.domain.UserAlreadyExistsException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
+import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -30,12 +32,14 @@ public class AdminUserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationService emailVerificationService;
+    private final AuditLogger auditLogger;
 
     public AdminUserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                            EmailVerificationService emailVerificationService) {
+                            EmailVerificationService emailVerificationService, AuditLogger auditLogger) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailVerificationService = emailVerificationService;
+        this.auditLogger = auditLogger;
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +68,7 @@ public class AdminUserService {
         if (!skipEmailVerification) {
             emailVerificationService.resend(user.getEmail());
         }
+        auditLogger.recordAdmin(AuditAction.ADMIN_USER_CREATED, "USER", user.getId().toString(), normalisedEmail);
         return UserSummary.from(user);
     }
 
@@ -76,6 +81,7 @@ public class AdminUserService {
         User user = findUser(userId);
         user.changeRole(newRole);
         userRepository.save(user);
+        auditLogger.recordAdmin(AuditAction.ADMIN_USER_ROLE_CHANGED, "USER", userId.toString(), newRole.name());
         return UserSummary.from(user);
     }
 
@@ -88,6 +94,7 @@ public class AdminUserService {
         User user = findUser(userId);
         user.deactivate();
         userRepository.save(user);
+        auditLogger.recordAdmin(AuditAction.ADMIN_USER_DEACTIVATED, "USER", userId.toString());
         return UserSummary.from(user);
     }
 
@@ -100,6 +107,7 @@ public class AdminUserService {
         User user = findUser(userId);
         user.reactivate();
         userRepository.save(user);
+        auditLogger.recordAdmin(AuditAction.ADMIN_USER_REACTIVATED, "USER", userId.toString());
         return UserSummary.from(user);
     }
 

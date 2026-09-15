@@ -59,6 +59,12 @@ const MEETING_PREP_OBJECTIVES = [
     description: 'This is where you prepare for your meeting by adding agenda items and discovery questions.',
     targets: ['.objective-preparation'],
   },
+  {
+    id: 'start',
+    objective: 'Opening the meeting',
+    description: 'Save your proposal plan without leaving here or start the meeting. The latter button stays locked until the readiness score reaches its threshold, and once the meeting opens you can proceed to the live meeting.',
+    targets: ['.objective-start'],
+  },
 ]
 
 let generatedItemId = 0
@@ -130,7 +136,7 @@ function EditableList({
   }
 
   return (
-    <section className={`${styles.listWorkspace} objective-preparation`} aria-label={label}>
+    <section className={styles.listWorkspace} aria-label={label}>
       <div className={styles.listHeading}>
         <div>
           <p className={styles.listEyebrow}>Meeting plan</p>
@@ -285,16 +291,15 @@ export default function MeetingPreparationPage() {
   const isSaving = updatePreparation.isPending || launchingMeeting
 
   return (
-    <ObjectiveTourProvider objectives={MEETING_PREP_OBJECTIVES}>
+    <ObjectiveTourProvider tourId="meeting-preparation" objectives={MEETING_PREP_OBJECTIVES}>
     <div className={styles.page}>
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
           <div>
-            <p className={styles.eyebrow}>Engagement workflow / step 4</p>
             <Heading>{PHASE_LABEL.MEETING_PREPARATION}</Heading>
             <p className={styles.pageDescription}>Turn your research into a focused client conversation with a clear purpose, flow and questions.</p>
           </div>
-          <div className={styles.headerActions}>
+          <div className={`${styles.headerActions} objective-start`}>
             <Button kind="tertiary" disabled={isSaving} onClick={handleSave}>
               {updatePreparation.isPending && !launchingMeeting ? 'Saving...' : 'Save plan'}
             </Button>
@@ -315,8 +320,8 @@ export default function MeetingPreparationPage() {
           <ProgressBar label="Meeting readiness" hideLabel value={readinessScore} max={100} size="small" />
           <div className={styles.readinessChecks}>
             <ReadinessCheck complete={objectiveReady} label="Meeting objective" detail="20 points" />
-            <ReadinessCheck complete={agendaCount >= 3} label="Agenda flow" detail={`${agendaCount}/4 items`} />
-            <ReadinessCheck complete={questionCount >= 3} label="Discovery questions" detail={`${questionCount}/5 questions`} />
+            <ReadinessCheck complete={agendaCount >= 3} label="Agenda flow" detail={`${agendaCount}/3 items`} />
+            <ReadinessCheck complete={questionCount >= 3} label="Discovery questions" detail={`${questionCount}/3 questions`} />
           </div>
         </section>
 

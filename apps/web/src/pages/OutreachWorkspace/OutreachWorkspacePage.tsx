@@ -41,28 +41,40 @@ const briefSchema = z.object({
 
 const OUTREACH_WORKSPACE_OBJECTIVES = [
   {
-    id: 'checklist',
-    objective: 'Complete the outreach checklist',
-    description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
-    targets: ['.objective-checklist'],
+    id: 'client',
+    objective: 'Who you are writing to',
+    description: 'The client you researched, and once you have written to them, what they wrote back. Everything on this screen is aimed at this one reader.',
+    targets: ['.objective-client'],
   },
   {
     id: 'evidence',
     objective: 'Use your evidence base',
-    description: 'Utilise your collected evidence to write an outreach email.',
+    description: 'Utilise your collected evidence to write an outreach email. Scroll down this section for further assistance, as you can use the evidence assistant to add to your outreach email.',
     targets: ['.objective-evidence'],
-  },
-  {
-    id: 'assistance',
-    objective: 'Possible assistance',
-    description: 'For further assistance, you can use the evidence assistant to add to your outreach email.',
-    targets: ['.objective-assistance'],
   },
   {
     id: 'email',
     objective: 'Compose your outreach email',
     description: 'This is where you will compose your outreach email to the client.',
     targets: ['.objective-email'],
+  },
+  {
+    id: 'fields',
+    objective: 'Subject and message',
+    description: 'The subject is the only part the client sees before deciding whether to open it. The message is where the evidence goes — both are counted as you type.',
+    targets: ['.objective-subject', '.objective-message'],
+  },
+  {
+    id: 'checklist',
+    objective: 'Complete the outreach checklist',
+    description: 'The checklist aids in writing an acceptable outreach email to further the chance of proceeding to the meeting preparation step.',
+    targets: ['.objective-checklist'],
+  },
+  {
+    id: 'send',
+    objective: 'Sending it',
+    description: 'Nothing is sent until you press it. Evidence and tone are checked on the way out, and the client answers the message you actually wrote — so a weak attempt is a real attempt.',
+    targets: ['.objective-send'],
   },
 ]
 
@@ -294,26 +306,26 @@ function CapabilityBriefEditor({
                 <h3>{active.label}</h3>
                 <p>{active.guidance}</p>
               </div>
-          <Controller
-            key={active.key}
-            name={active.key}
-            control={control}
-            render={({ field }) => (
-              <TextArea
-                id={active.key}
-                labelText={active.label}
-                hideLabel
-                rows={6}
-                placeholder="Write a concise, client-specific section..."
-                invalid={Boolean(errors[active.key])}
-                invalidText={errors[active.key]?.message}
-                name={field.name}
-                value={field.value ?? ''}
-                onBlur={field.onBlur}
-                onChange={(event) => field.onChange(event.target.value)}
+              <Controller
+                key={active.key}
+                name={active.key}
+                control={control}
+                render={({ field }) => (
+                  <TextArea
+                    id={active.key}
+                    labelText={active.label}
+                    hideLabel
+                    rows={6}
+                    placeholder="Write a concise, client-specific section..."
+                    invalid={Boolean(errors[active.key])}
+                    invalidText={errors[active.key]?.message}
+                    name={field.name}
+                    value={field.value ?? ''}
+                    onBlur={field.onBlur}
+                    onChange={(event) => field.onChange(event.target.value)}
+                  />
+                )}
               />
-            )}
-          />
               <small>{activeValue.trim().length} / 80 characters minimum</small>
             </div>
           </div>
@@ -388,27 +400,26 @@ export default function OutreachWorkspacePage() {
   }
 
   return (
-    <ObjectiveTourProvider objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
-    <div className={styles.page}>
-      <header className={styles.pageHeader}>
-        <div className={styles.makeContactHero}>
-          <div className={styles.heroIcon}><Email size={28} /></div>
-          <div>
-            <p className={styles.eyebrow}>Engagement workflow / step 3</p>
-            <Heading>{PHASE_LABEL.OUTREACH}</Heading>
-            <p className={styles.pageSubtitle}>Send a concise, compelling email to earn a discovery meeting. One clear reason, one low-friction ask.</p>
+    <ObjectiveTourProvider tourId="outreach-workspace" objectives={OUTREACH_WORKSPACE_OBJECTIVES}>
+      <div className={styles.page}>
+        <header className={styles.pageHeader}>
+          <div className={styles.makeContactHero}>
+            <div className={styles.heroIcon}><Email size={28} /></div>
+            <div>
+              <Heading>{PHASE_LABEL.OUTREACH}</Heading>
+              <p className={styles.pageSubtitle}>Send a concise, compelling email to earn a discovery meeting. One clear reason, one low-friction ask.</p>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <section className={styles.phaseCards} aria-label="Outreach goals">
-        <Tile><Light size={22} /><div><strong>What this step is for</strong><span>Earn a meeting by email. One clear reason, one low-friction ask.</span></div></Tile>
-        <Tile><CheckmarkFilled size={22} /><div><strong>You are done when</strong><span>The client agrees to meet or requests a specific artifact.</span></div></Tile>
-        <Tile><ArrowRight size={22} /><div><strong>What happens next</strong><span>Use the response to prepare a valuable discovery conversation.</span></div></Tile>
-      </section>
+        <section className={styles.phaseCards} aria-label="Outreach goals">
+          <Tile><Light size={22} /><div><strong>What this step is for</strong><span>Earn a meeting by email. One clear reason, one low-friction ask.</span></div></Tile>
+          <Tile><CheckmarkFilled size={22} /><div><strong>You are done when</strong><span>The client agrees to meet or requests a specific artifact.</span></div></Tile>
+          <Tile><ArrowRight size={22} /><div><strong>What happens next</strong><span>Use the response to prepare a valuable discovery conversation.</span></div></Tile>
+        </section>
 
-      <main className={styles.workspace}>
-        <section className={styles.primaryColumn}>
+        <main className={styles.workspace}>
+          <section className={styles.primaryColumn}>
             {meetingSecured && (
               <section className={styles.meetingOutcome}>
                 <Tile className={styles.successPanel}>
@@ -455,25 +466,18 @@ export default function OutreachWorkspacePage() {
 
             {!meetingSecured && !documentRequired && (
               <div className={styles.composeWorkspace}>
-              <Tile className={`${styles.emailComposer} objective-email`}>
-                <form onSubmit={handleSubmit(sendEmail)}>
+                <Tile className={`${styles.emailComposer} objective-email`}>
+                  <form onSubmit={handleSubmit(sendEmail)}>
                     <div className={styles.composerHeader}>
                       <div><h2>{latestAttempt ? 'Respond to the client' : 'Compose your first outreach email'}</h2><p>Use one evidence-backed reason and make one easy next-step request.</p></div>
                       <Tag type="blue" size="sm">{latestAttempt ? `Attempt ${latestAttempt.attemptNumber + 1}` : 'First contact'}</Tag>
                     </div>
                     <div className={styles.mailMeta}><span>From</span><strong>Consulting Simulation learner</strong></div>
                     <div className={styles.mailMeta}><span>To</span><strong>{rubricContext.personaName ?? 'Client stakeholder'}</strong><small>{rubricContext.companyName ?? 'Client organisation'}</small></div>
-                    <TextInput id="subject" labelText="Subject" helperText={`${draftSubject.length} characters`} invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
-                    <div className={styles.checkPills} aria-label="Email requirements">
-                      {draftReview.checks.map((check) => (
-                        <span key={check.dimension} className={check.met ? styles.met : undefined}>
-                          {check.met ? <CheckmarkFilled size={14} /> : <Light size={14} />}{check.label}
-                        </span>
-                      ))}
-                    </div>
+                    <TextInput id="subject" className="objective-subject" labelText="Subject" helperText={`${draftSubject.length} characters`} invalid={Boolean(errors.subject)} invalidText={errors.subject?.message} {...register('subject')} />
                     <TextArea
                       id="body"
-                      className={styles.messageField}
+                      className={`${styles.messageField} objective-message`}
                       labelText="Message"
                       rows={6}
                       helperText={`${draftBody.trim() ? draftBody.trim().split(/\s+/).length : 0} words / ${draftBody.length} characters`}
@@ -485,33 +489,81 @@ export default function OutreachWorkspacePage() {
                     {sendOutreach.isError && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
-                    <div className={styles.composerFooter}>
+                    <div className={`${styles.composerFooter} objective-send`}>
                       <small>Evidence and tone are checked when you send. Your message is never sent automatically.</small>
                       <Button type="submit" renderIcon={Send} disabled={sendOutreach.isPending || draftSafety.risk === 'blocking'}>{sendOutreach.isPending ? 'Sending...' : 'Send outreach'}</Button>
                     </div>
-                </form>
-              </Tile>
-              <Tile className={`${styles.assistPanel} objective-assistance`}>
-                <p className={styles.eyebrow}>Evidence assistant</p>
-                <h3>Need help getting started?</h3>
-                <p>Build your own message with a verified signal. The assistant never sends or submits work for you.</p>
-                {leadSignal && (
-                  <section className={styles.bestEvidence} aria-label="Best evidence to use">
-                    <p className={styles.eyebrow}>Best evidence to use</p>
-                    <strong>{leadSignal.sourceTitle || leadSignal.evidenceType.replace(/_/g, ' ')}</strong>
-                    <span>{leadSignal.note}</span>
-                    <button type="button" onClick={() => appendEvidenceReference(leadSignal)}>
-                      Use this evidence <ArrowRight size={16} />
+                  </form>
+                </Tile>
+
+                <Tile className={`${styles.assistPanel} objective-evidence`}>
+                  <p className={styles.eyebrow}>Evidence assistant</p>
+                  <h3>Build your message with evidence</h3>
+                  <p>Use verified client signals to make your outreach specific and relevant.</p>
+
+                  {evidenceForReference.length > 0 && (
+                    <section className={styles.assistantEvidence} aria-label="Evidence you can reference">
+                      <p className={styles.eyebrow}>Evidence you can reference</p>
+
+                      <div className={styles.evidenceCards}>
+                        {evidenceForReference.slice(0, 8).map((item) => (
+                          <button
+                            type="button"
+                            key={item.id}
+                            onClick={() => appendEvidenceReference(item)}
+                          >
+                            <LinkIcon size={18} />
+                            <strong>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</strong>
+                            <p>{item.note}</p>
+                            <small>Add to email <ArrowRight size={14} /></small>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  <div className={styles.assistActions}>
+                    <button
+                      type="button"
+                      onClick={() => appendEvidenceReference(leadSignal)}
+                      disabled={!leadSignal}
+                    >
+                      Reference the latest client signal
+                      <ArrowRight size={16} />
                     </button>
-                  </section>
-                )}
-                <div className={styles.assistActions}>
-                  <button type="button" onClick={() => appendEvidenceReference(leadSignal)} disabled={!leadSignal}>Reference the latest client signal <ArrowRight size={16} /></button>
-                  <button type="button" onClick={() => setValue('body', `${draftBody.trim()}${draftBody.trim() ? '\n\n' : ''}Would a 20-minute conversation next week be useful?`, { shouldDirty: true, shouldValidate: true })}>Invite a short conversation <ArrowRight size={16} /></button>
-                  <button type="button" onClick={() => setValue('subject', `Idea for ${rubricContext.companyName ?? 'your team'}`, { shouldDirty: true, shouldValidate: true })}>Start a clear subject line <ArrowRight size={16} /></button>
-                </div>
-                {latestAttempt?.coachingHint && <div className={styles.coachingCallout}><strong>Latest coaching</strong><span>{latestAttempt.coachingHint}</span></div>}
-              </Tile>
+
+                    <button
+                      type="button"
+                      onClick={() => setValue(
+                        'body',
+                        `${draftBody.trim()}${draftBody.trim() ? '\n\n' : ''}Would a 20-minute conversation next week be useful?`,
+                        { shouldDirty: true, shouldValidate: true }
+                      )}
+                    >
+                      Invite a short conversation
+                      <ArrowRight size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setValue(
+                        'subject',
+                        `Idea for ${rubricContext.companyName ?? 'your team'}`,
+                        { shouldDirty: true, shouldValidate: true }
+                      )}
+                    >
+                      Start a clear subject line
+                      <ArrowRight size={16} />
+                    </button>
+                  </div>
+
+                  {latestAttempt?.coachingHint && (
+                    <div className={styles.coachingCallout}>
+                      <strong>Latest coaching</strong>
+                      <span>{latestAttempt.coachingHint}</span>
+                    </div>
+                  )}
+                </Tile>
               </div>
             )}
 
@@ -530,9 +582,9 @@ export default function OutreachWorkspacePage() {
                 ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
               </section>
             )}
-        </section>
+          </section>
 
-        <aside className={styles.decisionRail}>
+          <aside className={styles.decisionRail}>
             {meetingSecured ? (
               <Tile className={styles.meetingSummary}>
                 <p className={styles.eyebrow}>Client decision</p>
@@ -549,7 +601,7 @@ export default function OutreachWorkspacePage() {
                 onOpenHistory={() => setHistoryOpen(true)}
               />
             ) : (
-              <Tile className={`${styles.clientOverview} ${styles.latestReply}`}>
+              <Tile className={`${styles.clientOverview} ${styles.latestReply} objective-client`}>
                 <div className={styles.replyHeading}>
                   <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
                 </div>
@@ -586,12 +638,12 @@ export default function OutreachWorkspacePage() {
             )}
 
             {brief?.outcome === 'FOLLOW_UP_REQUIRED' && <BriefReview brief={brief} />}
-        </aside>
-      </main>
-      <Modal open={historyOpen} modalHeading="Outreach conversation" passiveModal onRequestClose={() => setHistoryOpen(false)}>
-        <ThreadHistory attempts={thread} />
-      </Modal>
-    </div>
+          </aside>
+        </main>
+        <Modal open={historyOpen} modalHeading="Outreach conversation" passiveModal onRequestClose={() => setHistoryOpen(false)}>
+          <ThreadHistory attempts={thread} />
+        </Modal>
+      </div>
     </ObjectiveTourProvider>
   )
 }

@@ -27,6 +27,14 @@ public class TransactionalEmailTemplates {
                 "Reset password", resetUrl,
                 "This link expires in 15 minutes. If you did not request a reset, you can ignore this email.");
     }
+    
+    public OutboundEmail accountProvisioned(String recipient, String displayName, String setupUrl) {
+        return message(recipient, "Set up your account", displayName,
+                "Set up your account",
+                "An administrator has created an account for the " + PRODUCT_NAME + ".",
+                "Set up account", setupUrl,
+                "This link expires in 24 hours. If you did not expect an account creation, you can ignore this email.");
+    }
 
     private OutboundEmail message(String recipient, String subject, String displayName, String heading,
                                   String body, String actionLabel, String actionUrl, String note) {

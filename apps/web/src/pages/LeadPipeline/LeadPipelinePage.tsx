@@ -18,6 +18,7 @@ import type { LeadSummary } from '@/api/types'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import PageHeader from '@/lifecycle/components/PageHeader'
 import shell from '@/lifecycle/lifecycle.module.scss'
+import styles from './LeadPipelinePage.module.scss'
 
 const DIFFICULTY_TYPE = { EASY: 'green', MEDIUM: 'magenta', HARD: 'red' } as const
 
@@ -35,22 +36,27 @@ function LeadCard({
   selectionLocked: boolean
 }) {
   return (
-    <Tile style={{ border: isSelected ? '1px solid #0f62fe' : undefined }}>
+    <Tile className={`${styles.leadCard} ${isSelected ? styles.leadCardSelected : ''}`}>
       <Stack gap={4}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <h4 style={{ color: '#161616' }}>{lead.companyName}</h4>
-          <Tag type={DIFFICULTY_TYPE[lead.difficulty]}>{lead.difficulty}</Tag>
+        <div className={styles.leadCardHeader}>
+          <h4 className={styles.leadCompanyName}>{lead.companyName}</h4>
+          <Tag
+            type={DIFFICULTY_TYPE[lead.difficulty]}
+            className={styles.difficultyTag}
+          >
+            {lead.difficulty}
+          </Tag>
         </div>
         <Tag type="gray">{lead.industry}</Tag>
-        <p style={{ color: '#525252', fontSize: '0.875rem' }}>{lead.publicDescription}</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <p className={styles.leadDescription}>{lead.publicDescription}</p>
+        <div className={styles.signalTags}>
           {lead.signals.map((s) => (
-            <Tag key={s.id} type="teal" size="sm">
-              {s.label}
+            <Tag key={s.id} type="teal" size="sm" className={styles.signalTag}>
+              {s.label.charAt(0).toUpperCase() + s.label.slice(1)}
             </Tag>
           ))}
         </div>
-        <p style={{ color: '#525252', fontSize: '0.75rem', fontStyle: 'italic' }}>
+        <p className={styles.leadNote}>
           Decision maker, budget, and potential value are unknown until you research this client.
         </p>
         {isSelected && <Tag type="blue">Selected</Tag>}
@@ -100,27 +106,31 @@ export default function LeadPipelinePage() {
       phase="LEAD"
       description="Review available leads. Signals are visible — hidden details emerge through research."
     />
-    <Grid fullWidth style={{ padding: '1rem 2rem 2rem' }} className={shell.fixedShellBody}>
+    <Grid fullWidth className={`${shell.fixedShellBody} ${styles.pageGrid}`}>
       <Column lg={16} md={8} sm={4} className={shell.fixedShellFrame}>
-        <Stack gap={7} className={shell.scrollPanel}>
+        <Stack gap={7} >
 
           {scenario && (
-            <Tile style={{ background: '#f4f4f4' }}>
-              <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                <div>
-                  <span style={{ color: '#525252', fontSize: '0.75rem', display: 'block' }}>Information ambiguity</span>
-                  <strong style={{ color: '#161616' }}>{'★'.repeat(scenario.difficultyProfile.informationAmbiguity)}{'☆'.repeat(5 - scenario.difficultyProfile.informationAmbiguity)}</strong>
+          <Grid narrow>
+            <Column lg={15} md={8} sm={4}>
+              <Tile className={styles.scenarioTile}>
+                <div className={styles.difficultyDetails}>
+                  <div>
+                    <span className={styles.difficultyLabel}>Information ambiguity</span>
+                    <strong className={styles.difficultyStars}>{'★'.repeat(scenario.difficultyProfile.informationAmbiguity)}{'☆'.repeat(5 - scenario.difficultyProfile.informationAmbiguity)}</strong>
+                  </div>
+                  <div>
+                    <span className={styles.difficultyLabel}>Stakeholder complexity</span>
+                    <strong className={styles.difficultyStars}>{'★'.repeat(scenario.difficultyProfile.stakeholderComplexity)}{'☆'.repeat(5 - scenario.difficultyProfile.stakeholderComplexity)}</strong>
+                  </div>
+                  <div>
+                    <span className={styles.difficultyLabel}>Commercial pressure</span>
+                    <strong className={styles.difficultyStars}>{'★'.repeat(scenario.difficultyProfile.commercialPressure)}{'☆'.repeat(5 - scenario.difficultyProfile.commercialPressure)}</strong>
+                  </div>
                 </div>
-                <div>
-                  <span style={{ color: '#525252', fontSize: '0.75rem', display: 'block' }}>Stakeholder complexity</span>
-                  <strong style={{ color: '#161616' }}>{'★'.repeat(scenario.difficultyProfile.stakeholderComplexity)}{'☆'.repeat(5 - scenario.difficultyProfile.stakeholderComplexity)}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#525252', fontSize: '0.75rem', display: 'block' }}>Commercial pressure</span>
-                  <strong style={{ color: '#161616' }}>{'★'.repeat(scenario.difficultyProfile.commercialPressure)}{'☆'.repeat(5 - scenario.difficultyProfile.commercialPressure)}</strong>
-                </div>
-              </div>
-            </Tile>
+              </Tile>
+            </Column>
+          </Grid>
           )}
 
           {selectLead.isError && (
@@ -133,23 +143,27 @@ export default function LeadPipelinePage() {
           )}
 
           {selectionLocked && (
-            <Stack gap={4}>
-              <InlineNotification
-                kind="info"
-                title="Lead already selected"
-                subtitle={`This engagement has already locked in a lead — continue to ${PHASE_LABEL.CLIENT_INTELLIGENCE} to keep researching it.`}
-                hideCloseButton
-                lowContrast
-              />
-              <Button
-                kind="ghost"
-                size="sm"
-                renderIcon={ArrowRight}
-                onClick={() => navigate(`/dashboard/engagements/${engagementId}/intelligence`)}
-              >
-                Continue to {PHASE_LABEL.CLIENT_INTELLIGENCE}
-              </Button>
-            </Stack>
+            <Grid narrow>
+              <Column lg={15} md={8} sm={4}>
+                <Stack gap={4}>
+                  <InlineNotification
+                    kind="info"
+                    title="Lead already selected"
+                    subtitle={`This engagement has already locked in a lead — continue to ${PHASE_LABEL.CLIENT_INTELLIGENCE} to keep researching it.`}
+                    hideCloseButton
+                    lowContrast
+                  />
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    renderIcon={ArrowRight}
+                    onClick={() => navigate(`/dashboard/engagements/${engagementId}/intelligence`)}
+                  >
+                    Continue to {PHASE_LABEL.CLIENT_INTELLIGENCE}
+                  </Button>
+                </Stack>
+              </Column>
+            </Grid>
           )}
 
           {!canSelect && !alreadySelected && (
@@ -161,9 +175,9 @@ export default function LeadPipelinePage() {
             />
           )}
 
-          <Grid narrow>
+          <Grid narrow className={styles.leadList}>
             {leads?.map((lead) => (
-              <Column key={lead.id} lg={5} md={4} sm={4} style={{ marginBottom: '1.5rem' }}>
+              <Column key={lead.id} lg={5} md={4} sm={4} className={styles.leadColumn}>
                 <LeadCard
                   lead={lead}
                   onSelect={() => handleSelect(lead.id)}

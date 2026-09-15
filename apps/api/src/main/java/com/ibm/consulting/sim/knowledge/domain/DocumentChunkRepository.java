@@ -12,4 +12,5 @@ public interface DocumentChunkRepository {
 
     /** Ordered corpus passages for a research lane; no semantic top-K truncation. */
     List<DocumentChunk> findResearchCorpus(KnowledgeCollection collection, UUID scenarioId);
+    void deleteByDocumentId(UUID documentId);
 }

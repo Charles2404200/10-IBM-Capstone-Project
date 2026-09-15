@@ -24,15 +24,17 @@ interface SpringDataDocumentChunkRepository extends JpaRepository<DocumentChunk,
                                      @Param("scenarioId") UUID scenarioId,
                                      @Param("personaId") UUID personaId);
 
-        @Query("""
-                        SELECT c FROM DocumentChunk c
-                        WHERE c.collection = :collection
-                            AND c.scenarioId = :scenarioId
-                            AND c.personaId IS NULL
-                        ORDER BY c.documentId, c.chunkIndex
-                        """)
-        List<DocumentChunk> findResearchCorpus(@Param("collection") KnowledgeCollection collection,
-                                                                                        @Param("scenarioId") UUID scenarioId);
+    @Query("""
+            SELECT c FROM DocumentChunk c
+            WHERE c.collection = :collection
+              AND c.scenarioId = :scenarioId
+              AND c.personaId IS NULL
+            ORDER BY c.documentId, c.chunkIndex
+            """)
+    List<DocumentChunk> findResearchCorpus(@Param("collection") KnowledgeCollection collection,
+                                            @Param("scenarioId") UUID scenarioId);
+
+    void deleteByDocumentId(UUID documentId);
 }
 
 @Repository
@@ -56,4 +58,6 @@ class JpaDocumentChunkRepository implements DocumentChunkRepository {
     public List<DocumentChunk> findResearchCorpus(KnowledgeCollection collection, UUID scenarioId) {
         return repo.findResearchCorpus(collection, scenarioId);
     }
+
+    @Override public void deleteByDocumentId(UUID documentId) { repo.deleteByDocumentId(documentId); }
 }

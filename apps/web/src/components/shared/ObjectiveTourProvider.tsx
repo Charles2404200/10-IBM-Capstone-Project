@@ -10,11 +10,13 @@ interface Objective {
 }
 
 interface Props {
+  /** Identifies this walkthrough in a learner's saved progress. */
+  tourId: string
   objectives: Objective[]
   children: ReactNode
 }
 
-export default function ObjectiveTourProvider({ objectives, children }: Props) {
+export default function ObjectiveTourProvider({ tourId, objectives, children }: Props) {
   // Converts each objective into a Reactour step
   const steps: StepType[] = objectives.map((objective) => ({
     selector: objective.targets[0],
@@ -36,7 +38,7 @@ export default function ObjectiveTourProvider({ objectives, children }: Props) {
         maskArea: (base) => ({ ...base, rx: 4 }),
       }}
     >
-      <ObjectiveGuide />
+      <ObjectiveGuide tourId={tourId} />
       {children}
     </TourProvider>
   )
