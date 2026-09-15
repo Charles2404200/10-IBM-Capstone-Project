@@ -97,13 +97,14 @@ public class WatsonxGraniteGateway implements AiProvider {
             throw new AiProviderException("Failed to obtain watsonx IAM token for use-case " + useCase, e);
         }
 
+        int maxNewTokens = AiTaskType.fromUseCase(useCase) == AiTaskType.CLIENT_INTELLIGENCE ? 8_192 : 500;
         Map<String, Object> body = Map.of(
                 "input", prompt,
                 "model_id", modelId,
                 "project_id", projectId,
                 "parameters", Map.of(
                         "decoding_method", "greedy",
-                        "max_new_tokens", 500,
+                        "max_new_tokens", maxNewTokens,
                         "repetition_penalty", 1.1));
 
         try {

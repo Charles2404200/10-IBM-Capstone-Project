@@ -42,7 +42,13 @@ public record ScenarioSummary(
     }
 
     /** Pre-engagement briefing content shown before the learner enters the Lead Pipeline. */
-    public record Briefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays) {}
+    public record Briefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays,
+                           String businessSituation, String observableSymptom, String consultingMandate,
+                           List<String> unknownsToValidate) {
+        public Briefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays) {
+            this(consultantRole, objective, successCriteria, simulatedDays, "", "", "", List.of());
+        }
+    }
 
     /** Source-compatible constructor retained for internal clients compiled against the prior response shape. */
     public ScenarioSummary(UUID id, String title, String industry, String description, int difficulty, int contentVersion,
@@ -81,6 +87,8 @@ public record ScenarioSummary(
                 s.getPersonas().stream().map(PersonaSummary::from).toList(), s.getRubricWeights(),
                 new DifficultyProfile(s.getInformationAmbiguity(), s.getStakeholderComplexity(), s.getCommercialPressure()),
                 GameplayDifficultyProfile.from(gameplayProfile),
-                new Briefing(s.getConsultantRole(), s.getObjective(), s.getSuccessCriteria(), s.getSimulatedDays()));
+                new Briefing(s.getConsultantRole(), s.getObjective(), s.getSuccessCriteria(), s.getSimulatedDays(),
+                        s.getBusinessSituation(), s.getObservableSymptom(), s.getConsultingMandate(),
+                        s.getUnknownsToValidate()));
     }
 }

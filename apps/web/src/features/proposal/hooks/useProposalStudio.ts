@@ -65,6 +65,7 @@ export function useProposalStudio(engagementId: string) {
 
   const persist = useCallback(async (): Promise<boolean> => {
     if (submitted) return true
+    if (saveState === 'saved') return true
     if (saveInFlight.current) {
       saveQueued.current = true
       return saveInFlight.current
@@ -91,7 +92,7 @@ export function useProposalStudio(engagementId: string) {
     } finally {
       saveInFlight.current = null
     }
-  }, [engagementId, saveDraft, submitted])
+  }, [engagementId, saveDraft, saveState, submitted])
 
   useEffect(() => {
     if (skipInitialAutosave.current) {
@@ -131,10 +132,12 @@ export function useProposalStudio(engagementId: string) {
     // another AI review or replace the learner's explicit submit action.
     try {
       await submitProposal.mutateAsync(draftRef.current)
+      clearRecoveredProposalDraft(engagementId)
+      await workspace.refetch()
     } catch {
       // React Query retains the actionable API error for the workspace notice.
     }
-  }, [persist, submitProposal])
+  }, [engagementId, persist, submitProposal, workspace])
 
   const attachedSourceIds = useMemo(() => new Set(
     draft.evidenceLinks.filter((link) => link.section === activeSection).map((link) => link.sourceId),
@@ -143,7 +146,7 @@ export function useProposalStudio(engagementId: string) {
   return {
     workspace, proposal, submitted, draft, activeSection, review, saveState,
     updateDraft, setActiveSection, attach, detach, attachedSourceIds,
-    reviewCurrentDraft, challengeCurrentDraft, submit,
+    retrySave: persist, reviewCurrentDraft, challengeCurrentDraft, submit,
     saveDraft, reviewProposal, challengeProposal, submitProposal,
   }
 }

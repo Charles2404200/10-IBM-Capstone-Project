@@ -85,11 +85,12 @@ public class OpenRouterProvider implements AiProvider {
         // model) enforces game-state correctness. Keep full reasoning effort only for
         // the latency-tolerant ASSESSMENT task.
         boolean lowLatency = AiTaskType.fromUseCase(useCase) != AiTaskType.ASSESSMENT;
+        int maxOutputTokens = AiTaskType.fromUseCase(useCase) == AiTaskType.CLIENT_INTELLIGENCE ? 8_192 : 800;
         Map<String, Object> body = new java.util.HashMap<>(Map.of(
                 "model", modelId,
                 "messages", List.of(Map.of("role", "user", "content", prompt)),
                 "temperature", 0.4,
-                "max_tokens", 800,
+                "max_tokens", maxOutputTokens,
                 "response_format", Map.of("type", "json_object")));
         if (lowLatency) {
             body.put("reasoning", Map.of("effort", "low", "exclude", true));

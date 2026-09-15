@@ -116,8 +116,8 @@ function ThreadHistory({ attempts }: { attempts: OutreachAttempt[] }) {
         <span>{attempts.length} {attempts.length === 1 ? 'message' : 'messages'}</span>
       </div>
       <Stack gap={3}>
-        {[...attempts].reverse().map((attempt) => (
-          <details key={attempt.id} className={styles.historyItem}>
+        {[...attempts].reverse().map((attempt, index) => (
+          <details key={attempt.id} className={styles.historyItem} open={index === 0}>
             <summary>
               <span>Attempt #{attempt.attemptNumber}</span>
               <Tag type={OUTCOME_TAG[attempt.outcome]} size="sm">{attempt.outcome.replace(/_/g, ' ')}</Tag>
@@ -150,6 +150,51 @@ function ThreadHistory({ attempts }: { attempts: OutreachAttempt[] }) {
           </details>
         ))}
       </Stack>
+    </section>
+  )
+}
+
+function ClientResponseCard({
+  attempt,
+  companyName,
+  personaName,
+  industry,
+  expanded = false,
+  onOpenHistory,
+}: {
+  attempt: OutreachAttempt
+  companyName?: string | null
+  personaName?: string | null
+  industry?: string | null
+  expanded?: boolean
+  onOpenHistory: () => void
+}) {
+  return (
+    <section className={`${styles.clientResponse} ${expanded ? styles.clientResponseExpanded : ''} objective-client`} aria-label="Latest client response" aria-live="polite">
+      <div className={styles.responseClientIdentity}>
+        <div className={styles.clientMonogram}>{(companyName ?? 'C').slice(0, 1)}</div>
+        <div>
+          <strong>{companyName ?? 'Client organisation'}</strong>
+          <span>{personaName ?? 'Client stakeholder'} <Tag type="blue" size="sm">{industry ?? 'Client'}</Tag></span>
+        </div>
+      </div>
+      <div className={styles.clientResponseHeading}>
+        <div>
+          <p className={styles.eyebrow}>Latest client response</p>
+          <h2>What the client said</h2>
+        </div>
+        <div className={styles.responseActions}>
+          <Tag type={OUTCOME_TAG[attempt.outcome]} size="sm">{attempt.outcome.replace(/_/g, ' ')}</Tag>
+          <Button kind="ghost" size="sm" onClick={onOpenHistory}>{expanded ? 'Conversation history' : 'Read full response'}</Button>
+        </div>
+      </div>
+      <blockquote>{attempt.clientReply}</blockquote>
+      {(attempt.requestTitle || attempt.coachingHint) && (
+        <div className={styles.responseGuidance}>
+          <strong>{attempt.requestTitle ?? 'Recommended next step'}</strong>
+          <span>{attempt.requestSummary ?? attempt.coachingHint}</span>
+        </div>
+      )}
     </section>
   )
 }
@@ -376,16 +421,28 @@ export default function OutreachWorkspacePage() {
         <main className={styles.workspace}>
           <section className={styles.primaryColumn}>
             {meetingSecured && (
-              <Tile className={styles.successPanel}>
-                <div>
-                  <p className={styles.eyebrow}>Next phase unlocked</p>
-                  <h2>Meeting secured</h2>
-                  <p>The client has accepted a discovery conversation. Carry this context into your preparation.</p>
-                </div>
-                <Button renderIcon={ArrowRight} onClick={() => navigate(`/dashboard/engagements/${engagementId}/preparation`)}>
-                  Continue to {PHASE_LABEL.MEETING_PREPARATION}
-                </Button>
-              </Tile>
+              <section className={styles.meetingOutcome}>
+                <Tile className={styles.successPanel}>
+                  <div>
+                    <p className={styles.eyebrow}>Next phase unlocked</p>
+                    <h2>Meeting secured</h2>
+                    <p>The client has accepted a discovery conversation. Carry this context into your preparation.</p>
+                  </div>
+                  <Button renderIcon={ArrowRight} onClick={() => navigate(`/dashboard/engagements/${engagementId}/preparation`)}>
+                    Continue to {PHASE_LABEL.MEETING_PREPARATION}
+                  </Button>
+                </Tile>
+                {latestAttempt?.clientReply && (
+                  <ClientResponseCard
+                    attempt={latestAttempt}
+                    companyName={intelligence?.companyName}
+                    personaName={rubricContext.personaName}
+                    industry={intelligence?.industry}
+                    expanded
+                    onOpenHistory={() => setHistoryOpen(true)}
+                  />
+                )}
+              </section>
             )}
 
             {documentRequired && brief?.outcome !== 'FOLLOW_UP_REQUIRED' && (
@@ -511,36 +568,38 @@ export default function OutreachWorkspacePage() {
             )}
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
+            {!meetingSecured && (
+              <section className={styles.evidenceStrip} aria-label="Available evidence">
+                <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
+                {evidenceForReference.length > 0 ? (
+                  <div className={styles.evidenceCards}>
+                    {evidenceForReference.slice(0, 4).map((item) => (
+                      <button type="button" key={item.id} onClick={() => appendEvidenceReference(item)}>
+                        <LinkIcon size={18} /><strong>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</strong><p>{item.note}</p><small>Add to email <ArrowRight size={14} /></small>
+                      </button>
+                    ))}
+                  </div>
+                ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
+              </section>
+            )}
           </section>
 
           <aside className={styles.decisionRail}>
-            {latestAttempt?.clientReply ? (
-              <section className={`${styles.clientResponse} objective-client`} aria-label="Latest client response" aria-live="polite">
-                <div className={styles.responseClientIdentity}>
-                  <div className={styles.clientMonogram}>{(intelligence?.companyName ?? 'C').slice(0, 1)}</div>
-                  <div>
-                    <strong>{intelligence?.companyName ?? 'Client organisation'}</strong>
-                    <span>{rubricContext.personaName ?? 'Client stakeholder'} <Tag type="blue" size="sm">{intelligence?.industry ?? 'Client'}</Tag></span>
-                  </div>
-                </div>
-                <div className={styles.clientResponseHeading}>
-                  <div>
-                    <p className={styles.eyebrow}>Latest client response</p>
-                    <h2>What the client said</h2>
-                  </div>
-                  <div className={styles.responseActions}>
-                    <Tag type={OUTCOME_TAG[latestAttempt.outcome]} size="sm">{latestAttempt.outcome.replace(/_/g, ' ')}</Tag>
-                    {thread.length > 1 && <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>History</Button>}
-                  </div>
-                </div>
-                <blockquote>{latestAttempt.clientReply}</blockquote>
-                {(latestAttempt.requestTitle || latestAttempt.coachingHint) && (
-                  <div className={styles.responseGuidance}>
-                    <strong>{latestAttempt.requestTitle ?? 'Recommended next step'}</strong>
-                    <span>{latestAttempt.requestSummary ?? latestAttempt.coachingHint}</span>
-                  </div>
-                )}
-              </section>
+            {meetingSecured ? (
+              <Tile className={styles.meetingSummary}>
+                <p className={styles.eyebrow}>Client decision</p>
+                <h2>Ready to prepare</h2>
+                <p>The complete client response is available in the workspace. Use its details to shape the meeting plan.</p>
+                <Button kind="ghost" size="sm" onClick={() => setHistoryOpen(true)}>Conversation history</Button>
+              </Tile>
+            ) : latestAttempt?.clientReply ? (
+              <ClientResponseCard
+                attempt={latestAttempt}
+                companyName={intelligence?.companyName}
+                personaName={rubricContext.personaName}
+                industry={intelligence?.industry}
+                onOpenHistory={() => setHistoryOpen(true)}
+              />
             ) : (
               <Tile className={`${styles.clientOverview} ${styles.latestReply} objective-client`}>
                 <div className={styles.replyHeading}>
@@ -550,15 +609,12 @@ export default function OutreachWorkspacePage() {
               </Tile>
             )}
 
-            <Tile className={`${styles.checklistPanel} objective-checklist`}>
-              <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
-              {draftReview.checks.map((check) => (
-                <div key={check.dimension} className={styles.checklistRow}>
-                  {check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}
-                  <span>{check.label}</span>
-                </div>
-              ))}
-            </Tile>
+            {!meetingSecured && (
+              <Tile className={`${styles.checklistPanel} objective-checklist`}>
+                <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
+                {draftReview.checks.map((check) => <div key={check.dimension} className={styles.checklistRow}>{check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}<span>{check.label}</span></div>)}
+              </Tile>
+            )}
 
             {!latestAttempt?.clientReply && <Tile className={styles.nextActionPanel}>
               <Light size={22} /><div><p className={styles.eyebrow}>Next best action</p><h3>{latestAttempt?.coachingHint ? 'Refine before you send' : 'Use one client signal'}</h3><p>{latestAttempt?.coachingHint ?? 'Reference a verified source, then ask for a short, time-bound conversation.'}</p></div>

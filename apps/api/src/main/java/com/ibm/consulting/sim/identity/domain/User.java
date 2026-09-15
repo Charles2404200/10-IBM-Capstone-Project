@@ -48,10 +48,22 @@ public class User extends BaseEntity {
 
     /** Creates a learner account which cannot authenticate until its inbox is verified. */
     public static User createUnverified(String email, String passwordHash, String displayName) {
-        User user = create(email, passwordHash, displayName, UserRole.LEARNER);
+        return createUnverified(email, passwordHash, displayName, UserRole.LEARNER);
+    }
+
+    public static User createUnverified(String email, String passwordHash, String displayName, UserRole role) {
+        User user = create(email, passwordHash, displayName, role);
         user.emailVerified = false;
         user.emailVerifiedAt = null;
         user.onboardingCompletedAt = null;
+        return user;
+    }
+
+    /** Creates an inbox-verified account for a controlled test environment. */
+    public static User createVerifiedForTesting(String email, String passwordHash, String displayName, UserRole role) {
+        User user = create(email, passwordHash, displayName, role);
+        user.onboardingCompletedAt = null;
+        user.verifyEmail(Instant.now());
         return user;
     }
 

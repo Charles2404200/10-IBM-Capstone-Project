@@ -3,14 +3,14 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import ClientIntelligencePage from './ClientIntelligencePage'
-import { useAnalyzeUserContext, useCompleteResearch, useGenerateResearchIntelligence, useResearch, useResearchGateStatus, useSaveResearch, } from '@/api/hooks/useLeads'
+import { useAnalyzeUserContext, useCompleteResearch, useResearch, useResearchGateStatus, useResearchSourceDeck, useSaveResearch, } from '@/api/hooks/useLeads'
 import type { ResearchEvidence } from '@/api/types'
 
 // mock hooks and shared components for tests
 vi.mock('@/api/hooks/useLeads', () => ({
   useResearch: vi.fn(),
   useSaveResearch: vi.fn(),
-  useGenerateResearchIntelligence: vi.fn(),
+  useResearchSourceDeck: vi.fn(),
   useAnalyzeUserContext: vi.fn(),
   useResearchGateStatus: vi.fn(),
   useCompleteResearch: vi.fn(),
@@ -31,7 +31,7 @@ Element.prototype.scrollIntoView = vi.fn()
 // typed mock references
 const mockedResearch = vi.mocked(useResearch)
 const mockedSaveResearch = vi.mocked(useSaveResearch)
-const mockedGenerateResearch = vi.mocked(useGenerateResearchIntelligence)
+const mockedResearchSourceDeck = vi.mocked(useResearchSourceDeck)
 const mockedAnalyzeContext = vi.mocked(useAnalyzeUserContext)
 const mockedGateStatus = vi.mocked(useResearchGateStatus)
 const mockedCompleteResearch = vi.mocked(useCompleteResearch)
@@ -70,12 +70,11 @@ function setup(evidence: ResearchEvidence[]) {
     isPending: false,
   } as unknown as ReturnType<typeof useSaveResearch>)
 
-  mockedGenerateResearch.mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
+  mockedResearchSourceDeck.mockReturnValue({
+    data: { sourcesByType: {}, enrichmentPending: false },
+    isFetching: false,
     isError: false,
-    reset: vi.fn(),
-  } as unknown as ReturnType<typeof useGenerateResearchIntelligence>)
+  } as unknown as ReturnType<typeof useResearchSourceDeck>)
 
   mockedAnalyzeContext.mockReturnValue({
     mutate: vi.fn(),
@@ -121,13 +120,8 @@ describe('ClientIntelligencePage manual evidence dropdowns', () => {
     await user.click(screen.getByRole('button', { name: /Add source/i }))
     const modal = screen.getByRole('dialog', { name: 'Add a source to the evidence board', })
 
-    // selects a different evidence type from the default value
-    await user.click(within(modal).getByText('COMPANY NEWS'))
-    await user.click(await screen.findByRole('option', { name: 'STAKEHOLDER PROFILE' }),)
-
-    // selects a different confidence level from the default value
-    await user.click(within(modal).getByText('MEDIUM'))
-    await user.click(await screen.findByRole('option', { name: 'HIGH' }))
+    await user.selectOptions(within(modal).getByLabelText('Research area'), 'STAKEHOLDER_PROFILE')
+    await user.selectOptions(within(modal).getByLabelText('Reliability'), 'HIGH')
 
     // type finding mock data and submit
     await user.type(within(modal).getByLabelText('Finding'), 'Test finding.',)

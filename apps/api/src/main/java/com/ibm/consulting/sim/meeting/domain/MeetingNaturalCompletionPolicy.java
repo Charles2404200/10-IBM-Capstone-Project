@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.meeting.domain;
 
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import java.util.List;
 import java.util.Set;
 
@@ -19,7 +20,12 @@ public final class MeetingNaturalCompletionPolicy {
     }
 
     public static boolean shouldConclude(PersonaState state, List<String> signals, int learnerTurnCount) {
-        if (learnerTurnCount < MINIMUM_LEARNER_TURNS || !MeetingCompletionPolicy.evaluate(state).passed()) {
+        return shouldConclude(state, null, signals, learnerTurnCount);
+    }
+
+    public static boolean shouldConclude(PersonaState state, DifficultyProfile profile, List<String> signals,
+                                         int learnerTurnCount) {
+        if (learnerTurnCount < MINIMUM_LEARNER_TURNS || !MeetingCompletionPolicy.evaluate(state, profile).passed()) {
             return false;
         }
         return signals != null && signals.stream().anyMatch(CLOSING_SIGNALS::contains);

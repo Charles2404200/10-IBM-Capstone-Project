@@ -10,6 +10,7 @@ import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,6 +25,11 @@ import java.util.stream.Collectors;
 @Repository
 interface SpringDataLeadRepository extends JpaRepository<Lead, UUID> {
     List<Lead> findByScenarioId(UUID scenarioId);
+
+    /** Source-deck workers need visible signals after the repository method returns. */
+    @EntityGraph(attributePaths = "signals")
+    @Query("select lead from Lead lead where lead.id = :id")
+    Optional<Lead> findByIdWithSignals(@Param("id") UUID id);
 
     @Query("""
             select lead from Lead lead
@@ -62,7 +68,7 @@ class JpaLeadRepository implements LeadRepository {
         return new LeadCatalogPage(result.getContent(), result.getTotalElements(), result.getNumber(), result.getSize(), result.getTotalPages());
     }
     @Override public List<String> findCatalogIndustries() { return repo.findDistinctIndustries(ScenarioStatus.ACTIVE); }
-    @Override public Optional<Lead> findById(UUID id) { return repo.findById(id); }
+    @Override public Optional<Lead> findById(UUID id) { return repo.findByIdWithSignals(id); }
     @Override public List<Lead> findByIdIn(List<UUID> ids) { return ids.isEmpty() ? List.of() : repo.findAllById(ids); }
     @Override public Lead save(Lead lead) { return repo.save(lead); }
     @Override public void delete(Lead lead) { repo.delete(lead); }

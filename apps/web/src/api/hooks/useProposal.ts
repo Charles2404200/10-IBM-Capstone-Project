@@ -50,6 +50,8 @@ export function useSaveProposalDraft(engagementId: string) {
   return useMutation({
     mutationFn: async (data: ProposalDraftRequest) =>
       (await apiClient.put<Proposal>(`/api/v1/engagements/${engagementId}/proposal/draft`, data)).data,
+    retry: 1,
+    retryDelay: 300,
     onSuccess: (proposal) => {
       qc.setQueryData(proposalKeys.detail(engagementId), proposal)
       qc.setQueryData<ProposalWorkspace | undefined>(proposalKeys.workspace(engagementId), (current) =>

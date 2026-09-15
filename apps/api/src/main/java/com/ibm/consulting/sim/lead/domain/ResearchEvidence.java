@@ -64,6 +64,10 @@ public class ResearchEvidence extends BaseEntity {
     @Column(nullable = false)
     private Integer relevanceScore = 60;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 40)
+    private ReasoningLane reasoningLane;
+
     /** Stable per-engagement ordinal, rendered by the frontend as "E-01", "E-02", ... */
     @Column(nullable = false)
     private Integer sequenceNo;
@@ -92,6 +96,7 @@ public class ResearchEvidence extends BaseEntity {
     public LocalDate getOccurredOn() { return occurredOn; }
     public ConfidenceLevel getConfidence() { return confidence; }
     public Integer getRelevanceScore() { return relevanceScore; }
+    public ReasoningLane getReasoningLane() { return reasoningLane; }
     public Integer getSequenceNo() { return sequenceNo; }
     public Set<UUID> getSupportingEvidenceIds() { return Set.copyOf(supportingEvidenceIds); }
 
@@ -111,6 +116,7 @@ public class ResearchEvidence extends BaseEntity {
         public Builder occurredOn(LocalDate occurredOn) { instance.occurredOn = occurredOn; return this; }
         public Builder confidence(ConfidenceLevel confidence) { instance.confidence = confidence; return this; }
         public Builder relevanceScore(Integer relevanceScore) { instance.relevanceScore = relevanceScore; return this; }
+        public Builder reasoningLane(ReasoningLane reasoningLane) { instance.reasoningLane = reasoningLane; return this; }
         public Builder sequenceNo(int sequenceNo) { instance.sequenceNo = sequenceNo; return this; }
         public Builder supportingEvidenceIds(Set<UUID> ids) {
             instance.supportingEvidenceIds = ids == null ? new LinkedHashSet<>() : new LinkedHashSet<>(ids);

@@ -7,6 +7,7 @@ import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableE
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -80,6 +81,12 @@ public class GlobalExceptionHandler {
         log.warn("Request violated a persistence constraint", ex);
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, "data-constraint",
                 "The data could not be saved because it conflicts with an existing record or constraint.");
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    ProblemDetail handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
+        return problem(HttpStatus.CONFLICT, "concurrent-update",
+                "This item was updated at the same time. Please retry the save.");
     }
 
     @ExceptionHandler(AuthenticationException.class)

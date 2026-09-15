@@ -70,7 +70,6 @@ $accent-blue-dark: #0043ce;
   align-items: flex-start;
   gap: $spacing-05;
   margin-bottom: $spacing-04;
-  margin-top: $spacing-04;
 }
 
 .nextActionPanel {
@@ -284,10 +283,10 @@ $accent-blue-dark: #0043ce;
 .actionButton {
   display: flex;
   align-items: center;
-  gap: $spacing-02;
+  gap: $spacing-03;
   width: 100%;
-  padding: $spacing-02 $spacing-03;
-  margin-bottom: $spacing-02;
+  padding: $spacing-04;
+  margin-bottom: $spacing-03;
   background: $layer-bg;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -319,27 +318,8 @@ $accent-blue-dark: #0043ce;
 }
 
 .actionButtonLabel {
-  display: flex;
   flex: 1 1 auto;
-  flex-direction: column;
-  gap: 0.125rem;
   min-width: 0;
-  width: 100%;
-
-  strong {
-    color: $text-primary;
-    font-size: 0.8125rem;
-  }
-
-  small {
-    color: $text-secondary;
-    display: block;
-    font-size: 0.6875rem;
-    line-height: 1.3;
-    overflow: visible;
-    white-space: normal;
-    width: 100%;
-  }
 }
 
 .actionButtonCheck {
@@ -519,7 +499,7 @@ $accent-blue-dark: #0043ce;
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: $spacing-05;
 }
 
@@ -972,43 +952,21 @@ $accent-blue-dark: #0043ce;
   }
 }
 
-.mainAreaColumn,
 .workColumn {
   height: calc(100vh - 13.5rem);
   min-height: 0;
 }
 
-.mainArea {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) 11.5rem;
-  gap: $spacing-04;
-  height: 100%;
-  min-height: 0;
-}
-
-.topRow {
-  display: flex;
-  gap: $spacing-04;
-  min-height: 0;
-  height: 100%;
-}
-
 .researchActions,
 .workspace,
 .decisionRail {
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
-.researchActions,
-.workspace {
-  height: 100%;
-}
-
 .researchActions {
-  flex: 0 0 15.5rem;
   padding: $spacing-04;
-  overflow: visible;
 
   h2 {
     color: $text-primary;
@@ -1065,12 +1023,9 @@ $accent-blue-dark: #0043ce;
 }
 
 .workspace {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: $spacing-04;
+  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
 }
 
 .researchWorkspace,
@@ -1079,18 +1034,21 @@ $accent-blue-dark: #0043ce;
   border: 1px solid $border-subtle;
   border-radius: 6px;
   min-height: 0;
+  overflow: hidden;
   padding: $spacing-04;
 }
 
 .researchWorkspace {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-}
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 
-.evidenceBoard {
-  flex: 0 0 auto;
-  overflow: visible;
+  .workspaceHeading { order: 0; }
+  .documentWorkspace { order: 1; }
+  .researchMethods { order: 2; }
+  .researchLoading,
+  .researchError { order: 3; }
+  .findingsSection { order: 4; }
 }
 
 .workspaceHeading,
@@ -1116,6 +1074,53 @@ $accent-blue-dark: #0043ce;
   margin-top: $spacing-03;
 }
 
+.documentWorkspace {
+  margin-top: $spacing-03;
+}
+
+.documentWorkspaceHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: $spacing-02;
+
+  h3 {
+    color: $text-primary;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+}
+
+.documentWorkspace .sourceDocument {
+  max-height: 19rem;
+}
+
+.inlineSelectionAction {
+  align-items: center;
+  background: #f6f2ff;
+  border: 1px solid #d4bbff;
+  display: flex;
+  gap: $spacing-04;
+  justify-content: space-between;
+  margin-top: $spacing-03;
+  padding: $spacing-03 $spacing-04;
+
+  > div {
+    align-items: center;
+    display: flex;
+    gap: $spacing-03;
+    min-width: 0;
+  }
+
+  span {
+    color: $text-secondary;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .researchContextForm {
   min-width: 0;
 }
@@ -1123,10 +1128,10 @@ $accent-blue-dark: #0043ce;
 .researchMethod {
   background: #fcfcfc;
   border: 1px solid $border-subtle;
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: $spacing-02;
-  min-height: 10.25rem;
+  grid-template-rows: auto auto 1fr auto;
+  height: 10.25rem;
   padding: $spacing-04;
 
   h3 {
@@ -1153,10 +1158,6 @@ $accent-blue-dark: #0043ce;
   align-items: end;
   display: flex;
   gap: $spacing-02;
-}
-
-.researchMethod > :global(.cds--btn) {
-  margin-top: auto;
 }
 
 .workspaceEmpty {
@@ -1193,14 +1194,7 @@ $accent-blue-dark: #0043ce;
   margin-top: $spacing-03;
 }
 
-.findingsGrid {
-  display: grid;
-  gap: $spacing-03;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: $spacing-03;
-  overflow: hidden;
-}
-
+.findingsGrid,
 .evidenceGrid {
   display: grid;
   gap: $spacing-03;
@@ -1213,11 +1207,15 @@ $accent-blue-dark: #0043ce;
   display: block;
 }
 
+.evidenceGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .evidenceCard {
   border-left: 3px solid $accent-blue;
   display: flex;
   flex-direction: column;
-  height: 7.5rem;
+  height: 8.2rem;
   min-width: 0;
   overflow: hidden;
   padding: $spacing-03;
@@ -1287,8 +1285,6 @@ $accent-blue-dark: #0043ce;
 .pager {
   color: $text-secondary;
   font-size: 0.6875rem;
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
 .pager :global(.cds--btn) {
@@ -1315,19 +1311,20 @@ $accent-blue-dark: #0043ce;
 .decisionRail {
   display: grid;
   gap: $spacing-04;
-  grid-template-rows: auto auto;
-  align-content: start;
+  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  overflow: hidden;
   padding: 0;
 }
 
 .hypothesisWorkspace,
 .researchGate {
-  overflow: visible;
+  min-height: 0;
+  overflow: hidden;
   padding: $spacing-04;
 }
 
 .hypothesisWorkspaceHeader {
-  margin-bottom: $spacing-02;
+  margin-bottom: $spacing-03;
 
   h3 { font-size: 0.9375rem; }
 }
@@ -1347,10 +1344,10 @@ $accent-blue-dark: #0043ce;
   display: -webkit-box;
   font-size: 0.75rem;
   line-height: 1.35;
-  margin-bottom: $spacing-02;
+  margin-bottom: $spacing-03;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
 }
 
 .hypothesisMetaRow { font-size: 0.6875rem; }
@@ -1397,9 +1394,9 @@ $accent-blue-dark: #0043ce;
 
 @media (max-width: 1200px), (max-height: 840px) {
   .page { height: auto; min-height: calc(100vh - 3rem); overflow: visible; }
-  .mainAreaColumn, .workColumn { height: auto; }
-  .mainArea, .topRow { height: auto; }
+  .workColumn { height: auto; }
   .workspace, .researchActions, .decisionRail { height: auto; overflow: visible; }
+  .workspace { grid-template-rows: auto auto; }
   .researchWorkspace, .evidenceBoard, .hypothesisWorkspace, .researchGate { overflow: visible; }
 }
 
@@ -1409,8 +1406,6 @@ $accent-blue-dark: #0043ce;
   .readinessBand { grid-template-columns: repeat(2, 1fr); }
   .readinessTitle { grid-column: span 2; }
   .evidenceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .topRow { flex-direction: column; }
-  .researchActions { flex: 0 0 auto; }
 }
 
 @media (max-width: 671px) {
@@ -1421,10 +1416,286 @@ $accent-blue-dark: #0043ce;
   .readinessTitle { grid-column: auto; }
   .readinessBand .gateRequirement { border-left: 0; border-top: 1px solid $border-subtle; padding-left: 0; padding-top: $spacing-03; }
   .findingsGrid, .evidenceGrid { grid-template-columns: 1fr; }
-  .findingsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .findingsGrid .evidenceCard { height: auto; min-height: 7rem; }
-  .findingsGrid .evidenceTitle { -webkit-line-clamp: 2; }
-  .findingsGrid .evidenceNote { -webkit-line-clamp: 3;}
+}
+
+.sourceDocument {
+  background: $layer-white;
+  border: 1px solid $border-subtle;
+  border-top: 4px solid $accent-blue;
+  margin: 0;
+  max-height: 28rem;
+  overflow-y: auto;
+  padding: $spacing-06;
+  user-select: text;
+}
+
+.sourceDocumentHeader {
+  align-items: flex-start;
+  border-bottom: 1px solid $border-subtle;
+  display: flex;
+  gap: $spacing-04;
+  justify-content: space-between;
+  margin-bottom: $spacing-05;
+  padding-bottom: $spacing-04;
+
+  h3 {
+    font-size: 1.75rem;
+    line-height: 1.2;
+    margin: 0;
+  }
+}
+
+.sourceDocumentMeta,
+.sourceTemplateLabel,
+.sourceCaption,
+.selectionInstruction {
+  color: $text-secondary;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.sourceDocumentDek {
+  color: $text-secondary;
+  font-size: 1rem;
+  line-height: 1.45;
+  margin: $spacing-03 0 0;
+  max-width: 52rem;
+}
+
+.sourceHeadingSelectable,
+.sourceDekSelectable {
+  cursor: text;
+
+  &:hover {
+    background: #edf5ff;
+    outline: 1px solid #a6c8ff;
+  }
+}
+
+.documentMasthead {
+  align-items: baseline;
+  border-bottom: 3px double #393939;
+  color: #262626;
+  display: flex;
+  font-family: Georgia, 'Times New Roman', serif;
+  gap: $spacing-04;
+  justify-content: space-between;
+  margin: 0 0 $spacing-05;
+  padding: 0 0 $spacing-03;
+
+  strong { font-size: clamp(1.35rem, 2.2vw, 2.25rem); letter-spacing: 0; text-transform: uppercase; }
+  span { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.6875rem; text-transform: uppercase; }
+}
+
+.newspaperSectionBar {
+  border-bottom: 1px solid #393939;
+  display: flex;
+  gap: $spacing-05;
+  margin: 0 0 $spacing-05;
+  padding: 0 0 $spacing-02;
+
+  span { color: #393939; font-family: 'IBM Plex Sans', sans-serif; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+}
+
+.newspaperArticleHeader {
+  border-bottom: 0;
+  margin-bottom: $spacing-03;
+
+  h3 { max-inline-size: 64rem; }
+}
+
+.newspaperArticleMeta {
+  border-block: 1px solid #393939;
+  color: #393939;
+  display: flex;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  gap: $spacing-04;
+  justify-content: space-between;
+  margin: 0 0 $spacing-05;
+  padding: $spacing-02 0;
+  text-transform: uppercase;
+}
+
+.sourceTemplateLabel {
+  border-left: 3px solid #8a3ffc;
+  margin: 0 0 $spacing-04;
+  padding-left: $spacing-03;
+  text-transform: uppercase;
+}
+
+.documentIdentity {
+  align-items: flex-end;
+  border-bottom: 1px solid $border-subtle;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 $spacing-05;
+  padding: 0 0 $spacing-03;
+
+  div { display: grid; gap: 0.125rem; }
+  div span, > span { color: $text-secondary; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+  strong { font-size: 1rem; letter-spacing: 0; }
+}
+
+.sourceDocumentBody {
+  color: $text-primary;
+  font-size: 1rem;
+  line-height: 1.6;
+
+  p { margin: 0 0 $spacing-04; }
+
+  blockquote {
+    border-left: 3px solid $accent-blue;
+    margin: $spacing-05 0;
+    padding: $spacing-03 $spacing-05;
+
+    cite {
+      color: $text-secondary;
+      display: block;
+      font-size: 0.8125rem;
+      font-style: normal;
+      margin-top: $spacing-03;
+    }
+  }
+}
+
+.sourceSection {
+  break-inside: avoid;
+  margin-bottom: $spacing-06;
+}
+
+.sourceSectionHeading {
+  align-items: center;
+  border-top: 1px solid $border-subtle;
+  display: flex;
+  gap: $spacing-03;
+  margin: $spacing-06 0 $spacing-04;
+  padding-top: $spacing-03;
+
+  span { color: $text-secondary; font-family: 'IBM Plex Mono', monospace; font-size: 0.6875rem; }
+  h4 { font-family: 'IBM Plex Sans', sans-serif; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0; margin: 0; text-transform: uppercase; }
+}
+
+.sourceBlock {
+  break-inside: avoid;
+  position: relative;
+}
+
+.sourceBlockSelectable {
+  cursor: text;
+
+  &:hover {
+    background: #edf5ff;
+    outline: 1px solid #a6c8ff;
+  }
+}
+
+.sourceBlockReference {
+  background: #f4f4f4;
+  border-left: 3px solid #a8a8a8;
+  color: #525252;
+  padding: $spacing-03 $spacing-04;
+}
+
+.sourceBlockInterpretation {
+  background: #f6f2ff;
+  border-left-color: #8a3ffc;
+}
+
+.sourceBlockUncertainty {
+  background: #fff8e1;
+  border-left-color: #f1c21b;
+}
+
+.sourceBlockLabel {
+  color: #525252;
+  display: block;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: $spacing-02;
+  text-transform: uppercase;
+}
+
+.sourceMetric {
+  background: #edf5ff;
+  border-left: 3px solid $accent-blue;
+  font-weight: 600;
+  margin: $spacing-04 0;
+  padding: $spacing-04;
+
+  small { color: $text-secondary; display: block; font-weight: 400; margin-top: $spacing-02; }
+}
+
+.dossierStrip {
+  align-items: center;
+  background: #f4f4f4;
+  display: flex;
+  gap: $spacing-04;
+  margin-bottom: $spacing-05;
+  padding: $spacing-04;
+
+  > span {
+    align-items: center;
+    background: #0f62fe;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    font-weight: 600;
+    height: 2.5rem;
+    justify-content: center;
+    width: 2.5rem;
+  }
+
+  strong, p { margin: 0; }
+  p { color: $text-secondary; font-size: 0.8125rem; margin-top: $spacing-02; }
+}
+
+.documentLens {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 0 $spacing-04;
+  overflow: hidden;
+
+  span {
+    background: #f6f2ff;
+    color: #525252;
+    font-size: 0.75rem;
+    padding: $spacing-03;
+  }
+}
+
+.selectionInstruction {
+  background: #fff8e1;
+  border-left: 3px solid #f1c21b;
+  margin: $spacing-05 0 0;
+  padding: $spacing-03 $spacing-04;
+}
+
+.selectionToolbar,
+.selectedEvidencePreview {
+  background: #f6f2ff;
+  border: 1px solid #d4bbff;
+  padding: $spacing-04;
+}
+
+.selectionToolbar {
+  align-items: center;
+  display: flex;
+  gap: $spacing-03;
+
+  span { color: $text-secondary; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.selectedEvidencePreview p:last-child { line-height: 1.5; margin: 0; }
+
+.sourceAssessmentGrid {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 // Desktop research canvas. The workflow HUD consumes the space above this
@@ -1475,14 +1746,8 @@ $accent-blue-dark: #0043ce;
     padding: $spacing-03 $spacing-04;
   }
 
-  .mainAreaColumn,
   .workColumn {
     height: auto;
-    min-height: 0;
-  }
-
-  .mainArea {
-    height: 100%;
     min-height: 0;
   }
 
@@ -1500,9 +1765,9 @@ $accent-blue-dark: #0043ce;
   }
 
   .actionButton {
-    flex: 0 0 auto;
+    flex: 1 1 0;
     margin-bottom: $spacing-02;
-    min-height: 4.5rem;
+    min-height: 0;
     padding: $spacing-03;
   }
 
@@ -1510,18 +1775,15 @@ $accent-blue-dark: #0043ce;
     margin-bottom: 0;
   }
 
-  .researchWorkspace {
-    display: flex;
-    flex-direction: column;
-    padding: $spacing-03;
+  .workspace {
+    grid-template-rows: minmax(0, 1.12fr) minmax(0, 0.88fr);
   }
 
+  .researchWorkspace,
   .evidenceBoard {
     display: flex;
     flex-direction: column;
-    min-height: 0;
     padding: $spacing-03;
-    overflow: hidden;
   }
 
   .researchMethods {
@@ -1529,7 +1791,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .researchMethod {
-    min-height: 7.5rem;
+    height: 7.5rem;
     padding: $spacing-03;
   }
 
@@ -1538,6 +1800,7 @@ $accent-blue-dark: #0043ce;
   // it a real layout height rather than letting its submit button escape into
   // the findings below.
   .researchContextForm .researchMethod {
+    height: auto;
     min-height: 10rem;
   }
 
@@ -1564,25 +1827,9 @@ $accent-blue-dark: #0043ce;
     margin-top: $spacing-02;
   }
 
-  .evidenceBoard .compactSectionHeader {
-    flex: 0 0 auto;
-    min-height: 2rem;
-    margin-bottom: $spacing-03;
-  }
-
-  .evidenceGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    flex: 0 0 7.5rem;
-    height: 7.5rem;
-    min-height: 7.5rem;
-    overflow: hidden;
-  }
-
   .evidenceCard {
-    height: 7.5rem;
-    min-width: 0;
+    height: 5.5rem;
     padding: $spacing-03;
-    overflow: hidden;
   }
 
   .evidenceTitle {
@@ -1591,7 +1838,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .evidenceNote {
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
   }
 
   .decisionRail {
@@ -1621,3 +1868,549 @@ $accent-blue-dark: #0043ce;
     margin-top: $spacing-02 !important;
   }
 }
+
+// Persistent document intelligence workspace. Source data changes by scenario,
+// while the reading and evidence-capture interaction remains familiar.
+.sourceDeck {
+  background: $layer-white;
+  border: 1px solid #c6d7f5;
+  border-radius: 8px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sourceDeckHeader {
+  align-items: center;
+  border-bottom: 1px solid $border-subtle;
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-04;
+  padding: $spacing-04 $spacing-05;
+}
+
+.sourceDeckTitle {
+  align-items: center;
+  display: flex;
+  gap: $spacing-03;
+
+  > svg { color: $accent-blue; flex-shrink: 0; }
+
+  h2 { font-size: 1.125rem; margin: 0; }
+  p { color: $text-secondary; font-size: 0.75rem; line-height: 1.35; margin: $spacing-01 0 0; }
+}
+
+.sourceDeckCount {
+  background: #e8f0ff;
+  color: $accent-blue-dark;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: $spacing-02 $spacing-03;
+}
+
+.sourceDeckContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-04;
+}
+
+.sourceDeckGrid {
+  display: grid;
+  gap: $spacing-04;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.sourceDeckCard {
+  background: #fcfcfc;
+  border: 1px solid $border-subtle;
+  color: $text-primary;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  min-height: 11.5rem;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+
+  &:hover {
+    border-color: $accent-blue;
+    box-shadow: 0 4px 12px rgba(15, 98, 254, 0.16);
+    transform: translateY(-2px);
+  }
+}
+
+.sourceDeckVisual {
+  align-items: center;
+  background: #d0e2ff;
+  color: $accent-blue-dark;
+  display: flex;
+  justify-content: space-between;
+  min-height: 3.25rem;
+  padding: $spacing-03 $spacing-04;
+
+  b { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; }
+}
+
+.sourceDeckVisualSTAKEHOLDER_PROFILE { background: #e8daff; color: #6929c4; }
+.sourceDeckVisualFINANCIAL_SIGNAL { background: #defbe6; color: #0e6027; }
+.sourceDeckVisualTECHNOLOGY_INDICATOR { background: #fff2e8; color: #a84400; }
+
+.sourceDeckCardCopy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: $spacing-02;
+  padding: $spacing-04;
+
+  > strong {
+    display: -webkit-box;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  > small { color: $text-secondary; font-size: 0.6875rem; }
+}
+
+.sourceDeckCardMeta {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-02;
+
+  small { color: $text-secondary; font-size: 0.625rem; white-space: nowrap; }
+}
+
+.openSourceLabel {
+  align-items: center;
+  color: $accent-blue-dark;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: $spacing-02;
+  margin-top: auto;
+}
+
+.sourceList {
+  background: #f8fbff;
+  border-right: 1px solid $border-subtle;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-02;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-03;
+}
+
+.sourceListItem {
+  align-items: flex-start;
+  background: transparent;
+  border: 1px solid transparent;
+  color: $text-primary;
+  cursor: pointer;
+  display: flex;
+  gap: $spacing-03;
+  min-height: 5.25rem;
+  padding: $spacing-03;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+
+  &:hover { background: #edf5ff; border-color: #a6c8ff; }
+}
+
+.sourceListItemActive {
+  background: $layer-white;
+  border-color: $accent-blue;
+  box-shadow: inset 3px 0 0 $accent-blue;
+}
+
+.sourceListVisual {
+  align-items: center;
+  background: #d0e2ff;
+  color: $accent-blue-dark;
+  display: flex;
+  flex: 0 0 2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  height: 2.5rem;
+  justify-content: center;
+}
+
+.sourceListCopy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+
+  strong {
+    display: -webkit-box;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  small { color: $text-secondary; font-size: 0.625rem; line-height: 1.3; }
+  :global(.cds--tag) { align-self: flex-start; margin-top: 0.125rem; }
+}
+
+.sourceReader {
+  background: #f4f4f4;
+  min-height: 0;
+  overflow: hidden;
+  padding: $spacing-04;
+  position: relative;
+}
+
+.sourceReader .sourceDocument {
+  height: 100%;
+  margin: 0;
+  max-height: none;
+}
+
+.sourceDeckFooter {
+  align-items: center;
+  background: #edf5ff;
+  border-top: 1px solid #c6d7f5;
+  color: $accent-blue-dark;
+  display: grid;
+  font-size: 0.75rem;
+  gap: $spacing-04;
+  grid-template-columns: repeat(3, 1fr);
+  padding: $spacing-03 $spacing-05;
+
+  span { align-items: center; display: flex; gap: $spacing-02; }
+  b { align-items: center; background: $accent-blue; border-radius: 50%; color: #fff; display: inline-flex; font-size: 0.6875rem; height: 1.25rem; justify-content: center; width: 1.25rem; }
+}
+
+.newspaperTemplate { border-top-color: #393939; }
+.stakeholderTemplate { background: #f7ffff; border-color: #8bd3dd; border-top-color: #007d79; }
+.financialTemplate { background: #fbfcf8; border-color: #b6d7b9; border-top-color: #198038; }
+.technologyTemplate { background: #fffaf5; border-color: #f2c79d; border-top-color: #b54708; }
+
+.newspaperTemplate .sourceDocumentHeader h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.65rem;
+}
+
+.newspaperTemplate .sourceSectionHeading { border-top-color: #393939; }
+.newspaperTemplate .sourceSectionHeading h4 { font-family: Georgia, 'Times New Roman', serif; font-size: 1rem; }
+
+.newspaperTemplate .sourceSection {
+  border-top: 1px solid #393939;
+  margin: 0;
+  padding-top: $spacing-03;
+}
+
+.newspaperTemplate .sourceSectionHeading {
+  border-top: 0;
+  margin: 0 0 $spacing-03;
+  padding-top: 0;
+}
+
+.newspaperTemplate .sourceBlock {
+  hyphens: auto;
+  text-align: justify;
+}
+
+.stakeholderTemplate .documentIdentity { border-bottom-color: #007d79; }
+.stakeholderTemplate .documentIdentity strong { color: #005d5d; }
+.stakeholderTemplate .sourceDocumentHeader { border-bottom-color: #8bd3dd; }
+.stakeholderTemplate .sourceDocumentHeader h3 { color: #005d5d; font-size: 2rem; }
+.stakeholderTemplate .sourceSectionHeading { border-top-color: #8bd3dd; }
+.stakeholderTemplate .sourceSectionHeading span, .stakeholderTemplate .sourceSectionHeading h4 { color: #005d5d; }
+
+.financialTemplate .documentIdentity { border-bottom-color: #198038; }
+.financialTemplate .documentIdentity strong { color: #0e6027; }
+.financialTemplate .sourceDocumentHeader { border-bottom: 2px solid #198038; }
+.financialTemplate .sourceDocumentHeader h3 { color: #0e6027; font-size: 2rem; }
+.financialTemplate .sourceSectionHeading { border-top-color: #a7d8ad; }
+.financialTemplate .sourceSectionHeading span, .financialTemplate .sourceSectionHeading h4 { color: #0e6027; }
+
+.technologyTemplate .documentIdentity { border-bottom-color: #b54708; }
+.technologyTemplate .documentIdentity strong { color: #8a3800; font-family: 'IBM Plex Mono', monospace; font-size: 0.9375rem; }
+.technologyTemplate .sourceDocumentHeader { border-bottom: 2px solid #b54708; }
+.technologyTemplate .sourceDocumentHeader h3 { color: #8a3800; font-size: 2rem; }
+.technologyTemplate .sourceSectionHeading { border-top-color: #f2c79d; }
+.technologyTemplate .sourceSectionHeading span, .technologyTemplate .sourceSectionHeading h4 { color: #8a3800; }
+
+.stakeholderFileStrip {
+  align-items: center;
+  border-block: 1px solid #8bd3dd;
+  display: grid;
+  gap: $spacing-03;
+  grid-template-columns: auto 1fr auto;
+  margin: 0 0 $spacing-05;
+  padding: $spacing-03 0;
+
+  div { display: grid; gap: 0.125rem; }
+  div span, .fileStatus { color: #005d5d; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+  div strong { color: #004144; font-size: 0.9375rem; }
+}
+
+.fileMonogram {
+  align-items: center;
+  background: #007d79;
+  color: #fff;
+  display: inline-flex;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.25rem;
+  height: 2.5rem;
+  justify-content: center;
+  width: 2.5rem;
+}
+
+.fileStatus { border: 1px solid #007d79; padding: 0.25rem 0.375rem; }
+
+.signalBanner {
+  align-items: baseline;
+  background: #edf5ff;
+  border-left: 3px solid $accent-blue;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-03;
+  margin: 0 0 $spacing-04;
+  padding: $spacing-03;
+
+  span { color: $text-secondary; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; }
+  strong { font-size: 0.75rem; font-weight: 500; }
+}
+
+.financialTemplate .signalBanner { background: #defbe6; border-left-color: #198038; }
+.technologyTemplate .signalBanner { background: #fff2e8; border-left-color: #ff832b; }
+
+.financialSignalBanner { border-left-color: #198038; }
+.technologySignalBanner { border-left-color: #b54708; }
+
+.sourceReader .selectionToolbar {
+  align-items: center;
+  background: #f6f2ff;
+  border: 1px solid #a56eff;
+  bottom: $spacing-05;
+  box-shadow: 0 4px 14px rgba(22, 22, 22, 0.16);
+  display: flex;
+  justify-content: space-between;
+  left: $spacing-05;
+  padding: $spacing-03;
+  position: absolute;
+  right: $spacing-05;
+  z-index: 2;
+
+  > div { align-items: center; display: flex; gap: $spacing-03; min-width: 0; }
+  span { display: block; max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :global(.cds--btn) { flex-shrink: 0; min-height: 2rem; }
+}
+
+.readerModal {
+  :global(.cds--modal-content) { overflow: hidden; padding: 0; }
+}
+
+// Carbon's large breakpoint otherwise constrains every modal to 48% of the
+// viewport. A source reader is a document surface, not a small confirmation.
+:global(.cds--modal-container).readerModal {
+  inline-size: min(94vw, 84rem) !important;
+  max-block-size: 92vh !important;
+  max-inline-size: min(94vw, 84rem) !important;
+}
+
+// Carbon attaches `className` to a wrapper in some versions and to the
+// container in others. Cover both render trees so this remains a full reader.
+.readerModal :global(.cds--modal-container),
+:global(.cds--modal).readerModal :global(.cds--modal-container) {
+  inline-size: min(96vw, 90rem) !important;
+  max-block-size: 94vh !important;
+  max-inline-size: min(96vw, 90rem) !important;
+}
+
+.readerModal :global(.cds--modal-content),
+:global(.cds--modal).readerModal :global(.cds--modal-content) {
+  max-block-size: none;
+}
+
+// Keep the generous reader width while reserving symmetrical space on both
+// sides of the viewport. This also prevents a scrollbar from nudging it left.
+:global(.cds--modal).readerModal {
+  align-items: center;
+  box-sizing: border-box;
+  inline-size: 100vw !important;
+  justify-content: center;
+  max-inline-size: none !important;
+  padding-inline: 2vw;
+}
+
+:global(.cds--modal).readerModal > :global(.cds--modal-container) {
+  flex: 0 1 min(92vw, 84rem);
+  inline-size: min(92vw, 84rem) !important;
+  margin: 0 !important;
+  max-inline-size: min(92vw, 84rem) !important;
+}
+
+.readerModalBody {
+  background: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  height: min(70vh, 48rem);
+  min-height: 32rem;
+  padding: $spacing-05;
+  position: relative;
+}
+
+.readerNavigator {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: $spacing-03;
+
+  span { color: $text-secondary; font-size: 0.75rem; min-width: 7rem; text-align: center; }
+  :global(.cds--btn) { min-height: 2rem; min-width: 2rem; padding: 0; }
+}
+
+.readerModalBody .sourceDocument {
+  background: #fff;
+  flex: 1 1 auto;
+  height: auto;
+  margin: 0;
+  max-height: none;
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(1.5rem, 3vw, 3rem);
+  padding-bottom: 6rem;
+}
+
+.readerModalBody .newspaperTemplate {
+  background: #fffdf8;
+  border-color: #393939;
+  border-top-width: 5px;
+}
+
+.readerModalBody .newspaperTemplate .sourceDocumentHeader {
+  border-bottom: 3px double #393939;
+}
+
+.readerModalBody .newspaperTemplate .sourceDocumentHeader h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.75rem, 2.5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.readerModalBody .sourceDocumentBody {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+.readerModalBody .sourceDocumentDek {
+  font-size: 1.125rem;
+  line-height: 1.5;
+}
+
+.dossierReadingMeta {
+  color: $text-secondary;
+  font-size: 0.8125rem;
+  margin: $spacing-03 0 0;
+}
+
+.readerModalBody .longFormDossierBody {
+  column-count: 1;
+  max-inline-size: 54rem;
+}
+
+.readerModalBody .newspaperTemplate .newspaperBody {
+  column-count: initial;
+  display: grid;
+  gap: $spacing-06 $spacing-05;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-inline-size: none;
+}
+
+.readerModalBody .newspaperTemplate .newspaperBody .sourceSection:first-child {
+  grid-column: span 2;
+}
+
+.readerModalBody .newspaperTemplate .newspaperBody .sourceSection:nth-child(2) {
+  border-left: 1px solid #a8a8a8;
+  padding-left: $spacing-04;
+}
+
+.readerModalBody .sourceDocumentBody blockquote,
+.readerModalBody .sourceMetric,
+.readerModalBody .dossierStrip,
+.readerModalBody .signalBanner,
+.readerModalBody .selectionInstruction { break-inside: avoid; }
+
+.readerModalBody .stakeholderTemplate .sourceDocumentBody,
+.readerModalBody .financialTemplate .sourceDocumentBody,
+.readerModalBody .technologyTemplate .sourceDocumentBody {
+  column-count: 1;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.readerModalBody .stakeholderTemplate .sourceDocumentBody { line-height: 1.7; }
+.readerModalBody .financialTemplate .sourceDocumentBody { line-height: 1.7; }
+.readerModalBody .technologyTemplate .sourceDocumentBody { line-height: 1.7; }
+
+.readerSelectionToolbar {
+  align-items: center;
+  background: #f6f2ff;
+  border: 1px solid #a56eff;
+  bottom: $spacing-06;
+  box-shadow: 0 4px 14px rgba(22, 22, 22, 0.16);
+  display: flex;
+  gap: $spacing-03;
+  justify-content: space-between;
+  left: $spacing-06;
+  padding: $spacing-03 $spacing-04;
+  position: absolute;
+  right: $spacing-06;
+
+  > div { align-items: center; display: flex; gap: $spacing-03; min-width: 0; }
+  span { color: $text-secondary; display: block; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :global(.cds--btn) { flex-shrink: 0; min-height: 2.25rem; }
+}
+
+@media (min-width: 1056px) {
+  .researchWorkspace { overflow: hidden; }
+  .workspace { grid-template-rows: minmax(0, 1.38fr) minmax(0, 0.62fr); }
+  .sourceDocument { padding: $spacing-05; }
+  .sourceDocumentHeader { margin-bottom: $spacing-04; padding-bottom: $spacing-03; }
+  .sourceDocumentHeader h3 { font-size: 1.3rem; }
+  .sourceDocumentBody { font-size: 0.875rem; line-height: 1.5; }
+  .sourceDocumentBody p { margin-bottom: $spacing-03; }
+  .sourceDocumentBody blockquote { margin: $spacing-03 0; padding: $spacing-03 $spacing-04; }
+  .dossierStrip { margin-bottom: $spacing-03; padding: $spacing-03; }
+  .selectionInstruction { margin-top: $spacing-03; }
+}
+
+@media (max-width: 1055px) {
+  .sourceDeck { min-height: 40rem; }
+}
+
+@media (max-width: 671px) {
+  .sourceDeckContent { grid-template-columns: 1fr; }
+  .sourceList { border-bottom: 1px solid $border-subtle; border-right: 0; max-height: 14rem; }
+  .sourceDeckFooter { grid-template-columns: 1fr; }
+  .sourceReader .selectionToolbar span { max-width: 9rem; }
+  .sourceDeckGrid { grid-template-columns: 1fr; }
+  .readerModalBody { height: 75vh; min-height: 0; padding: $spacing-03; }
+  .readerModalBody .sourceDocumentBody { column-count: 1; font-size: 0.9375rem; }
+  .documentMasthead { align-items: flex-start; flex-direction: column; gap: $spacing-02; }
+  .newspaperSectionBar { flex-wrap: wrap; gap: $spacing-03; }
+  .newspaperArticleMeta { align-items: flex-start; flex-direction: column; gap: $spacing-02; }
+  .readerModalBody .newspaperTemplate .newspaperBody { display: block; }
+  .readerModalBody .newspaperTemplate .newspaperBody .sourceSection { margin-bottom: $spacing-06; }
+  .readerModalBody .newspaperTemplate .newspaperBody .sourceSection:nth-child(2) { border-left: 0; padding-left: 0; }
+  .documentLens { grid-template-columns: 1fr; }
+  .readerSelectionToolbar { bottom: $spacing-04; left: $spacing-04; right: $spacing-04; }
+  .readerSelectionToolbar span { max-width: 9rem; }
+}
+
