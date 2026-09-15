@@ -60,6 +60,8 @@ public class CacheConfig {
     public static final String PORTFOLIO_SUMMARY_CACHE = "portfolioSummary";
     /** Short-lived, cross-user read model backing the administrative cockpit. */
     public static final String ADMIN_PLATFORM_OVERVIEW_CACHE = "adminPlatformOverview";
+    /** Short-lived provider-health snapshot shared by the administrative cockpit. */
+    public static final String ADMIN_AI_OPERATIONS_CACHE = "adminAiOperations";
     /** Paged authoring catalogue; intentionally separate from learner-visible scenarios. */
     public static final String ADMIN_SCENARIO_CATALOG_CACHE = "adminScenarioCatalog";
     /** Short-lived, paged administrative directory. Evicted on any access change. */
@@ -88,6 +90,7 @@ public class CacheConfig {
                 localCache(ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30)),
                 localCache(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60)),
                 localCache(ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20)),
+                localCache(ADMIN_AI_OPERATIONS_CACHE, Duration.ofSeconds(30)),
                 localCache(ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45)),
                 localCache(ADMIN_USER_DIRECTORY_CACHE, Duration.ofSeconds(30)),
                 localCache(PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15)),
@@ -119,6 +122,7 @@ public class CacheConfig {
                 ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30),
                 PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60),
                 ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20),
+                ADMIN_AI_OPERATIONS_CACHE, Duration.ofSeconds(30),
                 ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45),
                 ADMIN_USER_DIRECTORY_CACHE, Duration.ofSeconds(30),
                 PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15),

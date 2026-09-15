@@ -4,11 +4,14 @@ import com.ibm.consulting.sim.ai.domain.AiProvider;
 import com.ibm.consulting.sim.ai.domain.AiTaskType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.ibm.consulting.sim.shared.config.CacheConfig.ADMIN_AI_OPERATIONS_CACHE;
 
 /**
  * Builds the read-only "AI Operations" snapshot surfaced to admins/reviewers
@@ -35,6 +38,7 @@ public class AiOperationsService {
         this.mockMode = mockMode;
     }
 
+    @Cacheable(cacheNames = ADMIN_AI_OPERATIONS_CACHE, key = "'global'")
     public AiOperationsResponse snapshot() {
         AiProviderRouter router = routerProvider.getIfAvailable();
         if (router == null) {

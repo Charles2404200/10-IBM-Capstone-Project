@@ -55,11 +55,12 @@ describe('AdminConsolePage states', () => {
   })
 
   // api failure state when a role-relevant query fails
-  it('shows the error state when a role-relevant query fails', () => {
+  it('keeps the console available when one administrator query fails', () => {
     setupAsRole('ADMINISTRATOR')
     mockedPlatform.mockReturnValue({ data: undefined, isLoading: false, isError: true, isFetching: false, refetch: vi.fn() } as unknown as ReturnType<typeof useAdminPlatformOverview>)
     renderPage()
-    expect(screen.getByText('Error...')).toBeInTheDocument()
+    expect(screen.queryByText('Error...')).not.toBeInTheDocument()
+    expect(screen.getByText('Some administration data is unavailable')).toBeInTheDocument()
   })
 
   // api failure state when a role-irrelevant query fails
