@@ -22,15 +22,27 @@ public class StartEngagementUseCase {
     private final ScenarioRepository scenarioRepository;
     private final DifficultyProfileService difficultyProfileService;
     private final LeadRepository leadRepository;
+    private final EngagementLifecycleCoordinator lifecycle;
 
     public StartEngagementUseCase(EngagementRepository engagementRepository,
                                   ScenarioRepository scenarioRepository,
                                   DifficultyProfileService difficultyProfileService,
                                   LeadRepository leadRepository) {
+        this(engagementRepository, scenarioRepository, difficultyProfileService, leadRepository,
+                EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public StartEngagementUseCase(EngagementRepository engagementRepository,
+                                  ScenarioRepository scenarioRepository,
+                                  DifficultyProfileService difficultyProfileService,
+                                  LeadRepository leadRepository,
+                                  EngagementLifecycleCoordinator lifecycle) {
         this.engagementRepository = engagementRepository;
         this.scenarioRepository = scenarioRepository;
         this.difficultyProfileService = difficultyProfileService;
         this.leadRepository = leadRepository;
+        this.lifecycle = lifecycle;
     }
 
     /** Starts an engagement using the first persona defined for the scenario. */
@@ -61,9 +73,10 @@ public class StartEngagementUseCase {
                         .orElseThrow(() -> new PersonaNotInScenarioException(personaId, scenarioId));
 
         Engagement engagement = Engagement.start(userId, scenarioId, persona.getId(),
-                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)));
+                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)), null,
+                lifecycle.snapshot(scenario));
         engagementRepository.save(engagement);
-        return EngagementResponse.from(engagement);
+        return lifecycle.response(engagement);
     }
 
     /**
@@ -89,10 +102,11 @@ public class StartEngagementUseCase {
                         .orElseThrow(() -> new PersonaNotInScenarioException(personaId, scenario.getId()));
 
         Engagement engagement = Engagement.start(userId, scenario.getId(), persona.getId(),
-                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)));
-        engagement.selectLead(lead.getId());
+                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)), null,
+                lifecycle.snapshot(scenario));
+        lifecycle.selectLead(engagement, lead.getId());
         engagementRepository.save(engagement);
-        return EngagementResponse.from(engagement);
+        return lifecycle.response(engagement);
     }
 
     public static class PersonaNotInScenarioException extends DomainException {

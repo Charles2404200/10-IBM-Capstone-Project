@@ -74,6 +74,10 @@ public class Scenario extends BaseEntity {
     @Column(name = "authoring_config", columnDefinition = "text")
     private String authoringConfig;
 
+    /** Validated, revision-bound JSON owned by the lifecycle authoring service. */
+    @Column(name = "lifecycle_definition", columnDefinition = "text")
+    private String lifecycleDefinition;
+
     @Column(name = "rubric_weights")
     private String rubricWeightsEncoded;
 
@@ -126,6 +130,7 @@ public class Scenario extends BaseEntity {
         revision.simulatedDays = simulatedDays;
         revision.rubricWeightsEncoded = rubricWeightsEncoded;
         revision.authoringConfig = authoringConfig;
+        revision.lifecycleDefinition = lifecycleDefinition;
         revision.scenarioLineageId = scenarioLineageId;
         revision.contentVersion = nextContentVersion;
         revision.status = ScenarioStatus.DRAFT;
@@ -165,6 +170,11 @@ public class Scenario extends BaseEntity {
     public void updateAuthoringConfig(String authoringConfig) {
         assertDraftEditable();
         this.authoringConfig = authoringConfig;
+    }
+
+    public void updateLifecycleDefinition(String lifecycleDefinition) {
+        assertDraftEditable();
+        this.lifecycleDefinition = lifecycleDefinition;
     }
 
     private int clampDimension(int value) {
@@ -226,6 +236,7 @@ public class Scenario extends BaseEntity {
     public int getContentVersion() { return contentVersion; }
     public UUID getScenarioLineageId() { return scenarioLineageId; }
     public String getAuthoringConfig() { return authoringConfig; }
+    public String getLifecycleDefinition() { return lifecycleDefinition; }
     public List<Persona> getPersonas() { return Collections.unmodifiableList(personas); }
 
     private void assertDraftEditable() {

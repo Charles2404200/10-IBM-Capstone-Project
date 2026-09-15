@@ -1,46 +1,32 @@
-import type { Engagement } from '@/api/types'
+import type { Engagement, StageCapability } from '@/api/types'
 
-/**
- * Maps an engagement's current phase to the workspace route the learner
- * should land on when they click "Continue" — the single source of truth
- * for phase → route navigation, replacing ad-hoc hardcoded links.
- *
- * Each engagement always resumes exactly where it left off instead of
- * always routing back to Lead Pipeline (the earlier bug: continuing an
- * engagement that had already selected a lead sent the learner back to
- * "Investigate Lead", which then failed because a lead was already locked in).
- */
+/** Application-owned route mapping for server-resolved lifecycle capabilities. */
+export function resolveStageRoute(capability: StageCapability, engagement: Engagement): string {
+  const base = `/dashboard/engagements/${engagement.id}`
+  switch (capability) {
+    case 'LEAD': return `${base}/leads`
+    case 'CLIENT_INTELLIGENCE': return `${base}/intelligence`
+    case 'OUTREACH': return `${base}/outreach`
+    case 'MEETING_PREPARATION': return `${base}/preparation`
+    case 'LIVE_MEETING':
+      return engagement.meetingId ? `${base}/meetings/${engagement.meetingId}` : `${base}/preparation`
+    case 'MEETING_REVIEW':
+      return engagement.meetingId ? `${base}/meetings/${engagement.meetingId}` : `${base}/assessment`
+    case 'PROPOSAL':
+    case 'OUTCOME': return `${base}/proposal`
+    case 'REVIEW': return `${base}/assessment`
+    case 'COMPLETED': return '/dashboard/portfolio'
+  }
+}
+
+/** Resolves the learner's Continue destination from authoritative engagement state. */
 export function resolveEngagementRoute(engagement: Engagement): string {
   const base = `/dashboard/engagements/${engagement.id}`
   if (engagement.state === 'MEETING_FAILED') {
     return engagement.meetingId ? `${base}/meetings/${engagement.meetingId}` : `${base}/leads`
   }
-  switch (engagement.phase) {
-    case 'LEAD':
-      return `${base}/leads`
-    case 'CLIENT_INTELLIGENCE':
-      return `${base}/intelligence`
-    case 'OUTREACH':
-      return `${base}/outreach`
-    case 'MEETING_PREPARATION':
-      return `${base}/preparation`
-    case 'LIVE_MEETING':
-      // Falls back to preparation if the meeting id hasn't been enriched yet —
-      // still correct, since MeetingPreparationPage lets the learner resume
-      // into the live meeting from there.
-      return engagement.meetingId ? `${base}/meetings/${engagement.meetingId}` : `${base}/preparation`
-    case 'MEETING_REVIEW':
-      // Previously fell through to `default` and sent the learner back to the
-      // Lead Pipeline — to the start of an engagement they were two-thirds
-      // of the way through.
-      return `${base}/assessment`
-    case 'PROPOSAL':
-      return `${base}/proposal`
-    case 'OUTCOME':
-    case 'REVIEW':
-    case 'COMPLETED':
-      return `${base}/assessment`
-    default:
-      return `${base}/leads`
-  }
+  // Preserve the established post-completion Continue behavior. The HUD has a
+  // separate explicit Portfolio stage jump.
+  if (engagement.phase === 'COMPLETED') return `${base}/assessment`
+  return resolveStageRoute(engagement.phase, engagement)
 }

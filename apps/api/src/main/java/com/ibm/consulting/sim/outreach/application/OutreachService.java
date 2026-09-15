@@ -41,6 +41,7 @@ public class OutreachService {
     private final DifficultyProfileService difficultyProfileService;
     private final LeadRepository leadRepository;
     private final ResearchEvidenceRepository evidenceRepository;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
 
     public OutreachService(OutreachRepository outreachRepository,
                            EngagementRepository engagementRepository,
@@ -49,6 +50,20 @@ public class OutreachService {
                            DifficultyProfileService difficultyProfileService,
                            LeadRepository leadRepository,
                            ResearchEvidenceRepository evidenceRepository) {
+        this(outreachRepository, engagementRepository, aiOrchestrationService, objectMapper, difficultyProfileService,
+                leadRepository, evidenceRepository,
+                com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OutreachService(OutreachRepository outreachRepository,
+                           EngagementRepository engagementRepository,
+                           AiOrchestrationService aiOrchestrationService,
+                           ObjectMapper objectMapper,
+                           DifficultyProfileService difficultyProfileService,
+                           LeadRepository leadRepository,
+                           ResearchEvidenceRepository evidenceRepository,
+                           com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.outreachRepository = outreachRepository;
         this.engagementRepository = engagementRepository;
         this.aiOrchestrationService = aiOrchestrationService;
@@ -56,6 +71,7 @@ public class OutreachService {
         this.difficultyProfileService = difficultyProfileService;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional
@@ -80,7 +96,7 @@ public class OutreachService {
 
         // Transition to in-progress
         if (engagement.getState() == EngagementState.HYPOTHESIS_READY) {
-            engagement.transitionTo(EngagementState.OUTREACHING, "Outreach attempt #" + (attemptCount + 1));
+            lifecycle.transition(engagement, EngagementState.OUTREACHING, "Outreach attempt #" + (attemptCount + 1));
         }
 
         OutreachAttempt attempt = OutreachAttempt.create(engagementId, attemptCount + 1, subject, body);
@@ -113,7 +129,7 @@ public class OutreachService {
         EngagementState nextState = outcome == OutreachOutcome.ACCEPTED
                 ? EngagementState.MEETING_SECURED
                 : EngagementState.OUTREACHING;
-        engagement.transitionTo(nextState, "Outreach outcome: " + outcome);
+        lifecycle.transition(engagement, nextState, "Outreach outcome: " + outcome);
         engagementRepository.save(engagement);
 
         return OutreachResponse.from(attempt);

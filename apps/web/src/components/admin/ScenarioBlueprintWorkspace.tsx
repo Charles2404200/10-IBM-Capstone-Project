@@ -38,6 +38,7 @@ import type {
 import { leadAuthoringFormFrom, type LeadAuthoringForm } from '@/features/scenario/services/scenarioAuthoringContract'
 import styles from '@/pages/Admin/ScenarioBuilderPage.module.css'
 import { getProblemDetail } from '@/api/problemDetails'
+import ScenarioLifecycleEditor from './ScenarioLifecycleEditor'
 
 const evidenceTypes: EvidenceType[] = ['COMPANY_NEWS', 'STAKEHOLDER_PROFILE', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR', 'MARKET_TREND']
 const targets: RevealTarget[] = ['DECISION_MAKER', 'PAIN_SEVERITY', 'TECHNOLOGY_STACK', 'BUDGET_SIGNAL', 'POTENTIAL_VALUE']
@@ -144,6 +145,8 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
           </Button>
         </Tile>
       )}
+
+      <ScenarioLifecycleEditor scenarioId={scenario.id} editable={editable} />
 
       {editable && <>
         <section className={styles.authoringSection}>

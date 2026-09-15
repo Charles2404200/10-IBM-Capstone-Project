@@ -34,6 +34,10 @@ public class Engagement extends BaseEntity {
     @Column(name = "difficulty_profile_snapshot", columnDefinition = "text")
     private String difficultyProfileSnapshot;
 
+    /** Immutable resolved lifecycle for this run; null identifies a legacy run. */
+    @Column(name = "lifecycle_definition_snapshot", columnDefinition = "text", updatable = false)
+    private String lifecycleDefinitionSnapshot;
+
     /** Immutable lineage link when this run was restarted after a failed meeting. */
     @Column(name = "retry_of_engagement_id")
     private UUID retryOfEngagementId;
@@ -55,11 +59,17 @@ public class Engagement extends BaseEntity {
 
     public static Engagement start(UUID userId, UUID scenarioId, UUID personaId, String difficultyProfileSnapshot,
                                    UUID retryOfEngagementId) {
+        return start(userId, scenarioId, personaId, difficultyProfileSnapshot, retryOfEngagementId, null);
+    }
+
+    public static Engagement start(UUID userId, UUID scenarioId, UUID personaId, String difficultyProfileSnapshot,
+                                   UUID retryOfEngagementId, String lifecycleDefinitionSnapshot) {
         Engagement e = new Engagement();
         e.userId = userId;
         e.scenarioId = scenarioId;
         e.personaId = personaId;
         e.difficultyProfileSnapshot = difficultyProfileSnapshot;
+        e.lifecycleDefinitionSnapshot = lifecycleDefinitionSnapshot;
         e.retryOfEngagementId = retryOfEngagementId;
         e.state = EngagementState.QUALIFYING;
         e.recordEvent(retryOfEngagementId == null
@@ -78,8 +88,20 @@ public class Engagement extends BaseEntity {
     }
 
     public void selectLead(UUID leadId) {
-        this.selectedLeadId = leadId;
+        assignLead(leadId);
         transitionTo(EngagementState.CLIENT_INTELLIGENCE, "Lead selected: " + leadId);
+    }
+
+    /** Coordinator assigns the command fact before evaluating the lead completion gate. */
+    public void assignLead(UUID leadId) {
+        EngagementPolicy.assertValidTransition(state, EngagementState.CLIENT_INTELLIGENCE);
+        this.selectedLeadId = java.util.Objects.requireNonNull(leadId, "Lead is required");
+    }
+
+    /** Restore the pre-command fact if lifecycle validation rejects selection. */
+    public void clearSelectedLeadAfterFailedSelection() {
+        EngagementPolicy.assertValidTransition(state, EngagementState.CLIENT_INTELLIGENCE);
+        this.selectedLeadId = null;
     }
 
     /** Records a failed attempt without changing the engagement's lifecycle state. */
@@ -99,5 +121,6 @@ public class Engagement extends BaseEntity {
     public Instant getCompletedAt() { return completedAt; }
     public List<EngagementEvent> getEvents() { return Collections.unmodifiableList(events); }
     public String getDifficultyProfileSnapshot() { return difficultyProfileSnapshot; }
+    public String getLifecycleDefinitionSnapshot() { return lifecycleDefinitionSnapshot; }
     public UUID getRetryOfEngagementId() { return retryOfEngagementId; }
 }

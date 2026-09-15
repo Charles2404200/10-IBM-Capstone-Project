@@ -44,6 +44,7 @@ public class AssessmentService {
     private final ScenarioRepository scenarioRepository;
     private final AchievementEvaluationService achievementEvaluationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
 
     public AssessmentService(AssessmentRepository assessmentRepository,
                               EngagementRepository engagementRepository,
@@ -54,6 +55,22 @@ public class AssessmentService {
                               ScenarioRepository scenarioRepository,
                               AchievementEvaluationService achievementEvaluationService,
                               ApplicationEventPublisher eventPublisher) {
+        this(assessmentRepository, engagementRepository, evidenceRepository, outreachRepository, personaStateRepository,
+                proposalRepository, scenarioRepository, achievementEvaluationService, eventPublisher,
+                com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AssessmentService(AssessmentRepository assessmentRepository,
+                              EngagementRepository engagementRepository,
+                              ResearchEvidenceRepository evidenceRepository,
+                              OutreachRepository outreachRepository,
+                              PersonaStateRepository personaStateRepository,
+                              ProposalRepository proposalRepository,
+                              ScenarioRepository scenarioRepository,
+                              AchievementEvaluationService achievementEvaluationService,
+                              ApplicationEventPublisher eventPublisher,
+                              com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.assessmentRepository = assessmentRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -63,6 +80,7 @@ public class AssessmentService {
         this.scenarioRepository = scenarioRepository;
         this.achievementEvaluationService = achievementEvaluationService;
         this.eventPublisher = eventPublisher;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional
@@ -148,11 +166,11 @@ public class AssessmentService {
     private void completeAssessmentLifecycle(Engagement engagement, String reason) {
         boolean changed = false;
         if (engagement.getState() == EngagementState.CLIENT_DECISION) {
-            engagement.transitionTo(EngagementState.REVIEW, "Assessment available for review");
+            lifecycle.transition(engagement, EngagementState.REVIEW, "Assessment available for review");
             changed = true;
         }
         if (engagement.getState() == EngagementState.REVIEW) {
-            engagement.transitionTo(EngagementState.COMPLETED, reason);
+            lifecycle.transition(engagement, EngagementState.COMPLETED, reason);
             changed = true;
         }
         if (changed) {

@@ -27,16 +27,27 @@ public class LeadService {
     private final DifficultyProfileService difficultyProfileService;
     private final ScenarioRepository scenarioRepository;
     private final ScenarioAuthoringConfigService authoringConfigService;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
 
     public LeadService(LeadRepository leadRepository, ResearchEvidenceRepository evidenceRepository,
                        EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService,
                        ScenarioRepository scenarioRepository, ScenarioAuthoringConfigService authoringConfigService) {
+        this(leadRepository, evidenceRepository, engagementRepository, difficultyProfileService, scenarioRepository,
+                authoringConfigService, com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public LeadService(LeadRepository leadRepository, ResearchEvidenceRepository evidenceRepository,
+                       EngagementRepository engagementRepository, DifficultyProfileService difficultyProfileService,
+                       ScenarioRepository scenarioRepository, ScenarioAuthoringConfigService authoringConfigService,
+                       com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.engagementRepository = engagementRepository;
         this.difficultyProfileService = difficultyProfileService;
         this.scenarioRepository = scenarioRepository;
         this.authoringConfigService = authoringConfigService;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +96,7 @@ public class LeadService {
         if (!lead.getScenarioId().equals(engagement.getScenarioId())) {
             throw new LeadNotInScenarioException(leadId, engagement.getScenarioId());
         }
-        engagement.selectLead(leadId);
+        lifecycle.selectLead(engagement, leadId);
         engagementRepository.save(engagement);
     }
 
@@ -200,7 +211,7 @@ public class LeadService {
             throw new ResearchNotReadyException(evidence, profile);
         }
 
-        engagement.transitionTo(EngagementState.HYPOTHESIS_READY,
+        lifecycle.transition(engagement, EngagementState.HYPOTHESIS_READY,
                 "Research completed with %d evidence items".formatted(evidence.size()));
         engagementRepository.save(engagement);
         return ResearchGateStatus.from(engagement.getState(), evidence, profile);

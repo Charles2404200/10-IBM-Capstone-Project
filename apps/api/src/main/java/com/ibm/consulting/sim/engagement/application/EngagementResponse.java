@@ -30,7 +30,9 @@ public record EngagementResponse(
         String nextAction,
         long evidenceCount,
         long daysElapsed,
-        UUID meetingId) {
+        UUID meetingId,
+        ResolvedEngagementLifecycle.Lifecycle lifecycle,
+        List<ResolvedEngagementLifecycle.Objective> objectives) {
 
     public record EventRecord(UUID id, String state, String description, Instant occurredAt) {
         static EventRecord from(EngagementEvent e) {
@@ -56,6 +58,18 @@ public record EngagementResponse(
                 phase.name(), phase.label(),
                 EngagementProgressCalculator.progressPercent(e.getState()),
                 EngagementProgressCalculator.nextAction(e.getState()),
-                evidenceCount, daysElapsed, meetingId);
+                evidenceCount, daysElapsed, meetingId, null, List.of());
+    }
+
+    public EngagementResponse withLifecycle(ResolvedEngagementLifecycle resolved) {
+        ResolvedEngagementLifecycle.Stage current = resolved.lifecycle().stages().stream()
+                .filter(stage -> stage.key().equals(resolved.lifecycle().currentStageKey()))
+                .findFirst().orElse(null);
+        return new EngagementResponse(id, userId, scenarioId, personaId, state, selectedLeadId, createdAt,
+                completedAt, events, scenarioTitle, scenarioIndustry, leadCompanyName, phase,
+                current == null ? phaseLabel : current.label(), resolved.lifecycle().progressPercent(),
+                current == null || current.nextText() == null || current.nextText().isBlank() ? nextAction : current.nextText(),
+                evidenceCount, daysElapsed, meetingId,
+                resolved.lifecycle(), resolved.objectives());
     }
 }

@@ -40,6 +40,7 @@ class ScenarioServiceTest {
     @Mock LeadRepository leadRepository;
     @Mock KnowledgeIngestionService knowledgeIngestionService;
     @Mock AuditLogger auditLogger;
+    @org.mockito.Spy LifecycleDefinitionCodec lifecycleCodec = new LifecycleDefinitionCodec(new com.fasterxml.jackson.databind.ObjectMapper());
 
     @InjectMocks ScenarioService service;
 
@@ -53,6 +54,21 @@ class ScenarioServiceTest {
                     scenario.getStakeholderComplexity(),
                     scenario.getCommercialPressure());
             });
+    }
+
+    @Test
+    void malformedLifecycleBlocksPublicationWithoutChangingTheDraft() {
+        Scenario scenario = Scenario.create("Invalid lifecycle", "Retail", "Description", 3);
+        scenario.updateLifecycleDefinition("{\"schemaVersion\":999}");
+        mockScenarioReadiness(scenario);
+        when(scenarioRepository.findLineageIdById(scenario.getId())).thenReturn(Optional.of(scenario.getScenarioLineageId()));
+        when(scenarioRepository.findByIdForUpdate(scenario.getScenarioLineageId())).thenReturn(Optional.of(scenario));
+        when(scenarioRepository.findLineageForUpdate(scenario.getScenarioLineageId())).thenReturn(List.of(scenario));
+
+        assertThatThrownBy(() -> service.publish(scenario.getId()))
+                .isInstanceOf(ScenarioNotReadyException.class).hasMessageContaining("lifecycle");
+        assertThat(scenario.getStatus()).isEqualTo(ScenarioStatus.DRAFT);
+        org.mockito.Mockito.verify(scenarioRepository, org.mockito.Mockito.never()).save(any());
     }
 
     private void mockScenarioReadiness(Scenario scenario) {

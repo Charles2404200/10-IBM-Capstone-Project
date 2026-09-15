@@ -22,11 +22,21 @@ public class MeetingPreparationService {
 
     private final MeetingPreparationRepository preparationRepository;
     private final EngagementRepository engagementRepository;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
 
     public MeetingPreparationService(MeetingPreparationRepository preparationRepository,
                                       EngagementRepository engagementRepository) {
+        this(preparationRepository, engagementRepository,
+                com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public MeetingPreparationService(MeetingPreparationRepository preparationRepository,
+                                     EngagementRepository engagementRepository,
+                                     com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.preparationRepository = preparationRepository;
         this.engagementRepository = engagementRepository;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional
@@ -47,7 +57,7 @@ public class MeetingPreparationService {
         preparationRepository.save(preparation);
 
         if (preparation.isReady() && engagement.getState() == EngagementState.MEETING_SECURED) {
-            engagement.transitionTo(EngagementState.PREPARING,
+            lifecycle.transition(engagement, EngagementState.PREPARING,
                     "Preparation readiness reached %d".formatted(preparation.getReadinessScore()));
             engagementRepository.save(engagement);
         }

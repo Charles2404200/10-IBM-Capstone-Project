@@ -45,16 +45,27 @@ public class ScenarioService {
     private final LeadRepository leadRepository;
     private final KnowledgeIngestionService knowledgeIngestionService;
     private final AuditLogger auditLogger;
+    private final LifecycleDefinitionCodec lifecycleCodec;
 
     public ScenarioService(ScenarioRepository scenarioRepository, DifficultyProfileService difficultyProfileService,
                            ScenarioAuthoringConfigService authoringConfigService, LeadRepository leadRepository,
                            KnowledgeIngestionService knowledgeIngestionService, AuditLogger auditLogger) {
+        this(scenarioRepository, difficultyProfileService, authoringConfigService, leadRepository,
+                knowledgeIngestionService, auditLogger, new LifecycleDefinitionCodec(new com.fasterxml.jackson.databind.ObjectMapper()));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ScenarioService(ScenarioRepository scenarioRepository, DifficultyProfileService difficultyProfileService,
+                           ScenarioAuthoringConfigService authoringConfigService, LeadRepository leadRepository,
+                           KnowledgeIngestionService knowledgeIngestionService, AuditLogger auditLogger,
+                           LifecycleDefinitionCodec lifecycleCodec) {
         this.scenarioRepository = scenarioRepository;
         this.difficultyProfileService = difficultyProfileService;
         this.authoringConfigService = authoringConfigService;
         this.leadRepository = leadRepository;
         this.knowledgeIngestionService = knowledgeIngestionService;
         this.auditLogger = auditLogger;
+        this.lifecycleCodec = java.util.Objects.requireNonNull(lifecycleCodec);
     }
 
     @Transactional(readOnly = true)
@@ -351,6 +362,12 @@ public class ScenarioService {
 
     private ScenarioAuthoringView.Readiness readiness(Scenario scenario) {
         List<String> blockers = new ArrayList<>();
+        com.ibm.consulting.sim.scenario.domain.ScenarioLifecycleDefinition lifecycle = null;
+        try {
+            lifecycle = lifecycleCodec.decode(scenario.getLifecycleDefinition(), scenario.getObjective());
+        } catch (com.ibm.consulting.sim.scenario.domain.InvalidScenarioLifecycleDefinitionException exception) {
+            blockers.add(exception.getMessage());
+        }
         ScenarioAuthoringConfig config = authoringConfigService.forScenario(scenario);
         int personas = scenario.getPersonas().size();
         List<Lead> authoredLeads = leadRepository.findByScenarioId(scenario.getId());
@@ -360,7 +377,8 @@ public class ScenarioService {
         else if (authoredLeads.stream().anyMatch(ScenarioService::isLeadIncomplete)) {
             blockers.add("Complete every lead's description, intelligence fields, and visible signals.");
         }
-        if (scenario.getObjective() == null || scenario.getObjective().isBlank()) blockers.add("Define the learner objective.");
+        if ((scenario.getObjective() == null || scenario.getObjective().isBlank())
+                && (lifecycle == null || lifecycle.objectives().isEmpty())) blockers.add("Define the learner objective.");
         if (config.canonicalFacts().isEmpty()) blockers.add("Add scenario-approved canonical facts.");
         if (config.revealRules().isEmpty()) blockers.add("Define intelligence reveal rules.");
         if (scenario.getRubricWeights().isEmpty()) blockers.add("Save competency rubric weights.");

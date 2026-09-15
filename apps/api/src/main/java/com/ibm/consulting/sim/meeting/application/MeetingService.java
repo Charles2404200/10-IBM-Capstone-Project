@@ -53,6 +53,7 @@ public class MeetingService {
     private final KnowledgeRetrievalService knowledgeRetrievalService;
     private final DifficultyProfileService difficultyProfileService;
     private final GuidedMeetingResponseService guidedResponseService;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
 
     public MeetingService(MeetingRepository meetingRepository,
                            ConversationTurnRepository turnRepository,
@@ -67,6 +68,27 @@ public class MeetingService {
                            KnowledgeRetrievalService knowledgeRetrievalService,
                            DifficultyProfileService difficultyProfileService,
                            GuidedMeetingResponseService guidedResponseService) {
+        this(meetingRepository, turnRepository, personaStateRepository, preparationRepository, engagementRepository,
+                personaCatalogService, evidenceRepository, aiOrchestrationService, objectMapper, transcriptExportService,
+                knowledgeRetrievalService, difficultyProfileService, guidedResponseService,
+                com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public MeetingService(MeetingRepository meetingRepository,
+                           ConversationTurnRepository turnRepository,
+                           PersonaStateRepository personaStateRepository,
+                           MeetingPreparationRepository preparationRepository,
+                           EngagementRepository engagementRepository,
+                           PersonaCatalogService personaCatalogService,
+                           ResearchEvidenceRepository evidenceRepository,
+                           AiOrchestrationService aiOrchestrationService,
+                           ObjectMapper objectMapper,
+                           TranscriptExportService transcriptExportService,
+                           KnowledgeRetrievalService knowledgeRetrievalService,
+                           DifficultyProfileService difficultyProfileService,
+                           GuidedMeetingResponseService guidedResponseService,
+                           com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.meetingRepository = meetingRepository;
         this.turnRepository = turnRepository;
         this.personaStateRepository = personaStateRepository;
@@ -80,6 +102,7 @@ public class MeetingService {
         this.knowledgeRetrievalService = knowledgeRetrievalService;
         this.difficultyProfileService = difficultyProfileService;
         this.guidedResponseService = guidedResponseService;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional
@@ -93,7 +116,7 @@ public class MeetingService {
             throw new PreparationNotReadyException(readiness);
         }
 
-        engagement.transitionTo(EngagementState.IN_MEETING, "Meeting started");
+        lifecycle.transition(engagement, EngagementState.IN_MEETING, "Meeting started");
         engagementRepository.save(engagement);
 
         Meeting meeting = Meeting.start(engagementId, engagement.getPersonaId());
@@ -408,14 +431,14 @@ public class MeetingService {
         meetingRepository.save(meeting);
 
         if (decision.passed()) {
-            engagement.transitionTo(EngagementState.DISCOVERY_COMPLETE, "Meeting completed: passed relationship gate");
+            lifecycle.transition(engagement, EngagementState.DISCOVERY_COMPLETE, "Meeting completed: passed relationship gate");
         } else {
             MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
             if (eligibility.available()) {
                 engagement.recordActivity("Meeting attempt failed; %d live retry attempt(s) remain."
                         .formatted(eligibility.retriesRemaining()));
             } else {
-                engagement.transitionTo(EngagementState.MEETING_FAILED,
+                lifecycle.transition(engagement, EngagementState.MEETING_FAILED,
                         "Meeting retry limit reached; restart the lead to try again.");
             }
         }
@@ -448,7 +471,7 @@ public class MeetingService {
 
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
         if (decision.reason() == MeetingTerminationReason.UNPROFESSIONAL_CONDUCT || !eligibility.available()) {
-            engagement.transitionTo(EngagementState.MEETING_FAILED,
+            lifecycle.transition(engagement, EngagementState.MEETING_FAILED,
                     "Meeting automatically failed: " + decision.reason().name());
         } else {
             engagement.recordActivity("Meeting attempt failed; %d live retry attempt(s) remain."

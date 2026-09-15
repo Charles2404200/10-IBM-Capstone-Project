@@ -60,6 +60,7 @@ public class ProposalService {
     private final DifficultyProfileService difficultyProfileService;
     private final CacheManager cacheManager;
     private final ApplicationEventPublisher eventPublisher;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
     /** Avoids duplicate provider calls when two browser requests review the same draft concurrently. */
     private final ConcurrentMap<String, CompletableFuture<ProposalReviewResponse>> reviewRequests = new ConcurrentHashMap<>();
 
@@ -75,6 +76,26 @@ public class ProposalService {
                            DifficultyProfileService difficultyProfileService,
                            CacheManager cacheManager,
                            ApplicationEventPublisher eventPublisher) {
+        this(proposalRepository, engagementRepository, evidenceRepository, personaStateRepository, meetingRepository,
+                turnRepository, aiOrchestrationService, objectMapper, personaCatalogService, difficultyProfileService,
+                cacheManager, eventPublisher,
+                com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProposalService(ProposalRepository proposalRepository,
+                           EngagementRepository engagementRepository,
+                           ResearchEvidenceRepository evidenceRepository,
+                           PersonaStateRepository personaStateRepository,
+                           MeetingRepository meetingRepository,
+                           ConversationTurnRepository turnRepository,
+                           AiOrchestrationService aiOrchestrationService,
+                           ObjectMapper objectMapper,
+                           PersonaCatalogService personaCatalogService,
+                           DifficultyProfileService difficultyProfileService,
+                           CacheManager cacheManager,
+                           ApplicationEventPublisher eventPublisher,
+                           com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.proposalRepository = proposalRepository;
         this.engagementRepository = engagementRepository;
         this.evidenceRepository = evidenceRepository;
@@ -87,6 +108,7 @@ public class ProposalService {
         this.difficultyProfileService = difficultyProfileService;
         this.cacheManager = cacheManager;
         this.eventPublisher = eventPublisher;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional(readOnly = true)
@@ -111,7 +133,7 @@ public class ProposalService {
         }
         proposalRepository.save(proposal);
         if (engagement.getState() == EngagementState.DISCOVERY_COMPLETE) {
-            engagement.transitionTo(EngagementState.PROPOSAL_DRAFT, "Proposal draft created");
+            lifecycle.transition(engagement, EngagementState.PROPOSAL_DRAFT, "Proposal draft created");
             engagementRepository.save(engagement);
         }
         return ProposalResponse.from(proposal);
@@ -195,10 +217,10 @@ public class ProposalService {
         proposalRepository.save(proposal);
 
         if (engagement.getState() == EngagementState.DISCOVERY_COMPLETE) {
-            engagement.transitionTo(EngagementState.PROPOSAL_DRAFT, "Proposal draft opened during submission");
+            lifecycle.transition(engagement, EngagementState.PROPOSAL_DRAFT, "Proposal draft opened during submission");
         }
-        engagement.transitionTo(EngagementState.PROPOSAL_SUBMITTED, "Proposal submitted");
-        engagement.transitionTo(EngagementState.CLIENT_DECISION,
+        lifecycle.transition(engagement, EngagementState.PROPOSAL_SUBMITTED, "Proposal submitted");
+        lifecycle.transition(engagement, EngagementState.CLIENT_DECISION,
                 "Client decision: " + decisionSnapshot.outcome());
         engagementRepository.save(engagement);
         eventPublisher.publishEvent(new ProposalDecisionSubmittedEvent(engagementId, content, sources, persona,
@@ -427,7 +449,7 @@ public class ProposalService {
                 .map(meeting -> meeting.getCompletionOutcome() == MeetingCompletionOutcome.PASSED)
                 .orElse(false);
         if (passedMeeting) {
-            engagement.transitionTo(EngagementState.DISCOVERY_COMPLETE,
+            lifecycle.transition(engagement, EngagementState.DISCOVERY_COMPLETE,
                     "Recovered discovery completion from passed live meeting");
             engagementRepository.save(engagement);
         }

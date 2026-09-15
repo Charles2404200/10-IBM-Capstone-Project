@@ -297,6 +297,100 @@ export type EngagementPhase =
   | 'REVIEW'
   | 'COMPLETED'
 
+export type StageCapability = EngagementPhase
+
+export type LifecycleConditionType =
+  | 'LEAD_SELECTED'
+  | 'MIN_EVIDENCE_COUNT'
+  | 'HAS_HYPOTHESIS'
+  | 'MIN_RESEARCH_CONFIDENCE'
+  | 'OUTREACH_ACCEPTED'
+  | 'PREPARATION_READY'
+  | 'MIN_PREPARATION_SCORE'
+  | 'MEETING_STARTED'
+  | 'MEETING_COMPLETED'
+  | 'MIN_TRUST'
+  | 'MIN_INTEREST'
+  | 'MIN_PATIENCE'
+  | 'PROPOSAL_CREATED'
+  | 'PROPOSAL_SUBMITTED'
+  | 'CLIENT_DECISION_AVAILABLE'
+  | 'ASSESSMENT_AVAILABLE'
+  | 'CURRENT_STAGE_COMPLETED'
+
+export type LifecycleConditionNode =
+  | { kind: 'GROUP'; operator: 'AND' | 'OR'; children: LifecycleConditionNode[] }
+  | { kind: 'LEAF'; conditionType: LifecycleConditionType; threshold?: number | null; value?: string | null }
+
+export interface ScenarioStageDefinition {
+  key: string
+  capability: StageCapability
+  label: string
+  description: string
+  goal: string
+  doneText: string
+  nextText: string
+  required: boolean
+  displayOrder: number
+  entryCondition: LifecycleConditionNode | null
+  completionCondition: LifecycleConditionNode | null
+}
+
+export interface ScenarioObjectiveDefinition {
+  key: string
+  parentObjectiveKey: string | null
+  stageKey: string | null
+  title: string
+  description: string
+  required: boolean
+  displayOrder: number
+  completionCondition: LifecycleConditionNode | null
+}
+
+export interface ScenarioLifecycleDefinition {
+  schemaVersion: 1
+  stages: ScenarioStageDefinition[]
+  objectives: ScenarioObjectiveDefinition[]
+}
+
+export interface ScenarioLifecycleResponse {
+  definition: ScenarioLifecycleDefinition
+  version: number
+}
+
+export type ResolvedStageStatus = 'LOCKED' | 'AVAILABLE' | 'CURRENT' | 'COMPLETED'
+
+export interface ResolvedEngagementStage {
+  key: string
+  capability: StageCapability
+  label: string
+  description: string
+  goal: string
+  doneText: string
+  nextText: string
+  required: boolean
+  status: ResolvedStageStatus
+}
+
+export interface ResolvedEngagementLifecycle {
+  stages: ResolvedEngagementStage[]
+  currentStageKey: string
+  currentStageIndex: number
+  totalStages: number
+  progressPercent: number
+}
+
+export interface ObjectiveProgress {
+  key: string
+  parentObjectiveKey: string | null
+  stageKey: string | null
+  title: string
+  description: string
+  required: boolean
+  completed: boolean
+  completionExplanation: string
+}
+
 export interface Engagement {
   id: string
   userId: string
@@ -318,6 +412,8 @@ export interface Engagement {
   evidenceCount: number
   daysElapsed: number
   meetingId: string | null
+  lifecycle?: ResolvedEngagementLifecycle
+  objectives?: ObjectiveProgress[]
 }
 
 // ─── Outreach ─────────────────────────────────────────────────────────────────

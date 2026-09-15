@@ -31,6 +31,14 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String PROBLEM_TYPE_BASE = "https://consulting-sim.ibm.com/problems/";
 
+    @ExceptionHandler({com.ibm.consulting.sim.scenario.application.ScenarioLifecycleConflictException.class,
+            org.springframework.dao.OptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class})
+    ProblemDetail handleOptimisticConflict(Exception ex) {
+        return problem(HttpStatus.CONFLICT, "concurrent-update",
+                "This record changed after you opened it. Reload the latest version before saving your changes.");
+    }
+
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail handleNotFound(NotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, "not-found", ex.getMessage());

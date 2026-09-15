@@ -25,12 +25,22 @@ public class CapabilityBriefService {
     private final CapabilityBriefRepository briefRepository;
     private final OutreachRepository outreachRepository;
     private final EngagementRepository engagementRepository;
+    private final com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle;
 
     public CapabilityBriefService(CapabilityBriefRepository briefRepository, OutreachRepository outreachRepository,
                                   EngagementRepository engagementRepository) {
+        this(briefRepository, outreachRepository, engagementRepository,
+                com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CapabilityBriefService(CapabilityBriefRepository briefRepository, OutreachRepository outreachRepository,
+                                  EngagementRepository engagementRepository,
+                                  com.ibm.consulting.sim.engagement.application.EngagementLifecycleCoordinator lifecycle) {
         this.briefRepository = briefRepository;
         this.outreachRepository = outreachRepository;
         this.engagementRepository = engagementRepository;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional(readOnly = true)
@@ -64,7 +74,7 @@ public class CapabilityBriefService {
         CapabilityBrief saved = briefRepository.save(brief);
 
         if (review.outcome() == com.ibm.consulting.sim.outreach.domain.OutreachOutcome.ACCEPTED) {
-            engagement.transitionTo(EngagementState.MEETING_SECURED, "Capability brief accepted by client");
+            lifecycle.transition(engagement, EngagementState.MEETING_SECURED, "Capability brief accepted by client");
             engagementRepository.save(engagement);
         }
         return CapabilityBriefResponse.from(saved);
@@ -75,7 +85,7 @@ public class CapabilityBriefService {
             // Compatibility recovery for an older partial transaction: a client
             // response exists, so the engagement must be in outreach before its
             // requested artifact can be reviewed.
-            engagement.transitionTo(EngagementState.OUTREACHING,
+            lifecycle.transition(engagement, EngagementState.OUTREACHING,
                     "Recovered pending outreach state for requested capability brief");
             engagementRepository.save(engagement);
             return;

@@ -42,6 +42,7 @@ public class EngagementQueryService {
     private final LeadRepository leadRepository;
     private final ResearchEvidenceRepository evidenceRepository;
     private final MeetingRepository meetingRepository;
+    private final EngagementLifecycleCoordinator lifecycle;
 
     public EngagementQueryService(EngagementRepository engagementRepository,
                                   AssessmentRepository assessmentRepository,
@@ -49,12 +50,25 @@ public class EngagementQueryService {
                                   LeadRepository leadRepository,
                                   ResearchEvidenceRepository evidenceRepository,
                                   MeetingRepository meetingRepository) {
+        this(engagementRepository, assessmentRepository, scenarioRepository, leadRepository, evidenceRepository,
+                meetingRepository, EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public EngagementQueryService(EngagementRepository engagementRepository,
+                                  AssessmentRepository assessmentRepository,
+                                  ScenarioRepository scenarioRepository,
+                                  LeadRepository leadRepository,
+                                  ResearchEvidenceRepository evidenceRepository,
+                                  MeetingRepository meetingRepository,
+                                  EngagementLifecycleCoordinator lifecycle) {
         this.engagementRepository = engagementRepository;
         this.assessmentRepository = assessmentRepository;
         this.scenarioRepository = scenarioRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.meetingRepository = meetingRepository;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +99,7 @@ public class EngagementQueryService {
      */
     private void reconcileCompletedAssessments(List<Engagement> engagements) {
         List<Engagement> awaitingCompletion = engagements.stream()
-                .filter(engagement -> engagement.getState() == EngagementState.REVIEW)
+                .filter(engagement -> engagement.getState() == EngagementState.REVIEW && lifecycle.isLegacy(engagement))
                 .toList();
         if (awaitingCompletion.isEmpty()) return;
 
@@ -98,7 +112,7 @@ public class EngagementQueryService {
         awaitingCompletion.stream()
                 .filter(engagement -> assessedEngagementIds.contains(engagement.getId()))
                 .forEach(engagement -> {
-                    engagement.transitionTo(EngagementState.COMPLETED,
+                    lifecycle.transition(engagement, EngagementState.COMPLETED,
                             "Recovered completed assessment lifecycle from dashboard");
                     engagementRepository.save(engagement);
                 });
@@ -119,7 +133,7 @@ public class EngagementQueryService {
         return EngagementResponse.enrich(engagement,
                 scenario != null ? scenario.getTitle() : null,
                 scenario != null ? scenario.getIndustry() : null,
-                leadCompanyName, evidenceCount, meetingId);
+                leadCompanyName, evidenceCount, meetingId).withLifecycle(lifecycle.resolve(engagement));
     }
 
     /** Uses set-based repository queries rather than four lookups per engagement. */
@@ -137,6 +151,7 @@ public class EngagementQueryService {
         Map<UUID, Scenario> scenarios = byId(scenarioRepository.findByIdIn(scenarioIds), Scenario::getId);
         Map<UUID, Lead> leads = byId(leadRepository.findByIdIn(leadIds), Lead::getId);
         Map<UUID, Long> evidenceCounts = evidenceRepository.countByEngagementIds(engagementIds);
+        Map<UUID, com.ibm.consulting.sim.engagement.domain.LifecycleFacts> lifecycleFacts = lifecycle.loadFacts(engagementIds);
         Map<UUID, Meeting> latestMeetings = new HashMap<>();
         meetingRepository.findAllByEngagementIdIn(engagementIds).forEach(meeting ->
                 latestMeetings.merge(meeting.getEngagementId(), meeting,
@@ -151,7 +166,8 @@ public class EngagementQueryService {
                     scenario != null ? scenario.getIndustry() : null,
                     lead != null ? lead.getCompanyName() : null,
                     evidenceCounts.getOrDefault(engagement.getId(), 0L),
-                    meeting != null ? meeting.getId() : null);
+                    meeting != null ? meeting.getId() : null).withLifecycle(lifecycle.resolve(engagement,
+                    lifecycleFacts.getOrDefault(engagement.getId(), com.ibm.consulting.sim.engagement.domain.LifecycleFacts.empty())));
         }).toList();
     }
 

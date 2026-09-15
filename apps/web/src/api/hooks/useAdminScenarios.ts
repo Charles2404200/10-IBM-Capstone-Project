@@ -13,6 +13,7 @@ import type {
   ScenarioAuthoringConfig,
   ScenarioAuthoringView,
   ScenarioCatalogPage,
+  ScenarioLifecycleResponse,
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
   KnowledgeDocumentSummary,
@@ -22,6 +23,13 @@ import type {
 const adminScenarioKeys = {
   all: ['admin', 'scenarios'] as const,
   catalog: (filters: AdminScenarioCatalogFilters) => ['admin', 'scenarios', 'catalog', filters] as const,
+  lifecycle: (scenarioId: string) => ['admin', 'scenarios', scenarioId, 'lifecycle'] as const,
+}
+
+function hasStatus(error: unknown, status: number): boolean {
+  if (typeof error !== 'object' || error === null || !('response' in error)) return false
+  const response = error.response
+  return typeof response === 'object' && response !== null && 'status' in response && response.status === status
 }
 
 export interface AdminScenarioCatalogFilters {
@@ -309,5 +317,40 @@ export function useUpdateKnowledgeDocument(scenarioId: string) {
       await apiClient.put(`/api/v1/admin/scenarios/${scenarioId}/documents/${documentId}`, request)
     },
     onSuccess: () => invalidateScenarioAuthoring(queryClient, scenarioId),
+  })
+}
+
+export function useScenarioLifecycle(scenarioId: string) {
+  return useQuery({
+    queryKey: adminScenarioKeys.lifecycle(scenarioId),
+    queryFn: async () => {
+      const res = await apiClient.get<ScenarioLifecycleResponse>(`/api/v1/admin/scenarios/${scenarioId}/lifecycle`)
+      return res.data
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(scenarioId),
+  })
+}
+
+export function useUpdateScenarioLifecycle(scenarioId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (request: ScenarioLifecycleResponse) => {
+      const res = await apiClient.put<ScenarioLifecycleResponse>(
+        `/api/v1/admin/scenarios/${scenarioId}/lifecycle`,
+        request,
+      )
+      return res.data
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(adminScenarioKeys.lifecycle(scenarioId), updated)
+      invalidateScenarioAuthoring(queryClient, scenarioId)
+    },
+    onError: (error) => {
+      if (hasStatus(error, 409)) {
+        void queryClient.refetchQueries({ queryKey: adminScenarioKeys.lifecycle(scenarioId) })
+      }
+    },
   })
 }

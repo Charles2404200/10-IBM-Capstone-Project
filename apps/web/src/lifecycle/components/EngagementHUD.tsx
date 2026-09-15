@@ -14,9 +14,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEngagement, useMyEngagements } from '@/api/hooks/useEngagements'
-import { resolveEngagementRoute } from '@/api/engagementRouting'
+import { resolveEngagementRoute, resolveStageRoute } from '@/api/engagementRouting'
 import { usePersonaState } from '@/api/hooks/useMeeting'
-import type { EngagementPhase, PersonaState } from '@/api/types'
+import type { EngagementPhase, PersonaState, ResolvedEngagementStage, StageCapability } from '@/api/types'
 import { selectActiveEngagement } from '../activeEngagement'
 import {
   isEngagementRoute,
@@ -87,28 +87,27 @@ function Meter({ label, value, delta, hint }: MeterProps) {
 }
 
 interface StepperProps {
+  stages: ResolvedEngagementStage[]
   /** The phase whose page is on screen — this is what turns blue. */
   viewingPhase: EngagementPhase | null
   /** How far the engagement itself has got — this is what turns green. */
   reachedPhase: EngagementPhase | null
-  onJump: (phase: EngagementPhase) => void
-  canJump: (phase: EngagementPhase) => boolean
+  onJump: (phase: StageCapability) => void
+  canJump: (stage: ResolvedEngagementStage) => boolean
 }
 
-function Stepper({ viewingPhase, reachedPhase, onJump, canJump }: StepperProps) {
-  const viewingIndex = viewingPhase ? phaseIndex(viewingPhase) : -1
-  const reachedIndex = reachedPhase ? phaseIndex(reachedPhase) : -1
+function Stepper({ stages, viewingPhase, reachedPhase, onJump, canJump }: StepperProps) {
 
   return (
     <ol className={styles.stepper} aria-label="Engagement progress">
-      {PHASE_ORDER.map((phase, index) => {
-        const done = reachedIndex > index
-        const current = viewingIndex === index
+      {stages.map((stage, index) => {
+        const done = stage.status === 'COMPLETED'
+        const current = viewingPhase === stage.capability
         // Where the engagement is up to, when that is not the page on screen.
-        const upTo = reachedIndex === index && viewingIndex !== index
-        const actionable = canJump(phase)
+        const upTo = reachedPhase === stage.capability && viewingPhase !== stage.capability
+        const actionable = canJump(stage)
         return (
-          <li key={phase} className={styles.step}>
+          <li key={stage.key} className={styles.step}>
             {index > 0 && (
               <span
                 className={`${styles.stepConnector} ${done || current ? styles.stepConnectorDone : ''}`}
@@ -118,17 +117,17 @@ function Stepper({ viewingPhase, reachedPhase, onJump, canJump }: StepperProps) 
             <button
               type="button"
               className={`${styles.stepButton} ${actionable ? styles.stepButtonActionable : ''}`}
-              onClick={() => actionable && onJump(phase)}
+              onClick={() => actionable && onJump(stage.capability)}
               disabled={!actionable}
               aria-current={current ? 'step' : undefined}
               title={
                 current
-                  ? `${PHASE_LABEL[phase]} — the page you are on`
+                  ? `${stage.label} — the page you are on`
                   : upTo
-                    ? `${PHASE_LABEL[phase]} — where this engagement is up to`
+                    ? `${stage.label} — where this engagement is up to`
                     : done
-                      ? `${PHASE_LABEL[phase]} — completed`
-                      : `${PHASE_LABEL[phase]} — not unlocked yet`
+                      ? `${stage.label} — completed`
+                      : `${stage.label} — not unlocked yet`
               }
             >
               <span
@@ -142,7 +141,7 @@ function Stepper({ viewingPhase, reachedPhase, onJump, canJump }: StepperProps) 
                   current ? styles.stepCurrentLabel : done ? styles.stepDoneLabel : ''
                 }`}
               >
-                {PHASE_LABEL[phase]}
+                {stage.label}
               </span>
             </button>
           </li>
@@ -192,31 +191,20 @@ export default function EngagementHUD() {
 
   const reachedPhase = engagement?.phase ?? null
   const viewingPhase = phaseFromPath(location.pathname) ?? reachedPhase
-  const reachedIndex = reachedPhase ? phaseIndex(reachedPhase) : -1
-  const viewingIndex = viewingPhase ? phaseIndex(viewingPhase) : -1
+  const stages = useMemo<ResolvedEngagementStage[]>(() => engagement?.lifecycle?.stages ?? PHASE_ORDER.map((capability, index) => ({
+    key: capability, capability, label: PHASE_LABEL[capability], description: '', goal: '', doneText: '', nextText: '',
+    required: true,
+    status: reachedPhase && index < phaseIndex(reachedPhase) ? 'COMPLETED'
+      : reachedPhase === capability ? 'CURRENT' : 'LOCKED',
+  })), [engagement?.lifecycle?.stages, reachedPhase])
+  const viewingIndex = viewingPhase ? stages.findIndex((stage) => stage.capability === viewingPhase) : -1
   const stepNumber = viewingIndex + 1
 
-  const canJump = (phase: EngagementPhase) =>
-    Boolean(engagement) && phaseIndex(phase) <= reachedIndex
+  const canJump = (stage: ResolvedEngagementStage) => Boolean(engagement) && stage.status !== 'LOCKED'
 
-  const jump = (phase: EngagementPhase) => {
+  const jump = (phase: StageCapability) => {
     if (!engagement) return
-    const base = `/dashboard/engagements/${engagement.id}`
-    const routes: Record<EngagementPhase, string> = {
-      LEAD: `${base}/leads`,
-      CLIENT_INTELLIGENCE: `${base}/intelligence`,
-      OUTREACH: `${base}/outreach`,
-      MEETING_PREPARATION: `${base}/preparation`,
-      LIVE_MEETING: engagement.meetingId
-        ? `${base}/meetings/${engagement.meetingId}`
-        : `${base}/preparation`,
-      MEETING_REVIEW: `${base}/assessment`,
-      PROPOSAL: `${base}/proposal`,
-      OUTCOME: `${base}/assessment`,
-      REVIEW: `${base}/assessment`,
-      COMPLETED: '/dashboard/portfolio',
-    }
-    navigate(routes[phase])
+    navigate(resolveStageRoute(phase, engagement))
   }
 
   const notMetYet = 'Not measured yet — the client has to meet you first.'
@@ -234,10 +222,10 @@ export default function EngagementHUD() {
         aria-controls="engagement-hud-detail"
       >
         <span className={styles.hudStep}>
-          {viewingPhase ? `${stepNumber}/${PHASE_COUNT}` : '—'}
+          {viewingPhase ? `${stepNumber}/${engagement?.lifecycle?.totalStages ?? PHASE_COUNT}` : '—'}
         </span>
         <span className={styles.hudStepName}>
-          {viewingPhase ? PHASE_LABEL[viewingPhase] : 'No engagement running'}
+          {viewingPhase ? stages[viewingIndex]?.label ?? PHASE_LABEL[viewingPhase] : 'No engagement running'}
         </span>
         <span className={styles.hudDots} aria-hidden="true">
           {(['trust', 'interest', 'patience'] as const).map((key) => (
@@ -260,12 +248,26 @@ export default function EngagementHUD() {
       >
         <div className={`${styles.hudGroup} ${styles.hudGrow}`}>
           <Stepper
+            stages={stages}
             viewingPhase={viewingPhase}
             reachedPhase={reachedPhase}
             onJump={jump}
             canJump={canJump}
           />
         </div>
+
+        {engagement?.objectives && engagement.objectives.length > 0 && (
+          <div className={styles.hudGroup}>
+            <span className={styles.hudLabel}>Objectives</span>
+            <ul aria-label="Scenario objectives" style={{ margin: 0, paddingLeft: '1.25rem' }}>
+              {engagement.objectives.map((objective) => (
+                <li key={objective.key} title={objective.completionExplanation}>
+                  {objective.completed ? '✓ ' : ''}{objective.title}{objective.required ? '' : ' (optional)'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className={styles.hudGroup}>
           {/* The one canonical answer to "where do I go now". It was already

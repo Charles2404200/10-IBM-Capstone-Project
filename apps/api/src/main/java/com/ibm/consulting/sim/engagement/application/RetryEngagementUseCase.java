@@ -16,9 +16,17 @@ import java.util.UUID;
 public class RetryEngagementUseCase {
 
     private final EngagementRepository engagementRepository;
+    private final EngagementLifecycleCoordinator lifecycle;
 
     public RetryEngagementUseCase(EngagementRepository engagementRepository) {
+        this(engagementRepository, EngagementLifecycleCoordinator.legacy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RetryEngagementUseCase(EngagementRepository engagementRepository,
+                                  EngagementLifecycleCoordinator lifecycle) {
         this.engagementRepository = engagementRepository;
+        this.lifecycle = lifecycle;
     }
 
     @Transactional
@@ -40,7 +48,7 @@ public class RetryEngagementUseCase {
                 .filter(candidate -> !candidate.getState().isTerminal())
                 .findFirst();
         if (existingRetry.isPresent()) {
-            return EngagementResponse.from(existingRetry.get());
+            return lifecycle.response(existingRetry.get());
         }
 
         // Preserve the original resolved gameplay profile so a retry is assessed
@@ -50,10 +58,11 @@ public class RetryEngagementUseCase {
                 failed.getScenarioId(),
                 failed.getPersonaId(),
                 failed.getDifficultyProfileSnapshot(),
-                failed.getId());
-        retry.selectLead(failed.getSelectedLeadId());
+                failed.getId(),
+                lifecycle.retrySnapshot(failed));
+        lifecycle.selectLead(retry, failed.getSelectedLeadId());
         engagementRepository.save(retry);
-        return EngagementResponse.from(retry);
+        return lifecycle.response(retry);
     }
 
     public static class RetryNotAvailableException extends DomainException {
