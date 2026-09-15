@@ -16,6 +16,7 @@ import {
   Modal,
   RadioButton,
   RadioButtonGroup,
+  InlineLoading,
   InlineNotification,
 } from '@carbon/react'
 import {
@@ -496,6 +497,7 @@ function HypothesisWorkspace({
       <Modal open={composing} modalHeading="Build a grounded hypothesis" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Save hypothesis'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending} onRequestClose={() => setComposing(false)} onRequestSubmit={handleSubmit(onSubmit)}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.hypothesisForm}>
           <TextArea id="hypothesis-statement" labelText="Hypothesis statement" placeholder="State the observed problem, likely cause and business impact." rows={3} invalid={Boolean(errors.hypothesis)} invalidText="Required" {...register('hypothesis', { required: true })} />
+          {saveResearch.isPending && <InlineLoading description="Saving hypothesis" status="active" />}
           {citableEvidence.length > 0 && (
             <div>
               <div className={styles.modalSectionHeader}><p className={styles.linkLabel}>Supporting evidence</p>{citableEvidence.length > citationPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous citations" disabled={citationPage === 0} onClick={() => setCitationPage((page) => page - 1)} /><span>{citationPage + 1} / {citationPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next citations" disabled={citationPage >= citationPageCount - 1} onClick={() => setCitationPage((page) => page + 1)} /></div>}</div>

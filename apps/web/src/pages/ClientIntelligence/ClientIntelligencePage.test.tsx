@@ -58,7 +58,7 @@ const gate = {
 const saveMutate = vi.fn()
 
 // sets up the mocked api hooks with the data needed by the page
-function setup(evidence: ResearchEvidence[]) {
+function setup(evidence: ResearchEvidence[], isSaving = false) {
   mockedResearch.mockReturnValue({
     data: evidence,
     isLoading: false,
@@ -67,7 +67,7 @@ function setup(evidence: ResearchEvidence[]) {
 
   mockedSaveResearch.mockReturnValue({
     mutate: saveMutate,
-    isPending: false,
+    isPending: isSaving,
   } as unknown as ReturnType<typeof useSaveResearch>)
 
   mockedResearchSourceDeck.mockReturnValue({
@@ -136,5 +136,15 @@ describe('ClientIntelligencePage manual evidence dropdowns', () => {
       }),
       expect.anything(),
     )
+  })
+
+  it('shows a loading indicator while saving a hypothesis', async () => {
+    const user = userEvent.setup()
+    setup([], true)
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: /Add hypothesis/i }))
+
+    expect(screen.getByText('Saving hypothesis')).toBeInTheDocument()
   })
 })

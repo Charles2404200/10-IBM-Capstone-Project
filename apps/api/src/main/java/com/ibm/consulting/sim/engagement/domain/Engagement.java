@@ -82,6 +82,12 @@ public class Engagement extends BaseEntity {
         transitionTo(EngagementState.CLIENT_INTELLIGENCE, "Lead selected: " + leadId);
     }
 
+    /** The selected lead defines the run's tier before client work begins. */
+    public void selectLead(UUID leadId, String difficultyProfileSnapshot) {
+        this.difficultyProfileSnapshot = difficultyProfileSnapshot;
+        selectLead(leadId);
+    }
+
     /** Records a failed attempt without changing the engagement's lifecycle state. */
     public void recordActivity(String description) {
         recordEvent(description);
