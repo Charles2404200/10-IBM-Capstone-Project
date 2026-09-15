@@ -189,10 +189,12 @@ public class MockAiGateway implements AiModelGateway {
         boolean publicDescriptionAvailable = hasFact(prompt, "public_description");
         DocumentBlock laneSpecificBlock = laneFactAvailable
                 ? fact(laneFact(lane, decisionMaker, technology, budgetSignal), laneFactId)
-                : context("No client-confirmed signal is available for this research lane.", "business_situation");
+            : fact("The business situation frames the current research for this lane: " + situation,
+            "business_situation");
         DocumentBlock publicDescriptionBlock = publicDescriptionAvailable
                 ? fact(publicDescription, "public_description")
-                : context("No public company description is available in this source.", "business_situation");
+            : fact("The document keeps its company context within the reported business situation: " + situation,
+            "business_situation");
         String firstTitle = switch (lane) {
             case "STAKEHOLDER_PROFILE" -> "Stakeholder dossier: " + decisionMaker;
             case "FINANCIAL_SIGNAL" -> "Commercial readiness review for " + company;
@@ -209,38 +211,54 @@ public class MockAiGateway implements AiModelGateway {
         String first = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-1", firstTitle, lane, sourceType,
                 "HIGH", 0.9, situation,
                 List.of(
+                        fact(company + " is the organisation named in the scenario for this research brief.", "company_name"),
                         fact(situation, "business_situation"),
                         fact(symptom, "observable_symptom"),
                         fact(signals, signalFactIds),
-                        interpretation(interpretedSignal(lane, company, symptom, technology), "business_situation", "observable_symptom"),
-                        context(mandate, "consulting_mandate"),
-                        uncertainty(unknowns)),
-                "The root cause, accountable owner and measurement baseline remain unconfirmed.");
+                        fact(mandate, "consulting_mandate"),
+                        laneSpecificBlock,
+                        publicDescriptionBlock,
+                        fact("The reported business situation, operating symptom and related client signals describe the current conditions surrounding "
+                                + company + ". They provide a concrete frame for the issue without establishing a single confirmed cause or outcome.",
+                            "business_situation"),
+                        fact("The current picture combines the business situation of " + situation + " The operating signal is "
+                                + symptom + " The related client signal is " + signals + " Taken together, these recorded points describe why the topic is material to "
+                                + company + " while keeping the underlying mechanism and final decision outside the confirmed evidence.",
+                            "observable_symptom"),
+                        fact("The briefing keeps the business situation, operating signal and stated mandate in the same reporting frame. "
+                            + "It records that " + mandate + " while preserving the client context supplied for " + company + ".",
+                            "consulting_mandate")));
         String second = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-2", secondTitle, lane, sourceType,
                 "MEDIUM", 0.74, publicDescription,
                 List.of(
+                        fact(company + " is the client organisation referenced by the current research material.", "company_name"),
                         publicDescriptionBlock,
+                        fact(situation, "business_situation"),
+                        fact(symptom, "observable_symptom"),
                         laneSpecificBlock,
                         fact(signals, signalFactIds),
-                        laneFactAvailable
-                                ? interpretation(secondInterpretation(lane, symptom, technology), "observable_symptom", laneFactId)
-                                : interpretation(secondInterpretation(lane, symptom, technology), "observable_symptom"),
-                        context(situation, "business_situation"),
-                        uncertainty(unknowns)),
-                "The relationship between these signals and a confirmed client outcome remains to be validated.");
+                        fact(mandate, "consulting_mandate"),
+                        fact("The reported client context links the business situation with the operating symptom and the lane-specific signal. "
+                                + "It provides a different research angle without adding an unverified claim about cause, funding, authority or solution.",
+                            List.of("business_situation", "observable_symptom")),
+                        fact("The research material identifies " + situation + " alongside " + symptom + " It also records "
+                                + signals + " These are distinct observations in the client context; their relationship is relevant to assess but is not stated as a confirmed causal finding.",
+                            "observable_symptom"),
+                        fact("The document retains the stated mandate, " + mandate + ", as part of the client research context. "
+                            + "The narrative is anchored to the reported conditions rather than a separate claim about the outcome of that work.",
+                            "consulting_mandate")));
         return "{\"artifacts\":[" + first + "," + second + "]}";
     }
 
     private static String documentJson(String id, String title, String lane, String sourceType, String reliability,
-                                       double relevance, String summary, List<DocumentBlock> documentBlocks, String caption) {
+                                       double relevance, String summary, List<DocumentBlock> documentBlocks) {
         StringBuilder blocks = new StringBuilder();
         List<String> artifactFactIds = new java.util.ArrayList<>(List.of("company_name"));
-        for (DocumentBlock block : documentBlocks) {
+        for (DocumentBlock block : documentBlocks.stream().limit(5).toList()) {
             if (!blocks.isEmpty()) blocks.append(',');
             blocks.append(blockJson("PARAGRAPH", block));
             block.factIds().forEach(factId -> { if (!artifactFactIds.contains(factId)) artifactFactIds.add(factId); });
         }
-        blocks.append(',').append(blockJson("CAPTION", uncertainty(caption)));
         return "{\"id\":\"" + escapeJson(id) + "\",\"title\":\"" + escapeJson(title)
                 + "\",\"category\":\"" + escapeJson(lane) + "\",\"content\":\"" + escapeJson(summary)
                 + "\",\"sourceType\":\"" + sourceType + "\",\"reliability\":\"" + reliability
@@ -347,18 +365,6 @@ public class MockAiGateway implements AiModelGateway {
 
     private static DocumentBlock fact(String content, List<String> factIds) {
         return new DocumentBlock(content, "FACT", factIds, true);
-    }
-
-    private static DocumentBlock interpretation(String content, String... factIds) {
-        return new DocumentBlock(content, "INTERPRETATION", List.of(factIds), true);
-    }
-
-    private static DocumentBlock context(String content, String factId) {
-        return new DocumentBlock(content, "CONTEXT", List.of(factId), false);
-    }
-
-    private static DocumentBlock uncertainty(String content) {
-        return new DocumentBlock(content, "UNCERTAINTY", List.of(), false);
     }
 
     private record DocumentBlock(String content, String purpose, List<String> factIds, boolean selectable) {}

@@ -70,6 +70,7 @@ export default function ProposalStudioPage() {
         </div>
         <div className={styles.headerActions}>
           {isReviewing ? <InlineLoading description="Reviewing proposal" /> : isSubmitting ? <InlineLoading description="Submitting to client" /> : <SaveStatus state={studio.saveState} />}
+          {studio.saveState === 'error' && <Button kind="ghost" size="sm" renderIcon={Renew} onClick={() => void studio.retrySave()} disabled={studio.saveDraft.isPending}>Retry save</Button>}
           <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={isReviewing || isSubmitting || studio.saveDraft.isPending}>{isReviewing ? 'Reviewing proposal' : 'Review proposal'}</Button>
           <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={isSubmitting || isReviewing || studio.saveDraft.isPending}>{isSubmitting ? 'Submitting to client' : 'Submit to client'}</Button>
         </div>

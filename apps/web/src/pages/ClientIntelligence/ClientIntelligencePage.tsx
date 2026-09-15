@@ -140,7 +140,10 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
   const documentRef = useRef<HTMLElement>(null)
   const blocks = artifact.blocks?.length
     ? artifact.blocks
-    : [{ id: 'summary', type: 'PARAGRAPH' as const, content: artifact.summary, attribution: null, factIds: [], selectable: false, purpose: 'CONTEXT' as const }]
+    : [{ id: 'summary', type: 'PARAGRAPH' as const, content: artifact.summary, attribution: null, factIds: [], corpusChunkIds: [], selectable: false, purpose: 'CONTEXT' as const }]
+  const evidenceBlocks = blocks.filter((block) => block.purpose === 'FACT')
+  const evidenceWordCount = evidenceBlocks.reduce((total, block) => total + block.content.trim().split(/\s+/).filter(Boolean).length, 0)
+  const isLongFormDossier = evidenceWordCount >= 2_000
   const sourceKind = artifact.evidenceType.replace(/_/g, ' ').toLowerCase()
   const templateClass = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
     ? styles.stakeholderTemplate
@@ -153,13 +156,23 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
   const isStakeholder = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
   const isFinancial = artifact.evidenceType === 'FINANCIAL_SIGNAL'
   const isTechnology = artifact.evidenceType === 'TECHNOLOGY_INDICATOR'
-  const documentLabel = isNewspaper
-    ? 'The Client Observer'
+  const template = isNewspaper
+    ? {
+        label: 'The Client Observer',
+        edition: 'Industry operations journal',
+        sectionSize: 3,
+        sections: ['Lead Report', 'In Focus', 'Operating Picture', 'Decision Desk', 'Records and Controls', 'Delivery Watch', 'Commercial Context', 'Questions on Record'],
+      }
     : isStakeholder
-      ? 'Stakeholder intelligence dossier'
+      ? { label: 'Decision Context File', edition: 'Stakeholder research', sectionSize: 6, sections: ['Mandate and Role Context', 'Influence Environment', 'Decision Conditions', 'Items to Validate'] }
       : isFinancial
-        ? 'Commercial intelligence note'
-        : 'Technology due diligence brief'
+        ? { label: 'Commercial Signal Note', edition: 'Financial research', sectionSize: 6, sections: ['Commercial Frame', 'Funding Conditions', 'Exposure and Measures', 'Validation Record'] }
+        : { label: 'Technical Due Diligence', edition: 'Technology research', sectionSize: 6, sections: ['Current Landscape', 'Information Flows', 'Control Boundaries', 'Architecture Questions'] }
+  const sourceSections = evidenceBlocks.reduce<Array<typeof evidenceBlocks>>((sections, block, index) => {
+    if (index % template.sectionSize === 0) sections.push([])
+    sections.at(-1)?.push(block)
+    return sections
+  }, [])
 
   const captureSelection = () => {
     const selection = window.getSelection()
@@ -184,47 +197,69 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
   }
 
   const scheduleSelectionCapture = () => window.requestAnimationFrame(captureSelection)
+  const estimatedReadingMinutes = Math.max(1, Math.ceil(evidenceWordCount / 220))
+
+  const renderEvidenceBlock = (block: typeof evidenceBlocks[number]) => {
+    const selectable = block.purpose === 'FACT'
+    const className = `${styles.sourceBlock} ${styles.sourceBlockSelectable}`
+    const showAttribution = block.attribution && block.corpusChunkIds.length === 0
+    const content = <>{block.content}{showAttribution && <cite>{block.attribution}</cite>}</>
+    const dataAttributes = { 'data-evidence-block': 'true', 'data-selectable': selectable ? 'true' : 'false' }
+    if (block.type === 'QUOTE') return <blockquote key={block.id} className={className} {...dataAttributes}>{content}</blockquote>
+    if (block.type === 'METRIC') return <div key={block.id} className={`${styles.sourceMetric} ${className}`} {...dataAttributes}>{content}</div>
+    if (block.type === 'CAPTION') return <p key={block.id} className={`${styles.sourceCaption} ${className}`} {...dataAttributes}>{content}</p>
+    return <p key={block.id} className={className} {...dataAttributes}>{content}</p>
+  }
 
   return (
     <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={scheduleSelectionCapture} onPointerUp={scheduleSelectionCapture} onKeyUp={scheduleSelectionCapture}>
-      {isNewspaper && <div className={styles.documentMasthead} data-selectable="false"><strong>{documentLabel}</strong><span>Client intelligence edition</span><span>{artifact.publishedOn}</span></div>}
-      {!isNewspaper && <p className={styles.sourceTemplateLabel} data-selectable="false">{documentLabel}</p>}
-      <header className={styles.sourceDocumentHeader} data-selectable="false">
+      {isNewspaper && <div className={styles.documentMasthead} data-selectable="false"><strong>{template.label}</strong><span>{template.edition}</span><span>{artifact.publishedOn}</span></div>}
+      {isNewspaper && (
+        <div className={styles.newspaperSectionBar} data-selectable="false">
+          <span>Business</span><span>Operations</span><span>Client watch</span><span>Research archive</span>
+        </div>
+      )}
+      {!isNewspaper && (
+        <div className={styles.documentIdentity} data-selectable="false">
+          <div><span>{template.edition}</span><strong>{template.label}</strong></div>
+          <span>Research issue · {artifact.publishedOn}</span>
+        </div>
+      )}
+      <header className={`${styles.sourceDocumentHeader} ${isNewspaper ? styles.newspaperArticleHeader : ''}`} data-selectable="false">
         <div>
           <p className={styles.sectionEyebrow}>{sourceKind} · {artifact.sourceType}</p>
           <h3 className={styles.sourceHeadingSelectable} data-evidence-block="true" data-selectable="true">{artifact.title}</h3>
           <p className={`${styles.sourceDocumentDek} ${styles.sourceDekSelectable}`} data-evidence-block="true" data-selectable="true">{artifact.summary}</p>
-          <p className={styles.sourceDocumentMeta}>{artifact.origin.replace(/_/g, ' ').toLowerCase()} · {artifact.publishedOn} · {artifact.confidence.toLowerCase()} reliability</p>
+          <p className={styles.sourceDocumentMeta}>{artifact.origin.replace(/_/g, ' ').toLowerCase()} · {artifact.confidence.toLowerCase()} reliability</p>
+          {isLongFormDossier && <p className={styles.dossierReadingMeta}>{evidenceBlocks.length} sourced passages · approximately {evidenceWordCount.toLocaleString()} words</p>}
         </div>
         <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'}>
           {artifact.relevanceScore}% relevant
         </Tag>
       </header>
       {isStakeholder && (
-        <div className={styles.dossierStrip} data-selectable="false">
-          <span aria-hidden="true">{artifact.title.slice(0, 1).toUpperCase()}</span>
-          <div><strong>Stakeholder dossier</strong><p>Review priorities, constraints and influence signals before drawing a conclusion.</p></div>
-          <Tag type="purple" size="sm">Influence signal</Tag>
+        <div className={styles.stakeholderFileStrip} data-selectable="false">
+          <span className={styles.fileMonogram} aria-hidden="true">{artifact.title.slice(0, 1).toUpperCase()}</span>
+          <div><span>Research focus</span><strong>Mandate, influence, and decision conditions</strong></div>
+          <span className={styles.fileStatus}>Open assessment</span>
         </div>
       )}
-      {isStakeholder && <div className={styles.documentLens} data-selectable="false"><span>Read for: stated priority</span><span>Influence: validate</span><span>Decision role: unconfirmed</span></div>}
-      {isFinancial && <div className={styles.signalBanner} data-selectable="false"><span>Financial analysis</span><strong>Validate commercial materiality before assuming budget.</strong></div>}
-      {isTechnology && <div className={styles.signalBanner} data-selectable="false"><span>Technology briefing</span><strong>Separate current-state constraints from assumptions about the solution.</strong></div>}
-      <div className={styles.sourceDocumentBody}>
-        {blocks.map((block) => {
-          // Older source packs marked fact blocks non-selectable. Fact purpose is
-          // authoritative, while context and uncertainty remain deliberately locked.
-          const selectable = block.purpose === 'FACT' || block.purpose === 'INTERPRETATION' || block.selectable === true
-          const className = `${styles.sourceBlock} ${selectable ? styles.sourceBlockSelectable : styles.sourceBlockReference} ${block.purpose === 'INTERPRETATION' ? styles.sourceBlockInterpretation : ''} ${block.purpose === 'UNCERTAINTY' ? styles.sourceBlockUncertainty : ''}`
-          const label = block.purpose === 'INTERPRETATION' ? 'Derived interpretation' : block.purpose === 'UNCERTAINTY' ? 'Not yet confirmed' : block.purpose === 'CONTEXT' ? 'Context' : undefined
-          const content = <>{label && <span className={styles.sourceBlockLabel}>{label}</span>}{block.content}{block.attribution && <cite>{block.attribution}</cite>}</>
-          if (block.type === 'QUOTE') return <blockquote key={block.id} className={className} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</blockquote>
-          if (block.type === 'METRIC') return <div key={block.id} className={`${styles.sourceMetric} ${className}`} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</div>
-          if (block.type === 'CAPTION') return <p key={block.id} className={`${styles.sourceCaption} ${className}`} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</p>
-          return <p key={block.id} className={className} data-evidence-block="true" data-selectable={selectable ? 'true' : 'false'}>{content}</p>
-        })}
+      {isFinancial && <div className={`${styles.signalBanner} ${styles.financialSignalBanner}`} data-selectable="false"><span>Analyst position</span><strong>Reported commercial signals are distinct from a confirmed investment decision.</strong></div>}
+      {isTechnology && <div className={`${styles.signalBanner} ${styles.technologySignalBanner}`} data-selectable="false"><span>Engineering position</span><strong>Document the current estate before inferring defects or target architecture.</strong></div>}
+      {isNewspaper && (
+        <div className={styles.newspaperArticleMeta} data-selectable="false">
+          <span>Operations desk</span><span>Scenario research archive</span><span>{estimatedReadingMinutes} min read</span>
+        </div>
+      )}
+      <div className={`${styles.sourceDocumentBody} ${isLongFormDossier ? styles.longFormDossierBody : ''} ${isNewspaper ? styles.newspaperBody : ''}`}>
+        {sourceSections.map((section, index) => (
+          <section key={template.sections[index] ?? index} className={styles.sourceSection} data-selectable="false">
+            <div className={styles.sourceSectionHeading}><span>{String(index + 1).padStart(2, '0')}</span><h4>{template.sections[index] ?? 'Research Record'}</h4></div>
+            {section.map(renderEvidenceBlock)}
+          </section>
+        ))}
       </div>
-      <p className={styles.selectionInstruction} data-selectable="false">Only fact and clearly labelled interpretation blocks can be added to the evidence board.</p>
+      <p className={styles.selectionInstruction} data-selectable="false">Highlight reported facts to add evidence to your board.</p>
     </article>
   )
 }

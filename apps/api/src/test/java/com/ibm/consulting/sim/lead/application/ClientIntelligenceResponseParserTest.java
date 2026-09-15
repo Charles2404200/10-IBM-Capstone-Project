@@ -33,11 +33,11 @@ class ClientIntelligenceResponseParserTest {
                     "relevance": 0.82,
                     "confidence": 0.78,
                     "blocks": [
-                      {"type": "PARAGRAPH", "content": "The board is reviewing a technology budget in the next quarter, providing a confirmed commercial signal for the current research record.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]},
-                      {"type": "PARAGRAPH", "content": "The review indicates that investment appetite may be emerging, while the record does not establish a funded scope, owner, amount or approval decision.", "purpose": "INTERPRETATION", "selectable": true, "factIds": ["budget_signal"]},
-                      {"type": "PARAGRAPH", "content": "This financial note is limited to the budget-review signal supplied in the scenario and contains no separate confirmation of business-case timing or investment authority.", "purpose": "CONTEXT", "selectable": false, "factIds": ["budget_signal"]},
-                      {"type": "PARAGRAPH", "content": "No accountable sponsor, approval route, baseline measure or committed investment date has been confirmed in the available client facts.", "purpose": "UNCERTAINTY", "selectable": false, "factIds": []},
-                      {"type": "CAPTION", "content": "Funding status remains unconfirmed in this source.", "purpose": "UNCERTAINTY", "selectable": false, "factIds": []}
+                      {"type": "PARAGRAPH", "content": "The board is reviewing a technology budget in the next quarter, providing a confirmed commercial signal that belongs in the current financial research picture.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "The budget review is the confirmed client signal in this document. It records active consideration of technology spending without stating a value, approved scope, owner, supplier, or implementation timetable.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "The timing attached to the known signal is the next quarter. That timing gives the item commercial relevance while leaving the decision process and criteria outside the confirmed facts.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "The scenario records a board review rather than a completed investment decision. The distinction matters because a review can precede approval, reprioritisation, delay, or a decision not to fund.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]},
+                      {"type": "PARAGRAPH", "content": "The available financial evidence is therefore specific about the existence and timing of review activity, while it remains silent on the budget range, accountable executive, commercial baseline, and final outcome.", "purpose": "FACT", "selectable": true, "factIds": ["budget_signal"]}
                     ]
                   }]
                 }
@@ -47,6 +47,10 @@ class ClientIntelligenceResponseParserTest {
         assertThat(artifacts.get(0).origin()).isEqualTo("AI_SYNTHESIZED");
         assertThat(artifacts.get(0).allowedFactKeys()).containsExactly("budget_signal");
         assertThat(artifacts.get(0).blocks()).hasSize(5);
+                assertThat(artifacts.get(0).blocks()).allSatisfy(block -> {
+                        assertThat(block.purpose().name()).isEqualTo("FACT");
+                        assertThat(block.selectable()).isTrue();
+                });
     }
 
     @Test
@@ -84,6 +88,48 @@ class ClientIntelligenceResponseParserTest {
                 .isInstanceOf(AiValidationException.class)
                 .hasMessageContaining("did not match requested");
     }
+
+        @Test
+        void rejectsInterpretationBlocksInSourceDocuments() {
+                assertThatThrownBy(() -> parser.parse(validFinancialDocumentJson()
+                                .replaceFirst("\\\"purpose\\\":\\\"FACT\\\"", "\\\"purpose\\\":\\\"INTERPRETATION\\\"")))
+                                .isInstanceOf(AiValidationException.class)
+                                .hasMessageContaining("may only contain factual evidence blocks");
+        }
+
+            @Test
+            void rejectsRepeatedEvidenceBlocks() {
+                assertThatThrownBy(() -> parser.parse(validFinancialDocumentJson()
+                        .replace("Entry 2 preserves", "Entry 1 preserves")))
+                        .isInstanceOf(AiValidationException.class)
+                        .hasMessageContaining("repeated evidence block");
+            }
+
+            @Test
+            void rejectsResearchNarrativePadding() {
+                assertThatThrownBy(() -> parser.parse(validFinancialDocumentJson()
+                        .replaceFirst("The board is reviewing a technology budget in the next quarter",
+                                "For this research angle, the document retains the reported point")))
+                        .isInstanceOf(AiValidationException.class)
+                        .hasMessageContaining("Consulting guidance cannot be emitted");
+            }
+
+            @Test
+            void rejectsAnOverlongDocumentPreview() {
+                assertThatThrownBy(() -> parser.parse(validFinancialDocumentJson()
+                        .replaceFirst("Board reviewing technology budget next quarter\\.",
+                                "This long preview repeats every client signal, operating issue, funding consideration, technology constraint, leadership priority, dispatch concern, maintenance delay, reliability target, value range, decision context, and scenario detail before the reader reaches the actual evidence blocks.")))
+                        .isInstanceOf(AiValidationException.class)
+                        .hasMessageContaining("document preview must be concise");
+            }
+
+        @Test
+        void parsesJsonWrappedInAModelCodeFence() {
+                var artifacts = parser.parse("```json\n" + validFinancialDocumentJson() + "\n```");
+
+                assertThat(artifacts).hasSize(1);
+                assertThat(artifacts.getFirst().blocks()).hasSize(5);
+        }
 
     @Test
     void rejectsMalformedJson() {
@@ -124,12 +170,22 @@ class ClientIntelligenceResponseParserTest {
 
         assertThat(artifacts).hasSize(2);
         assertThat(artifacts).allSatisfy(artifact -> {
-            assertThat(artifact.blocks()).hasSize(7);
+            assertThat(artifact.blocks()).hasSize(5);
             assertThat(artifact.blocks().stream().map(block -> block.content()).collect(java.util.stream.Collectors.joining(" ")))
                     .contains("Guest satisfaction varies");
             assertThat(artifact.allowedFactKeys()).contains("company_name", "observable_symptom");
-            assertThat(artifact.blocks().stream().filter(block -> block.selectable()).allMatch(block ->
-                    block.purpose().name().equals("FACT") || block.purpose().name().equals("INTERPRETATION"))).isTrue();
+            assertThat(artifact.blocks().stream().allMatch(block ->
+                    block.purpose().name().equals("FACT") && block.selectable())).isTrue();
         });
     }
+
+        private static String validFinancialDocumentJson() {
+                String content = "The board is reviewing a technology budget in the next quarter. This confirmed commercial signal is retained in the financial briefing as a current point of reference for the client research narrative, without assigning an approval outcome, investment value, supplier, owner, or delivery date.";
+                String blocks = java.util.stream.IntStream.rangeClosed(1, 10)
+                                .limit(5)
+                                .mapToObj(index -> "{\"type\":\"PARAGRAPH\",\"content\":\"" + content
+                                                + " Entry " + index + " preserves the same reported signal in a distinct section of the long-form document.\",\"purpose\":\"FACT\",\"selectable\":true,\"factIds\":[\"budget_signal\"]}")
+                                .collect(java.util.stream.Collectors.joining(","));
+                return "{\"artifacts\":[{\"id\":\"financial-brief\",\"title\":\"Funding signal under review\",\"category\":\"FINANCIAL_SIGNAL\",\"content\":\"Board reviewing technology budget next quarter.\",\"sourceType\":\"FINANCIAL_REPORT\",\"reliability\":\"MEDIUM\",\"supportedFactIds\":[\"budget_signal\"],\"relevance\":0.82,\"confidence\":0.78,\"blocks\":[" + blocks + "]}]}";
+        }
 }

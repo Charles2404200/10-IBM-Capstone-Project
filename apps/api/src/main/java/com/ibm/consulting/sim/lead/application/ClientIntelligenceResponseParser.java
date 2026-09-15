@@ -15,24 +15,40 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class ClientIntelligenceResponseParser implements AiResponseParser<List<ResearchArtifactResponse>> {
 
     private final ObjectMapper objectMapper;
     private final Map<String, String> allowedFacts;
     private final EvidenceType expectedType;
+    private final ResearchDocumentPolicy documentPolicy;
+    private final Set<String> approvedCorpusChunkIds;
 
     public ClientIntelligenceResponseParser(ObjectMapper objectMapper, Map<String, String> allowedFacts,
                                             EvidenceType expectedType) {
+        this(objectMapper, allowedFacts, expectedType, ResearchDocumentPolicy.compact());
+    }
+
+    public ClientIntelligenceResponseParser(ObjectMapper objectMapper, Map<String, String> allowedFacts,
+                                            EvidenceType expectedType, ResearchDocumentPolicy documentPolicy) {
+        this(objectMapper, allowedFacts, expectedType, documentPolicy, Set.of());
+    }
+
+    public ClientIntelligenceResponseParser(ObjectMapper objectMapper, Map<String, String> allowedFacts,
+                                            EvidenceType expectedType, ResearchDocumentPolicy documentPolicy,
+                                            Set<String> approvedCorpusChunkIds) {
         this.objectMapper = objectMapper;
         this.allowedFacts = allowedFacts;
         this.expectedType = expectedType;
+        this.documentPolicy = documentPolicy;
+        this.approvedCorpusChunkIds = Set.copyOf(approvedCorpusChunkIds);
     }
 
     @Override
     public List<ResearchArtifactResponse> parse(String rawJson) throws AiValidationException {
         try {
-            JsonNode root = objectMapper.readTree(rawJson);
+            JsonNode root = objectMapper.readTree(jsonPayload(rawJson));
             JsonNode artifactsNode = root.has("artifacts") ? root.get("artifacts") : root;
             if (!artifactsNode.isArray()) {
                 artifactsNode = objectMapper.createArrayNode().add(root);
@@ -64,13 +80,42 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                         "AI-synthesized from canonical fact ids: " + String.join(", ", factIds),
                         parseBlocks(node.path("blocks"), artifactId, requiredText(node, "content"), factIds)));
             }
-            ClientIntelligenceFactGuard.validate(artifacts, allowedFacts);
+            ClientIntelligenceFactGuard.validate(artifacts, allowedFacts, documentPolicy);
+            validateCorpusProvenance(artifacts);
             return artifacts;
         } catch (AiValidationException e) {
             throw e;
         } catch (Exception e) {
             throw new AiValidationException("Malformed client intelligence JSON", e);
         }
+    }
+
+    private void validateCorpusProvenance(List<ResearchArtifactResponse> artifacts) {
+        if (!documentPolicy.equals(ResearchDocumentPolicy.corpusBacked())) {
+            return;
+        }
+        for (ResearchArtifactResponse artifact : artifacts) {
+            for (ResearchSourceBlock block : artifact.blocks()) {
+                if (!approvedCorpusChunkIds.containsAll(block.corpusChunkIds())) {
+                    throw new AiValidationException("Corpus-backed dossier cited a passage outside the approved lane corpus");
+                }
+            }
+        }
+    }
+
+    private static String jsonPayload(String rawJson) {
+        String trimmed = rawJson == null ? "" : rawJson.trim();
+        if (trimmed.startsWith("```")) {
+            int contentStart = trimmed.indexOf('\n');
+            int closingFence = trimmed.lastIndexOf("```");
+            if (contentStart >= 0 && closingFence > contentStart) {
+                return trimmed.substring(contentStart + 1, closingFence).trim();
+            }
+        }
+        int objectStart = trimmed.indexOf('{');
+        int arrayStart = trimmed.indexOf('[');
+        int jsonStart = objectStart < 0 ? arrayStart : arrayStart < 0 ? objectStart : Math.min(objectStart, arrayStart);
+        return jsonStart > 0 ? trimmed.substring(jsonStart) : trimmed;
     }
 
     private static String requiredText(JsonNode node, String field) {
@@ -114,8 +159,9 @@ public class ClientIntelligenceResponseParser implements AiResponseParser<List<R
                         block.get("purpose").asText());
                 Boolean selectable = block.get("selectable").asBoolean();
                 List<String> blockFactIds = stringList(block.path("factIds"));
+                List<String> corpusChunkIds = stringList(block.path("corpusChunkIds"));
                 blocks.add(new ResearchSourceBlock(id, type, content, textOrDefault(block, "attribution", null),
-                        blockFactIds, selectable, purpose));
+                    blockFactIds, corpusChunkIds, selectable, purpose));
             }
         }
         if (blocks.isEmpty()) {

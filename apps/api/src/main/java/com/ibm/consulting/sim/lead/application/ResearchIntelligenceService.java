@@ -13,6 +13,9 @@ import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
+import com.ibm.consulting.sim.knowledge.application.KnowledgeRetrievalService;
+import com.ibm.consulting.sim.knowledge.application.KnowledgeRetrievalService.ResearchCorpusPassage;
+import com.ibm.consulting.sim.knowledge.domain.KnowledgeCollection;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
@@ -45,7 +48,7 @@ import java.util.concurrent.ExecutorService;
 public class ResearchIntelligenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ResearchIntelligenceService.class);
-    private static final String SOURCE_DECK_TEMPLATE_VERSION = "v4-long-form-fact-guarded";
+        private static final String SOURCE_DECK_TEMPLATE_VERSION = "v13-concise-lane-excerpts";
 
     private final EngagementRepository engagementRepository;
     private final LeadRepository leadRepository;
@@ -66,10 +69,16 @@ public class ResearchIntelligenceService {
             .maximumSize(1_000)
             .expireAfterAccess(Duration.ofMinutes(5))
             .build();
+    /** One AI enrichment job per deck key prevents refresh polling from multiplying provider calls. */
+    private final Cache<String, CompletableFuture<ResearchSourceDeckResponse>> deckEnrichmentJobs = Caffeine.newBuilder()
+            .maximumSize(500)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
     private final DifficultyProfileService difficultyProfileService;
     private final ScenarioRepository scenarioRepository;
     private final ScenarioAuthoringConfigService authoringConfigService;
     private final ExecutorService researchSourceDeckExecutor;
+        private final KnowledgeRetrievalService knowledgeRetrievalService;
 
     public ResearchIntelligenceService(EngagementRepository engagementRepository,
                                        LeadRepository leadRepository,
@@ -79,7 +88,8 @@ public class ResearchIntelligenceService {
                                        DifficultyProfileService difficultyProfileService,
                                        ScenarioRepository scenarioRepository,
                                        ScenarioAuthoringConfigService authoringConfigService,
-                                       @Qualifier("researchSourceDeckExecutor") ExecutorService researchSourceDeckExecutor) {
+                                       @Qualifier("researchSourceDeckExecutor") ExecutorService researchSourceDeckExecutor,
+                                       KnowledgeRetrievalService knowledgeRetrievalService) {
         this.engagementRepository = engagementRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
@@ -89,6 +99,7 @@ public class ResearchIntelligenceService {
         this.scenarioRepository = scenarioRepository;
         this.authoringConfigService = authoringConfigService;
         this.researchSourceDeckExecutor = researchSourceDeckExecutor;
+        this.knowledgeRetrievalService = knowledgeRetrievalService;
     }
 
     /** Opens all learner-facing document lanes concurrently and caches the assembled deck. */
@@ -107,7 +118,8 @@ public class ResearchIntelligenceService {
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
         String deckKey = "deck:" + SOURCE_DECK_TEMPLATE_VERSION + ":"
                 + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile)
-                + ":" + Integer.toHexString(authoringConfig.hashCode());
+                + ":" + Integer.toHexString(authoringConfig.hashCode())
+                + ":" + corpusFingerprint(scenario);
         ResearchSourceDeckResponse cached = completeDeckCache.getIfPresent(deckKey);
         if (cached != null) {
             hotDeckCache.put(hotDeckKey, cached);
@@ -135,10 +147,51 @@ public class ResearchIntelligenceService {
                 sourcesByType.put(lane.name(), templateGenerate(lead, scenario, lane, profile, authoringConfig));
             }
         });
-        ResearchSourceDeckResponse response = new ResearchSourceDeckResponse(sourcesByType);
+        boolean corpusComplete = lanes.stream()
+                .allMatch(lane -> supportsCorpusDossier(conciseCorpus(researchCorpus(lane, scenario))));
+        ResearchSourceDeckResponse response = new ResearchSourceDeckResponse(sourcesByType, !corpusComplete);
         completeDeckCache.put(deckKey, response);
         hotDeckCache.put(hotDeckKey, response);
+        if (!corpusComplete) {
+            scheduleDeckEnrichment(deckKey, hotDeckKey, engagementId, engagement, lead, scenario, profile,
+                    authoringConfig, discovered, sourcesByType);
+        }
         return response;
+    }
+
+    private void scheduleDeckEnrichment(String deckKey, String hotDeckKey, UUID engagementId, Engagement engagement,
+                                        Lead lead, Scenario scenario, DifficultyProfile profile,
+                                        ScenarioAuthoringConfig authoringConfig, List<ResearchEvidence> discovered,
+                                        Map<String, List<ResearchArtifactResponse>> templateSources) {
+        if (deckEnrichmentJobs.getIfPresent(deckKey) != null) return;
+
+        List<EvidenceType> lanes = List.of(
+                EvidenceType.COMPANY_NEWS,
+                EvidenceType.STAKEHOLDER_PROFILE,
+                EvidenceType.FINANCIAL_SIGNAL,
+                EvidenceType.TECHNOLOGY_INDICATOR);
+        Map<EvidenceType, CompletableFuture<List<ResearchArtifactResponse>>> futures = new java.util.LinkedHashMap<>();
+        for (EvidenceType lane : lanes) {
+            futures.put(lane, CompletableFuture.supplyAsync(
+                    () -> synthesizeSourceDeck(engagementId, engagement, lead, scenario, lane, profile, authoringConfig, discovered),
+                    researchSourceDeckExecutor));
+        }
+        CompletableFuture<ResearchSourceDeckResponse> enrichment = CompletableFuture
+                .allOf(futures.values().toArray(CompletableFuture[]::new))
+                .thenApply(ignored -> {
+                    Map<String, List<ResearchArtifactResponse>> enriched = new java.util.LinkedHashMap<>();
+                    futures.forEach((lane, future) -> enriched.put(lane.name(), future.join()));
+                    return new ResearchSourceDeckResponse(enriched, false);
+                })
+                .exceptionally(error -> {
+                    log.warn("Source deck AI enrichment failed; retaining the fact-guarded template", error);
+                    return new ResearchSourceDeckResponse(templateSources, false);
+                });
+        deckEnrichmentJobs.put(deckKey, enrichment);
+        enrichment.thenAccept(enriched -> {
+            completeDeckCache.put(deckKey, enriched);
+            hotDeckCache.put(hotDeckKey, enriched);
+        });
     }
 
     @Transactional(readOnly = true)
@@ -161,16 +214,16 @@ public class ResearchIntelligenceService {
                                                                 DifficultyProfile profile,
                                                                 ScenarioAuthoringConfig authoringConfig,
                                                                 List<ResearchEvidence> discovered) {
+        List<ResearchCorpusPassage> corpus = conciseCorpus(researchCorpus(type, scenario));
         String cacheKey = SOURCE_DECK_TEMPLATE_VERSION + ":" + cacheKey(lead, scenario, type, discovered, profile)
-                + ":" + Integer.toHexString(authoringConfig.hashCode());
+                + ":" + Integer.toHexString(authoringConfig.hashCode()) + ":" + corpusFingerprint(corpus);
         List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
         if (cached != null) {
             return cached;
         }
-        // Scenario configs created before the source-reader redesign contain short,
-        // generic cards. Rebuilding the deck from current canonical facts prevents
-        // legacy AI output from being presented as client evidence.
-        List<ResearchArtifactResponse> sources = templateGenerate(lead, scenario, type, profile, authoringConfig);
+        List<ResearchArtifactResponse> sources = supportsCorpusDossier(corpus)
+                ? List.of(corpusDossier(lead, scenario, type, corpus))
+                : templateGenerate(lead, scenario, type, profile, authoringConfig);
         List<ResearchArtifactResponse> filtered = removeDuplicates(sources, discovered);
         cacheArtifacts(cacheKey, filtered);
         return filtered;
@@ -182,13 +235,18 @@ public class ResearchIntelligenceService {
                                                                   ScenarioAuthoringConfig authoringConfig,
                                                                   List<ResearchEvidence> discovered) {
         Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, scenario, type);
+        List<ResearchCorpusPassage> corpus = conciseCorpus(researchCorpus(type, scenario));
+                if (!supportsCorpusDossier(corpus)) {
+            return templateGenerate(lead, scenario, type, profile, authoringConfig);
+        }
         return aiOrchestrationService.execute(
                 "client_intelligence",
                 engagementId,
-                buildSourceDeckPrompt(engagement, lead, scenario, type, profile, facts, discovered),
-                3,
-                new ClientIntelligenceResponseParser(objectMapper, facts, type),
-                () -> templateGenerate(lead, scenario, type, profile, authoringConfig));
+                buildSourceDeckPrompt(engagement, lead, scenario, type, profile, facts, discovered, corpus),
+                10,
+                new ClientIntelligenceResponseParser(objectMapper, facts, type, ResearchDocumentPolicy.corpusBacked(),
+                        corpus.stream().map(passage -> passage.chunkId().toString()).collect(java.util.stream.Collectors.toSet())),
+                () -> List.of(corpusDossier(lead, scenario, type, corpus)));
     }
 
     @SuppressWarnings("unchecked")
@@ -214,7 +272,7 @@ public class ResearchIntelligenceService {
 
     private List<ResearchArtifactResponse> templateGenerate(Lead lead, Scenario scenario, EvidenceType type, DifficultyProfile profile,
                                                             ScenarioAuthoringConfig authoringConfig) {
-        List<ResearchArtifactResponse> base = switch (type) {
+                List<ResearchArtifactResponse> generated = switch (type) {
             case COMPANY_NEWS -> companyNews(lead, scenario);
             case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead, scenario);
             case FINANCIAL_SIGNAL -> financialSignals(lead, scenario, profile.budgetVisible());
@@ -222,6 +280,7 @@ public class ResearchIntelligenceService {
             case MARKET_TREND -> marketTrends(lead);
             case OTHER, HYPOTHESIS -> List.of();
         };
+                List<ResearchArtifactResponse> base = generated.isEmpty() ? generated : List.of(generated.getFirst());
         List<CanonicalFact> researchFacts = authoringConfig.canonicalFacts().stream()
                 .filter(CanonicalFact::availableInResearch)
                 .filter(fact -> fact.evidenceType() == type)
@@ -241,8 +300,13 @@ public class ResearchIntelligenceService {
         ResearchArtifactResponse primary = artifacts.getFirst();
         List<ResearchSourceBlock> enrichedBlocks = new ArrayList<>(primary.blocks());
         int blockOffset = enrichedBlocks.size();
-        for (int index = 0; index < facts.size(); index++) {
-            CanonicalFact fact = facts.get(index);
+                int availableSlots = Math.max(0, 6 - enrichedBlocks.size());
+                List<CanonicalFact> additions = facts.stream()
+                                .filter(fact -> primary.allowedFactKeys().stream().noneMatch(fact.id()::equals))
+                                .limit(availableSlots)
+                                .toList();
+                for (int index = 0; index < additions.size(); index++) {
+                        CanonicalFact fact = additions.get(index);
             enrichedBlocks.add(new ResearchSourceBlock(
                     primary.id() + "-fact-" + (blockOffset + index + 1),
                     ResearchSourceBlockType.PARAGRAPH,
@@ -255,7 +319,7 @@ public class ResearchIntelligenceService {
         ResearchArtifactResponse enrichedPrimary = new ResearchArtifactResponse(
                 primary.id(), primary.title(), primary.sourceType(), primary.summary(), primary.evidenceType(),
                 primary.confidence(), primary.origin(), primary.publishedOn(), primary.relevanceScore(),
-                mergeFactIds(primary.allowedFactKeys(), facts), primary.correlatesWithEvidence(),
+                mergeFactIds(primary.allowedFactKeys(), additions), primary.correlatesWithEvidence(),
                 primary.relevanceRationale(), enrichedBlocks);
 
         List<ResearchArtifactResponse> enriched = new ArrayList<>(artifacts);
@@ -481,7 +545,7 @@ public class ResearchIntelligenceService {
      */
     private String buildSourceDeckPrompt(Engagement engagement, Lead lead, Scenario scenario, EvidenceType type,
                                          DifficultyProfile profile, Map<String, String> facts,
-                                         List<ResearchEvidence> discovered) {
+                                         List<ResearchEvidence> discovered, List<ResearchCorpusPassage> corpus) {
         String factLines = facts.entrySet().stream()
                 .map(entry -> "- " + entry.getKey() + ": " + entry.getValue())
                 .collect(java.util.stream.Collectors.joining("\n"));
@@ -489,23 +553,38 @@ public class ResearchIntelligenceService {
                 .map(evidence -> "- E-%02d [%s]: %s".formatted(
                         evidence.getSequenceNo(), evidence.getEvidenceType(), evidence.getNote()))
                 .collect(java.util.stream.Collectors.joining("\n"));
+        String corpusPassages = java.util.stream.IntStream.range(0, corpus.size())
+                .mapToObj(index -> "[P%02d | %s] %s".formatted(index + 1, corpus.get(index).chunkId(), corpus.get(index).content()))
+                .collect(java.util.stream.Collectors.joining("\n\n"));
 
         return """
                 You write simulated, enterprise research documents for a consulting training product.
-                Produce TWO substantial source documents for the requested research lane. The learner will read,
-                highlight, and assess them before forming a hypothesis, so every document must contain useful,
-                client-specific signals rather than generic consulting advice.
+                Produce ONE corpus-backed, evidence-dense dossier for the requested research lane. The learner will
+                read, highlight, and assess it before forming a hypothesis, so every paragraph must carry a distinct signal.
 
-                NON-NEGOTIABLE GROUNDING RULES:
-                - Use ONLY the canonical facts provided below. Never invent names, companies, figures, budgets,
-                  dates, systems, causes, outcomes, URLs, stakeholders, or quotations.
-                - A source may explain implications and open questions, but must clearly distinguish them from facts.
+                                                                NON-NEGOTIABLE GROUNDING RULES:
+                                                                - The lane corpus below is the approved source material for this dossier. It is the only place to find
+                                                                        detailed operational, commercial, technical, or stakeholder information.
+                                                                - Never fabricate a hard client fact: no new names, companies, figures, budgets, dates, systems,
+                                                                        causes, outcomes, URLs, stakeholders, quotations, approvals, events, or external citations.
+                                                                - You MAY generate bounded, scenario-consistent research detail by unpacking a canonical fact into a
+                                                                        concrete operational observation. For example, a fact about local reporting workarounds can support
+                                                                        a distinct observation about teams reconciling records before a decision. Each generated detail must
+                                                                        cite the factIds that anchor it, remain consistent with those facts, and never present an unverified
+                                                                        mechanism or outcome as proven.
                 - Every artifact must cite the exact canonical fact keys it uses in supportedFactIds.
-                - Do not restate the whole scenario description. Select and connect the facts that matter for this lane.
+                                                                - Every sentence must introduce a new client fact, a material uncertainty, or essential source context.
+                                                                        Delete a sentence if it merely says that another fact is relevant, central, retained, documented, or
+                                                                        part of the research narrative.
+                                                                - Do not restate the whole scenario description. The writing should read like a credible article, dossier,
+                                                                        analyst note, or technical brief rather than a scenario summary or consulting playbook.
                 - A "QUOTE" block may only repeat a canonical fact word-for-word and must have no invented attribution.
-                - Include one low-confidence or ambiguous context source only when the difficulty requires a distractor.
                 - Never write consultant instructions, recommended next steps, hypotheses, source-record notices, or meta commentary
                   inside a source document. The source is client intelligence, not a coaching response.
+                - Avoid boilerplate such as "the available record", "this source", "the consulting team", or "the learner".
+                  Write from the perspective of the simulated publisher or internal author.
+                                                                - Do not emit INTERPRETATION, CONTEXT, UNCERTAINTY, or GUIDANCE blocks. There must be no explanatory
+                                                                        callouts such as "derived interpretation" or "not yet confirmed" inside the document.
                 - Return JSON only. No markdown and no prose outside the JSON.
 
                 Required JSON schema:
@@ -515,38 +594,37 @@ public class ResearchIntelligenceService {
                       "id": "short-stable-id",
                       "title": "specific, reader-facing title",
                       "category": "%s",
-                      "content": "a concise, factual deck preview",
+                      "content": "a one-sentence reader-facing dek, no more than 28 words and not repeating a block",
                       "sourceType": "COMPANY_NEWS|STAKEHOLDER_PROFILE|FINANCIAL_REPORT|TECHNOLOGY_NOTE|MARKET_BRIEF|SIMULATED_REPORT",
                       "reliability": "LOW|MEDIUM|HIGH",
                       "supportedFactIds": ["exact-fact-key"],
                       "relevance": 0.0,
                       "confidence": 0.0,
                       "blocks": [
-                        {"type": "PARAGRAPH", "content": "...", "purpose": "FACT", "selectable": true, "factIds": ["exact-fact-key"]},
-                        {"type": "PARAGRAPH", "content": "...", "purpose": "INTERPRETATION", "selectable": true, "factIds": ["exact-fact-key"]},
-                        {"type": "CAPTION", "content": "...", "purpose": "UNCERTAINTY", "selectable": false, "factIds": []}
+                        {"type": "PARAGRAPH", "content": "...", "attribution": "Research corpus", "purpose": "FACT", "selectable": true, "factIds": ["exact-fact-key"], "corpusChunkIds": ["exact UUID from corpus"]}
                       ]
                     }
                   ]
                 }
 
                 Document requirements:
-                - Return exactly 2 artifacts, each with 6 to 9 blocks and at least 450 characters across its blocks.
-                - Each artifact must have 3 to 6 selectable blocks. Only FACT and INTERPRETATION blocks may be selectable.
-                - Every selectable block must include one or more exact factIds. CONTEXT and UNCERTAINTY blocks are never selectable.
-                - Use CONTEXT only for factual background and UNCERTAINTY only for an explicitly unresolved scenario fact.
-                - Do not use GUIDANCE blocks in this response. Never turn the consulting mandate into an instruction to the learner.
-                - COMPANY_NEWS: write an industry-news analysis with a headline, a client-specific operating signal,
-                  a clearly-labelled fact-linked interpretation, and an explicitly open question.
-                - STAKEHOLDER_PROFILE: write a credible dossier that separates known role/context from priorities,
-                  decision influence, and questions to validate.
-                - FINANCIAL_SIGNAL: write an analyst or internal finance brief that separates confirmed commercial
-                  signals from assumptions, baseline questions, and approval uncertainty.
-                - TECHNOLOGY_INDICATOR: write a technical briefing that explains known systems, possible operational
-                  implications, dependencies to validate, and the appropriate discovery focus.
-                - Use METRIC only for a numeric fact present in the canonical facts; otherwise use PARAGRAPH or CAPTION.
-                - Add exactly one non-selectable CAPTION per artifact that states the unresolved client uncertainty only.
-                - The second source must offer a different evidence angle; do not paraphrase or repeat the first source.
+                                                                - Return exactly 1 artifact containing 4 to 6 selectable FACT blocks and 180 to 320 words across
+                                                                        the blocks. Each block should be concise and cite one or two corpus passages.
+                - Every block must introduce a distinct, actionable client signal and cite one or more exact factIds.
+                  Do not repeat a corpus passage, fact, sentence, or conclusion in another block with altered wording.
+                                                                - Cover at least 4 different corpus passages across the document. Each block must return the exact UUIDs
+                                                                        of passages it uses in corpusChunkIds; do not invent identifiers or cite passages outside this lane corpus.
+                - The content/dek field is a single short preview sentence. It must not recap the document, repeat a
+                  source block, or contain more than 28 words.
+                - Use only PARAGRAPH, QUOTE, or METRIC blocks. Use METRIC only for a numeric fact present in the canonical facts.
+                - COMPANY_NEWS: include business or executive pressure, an operating signal, and company context; do not
+                                                                        disclose financial or technical details that are reserved for their dedicated lanes.
+                                                                - STAKEHOLDER_PROFILE: focus on the named role, stated priorities, decision context, and influence signals.
+                                                                - FINANCIAL_SIGNAL: include 3 to 5 commercial signals, such as value range, funding, baseline, or timing;
+                                                                        do not restate the technology narrative.
+                                                                - TECHNOLOGY_INDICATOR: focus on systems, data conditions, operational hand-offs, and technical constraints.
+                                                                - Information asymmetry is mandatory: no single source may reveal the complete scenario. Reserve meaningful
+                                                                        details for the other research lanes so the learner must investigate all four areas.
 
                 Engagement state: %s
                 Research lane: %s
@@ -564,6 +642,9 @@ public class ResearchIntelligenceService {
 
                 Evidence already captured by the learner:
                 %s
+
+                Approved lane corpus:
+                %s
                 """.formatted(
                 type.name(),
                 engagement.getState().name(), type.name(), profile.level().name(), profile.distractorArtifactsPerAction(),
@@ -571,8 +652,19 @@ public class ResearchIntelligenceService {
                 scenario.getBusinessSituation(), scenario.getObservableSymptom(), scenario.getConsultingMandate(),
                 scenario.getUnknownsToValidate().isEmpty() ? "None specified" : String.join("; ", scenario.getUnknownsToValidate()),
                 factLines,
-                discoveredLines.isBlank() ? "None" : discoveredLines);
+                                discoveredLines.isBlank() ? "None" : discoveredLines,
+                                corpusPassages);
     }
+
+        private KnowledgeCollection researchCollection(EvidenceType type) {
+                return switch (type) {
+                        case COMPANY_NEWS -> KnowledgeCollection.RESEARCH_COMPANY_NEWS;
+                        case STAKEHOLDER_PROFILE -> KnowledgeCollection.RESEARCH_STAKEHOLDER;
+                        case FINANCIAL_SIGNAL -> KnowledgeCollection.RESEARCH_FINANCIAL;
+                        case TECHNOLOGY_INDICATOR -> KnowledgeCollection.RESEARCH_TECHNOLOGY;
+                        default -> throw new IllegalArgumentException("No research corpus collection for " + type);
+                };
+        }
 
     /**
      * Difficulty must be authored as a scenario fact or a scenario-specific contradiction.
@@ -771,11 +863,10 @@ public class ResearchIntelligenceService {
 
     private List<ResearchSourceBlock> documentBlocks(String sourceId, SourceBlockSeed... seeds) {
         List<ResearchSourceBlock> blocks = new ArrayList<>();
-        for (int index = 0; index < seeds.length; index++) {
-            SourceBlockSeed seed = seeds[index];
-            if (seed.content() == null || seed.content().isBlank()) continue;
-            blocks.add(new ResearchSourceBlock(sourceId + "-block-" + (index + 1),
-                    seed.type(), seed.content(), null, seed.factIds(), seed.selectable(), seed.purpose()));
+        for (SourceBlockSeed seed : seeds) {
+            if (seed.purpose() != ResearchSourceBlockPurpose.FACT || seed.content() == null || seed.content().isBlank()) continue;
+            blocks.add(new ResearchSourceBlock(sourceId + "-block-" + (blocks.size() + 1),
+                    seed.type(), seed.content(), null, seed.factIds(), true, ResearchSourceBlockPurpose.FACT));
         }
         return List.copyOf(blocks);
     }
@@ -888,6 +979,112 @@ public class ResearchIntelligenceService {
             case LOW -> 30;
         };
     }
+
+        private List<ResearchCorpusPassage> researchCorpus(EvidenceType type, Scenario scenario) {
+                if (type != EvidenceType.COMPANY_NEWS && type != EvidenceType.STAKEHOLDER_PROFILE
+                                && type != EvidenceType.FINANCIAL_SIGNAL && type != EvidenceType.TECHNOLOGY_INDICATOR) {
+                        return List.of();
+                }
+                return knowledgeRetrievalService.retrieveResearchCorpusPassages(researchCollection(type), scenario.getId());
+        }
+
+        private boolean supportsCorpusDossier(List<ResearchCorpusPassage> corpus) {
+                return corpus.size() >= ResearchDocumentPolicy.corpusBacked().minimumBlocks()
+                        && corpus.size() <= ResearchDocumentPolicy.corpusBacked().maximumBlocks()
+                        && corpus.stream().allMatch(passage -> wordCount(passage.content()) >= 40);
+        }
+
+        /**
+         * A research session needs four sharply distinct signals, not an entire raw
+         * archive. Sample evenly across a lane and retain the source chunk id for
+         * every excerpt so learner selections remain auditable.
+         */
+        private List<ResearchCorpusPassage> conciseCorpus(List<ResearchCorpusPassage> corpus) {
+                int requiredPassages = ResearchDocumentPolicy.corpusBacked().minimumBlocks();
+                if (corpus.size() <= requiredPassages) {
+                        return corpus.stream().map(this::concisePassage).toList();
+                }
+                return java.util.stream.IntStream.range(0, requiredPassages)
+                                .mapToObj(index -> corpus.get(index * corpus.size() / requiredPassages))
+                                .map(this::concisePassage)
+                                .toList();
+        }
+
+        private ResearchCorpusPassage concisePassage(ResearchCorpusPassage passage) {
+                String[] words = passage.content().trim().split("\\s+");
+                int excerptWords = Math.min(words.length, 62);
+                String excerpt = String.join(" ", java.util.Arrays.copyOf(words, excerptWords));
+                if (excerptWords < words.length && !excerpt.endsWith(".") && !excerpt.endsWith("!") && !excerpt.endsWith("?")) {
+                        excerpt += "...";
+                }
+                return new ResearchCorpusPassage(passage.chunkId(), passage.documentId(), passage.sequence(), excerpt);
+        }
+
+        private ResearchArtifactResponse corpusDossier(Lead lead, Scenario scenario, EvidenceType type,
+                                                                                                        List<ResearchCorpusPassage> corpus) {
+                String sourceId = "corpus-" + type.name().toLowerCase(Locale.ROOT).replace('_', '-');
+                String factId = sourceFactId(type);
+                List<ResearchSourceBlock> blocks = java.util.stream.IntStream.range(0, corpus.size())
+                                .mapToObj(index -> {
+                                        ResearchCorpusPassage passage = corpus.get(index);
+                                        return new ResearchSourceBlock(sourceId + "-" + (index + 1), ResearchSourceBlockType.PARAGRAPH,
+                                                        passage.content(), "Approved scenario research corpus", List.of(factId),
+                                                        List.of(passage.chunkId().toString()), true, ResearchSourceBlockPurpose.FACT);
+                                })
+                                .toList();
+                return new ResearchArtifactResponse(sourceId, corpusTitle(type, lead), corpusSourceType(type),
+                                "An approved scenario dossier assembled from lane-specific research passages.", type.name(),
+                                ConfidenceLevel.HIGH.name(), EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(7), 90,
+                                List.of(factId), List.of(), "Every paragraph is traceable to an approved scenario corpus passage.", blocks);
+        }
+
+        private String corpusFingerprint(Scenario scenario) {
+                return java.util.stream.Stream.of(EvidenceType.COMPANY_NEWS, EvidenceType.STAKEHOLDER_PROFILE,
+                                                EvidenceType.FINANCIAL_SIGNAL, EvidenceType.TECHNOLOGY_INDICATOR)
+                                .flatMap(type -> researchCorpus(type, scenario).stream())
+                                .map(passage -> passage.chunkId() + ":" + passage.content().hashCode())
+                                .collect(java.util.stream.Collectors.joining("|"));
+        }
+
+        private String corpusFingerprint(List<ResearchCorpusPassage> corpus) {
+                return corpus.stream().map(passage -> passage.chunkId() + ":" + passage.content().hashCode())
+                                .collect(java.util.stream.Collectors.joining("|"));
+        }
+
+        private int wordCount(String text) {
+                String normalized = text == null ? "" : text.trim().replaceAll("\\s+", " ");
+                return normalized.isEmpty() ? 0 : normalized.split(" ").length;
+        }
+
+        private String sourceFactId(EvidenceType type) {
+                return switch (type) {
+                        case COMPANY_NEWS -> "business_situation";
+                        case STAKEHOLDER_PROFILE -> "decision_maker";
+                        case FINANCIAL_SIGNAL -> "potential_value_range";
+                        case TECHNOLOGY_INDICATOR -> "technology_stack";
+                        default -> "business_situation";
+                };
+        }
+
+        private String corpusTitle(EvidenceType type, Lead lead) {
+                return switch (type) {
+                        case COMPANY_NEWS -> lead.getCompanyName() + " operating news dossier";
+                        case STAKEHOLDER_PROFILE -> lead.getCompanyName() + " stakeholder dossier";
+                        case FINANCIAL_SIGNAL -> lead.getCompanyName() + " financial signals dossier";
+                        case TECHNOLOGY_INDICATOR -> lead.getCompanyName() + " technology landscape dossier";
+                        default -> lead.getCompanyName() + " research dossier";
+                };
+        }
+
+        private String corpusSourceType(EvidenceType type) {
+                return switch (type) {
+                        case COMPANY_NEWS -> "COMPANY_NEWS";
+                        case STAKEHOLDER_PROFILE -> "STAKEHOLDER_PROFILE";
+                        case FINANCIAL_SIGNAL -> "FINANCIAL_REPORT";
+                        case TECHNOLOGY_INDICATOR -> "TECHNOLOGY_NOTE";
+                        default -> "SIMULATED_REPORT";
+                };
+        }
 
     private EvidenceType inferType(String context) {
         String c = context.toLowerCase(Locale.ROOT);

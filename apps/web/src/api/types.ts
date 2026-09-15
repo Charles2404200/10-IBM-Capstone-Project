@@ -263,6 +263,7 @@ export interface ResearchArtifact {
 /** Immutable source documents grouped for the persistent research workspace. */
 export interface ResearchSourceDeck {
   sourcesByType: Partial<Record<EvidenceType, ResearchArtifact[]>>
+  enrichmentPending: boolean
 }
 
 export type ResearchSourceBlockType = 'PARAGRAPH' | 'QUOTE' | 'METRIC' | 'CAPTION'
@@ -274,6 +275,7 @@ export interface ResearchSourceBlock {
   content: string
   attribution: string | null
   factIds: string[]
+  corpusChunkIds: string[]
   selectable: boolean
   purpose: ResearchSourceBlockPurpose
 }

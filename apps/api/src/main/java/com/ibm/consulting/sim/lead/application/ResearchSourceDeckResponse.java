@@ -8,8 +8,14 @@ import java.util.Map;
  * one deck request and switches documents locally instead of serially loading
  * a separate category after every click.
  */
-public record ResearchSourceDeckResponse(Map<String, List<ResearchArtifactResponse>> sourcesByType) {
+public record ResearchSourceDeckResponse(Map<String, List<ResearchArtifactResponse>> sourcesByType,
+                                         boolean enrichmentPending) {
     public ResearchSourceDeckResponse {
         sourcesByType = sourcesByType == null ? Map.of() : Map.copyOf(sourcesByType);
+    }
+
+    /** Compatibility response for callers that do not need asynchronous enrichment state. */
+    public ResearchSourceDeckResponse(Map<String, List<ResearchArtifactResponse>> sourcesByType) {
+        this(sourcesByType, false);
     }
 }

@@ -9,4 +9,7 @@ public interface DocumentChunkRepository {
 
     /** Chunks visible to a given scenario/persona scope for a specific collection. */
     List<DocumentChunk> findByCollectionAndScope(KnowledgeCollection collection, UUID scenarioId, UUID personaId);
+
+    /** Ordered corpus passages for a research lane; no semantic top-K truncation. */
+    List<DocumentChunk> findResearchCorpus(KnowledgeCollection collection, UUID scenarioId);
 }

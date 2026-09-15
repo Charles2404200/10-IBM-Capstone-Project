@@ -89,6 +89,7 @@ function newResearchSourceBlock(): ResearchSourceBlock {
     content: '',
     attribution: null,
     factIds: ['scenario_source'],
+    corpusChunkIds: [],
     selectable: true,
     purpose: 'FACT',
   }
@@ -118,6 +119,7 @@ function sourceFromBriefing(
       content,
       attribution: null,
       factIds: ['scenario_source'],
+      corpusChunkIds: [],
       selectable: index !== paragraphs.length - 1,
       purpose: index === paragraphs.length - 1 ? 'CONTEXT' : 'FACT',
     })),

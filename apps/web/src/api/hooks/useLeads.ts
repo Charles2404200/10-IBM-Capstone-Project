@@ -125,6 +125,7 @@ export function useResearchSourceDeck(engagementId: string) {
     enabled: Boolean(engagementId),
     staleTime: RESEARCH_SOURCE_DECK_STALE_TIME,
     gcTime: 30 * 60_000,
+    refetchInterval: (query) => query.state.data?.enrichmentPending ? 2_000 : false,
     refetchOnWindowFocus: false,
     retry: 1,
   })
