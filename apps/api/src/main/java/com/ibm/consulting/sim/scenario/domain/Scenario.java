@@ -73,7 +73,7 @@ public class Scenario extends BaseEntity {
     @Column(name = "consulting_mandate", columnDefinition = "text", nullable = false)
     private String consultingMandate = "";
 
-    /** Pipe-delimited questions the learner must validate through the engagement. */
+    /** Reversibly encoded questions the learner must validate through the engagement. */
     @Column(name = "unknowns_to_validate", columnDefinition = "text", nullable = false)
     private String unknownsToValidate = "";
 
@@ -174,10 +174,11 @@ public class Scenario extends BaseEntity {
         this.businessSituation = required(businessSituation, "Business situation");
         this.observableSymptom = required(observableSymptom, "Observable symptom");
         this.consultingMandate = required(consultingMandate, "Consulting mandate");
-        this.unknownsToValidate = unknownsToValidate == null ? "" : unknownsToValidate.stream()
+        List<String> normalizedUnknowns = unknownsToValidate == null ? List.of() : unknownsToValidate.stream()
                 .filter(value -> value != null && !value.isBlank())
                 .map(String::trim)
-                .collect(java.util.stream.Collectors.joining(CRITERIA_DELIMITER));
+                .toList();
+        this.unknownsToValidate = SuccessCriteriaCodec.encode(normalizedUnknowns);
     }
 
     /** Author/admin capability: configure how the difficulty is broken down for learners. */
@@ -258,8 +259,7 @@ public class Scenario extends BaseEntity {
     public String getObservableSymptom() { return observableSymptom; }
     public String getConsultingMandate() { return consultingMandate; }
     public List<String> getUnknownsToValidate() {
-        if (unknownsToValidate == null || unknownsToValidate.isBlank()) return List.of();
-        return Arrays.stream(unknownsToValidate.split("\\" + CRITERIA_DELIMITER)).map(String::strip).toList();
+        return SuccessCriteriaCodec.decode(unknownsToValidate);
     }
     public int getContentVersion() { return contentVersion; }
     public UUID getScenarioLineageId() { return scenarioLineageId; }

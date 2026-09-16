@@ -1,9 +1,11 @@
 package com.ibm.consulting.sim.identity.infrastructure;
 
 import com.ibm.consulting.sim.identity.domain.User;
+import com.ibm.consulting.sim.identity.domain.UserDirectoryPage;
+import com.ibm.consulting.sim.identity.domain.UserDirectoryQuery;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
-import jakarta.persistence.LockModeType;
 import com.ibm.consulting.sim.identity.domain.UserRole;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;

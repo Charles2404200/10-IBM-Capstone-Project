@@ -475,7 +475,7 @@ public class MeetingService {
         }
     }
 
-    private MeetingDebriefNarrative createDebrief(Meeting meeting, PersonaState state,
+    private MeetingDebriefNarrative createDebrief(Meeting meeting, PersonaState state, DifficultyProfile profile,
                                                    MeetingCompletionDecision decision,
                                                    List<ConversationTurn> turns) {
         try {
