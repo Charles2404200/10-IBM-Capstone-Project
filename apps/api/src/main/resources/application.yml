@@ -6,6 +6,7 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
+      connection-init-sql: SET default_transaction_read_only = off
       maximum-pool-size: ${DB_POOL_MAX_SIZE:4}
       minimum-idle: ${DB_POOL_MIN_IDLE:1}
       connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
@@ -20,7 +21,7 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   flyway:
-    enabled: true
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
     locations: classpath:db/migration
     baseline-on-migrate: true
 
@@ -148,7 +149,10 @@ app:
     # Client Intelligence must feel immediate. If a provider cannot return a
     # schema-valid response inside this budget, the service returns deterministic
     # scenario-safe artefacts and records the fallback in ai_traces.
-    client-intelligence-timeout-ms: ${AI_CLIENT_INTELLIGENCE_TIMEOUT_MS:1200}
+    # Source decks are generated once per scenario and then cached. Allow enough
+    # time for a grounded, multi-block document rather than falling back to a
+    # generic one-line card on every first visit.
+    client-intelligence-timeout-ms: ${AI_CLIENT_INTELLIGENCE_TIMEOUT_MS:90000}
     classification-timeout-ms: ${AI_CLASSIFICATION_TIMEOUT_MS:2500}
     # mock-mode=true -> MockAiGateway (deterministic, no external calls).
     # mock-mode=false -> AiProviderRouter takes over as the AiModelGateway bean and
@@ -227,6 +231,8 @@ app:
     upstash:
       rest-url: ${UPSTASH_REDIS_REST_URL:}
       rest-token: ${UPSTASH_REDIS_REST_TOKEN:}
+      # A distributed cache is never allowed to hold an interactive learner flow.
+      timeout-ms: ${UPSTASH_REDIS_TIMEOUT_MS:750}
 
 logging:
   level:

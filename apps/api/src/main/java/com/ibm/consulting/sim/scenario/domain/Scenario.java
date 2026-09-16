@@ -63,6 +63,20 @@ public class Scenario extends BaseEntity {
     @Column(name = "simulated_days", nullable = false)
     private int simulatedDays = 10;
 
+    /** The learner-facing problem frame. It orients research without exposing the diagnosis or solution. */
+    @Column(name = "business_situation", columnDefinition = "text", nullable = false)
+    private String businessSituation = "";
+
+    @Column(name = "observable_symptom", columnDefinition = "text", nullable = false)
+    private String observableSymptom = "";
+
+    @Column(name = "consulting_mandate", columnDefinition = "text", nullable = false)
+    private String consultingMandate = "";
+
+    /** Pipe-delimited questions the learner must validate through the engagement. */
+    @Column(name = "unknowns_to_validate", columnDefinition = "text", nullable = false)
+    private String unknownsToValidate = "";
+
     @Column(name = "content_version", nullable = false)
     private int contentVersion;
 
@@ -124,6 +138,10 @@ public class Scenario extends BaseEntity {
         revision.objective = objective;
         revision.successCriteria = successCriteria;
         revision.simulatedDays = simulatedDays;
+        revision.businessSituation = businessSituation;
+        revision.observableSymptom = observableSymptom;
+        revision.consultingMandate = consultingMandate;
+        revision.unknownsToValidate = unknownsToValidate;
         revision.rubricWeightsEncoded = rubricWeightsEncoded;
         revision.authoringConfig = authoringConfig;
         revision.scenarioLineageId = scenarioLineageId;
@@ -147,6 +165,19 @@ public class Scenario extends BaseEntity {
         this.objective = objective == null ? "" : objective;
         this.successCriteria = SuccessCriteriaCodec.encode(successCriteria);
         this.simulatedDays = simulatedDays > 0 ? simulatedDays : 10;
+    }
+
+    /** Author/admin capability: define the known problem frame before learner research begins. */
+    public void updateProblemBriefing(String businessSituation, String observableSymptom, String consultingMandate,
+                                      List<String> unknownsToValidate) {
+        assertDraftEditable();
+        this.businessSituation = required(businessSituation, "Business situation");
+        this.observableSymptom = required(observableSymptom, "Observable symptom");
+        this.consultingMandate = required(consultingMandate, "Consulting mandate");
+        this.unknownsToValidate = unknownsToValidate == null ? "" : unknownsToValidate.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .collect(java.util.stream.Collectors.joining(CRITERIA_DELIMITER));
     }
 
     /** Author/admin capability: configure how the difficulty is broken down for learners. */
@@ -223,6 +254,13 @@ public class Scenario extends BaseEntity {
         return SuccessCriteriaCodec.decode(successCriteria);
     }
     public int getSimulatedDays() { return simulatedDays; }
+    public String getBusinessSituation() { return businessSituation; }
+    public String getObservableSymptom() { return observableSymptom; }
+    public String getConsultingMandate() { return consultingMandate; }
+    public List<String> getUnknownsToValidate() {
+        if (unknownsToValidate == null || unknownsToValidate.isBlank()) return List.of();
+        return Arrays.stream(unknownsToValidate.split("\\" + CRITERIA_DELIMITER)).map(String::strip).toList();
+    }
     public int getContentVersion() { return contentVersion; }
     public UUID getScenarioLineageId() { return scenarioLineageId; }
     public String getAuthoringConfig() { return authoringConfig; }

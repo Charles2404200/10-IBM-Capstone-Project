@@ -18,6 +18,10 @@ public record UpdateScenarioBlueprintRequest(
         String objective,
         @NotNull @Size(max = 20) List<@NotBlank @Size(max = 500) String> successCriteria,
         @Min(1) @Max(90) int simulatedDays,
+        String businessSituation,
+        String observableSymptom,
+        String consultingMandate,
+        List<String> unknownsToValidate,
         @Min(1) @Max(5) int informationAmbiguity,
         @Min(1) @Max(5) int stakeholderComplexity,
         @Min(1) @Max(5) int commercialPressure) {}

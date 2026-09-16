@@ -8,6 +8,8 @@ import type {
   ProposalWorkspace,
 } from '@/api/types'
 
+const PROPOSAL_REQUEST_TIMEOUT_MS = 30_000
+
 export const proposalKeys = {
   detail: (engagementId: string) => ['proposal', engagementId] as const,
   workspace: (engagementId: string) => ['proposal-workspace', engagementId] as const,
@@ -17,7 +19,7 @@ export interface ProposalDraftRequest {
   problemStatement: string
   solutionStrategy: string
   components: string[]
-  budget: number
+  budget: string
   timelineWeeks: number
   budgetConfidence: string
   budgetSource: string
@@ -26,20 +28,6 @@ export interface ProposalDraftRequest {
   risks: { risk: string; severity: string; mitigation: string }[]
   assumptions: string[]
   evidenceLinks: { section: string; sourceId: string }[]
-}
-
-/** Editable form state remains textual until it is validated at the HTTP boundary. */
-export type ProposalDraftForm = Omit<ProposalDraftRequest, 'budget'> & { budget: string }
-
-export function toProposalDraftRequest(draft: ProposalDraftForm): ProposalDraftRequest {
-  const budget = draft.budget.trim() === '' ? Number.NaN : Number(draft.budget)
-  if (!Number.isFinite(budget) || budget < 0) {
-    throw new Error('Budget must be a non-negative number')
-  }
-  if (!Number.isInteger(draft.timelineWeeks) || draft.timelineWeeks <= 0) {
-    throw new Error('Timeline must be a positive whole number of weeks')
-  }
-  return { ...draft, budget }
 }
 
 export function useProposal(engagementId: string) {
@@ -62,9 +50,12 @@ export function useProposalWorkspace(engagementId: string) {
 export function useSaveProposalDraft(engagementId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (draft: ProposalDraftForm) =>
-      (await apiClient.put<Proposal>(`/api/v1/engagements/${engagementId}/proposal/draft`,
-        toProposalDraftRequest(draft))).data,
+    mutationFn: async (data: ProposalDraftRequest) =>
+      (await apiClient.put<Proposal>(`/api/v1/engagements/${engagementId}/proposal/draft`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
+    retry: 1,
+    retryDelay: 300,
     onSuccess: (proposal) => {
       qc.setQueryData(proposalKeys.detail(engagementId), proposal)
       qc.setQueryData<ProposalWorkspace | undefined>(proposalKeys.workspace(engagementId), (current) =>
@@ -77,26 +68,29 @@ export function useSaveProposalDraft(engagementId: string) {
 
 export function useProposalReview(engagementId: string) {
   return useMutation({
-    mutationFn: async (draft: ProposalDraftForm) =>
-      (await apiClient.post<ProposalReview>(`/api/v1/engagements/${engagementId}/proposal/review`,
-        toProposalDraftRequest(draft))).data,
+    mutationFn: async (data: ProposalDraftRequest) =>
+      (await apiClient.post<ProposalReview>(`/api/v1/engagements/${engagementId}/proposal/review`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
   })
 }
 
 export function useProposalChallenge(engagementId: string) {
   return useMutation({
-    mutationFn: async (draft: ProposalDraftForm) =>
-      (await apiClient.post<ProposalChallenge>(`/api/v1/engagements/${engagementId}/proposal/challenge`,
-        toProposalDraftRequest(draft))).data,
+    mutationFn: async (data: ProposalDraftRequest) =>
+      (await apiClient.post<ProposalChallenge>(`/api/v1/engagements/${engagementId}/proposal/challenge`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
   })
 }
 
 export function useSubmitProposal(engagementId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (draft: ProposalDraftForm) =>
-      (await apiClient.post<Proposal>(`/api/v1/engagements/${engagementId}/proposal`,
-        toProposalDraftRequest(draft))).data,
+    mutationFn: async (data: ProposalDraftRequest) =>
+      (await apiClient.post<Proposal>(`/api/v1/engagements/${engagementId}/proposal`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
     onSuccess: (proposal) => {
       qc.setQueryData(proposalKeys.detail(engagementId), proposal)
       qc.setQueryData<ProposalWorkspace | undefined>(proposalKeys.workspace(engagementId), (current) =>

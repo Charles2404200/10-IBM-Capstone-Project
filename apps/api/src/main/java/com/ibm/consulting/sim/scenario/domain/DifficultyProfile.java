@@ -56,5 +56,13 @@ public record DifficultyProfile(
         };
     }
 
+        /** Keeps author-configured tuning while applying the tier selected from the lead catalogue. */
+        public DifficultyProfile withLevel(DifficultyLevel selectedLevel) {
+                return new DifficultyProfile(selectedLevel, researchArtifactsPerAction, distractorArtifactsPerAction,
+                                contradictionCount, initialTrust, initialInterest, initialPatience, meetingTurnLimit, budgetVisible,
+                                timelinePressureDays, requiredEvidenceCount, requiredConfidencePercent, outreachAcceptanceThreshold,
+                                proposalEvidenceCoverageThreshold, personaResistance, scoringTolerance);
+        }
+
     private static int between(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
 }

@@ -5,13 +5,22 @@
 .page { min-height: 100%; padding: 0 0 $spacing-07; background: $background; }
 .headerGrid, .workspaceGrid { max-width: 96rem; margin: 0 auto; }
 .workspaceGrid { margin-top: $spacing-06; }
-.pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; margin-top: 1rem; }
+.pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
 .eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; margin: 0 0 $spacing-02; }
 
-.conversationPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); border: 1px solid $border-subtle; background: $layer-01; }
-.transcriptViewport { overflow-y: auto; padding: $spacing-05; }
-.emptyTranscriptViewport { display: flex; flex-direction: column; justify-content: center; align-items: center; }
-.emptyTranscript { color: $text-secondary; text-align: center; margin: 0; }
+.conversationPanel { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); min-height: 0; overflow: hidden; border: 1px solid $border-subtle; background: $layer-01; }
+.transcriptViewport {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: $spacing-05;
+  scrollbar-gutter: stable;
+
+  &::-webkit-scrollbar { width: .5rem; }
+  &::-webkit-scrollbar-thumb { background: #a8a8a8; border-radius: 999px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+}
+.emptyTranscript { color: $text-secondary; text-align: center; margin: $spacing-10 0; }
 .learnerTurn, .personaTurn { display: flex; margin-bottom: $spacing-04; }
 .learnerTurn { justify-content: flex-end; }
 .personaTurn { justify-content: flex-start; }
@@ -20,7 +29,28 @@
 .learnerBubble { background: $interactive; color: $text-on-color; }
 .personaBubble { background: $layer-accent-01; color: $text-primary; border-left: 3px solid $border-strong-01; }
 .streamingBubble { border-left-color: $interactive; }
+.meetingHint { position: absolute; top: $spacing-03; right: $spacing-03; z-index: 3; animation: hint-nudge 2.8s ease-in-out infinite; }
+.hintTrigger {
+  min-height: 2.5rem !important;
+  padding-inline: $spacing-04 !important;
+  border: 1px solid #f1c21b !important;
+  background: #fff1c2 !important;
+  box-shadow: 0 2px 8px rgb(141 98 0 / 25%);
+  color: #6f4c00 !important;
+  font-weight: 600;
+
+  &:hover, &:focus-visible { background: #ffe69a !important; border-color: #b28600 !important; color: #4d3500 !important; }
+  :global(svg) { color: #8a6100; }
+}
+.hintPopover { position: absolute; top: calc(100% + $spacing-02); right: 0; width: min(19rem, calc(100vw - 3rem)); padding: $spacing-04; border: 1px solid #f1c21b; border-top: 4px solid #f1c21b; background: #fffaf0; box-shadow: 0 6px 16px rgb(141 98 0 / 22%); }
+.hintPopover > p:last-child { margin: 0; color: $text-primary; line-height: 1.4; @include type-style('body-compact-01'); }
+@keyframes hint-nudge { 0%, 76%, 100% { transform: translateY(0); } 84% { transform: translateY(-3px); } 92% { transform: translateY(0); } }
 .composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: $spacing-03; padding: $spacing-04; border-top: 1px solid $border-subtle; }
+.freeformComposer { padding: $spacing-04 $spacing-05 0; border-top: 1px solid $border-subtle; background: #faf8ff; }
+.freeformHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
+.freeformHeading h3 { margin: 0; @include type-style('heading-compact-02'); }
+.freeformComposer > p { margin: $spacing-02 0 0; color: $text-secondary; line-height: 1.4; @include type-style('body-compact-01'); }
+.freeformComposer .composer { padding: $spacing-03 0 $spacing-04; border-top: 0; }
 .errorNotification { margin: $spacing-04; }
 .guidedComposer { padding: $spacing-05; border-top: 1px solid $border-subtle; background: $layer-02; }
 .guidedHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
@@ -36,8 +66,8 @@
 .choiceContent { @include type-style('body-compact-01'); line-height: 1.45; }
 .choiceIcon { color: $interactive; margin-top: 2px; }
 
-.decisionRail { position: static; min-height: 0; overflow-y: auto; gap: $spacing-03; }
-.relationshipPanel { padding: $spacing-05; border-top: 3px solid $interactive; background: $layer-01; margin-bottom: 1rem; }
+.decisionRail { position: sticky; top: $spacing-05; display: grid; gap: $spacing-05; }
+.relationshipPanel { padding: $spacing-05; border-top: 3px solid $interactive; background: $layer-01; }
 .railHeading { margin-bottom: $spacing-06; }
 .railHeading h2, .debriefHeading h2 { @include type-style('heading-compact-02'); margin: 0; }
 .relationshipMetric > div:first-child { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: $spacing-02; }
@@ -49,19 +79,17 @@
 .meterPass, .meterWatch, .meterRisk { height: 100%; transition: width 180ms ease; }
 .meterPass { background: $support-success; }.meterWatch { background: $support-warning; }.meterRisk { background: $support-error; }
 
-.hintPanel, .factsPanel { padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
-.hintPanel { border-left: 3px solid $interactive; margin-bottom: 1rem; }
-.hintPanel h3, .factsPanel h3 { @include type-style('heading-compact-02'); margin: 0; }
-.hintPanel ul, .factsPanel ul, .debriefTips { margin: $spacing-04 0 0; padding-left: $spacing-05; }
-.hintPanel li, .factsPanel li, .debriefTips li { margin-bottom: $spacing-03; color: $text-primary; @include type-style('body-compact-01'); }
-.factsPanel li { text-transform: capitalize; }
-.readyToClosePanel { padding: $spacing-05; border-top: 3px solid $support-success; background: $layer-01; }
-.readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0 0 $spacing-03; }
+.liveIntelligencePanel { min-height: 0; padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
+.validatedFacts h3, .readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0; }
+.validatedFacts ul { display: grid; gap: $spacing-02; margin: $spacing-03 0 0; padding-left: $spacing-05; }
+.validatedFacts li { color: $text-primary; text-transform: capitalize; @include type-style('body-compact-01'); }
+.readyToClosePanel { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 3px solid $support-success; }
+.readyToClosePanel h3 { margin-bottom: $spacing-03; }
 .readyToClosePanel p:last-child { margin: 0; color: $text-secondary; }
 
-.behaviourPanel { padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; margin-bottom: 1rem; }
-.behaviourPositive { border-left: 3px solid $support-success; }
-.behaviourRecovery { border-left: 3px solid $support-warning; }
+.behaviourPanel { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 1px solid $border-subtle; }
+.behaviourPositive { border-left: 3px solid $support-success; padding-left: $spacing-03; }
+.behaviourRecovery { border-left: 3px solid $support-warning; padding-left: $spacing-03; }
 .behaviourHeading { display: flex; justify-content: space-between; gap: $spacing-03; align-items: flex-start; }
 .behaviourHeading h3 { @include type-style('heading-compact-02'); margin: 0; text-transform: capitalize; }
 .behaviourDeltas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $spacing-02; }
@@ -107,7 +135,11 @@
     min-height: 0;
     margin-top: $spacing-03;
     overflow: hidden;
-    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .workspaceGrid :global(.cds--row),
+  .workspaceGrid :global([class*='cds--col']) {
+    min-height: 0;
   }
 
   .pageHeader h1 {
@@ -121,10 +153,13 @@
   }
 
   .conversationPanel {
-    flex: 1 1 auto;
-    height: auto;
+    /* The composer has a variable height. Pin the full panel to the canvas so
+       the transcript takes the remaining space and scrolls instead of pushing
+       the composer below the viewport. */
+    flex: 0 0 auto;
+    height: calc(100vh - 13rem);
+    max-height: 45rem;
     min-height: 0;
-    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .transcriptViewport {
@@ -149,9 +184,6 @@
 
   .guidedComposer {
     padding: $spacing-03 $spacing-04;
-    min-height: 15rem;
-    max-height: 26rem;
-    overflow-y: auto;
   }
 
   .guidedDescription {
@@ -178,12 +210,21 @@
     padding: $spacing-03 $spacing-04;
   }
 
+  .freeformComposer {
+    padding: $spacing-03 $spacing-04 0;
+  }
+
+  .freeformComposer .composer {
+    padding: $spacing-03 0;
+  }
+
   .completedPage .conversationColumn {
     gap: $spacing-03;
   }
 
   .completedPage .conversationPanel {
-    display: none;
+    flex: 0 1 52%;
+    min-height: 12rem;
   }
 
   .passedDebrief,
@@ -201,6 +242,13 @@
     justify-content: center;
   }
 
+  .debriefFeedback {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .debriefTips {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -215,19 +263,35 @@
 
   .decisionRail {
     position: static;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 13rem);
+    max-height: 45rem;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     gap: $spacing-03;
   }
 
   .relationshipPanel,
-  .hintPanel,
-  .factsPanel,
   .readyToClosePanel,
-  .behaviourPanel {
+  .liveIntelligencePanel {
     padding: $spacing-03 $spacing-04;
   }
+
+  .liveIntelligencePanel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+
+    &::-webkit-scrollbar { width: .5rem; }
+    &::-webkit-scrollbar-thumb { background: #a8a8a8; border-radius: 999px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+  }
+
+  .validatedFacts ul { margin-top: $spacing-02; }
+  .readyToClosePanel, .behaviourPanel { margin-top: $spacing-03; padding-top: $spacing-03; }
 
   .railHeading {
     margin-bottom: $spacing-04;
@@ -253,11 +317,10 @@
     padding-top: $spacing-02;
   }
 
-  .completedPage .factsPanel,
   .completedPage .readyToClosePanel {
     display: none;
   }
 }
 
 @media (max-width: 1055px) { .decisionRail { position: static; margin-top: $spacing-06; } .conversationPanel { height: 34rem; } }
-@media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.responseChoice { grid-template-columns: 1fr auto; }.choiceNumber { grid-column: 1 / -1; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }
+@media (max-width: 671px) { .page { padding-top: $spacing-05; }.conversationPanel { height: 32rem; }.bubble { max-width: 90%; }.meetingHint { right: $spacing-02; }.hintTrigger { min-width: 2.5rem; padding: 0 !important; font-size: 0; }.hintTrigger :global(svg) { margin: 0; }.composer { grid-template-columns: 1fr; }.composer button { width: 100%; }.responseChoice { grid-template-columns: 1fr auto; }.choiceNumber { grid-column: 1 / -1; }.pageHeader { align-items: center; }.pageHeader button { flex: 0 0 auto; } }

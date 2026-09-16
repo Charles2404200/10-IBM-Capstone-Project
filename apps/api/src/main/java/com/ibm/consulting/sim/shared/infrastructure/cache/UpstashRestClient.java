@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -36,9 +37,14 @@ public class UpstashRestClient {
 
     public UpstashRestClient(
             @Value("${app.cache.upstash.rest-url}") String restUrl,
-            @Value("${app.cache.upstash.rest-token}") String restToken) {
+            @Value("${app.cache.upstash.rest-token}") String restToken,
+            @Value("${app.cache.upstash.timeout-ms:750}") int timeoutMs) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(timeoutMs);
+        requestFactory.setReadTimeout(timeoutMs);
         this.restClient = RestClient.builder()
                 .baseUrl(restUrl)
+                .requestFactory(requestFactory)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + restToken)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();

@@ -45,4 +45,26 @@ public class KnowledgeRetrievalService {
                 .map(r -> r.chunk().getContent())
                 .toList();
     }
+
+    /**
+     * Research sources are authored corpora, not question-answer retrieval. Return
+     * the complete, ordered lane corpus so the document composer can preserve
+     * coverage and information asymmetry across research areas.
+     */
+    @Transactional(readOnly = true)
+    public List<String> retrieveResearchCorpus(KnowledgeCollection collection, UUID scenarioId) {
+        return retrieveResearchCorpusPassages(collection, scenarioId).stream()
+            .map(ResearchCorpusPassage::content)
+                .toList();
+    }
+
+        @Transactional(readOnly = true)
+        public List<ResearchCorpusPassage> retrieveResearchCorpusPassages(KnowledgeCollection collection, UUID scenarioId) {
+        return chunkRepository.findResearchCorpus(collection, scenarioId).stream()
+            .map(chunk -> new ResearchCorpusPassage(chunk.getId(), chunk.getDocumentId(), chunk.getChunkIndex(),
+                chunk.getContent()))
+            .toList();
+        }
+
+        public record ResearchCorpusPassage(UUID chunkId, UUID documentId, int sequence, String content) {}
 }

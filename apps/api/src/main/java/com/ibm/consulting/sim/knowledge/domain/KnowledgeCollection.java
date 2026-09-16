@@ -4,5 +4,9 @@ package com.ibm.consulting.sim.knowledge.domain;
 public enum KnowledgeCollection {
     SCENARIO_TRUTH,
     CONSULTING_PRACTICE,
-    ASSESSMENT_RUBRIC
+    ASSESSMENT_RUBRIC,
+    RESEARCH_COMPANY_NEWS,
+    RESEARCH_STAKEHOLDER,
+    RESEARCH_FINANCIAL,
+    RESEARCH_TECHNOLOGY
 }

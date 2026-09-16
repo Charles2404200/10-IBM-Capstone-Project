@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Grid,
@@ -9,9 +9,13 @@ import {
   Tile,
   TextInput,
   TextArea,
-  Dropdown,
+  Select,
+  SelectItem,
   Checkbox,
   Modal,
+  RadioButton,
+  RadioButtonGroup,
+  InlineLoading,
   InlineNotification,
   Stack
 } from '@carbon/react'
@@ -21,50 +25,37 @@ import {
   CheckmarkFilled, CircleDash, ChevronLeft, ChevronRight,
 } from '@carbon/icons-react'
 import { useForm, Controller } from 'react-hook-form'
-import { useAnalyzeUserContext, useGenerateResearchIntelligence, useResearch, useResearchGateStatus, useCompleteResearch, useSaveResearch } from '@/api/hooks/useLeads'
+import { useResearch, useResearchGateStatus, useCompleteResearch, useResearchSourceDeck, useSaveResearch } from '@/api/hooks/useLeads'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
-import type { ConfidenceLevel, EvidenceType, ResearchArtifact, ResearchEvidence } from '@/api/types'
+import type { ConfidenceLevel, EvidenceType, EvidenceVerificationStatus, ReasoningLane, ResearchArtifact, ResearchEvidence } from '@/api/types'
 import styles from './ClientIntelligencePage.module.scss'
 import { PHASE_LABEL } from '@/lifecycle/phases'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
-import { useEffect } from 'react'
 
 const CLIENT_INTELLIGENCE_OBJECTIVES = [
   {
     id: 'readiness',
     objective: 'Understand outreach readiness',
-    description: 'These are the requirements you must meet before proceeding to the next step of client outreach.',
+    description: 'These requirements show what you need to complete before you can move into outreach.',
     targets: ['.objective-readiness'],
   },
   {
-    id: 'actions',
-    objective: 'Where research comes from',
-    description: 'Each research area relates to what you may want to know about the client. Choose one to view it in your research workspace.',
-    targets: ['.objective-evidence'],
-  },
-  {
-    id: 'evidence-board',
+    id: 'evidence',
     objective: 'Build your evidence base',
-    description: 'Any evidence collected will be displayed in this section, your evidence board. This evidence is crucial for your client outreach in the next step, so ensure you understand and analyse your collected evidence.',
-    targets: ['.objective-evidence-board'],
-  },
-  {
-    id: 'evidence-card',
-    objective: 'Where a finding came from',
-    description: 'Each card carries a reference code, the source it came from, how reliable that source is, and how closely it relates to this client. Those tell you what a finding is worth citing for — they are not marks, and a low one is still yours to use if it fits.',
-    targets: ['.objective-evidence-board'],
+    description: 'Collect enough evidence and add your findings to the evidence board. The evidence requirement and evidence board are highlighted together.',
+    targets: ['.objective-evidence', '.objective-evidence-board'],
   },
   {
     id: 'stakeholder',
     objective: 'Identify your stakeholder',
-    description: 'Research and identify a relevant stakeholder. This is one of the requirements you must meet before being able to proceed to the next step of client outreach.',
+    description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
     targets: ['.objective-stakeholder-research'],
   },
   {
     id: 'hypothesis',
     objective: 'Form a grounded hypothesis',
-    description: 'Use the collected evidence to form a hypothesis about the client\'s possible pain points or underlying problems and the relevant business impacts.',
+    description: 'Use the evidence you collected to explain the client’s underlying problem and likely business impact.',
     targets: ['.objective-hypothesis'],
   },
   {
@@ -81,6 +72,7 @@ const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
 ]
 
 const CONFIDENCE_LEVELS: ConfidenceLevel[] = ['LOW', 'MEDIUM', 'HIGH']
+const VERIFICATION_STATUSES: EvidenceVerificationStatus[] = ['VERIFIED', 'CORROBORATED', 'UNVERIFIED', 'CONTRADICTED']
 
 const CONFIDENCE_TAG_TYPE: Record<ConfidenceLevel, 'red' | 'warm-gray' | 'green'> = {
   LOW: 'red',
@@ -108,9 +100,13 @@ interface HypothesisFormValues {
   supportingEvidenceIds: string[]
 }
 
-interface ExternalContextFormValues {
-  context: string
-}
+const REASONING_LANES: Array<{ value: ReasoningLane; label: string }> = [
+  { value: 'SYMPTOM', label: 'Observable symptom' },
+  { value: 'LIKELY_CAUSE', label: 'Likely cause' },
+  { value: 'STAKEHOLDER_CONSTRAINT', label: 'Stakeholder constraint' },
+  { value: 'BUSINESS_IMPACT', label: 'Business impact' },
+  { value: 'OPEN_QUESTION', label: 'Open question to validate' },
+]
 
 // ─── Research Actions: guided prompts that steer the learner toward the right
 // evidence category, instead of a blank "note" field (still requires the
@@ -133,6 +129,7 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
       <p className={styles.evidenceNote}>{item.note}</p>
       <div className={styles.evidenceCardFooter}>
         <Tag type="blue" size="sm">{item.evidenceType.replace(/_/g, ' ')}</Tag>
+        {item.reasoningLane && <Tag type="purple" size="sm">{item.reasoningLane.replace(/_/g, ' ')}</Tag>}
         <Tag type={item.relevanceScore >= 70 ? 'green' : item.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
           {item.relevanceScore}% relevant
         </Tag>
@@ -146,38 +143,176 @@ function EvidenceCard({ item, codeById }: { item: ResearchEvidence; codeById: Ma
   )
 }
 
-function ResearchArtifactCard({
-  artifact,
-  onAdd,
-  isAdding,
-}: {
-  artifact: ResearchArtifact
-  onAdd: (artifact: ResearchArtifact) => void
-  isAdding: boolean
-}) {
+function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArtifact; onSelectionChange: (text: string) => void }) {
+  const documentRef = useRef<HTMLElement>(null)
+  const blocks = artifact.blocks?.length
+    ? artifact.blocks
+    : [{ id: 'summary', type: 'PARAGRAPH' as const, content: artifact.summary, attribution: null, factIds: [], corpusChunkIds: [], selectable: false, purpose: 'CONTEXT' as const }]
+  const evidenceBlocks = blocks.filter((block) => block.purpose === 'FACT')
+  const evidenceWordCount = evidenceBlocks.reduce((total, block) => total + block.content.trim().split(/\s+/).filter(Boolean).length, 0)
+  const isLongFormDossier = evidenceWordCount >= 2_000
+  const sourceKind = artifact.evidenceType.replace(/_/g, ' ').toLowerCase()
+  const templateClass = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
+    ? styles.stakeholderTemplate
+    : artifact.evidenceType === 'FINANCIAL_SIGNAL'
+      ? styles.financialTemplate
+      : artifact.evidenceType === 'TECHNOLOGY_INDICATOR'
+        ? styles.technologyTemplate
+        : styles.newspaperTemplate
+  const isNewspaper = artifact.evidenceType === 'COMPANY_NEWS'
+  const isStakeholder = artifact.evidenceType === 'STAKEHOLDER_PROFILE'
+  const isFinancial = artifact.evidenceType === 'FINANCIAL_SIGNAL'
+  const isTechnology = artifact.evidenceType === 'TECHNOLOGY_INDICATOR'
+  const template = isNewspaper
+    ? {
+        label: 'The Client Observer',
+        edition: 'Industry operations journal',
+        sectionSize: 3,
+        sections: ['Lead Report', 'In Focus', 'Operating Picture', 'Decision Desk', 'Records and Controls', 'Delivery Watch', 'Commercial Context', 'Questions on Record'],
+      }
+    : isStakeholder
+      ? { label: 'Decision Context File', edition: 'Stakeholder research', sectionSize: 6, sections: ['Mandate and Role Context', 'Influence Environment', 'Decision Conditions', 'Items to Validate'] }
+      : isFinancial
+        ? { label: 'Commercial Signal Note', edition: 'Financial research', sectionSize: 6, sections: ['Commercial Frame', 'Funding Conditions', 'Exposure and Measures', 'Validation Record'] }
+        : { label: 'Technical Due Diligence', edition: 'Technology research', sectionSize: 6, sections: ['Current Landscape', 'Information Flows', 'Control Boundaries', 'Architecture Questions'] }
+  const sourceSections = evidenceBlocks.reduce<Array<typeof evidenceBlocks>>((sections, block, index) => {
+    if (index % template.sectionSize === 0) sections.push([])
+    sections.at(-1)?.push(block)
+    return sections
+  }, [])
+
+  const captureSelection = () => {
+    const selection = window.getSelection()
+    const selected = selection?.toString().replace(/\s+/g, ' ').trim() ?? ''
+    const reader = documentRef.current
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed || !reader) {
+      onSelectionChange('')
+      return
+    }
+    const range = selection.getRangeAt(0)
+    if (!reader.contains(range.commonAncestorContainer)) {
+      onSelectionChange('')
+      return
+    }
+    // Browser anchor/focus nodes are unreliable around multi-column text and nested
+    // labels. Validate the actual range against every document block instead.
+    const selectedBlocks = Array.from(reader.querySelectorAll<HTMLElement>('[data-evidence-block="true"]'))
+      .filter((block) => range.intersectsNode(block))
+    const isEvidenceSelection = selectedBlocks.length > 0
+      && selectedBlocks.every((block) => block.dataset.selectable === 'true')
+    onSelectionChange(isEvidenceSelection && selected.length >= 8 ? selected : '')
+  }
+
+  const scheduleSelectionCapture = () => window.requestAnimationFrame(captureSelection)
+  const estimatedReadingMinutes = Math.max(1, Math.ceil(evidenceWordCount / 220))
+
+  const renderEvidenceBlock = (block: typeof evidenceBlocks[number]) => {
+    const selectable = block.purpose === 'FACT'
+    const className = `${styles.sourceBlock} ${styles.sourceBlockSelectable}`
+    const showAttribution = block.attribution && block.corpusChunkIds.length === 0
+    const content = <>{block.content}{showAttribution && <cite>{block.attribution}</cite>}</>
+    const dataAttributes = { 'data-evidence-block': 'true', 'data-selectable': selectable ? 'true' : 'false' }
+    if (block.type === 'QUOTE') return <blockquote key={block.id} className={className} {...dataAttributes}>{content}</blockquote>
+    if (block.type === 'METRIC') return <div key={block.id} className={`${styles.sourceMetric} ${className}`} {...dataAttributes}>{content}</div>
+    if (block.type === 'CAPTION') return <p key={block.id} className={`${styles.sourceCaption} ${className}`} {...dataAttributes}>{content}</p>
+    return <p key={block.id} className={className} {...dataAttributes}>{content}</p>
+  }
+
   return (
-    <Tile className={styles.evidenceCard}>
-      <div className={styles.evidenceCardHeader}>
-        <Tag type={artifact.origin === 'USER_SUPPLIED' ? 'warm-gray' : 'cyan'} size="sm">
-          {artifact.origin.replace(/_/g, ' ')}
-        </Tag>
-        <Tag type={CONFIDENCE_TAG_TYPE[artifact.confidence]} size="sm">{artifact.confidence}</Tag>
-      </div>
-      <p className={styles.evidenceTitle}>{artifact.title}</p>
-      <p className={styles.evidenceNote}>{artifact.summary}</p>
-      <div className={styles.artifactCardFooter}>
-        <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'} size="sm">
+    <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={scheduleSelectionCapture} onPointerUp={scheduleSelectionCapture} onKeyUp={scheduleSelectionCapture}>
+      {isNewspaper && <div className={styles.documentMasthead} data-selectable="false"><strong>{template.label}</strong><span>{template.edition}</span><span>{artifact.publishedOn}</span></div>}
+      {isNewspaper && (
+        <div className={styles.newspaperSectionBar} data-selectable="false">
+          <span>Business</span><span>Operations</span><span>Client watch</span><span>Research archive</span>
+        </div>
+      )}
+      {!isNewspaper && (
+        <div className={styles.documentIdentity} data-selectable="false">
+          <div><span>{template.edition}</span><strong>{template.label}</strong></div>
+          <span>Research issue · {artifact.publishedOn}</span>
+        </div>
+      )}
+      <header className={`${styles.sourceDocumentHeader} ${isNewspaper ? styles.newspaperArticleHeader : ''}`} data-selectable="false">
+        <div>
+          <p className={styles.sectionEyebrow}>{sourceKind} · {artifact.sourceType}</p>
+          <h3 className={styles.sourceHeadingSelectable} data-evidence-block="true" data-selectable="true">{artifact.title}</h3>
+          <p className={`${styles.sourceDocumentDek} ${styles.sourceDekSelectable}`} data-evidence-block="true" data-selectable="true">{artifact.summary}</p>
+          <p className={styles.sourceDocumentMeta}>{artifact.origin.replace(/_/g, ' ').toLowerCase()} · {artifact.confidence.toLowerCase()} reliability</p>
+          {isLongFormDossier && <p className={styles.dossierReadingMeta}>{evidenceBlocks.length} sourced passages · approximately {evidenceWordCount.toLocaleString()} words</p>}
+        </div>
+        <Tag type={artifact.relevanceScore >= 70 ? 'green' : artifact.relevanceScore >= 45 ? 'warm-gray' : 'red'}>
           {artifact.relevanceScore}% relevant
         </Tag>
-        <Button size="sm" kind="ghost" renderIcon={Add} iconDescription="Add finding" disabled={isAdding} onClick={() => onAdd(artifact)}>
-          Add
-        </Button>
+      </header>
+      {isStakeholder && (
+        <div className={styles.stakeholderFileStrip} data-selectable="false">
+          <span className={styles.fileMonogram} aria-hidden="true">{artifact.title.slice(0, 1).toUpperCase()}</span>
+          <div><span>Research focus</span><strong>Mandate, influence, and decision conditions</strong></div>
+          <span className={styles.fileStatus}>Open assessment</span>
+        </div>
+      )}
+      {isFinancial && <div className={`${styles.signalBanner} ${styles.financialSignalBanner}`} data-selectable="false"><span>Analyst position</span><strong>Reported commercial signals are distinct from a confirmed investment decision.</strong></div>}
+      {isTechnology && <div className={`${styles.signalBanner} ${styles.technologySignalBanner}`} data-selectable="false"><span>Engineering position</span><strong>Document the current estate before inferring defects or target architecture.</strong></div>}
+      {isNewspaper && (
+        <div className={styles.newspaperArticleMeta} data-selectable="false">
+          <span>Operations desk</span><span>Scenario research archive</span><span>{estimatedReadingMinutes} min read</span>
+        </div>
+      )}
+      <div className={`${styles.sourceDocumentBody} ${isLongFormDossier ? styles.longFormDossierBody : ''} ${isNewspaper ? styles.newspaperBody : ''}`}>
+        {sourceSections.map((section, index) => (
+          <section key={template.sections[index] ?? index} className={styles.sourceSection} data-selectable="false">
+            <div className={styles.sourceSectionHeading}><span>{String(index + 1).padStart(2, '0')}</span><h4>{template.sections[index] ?? 'Research Record'}</h4></div>
+            {section.map(renderEvidenceBlock)}
+          </section>
+        ))}
       </div>
-    </Tile>
+      <p className={styles.selectionInstruction} data-selectable="false">Highlight reported facts to add evidence to your board.</p>
+    </article>
   )
 }
 
 /** Requirement row for {@link ResearchGateChecklist} — met (✓ blue) or unmet (○ gray). */
+function SourceDeck({
+  sources,
+  onOpenSource,
+  isLoading,
+}: {
+  sources: ResearchArtifact[]
+  onOpenSource: (source: ResearchArtifact) => void
+  isLoading: boolean
+}) {
+  if (isLoading && sources.length === 0) {
+    return <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing your scenario source deck...</span></div>
+  }
+
+  if (sources.length === 0) {
+    return <div className={styles.workspaceEmpty}><Search size={24} /><span>No sources are available for this research area yet.</span></div>
+  }
+
+  return (
+    <section className={styles.sourceDeck} aria-label="Scenario research source deck">
+      <header className={styles.sourceDeckHeader}>
+        <div className={styles.sourceDeckTitle}><Document size={24} /><div><h2>Source Deck</h2><p>Read the source, highlight a signal, then explain why it matters.</p></div></div>
+        <span className={styles.sourceDeckCount}>{sources.length} sources</span>
+      </header>
+      <div className={styles.sourceDeckContent}>
+        <div className={styles.sourceDeckGrid} aria-label="Available research sources">
+          {sources.map((source, index) => (
+            <button key={source.id} type="button" className={styles.sourceDeckCard} onClick={() => onOpenSource(source)}>
+              <span className={`${styles.sourceDeckVisual} ${styles[`sourceDeckVisual${source.evidenceType}`] ?? ''}`} aria-hidden="true"><Document size={22} /><b>{index + 1}</b></span>
+              <span className={styles.sourceDeckCardCopy}>
+                <span className={styles.sourceDeckCardMeta}><Tag type={source.relevanceScore >= 70 ? 'green' : 'warm-gray'} size="sm">{source.confidence.toLowerCase()} trust</Tag><small>{source.publishedOn}</small></span>
+                <strong>{source.title}</strong><small>{source.sourceType}</small><span className={styles.openSourceLabel}>Open document <ArrowRight size={16} /></span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <footer className={styles.sourceDeckFooter}><span><b>1</b> Browse sources</span><span><b>2</b> Highlight evidence</span><span><b>3</b> Add to your board</span></footer>
+    </section>
+  )
+}
+
 function GateRequirement({ met, label, className }: { met: boolean; label: string; className?: string }) {
   return (
     <div className={`${styles.gateRequirement} ${className ?? ''}`}>
@@ -219,7 +354,7 @@ function ResearchGateChecklist({
      whole point and stays. */
   if (gate.ready) {
     return (
-      <div className={`${styles.researchGate} objective-gate`}>
+      <div className={styles.researchGate}>
         <p className={styles.gateReady}>
           <CheckmarkFilled size={16} /> Ready — all {GATE_REQUIREMENT_COUNT} requirements met
         </p>
@@ -236,7 +371,7 @@ function ResearchGateChecklist({
   }
 
   return (
-    <div className={`${styles.researchGate} objective-gate`}>
+    <div className={styles.researchGate}>
       <h4 className={styles.researchGateTitle}>Ready for Outreach?</h4>
       <Stack gap={2}>
         <GateRequirement
@@ -368,22 +503,30 @@ function HypothesisWorkspace({
       <Modal open={composing} modalHeading="Build a grounded hypothesis" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Save hypothesis'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending} onRequestClose={() => setComposing(false)} onRequestSubmit={handleSubmit(onSubmit)}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.hypothesisForm}>
           <TextArea id="hypothesis-statement" labelText="Hypothesis statement" placeholder="State the observed problem, likely cause and business impact." rows={3} invalid={Boolean(errors.hypothesis)} invalidText="Required" {...register('hypothesis', { required: true })} />
+          {saveResearch.isPending && <InlineLoading description="Saving hypothesis" status="active" />}
           {citableEvidence.length > 0 && (
             <div>
               <div className={styles.modalSectionHeader}><p className={styles.linkLabel}>Supporting evidence</p>{citableEvidence.length > citationPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous citations" disabled={citationPage === 0} onClick={() => setCitationPage((page) => page - 1)} /><span>{citationPage + 1} / {citationPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next citations" disabled={citationPage >= citationPageCount - 1} onClick={() => setCitationPage((page) => page + 1)} /></div>}</div>
               <div className={styles.citationGrid}>{visibleCitations.map((e) => <Controller key={e.id} control={control} name="supportingEvidenceIds" render={({ field }) => <Checkbox id={`support-${e.id}`} labelText={`${evidenceCode(e.sequenceNo)} — ${e.note.slice(0, 74)}`} checked={field.value?.includes(e.id) ?? false} onChange={(_, { checked }) => { const current = field.value ?? []; field.onChange(checked ? [...current, e.id] : current.filter((id) => id !== e.id)) }} />} />)}</div>
             </div>
           )}
-          <Controller control={control} name="confidence" render={({ field }) => (
-            <Dropdown
-              id="hypothesis-confidence"
-              label="Confidence"
-              titleText="How confident are you?"
-              items={CONFIDENCE_LEVELS}
-              selectedItem={field.value}
-              onChange={({ selectedItem }) => field.onChange(selectedItem)}
-            />
-          )} />
+          <Controller
+            control={control}
+            name="confidence"
+            render={({ field }) => (
+              <RadioButtonGroup
+                legendText="How confident are you?"
+                name="hypothesis-confidence"
+                orientation="horizontal"
+                valueSelected={field.value}
+                onChange={(value) => field.onChange(value as ConfidenceLevel)}
+              >
+                {CONFIDENCE_LEVELS.map((confidence) => (
+                  <RadioButton key={confidence} id={`hypothesis-confidence-${confidence}`} value={confidence} labelText={confidence} />
+                ))}
+              </RadioButtonGroup>
+            )}
+          />
         </form>
       </Modal>
     </div>
@@ -395,29 +538,25 @@ export default function ClientIntelligencePage() {
   const navigate = useNavigate()
   const { data: evidence, isLoading, isError } = useResearch(engagementId!)
   const saveResearch = useSaveResearch(engagementId!)
-  const generateResearch = useGenerateResearchIntelligence(engagementId!)
-  const analyzeUserContext = useAnalyzeUserContext(engagementId!)
   const { data: gate } = useResearchGateStatus(engagementId!)
-  const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>(null)
-  const [researchResults, setResearchResults] = useState<ResearchArtifact[]>([])
+  const [activeAction, setActiveAction] = useState<Exclude<EvidenceType, 'HYPOTHESIS'> | null>('COMPANY_NEWS')
+  const [readerArtifact, setReaderArtifact] = useState<ResearchArtifact | null>(null)
   const [evidencePage, setEvidencePage] = useState(0)
-  const [findingsPage, setFindingsPage] = useState(0)
   const [manualEvidenceOpen, setManualEvidenceOpen] = useState(false)
+  const [reviewingArtifact, setReviewingArtifact] = useState<ResearchArtifact | null>(null)
+  const [selectedSnippet, setSelectedSnippet] = useState('')
+  const [reviewTakeaway, setReviewTakeaway] = useState('')
+  const [reviewLane, setReviewLane] = useState<ReasoningLane>('SYMPTOM')
+  const [reviewConfidence, setReviewConfidence] = useState<ConfidenceLevel>('MEDIUM')
+  const [reviewVerification, setReviewVerification] = useState<EvidenceVerificationStatus>('CORROBORATED')
+  const sourceDeck = useResearchSourceDeck(engagementId!)
 
-  const { register, handleSubmit, reset, setValue, control, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
       evidenceType: 'COMPANY_NEWS',
       confidence: 'MEDIUM',
     },
   })
-
-  const {
-    register: registerExternalContext,
-    handleSubmit: handleExternalContextSubmit,
-    reset: resetExternalContext,
-    formState: { errors: externalContextErrors },
-  } = useForm<ExternalContextFormValues>()
-
   const citableEvidence = useMemo(() => evidence ?? [], [evidence])
   const codeById = useMemo(
     () => new Map(citableEvidence.map((e) => [e.id, evidenceCode(e.sequenceNo)])),
@@ -427,14 +566,15 @@ export default function ClientIntelligencePage() {
     () => citableEvidence.filter((e) => e.evidenceType !== 'HYPOTHESIS'),
     [citableEvidence]
   )
-  const evidencePageSize = 3
-  const findingsPageSize = 2
-  const visibleEvidence = nonHypothesisEvidence.slice( evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize,)
-  const visibleFindings = researchResults.slice( findingsPage * findingsPageSize, (findingsPage + 1) * findingsPageSize,)
+  const evidencePageSize = 4
+  const visibleEvidence = nonHypothesisEvidence.slice(evidencePage * evidencePageSize, (evidencePage + 1) * evidencePageSize)
   const evidencePageCount = Math.max(1, Math.ceil(nonHypothesisEvidence.length / evidencePageSize))
-  const findingsPageCount = Math.max(1, Math.ceil(researchResults.length / findingsPageSize))
-  useEffect(() => { setEvidencePage((page) => Math.min(page, evidencePageCount - 1))}, [evidencePageCount])
-  useEffect(() => { setFindingsPage((page) => Math.min(page, findingsPageCount - 1)) }, [findingsPageCount])
+  const activeSources = useMemo(() => {
+    if (!activeAction) return []
+    const scenarioSources = sourceDeck.data?.sourcesByType[activeAction] ?? []
+    return scenarioSources
+  }, [activeAction, sourceDeck.data])
+  const readerIndex = readerArtifact ? activeSources.findIndex((source) => source.id === readerArtifact.id) : -1
   const readinessCompleteCount = [
     gate ? gate.evidenceCount >= gate.requiredEvidenceCount : false,
     gate?.hasStakeholderEvidence ?? false,
@@ -444,48 +584,61 @@ export default function ClientIntelligencePage() {
   ].filter(Boolean).length
 
   const selectResearchAction = (type: Exclude<EvidenceType, 'HYPOTHESIS'>) => {
+    if (type === activeAction) return
     setActiveAction(type)
     setValue('evidenceType', type)
-    setResearchResults([])
-    setFindingsPage(0)
-    generateResearch.reset()
-    analyzeUserContext.reset()
+    setReaderArtifact(null)
+    setSelectedSnippet('')
   }
 
-  const generateSelectedResearch = () => {
-    if (!activeAction) return
-    generateResearch.mutate(activeAction, { onSuccess: (results) => { setResearchResults(results); setFindingsPage(0) } })
+  const beginEvidenceAssessment = (artifact: ResearchArtifact) => {
+    setReviewingArtifact(artifact)
+    setReviewTakeaway('')
+    setReviewLane('SYMPTOM')
+    setReviewConfidence(artifact.confidence)
+    setReviewVerification(artifact.origin === 'SCENARIO_CURATED' ? 'CORROBORATED' : 'UNVERIFIED')
   }
 
-  const addArtifactToEvidence = (artifact: ResearchArtifact) => {
+
+  const saveReviewedArtifact = () => {
+    if (!reviewingArtifact || !selectedSnippet || !reviewTakeaway.trim()) return
     saveResearch.mutate(
       {
-        note: artifact.summary,
-        evidenceType: artifact.evidenceType,
-        sourceTitle: artifact.title,
-        occurredOn: artifact.publishedOn,
-        confidence: artifact.confidence,
-        relevanceScore: artifact.relevanceScore,
+        note: `${selectedSnippet}\n\nConsulting takeaway: ${reviewTakeaway.trim()}`,
+        evidenceType: reviewingArtifact.evidenceType,
+        sourceTitle: reviewingArtifact.title,
+        occurredOn: reviewingArtifact.publishedOn,
+        confidence: reviewConfidence,
+        origin: reviewingArtifact.origin,
+        verificationStatus: reviewVerification,
+        relevanceScore: reviewingArtifact.relevanceScore,
+        reasoningLane: reviewLane,
       },
       {
         onSuccess: () => {
-          setResearchResults((items) => items.filter((item) => item.id !== artifact.id))
           setEvidencePage(0)
+          setReviewingArtifact(null)
+          setSelectedSnippet('')
         },
-      },
+      }
     )
   }
 
-  const onExternalContextSubmit = (data: ExternalContextFormValues) => {
-    analyzeUserContext.mutate(data.context, {
-      onSuccess: (artifact) => {
-        const inferredType = artifact.evidenceType === 'HYPOTHESIS' ? 'OTHER' : artifact.evidenceType
-        setActiveAction(inferredType as Exclude<EvidenceType, 'HYPOTHESIS'>)
-        setResearchResults([artifact])
-        setFindingsPage(0)
-        resetExternalContext()
-      },
-    })
+  const closeSourceReview = () => {
+    setReviewingArtifact(null)
+    setSelectedSnippet('')
+  }
+
+  const openSourceReader = (artifact: ResearchArtifact) => {
+    setReaderArtifact(artifact)
+    setSelectedSnippet('')
+  }
+
+  const moveReader = (direction: -1 | 1) => {
+    if (readerIndex < 0 || activeSources.length < 2) return
+    const nextIndex = (readerIndex + direction + activeSources.length) % activeSources.length
+    setReaderArtifact(activeSources[nextIndex])
+    setSelectedSnippet('')
   }
 
   const onSubmit = (data: FormValues) => {
@@ -501,11 +654,11 @@ export default function ClientIntelligencePage() {
       {
         onSuccess: () => {
           reset({ evidenceType: 'COMPANY_NEWS', confidence: 'MEDIUM' })
-          setActiveAction(null)
+          setActiveAction(data.evidenceType === 'HYPOTHESIS' ? 'OTHER' : data.evidenceType)
           setManualEvidenceOpen(false)
           setEvidencePage(0)
         },
-      },
+      }
     )
   }
 
@@ -516,8 +669,13 @@ export default function ClientIntelligencePage() {
 
   return (
     <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
-    <Grid fullWidth narrow className={styles.page}>
+    <Grid fullWidth className={styles.page}>
       <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
+        <nav className={styles.breadcrumbs} aria-label="Workflow path">
+          <span>Research workflow</span><ChevronRight size={16} />
+          <span>Build evidence and test a hypothesis</span><ChevronRight size={16} />
+          <strong>Research the client</strong>
+        </nav>
         <header className={styles.pageHeader}>
           <div className={styles.titleBlock}>
             <div className={styles.titleIcon}><Search size={26} /></div>
@@ -543,55 +701,34 @@ export default function ClientIntelligencePage() {
         </section>
       </Column>
 
-      <Column lg={12} md={8} sm={4} className={styles.mainAreaColumn}>
-        <div className={styles.mainArea}>
-          <div className={styles.topRow}>
-            <aside className={`${styles.researchActions} objective-evidence`}>
-              <h2>Research areas</h2>
-              {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
-                const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
-                return (
-                  <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={generateResearch.isPending || analyzeUserContext.isPending} onClick={() => selectResearchAction(type)}>
-                    <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong>
-                    <small>
-                      {(() => {
-                        const description = prompt.replace('Research this area to ', '')
-                        return description.charAt(0).toUpperCase() + description.slice(1)
-                      })()}
-                    </small></span>
-                    {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
-                  </button>
-                )
-              })}
-            </aside>
+      <Column lg={3} md={3} sm={4} className={styles.workColumn}>
+        <aside className={`${styles.researchActions} objective-evidence`}>
+          <h2>Research areas</h2>
+          {RESEARCH_ACTIONS.map(({ type, label, prompt, icon: Icon }) => {
+            const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
+            return (
+              <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={sourceDeck.isFetching} onClick={() => selectResearchAction(type)}>
+                <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '')}</small></span>
+                {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
+              </button>
+            )
+          })}
+        </aside>
+      </Column>
 
-            <main className={styles.workspace}>
-              <section className={styles.researchWorkspace}>
-                <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
-                {activeResearchAction ? (
-                  <div className={styles.researchMethods}>
-                    <Tile className={styles.researchMethod}><h3>AI-generated scenario intelligence</h3><p>Generate controlled, scenario-aligned sources from approved facts.</p><div className={styles.methodTags}><Tag style={{ marginTop: '8px' }} type="cyan" size="sm">Scenario-aligned</Tag><Tag type="blue" size="sm">Evidence-ready</Tag></div><Button size="sm" style={{ marginTop: '20px' }} onClick={generateSelectedResearch} disabled={generateResearch.isPending || analyzeUserContext.isPending}>{generateResearch.isPending ? 'Generating...' : `Generate ${activeResearchAction.label}`}</Button></Tile>
-                    <form className={styles.researchContextForm} onSubmit={handleExternalContextSubmit(onExternalContextSubmit)}>
-                      <Tile className={styles.researchMethod}>
-                        <h3>Add external context</h3>
-                        <p>AI correlates your input without changing canonical scenario truth.</p>
-                        <TextArea id="external-context" labelText="" hideLabel placeholder="Paste a note, link or excerpt" rows={2} invalid={Boolean(externalContextErrors.context)} invalidText="Required" {...registerExternalContext('context', { required: true })} />
-                        <Button type="submit" size="sm" kind="tertiary" disabled={analyzeUserContext.isPending || generateResearch.isPending}>{analyzeUserContext.isPending ? 'Analysing...' : 'Add context'}</Button>
-                      </Tile>
-                    </form>
-                  </div>
-                ) : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
-                {generateResearch.isPending && <div className={styles.researchLoading}><div className={styles.researchLoadingPulse} /><span>Preparing scenario-safe intelligence...</span></div>}
-                {generateResearch.isError && <InlineNotification kind="error" lowContrast title="Research could not be generated" subtitle="Retry this research action." hideCloseButton className={styles.researchError} />}
-                {visibleFindings.length > 0 && <div className={styles.findingsSection}><div className={styles.compactSectionHeader}><h3>AI-generated findings</h3>{researchResults.length > findingsPageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous findings" disabled={findingsPage === 0} onClick={() => setFindingsPage((page) => page - 1)} /><span>{findingsPage + 1} / {findingsPageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next findings" disabled={findingsPage >= findingsPageCount - 1} onClick={() => setFindingsPage((page) => page + 1)} /></div>}</div><div key={`findings-page-${findingsPage}`} className={styles.findingsGrid}>{visibleFindings.map((artifact) => <ResearchArtifactCard key={artifact.id} artifact={artifact} onAdd={addArtifactToEvidence} isAdding={saveResearch.isPending} />)}</div></div>}
-              </section>
-            </main>
-          </div>
+      <Column lg={9} md={5} sm={4} className={styles.workColumn}>
+        <main className={styles.workspace}>
+          <section className={styles.researchWorkspace}>
+            <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
+            {activeResearchAction ? <SourceDeck sources={activeSources} onOpenSource={openSourceReader} isLoading={sourceDeck.isFetching} /> : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
+            {sourceDeck.isError && <InlineNotification kind="error" lowContrast title="Sources could not be opened" subtitle="Check your connection, then retry. Your existing evidence is unchanged." hideCloseButton className={styles.researchError} />}
+          </section>
+
           <section className={`${styles.evidenceBoard} objective-evidence-board`}>
             <div className={styles.compactSectionHeader}><div><p className={styles.sectionEyebrow}>Evidence board</p><h2>Collected evidence ({nonHypothesisEvidence.length})</h2></div><div className={styles.evidenceTools}><Button kind="tertiary" size="sm" renderIcon={Add} onClick={() => setManualEvidenceOpen(true)}>Add source</Button>{nonHypothesisEvidence.length > evidencePageSize && <div className={styles.pager}><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous evidence" disabled={evidencePage === 0} onClick={() => setEvidencePage((page) => page - 1)} /><span>{evidencePage + 1} / {evidencePageCount}</span><Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next evidence" disabled={evidencePage >= evidencePageCount - 1} onClick={() => setEvidencePage((page) => page + 1)} /></div>}</div></div>
-            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div key={`evidence-page-${evidencePage}`} className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
+            {nonHypothesisEvidence.length === 0 ? <div className={styles.evidenceEmpty}><Search size={22} /><span>Generate or add a source to begin building your evidence board.</span></div> : <div className={styles.evidenceGrid}>{visibleEvidence.map((item) => <EvidenceCard key={item.id} item={item} codeById={codeById} />)}</div>}
           </section>
-        </div>
+        </main>
       </Column>
 
       <Column lg={4} md={8} sm={4} className={styles.workColumn}>
@@ -603,11 +740,34 @@ export default function ClientIntelligencePage() {
 
       <Modal open={manualEvidenceOpen} modalHeading="Add a source to the evidence board" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" onRequestClose={() => setManualEvidenceOpen(false)} onRequestSubmit={handleSubmit(onSubmit)} primaryButtonDisabled={saveResearch.isPending}>
         <form onSubmit={handleSubmit(onSubmit)} className={styles.manualEvidenceForm}>
-          <Controller control={control} name="evidenceType" render={({ field }) => (<Dropdown id="evidenceType" label="Research area" titleText="Research area" items={EVIDENCE_TYPES} itemToString={(item) => item ? item.replace(/_/g, ' ') : ''} selectedItem={field.value} onChange={({ selectedItem }) => { field.onChange(selectedItem); setActiveAction(null) }} />)} />
+          <Select id="evidenceType" labelText="Research area" {...register('evidenceType')} onChange={(event) => { register('evidenceType').onChange(event); setActiveAction(null) }}>{EVIDENCE_TYPES.map((type) => <SelectItem key={type} value={type} text={type.replace(/_/g, ' ')} />)}</Select>
           <TextArea id="note" labelText="Finding" rows={3} invalid={Boolean(errors.note)} invalidText="A finding is required" {...register('note', { required: true })} />
-          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Controller control={control} name="confidence" render={({ field }) => (<Dropdown id="confidence" label="Reliability" titleText="Reliability" items={CONFIDENCE_LEVELS} selectedItem={field.value} onChange={({ selectedItem }) => field.onChange(selectedItem)} />)} /></div>
+          <div className={styles.sourceInputs}><TextInput id="sourceTitle" labelText="Source title" {...register('sourceTitle')} /><Select id="confidence" labelText="Reliability" {...register('confidence')}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select></div>
           <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
         </form>
+      </Modal>
+      <Modal className={styles.readerModal} open={Boolean(readerArtifact)} modalHeading="Source reader" primaryButtonText="Close source" onRequestClose={() => setReaderArtifact(null)} onRequestSubmit={() => setReaderArtifact(null)} size="lg" isFullWidth>
+        {readerArtifact && <div className={styles.readerModalBody}>
+          <div className={styles.readerNavigator}>
+            <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous source" disabled={activeSources.length < 2} onClick={() => moveReader(-1)} />
+            <span>Source {readerIndex + 1} of {activeSources.length}</span>
+            <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next source" disabled={activeSources.length < 2} onClick={() => moveReader(1)} />
+          </div>
+          <SourceDocument artifact={readerArtifact} onSelectionChange={setSelectedSnippet} />
+          {selectedSnippet && <div className={styles.readerSelectionToolbar}><div><Tag type="purple">Evidence selected</Tag><span>{selectedSnippet.length > 170 ? `${selectedSnippet.slice(0, 170)}...` : selectedSnippet}</span></div><Button size="sm" renderIcon={Add} onClick={() => { beginEvidenceAssessment(readerArtifact); setReaderArtifact(null) }}>Assess evidence</Button></div>}
+        </div>}
+      </Modal>
+      <Modal open={Boolean(reviewingArtifact)} modalHeading="Assess selected evidence" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending || !selectedSnippet || !reviewTakeaway.trim()} onRequestClose={closeSourceReview} onSecondarySubmit={closeSourceReview} onRequestSubmit={saveReviewedArtifact} size="lg">
+        {reviewingArtifact && <Stack gap={5}>
+          <div className={styles.selectedEvidencePreview}><p className={styles.sectionEyebrow}>Selected from {reviewingArtifact.title}</p><p>{selectedSnippet}</p></div>
+          <div><p className={styles.sectionEyebrow}>{reviewingArtifact.sourceType} · {reviewingArtifact.confidence} reliability</p><h3>{reviewingArtifact.title}</h3><p>{reviewingArtifact.summary}</p></div>
+          <Select id="source-reasoning-lane" labelText="What does this source help you explain?" value={reviewLane} onChange={(event) => setReviewLane(event.target.value as ReasoningLane)}>{REASONING_LANES.map((lane) => <SelectItem key={lane.value} value={lane.value} text={lane.label} />)}</Select>
+          <div className={styles.sourceAssessmentGrid}>
+            <Select id="source-confidence" labelText="Your confidence" value={reviewConfidence} onChange={(event) => setReviewConfidence(event.target.value as ConfidenceLevel)}>{CONFIDENCE_LEVELS.map((confidence) => <SelectItem key={confidence} value={confidence} text={confidence} />)}</Select>
+            <Select id="source-verification" labelText="Verification status" value={reviewVerification} onChange={(event) => setReviewVerification(event.target.value as EvidenceVerificationStatus)}>{VERIFICATION_STATUSES.map((status) => <SelectItem key={status} value={status} text={status.replace(/_/g, ' ')} />)}</Select>
+          </div>
+          <TextArea id="source-takeaway" labelText="Your consulting takeaway" placeholder="Explain what this means for the client problem, and keep uncertainty explicit." rows={3} value={reviewTakeaway} onChange={(event) => setReviewTakeaway(event.target.value)} />
+        </Stack>}
       </Modal>
     </Grid>
   </ObjectiveTourProvider>

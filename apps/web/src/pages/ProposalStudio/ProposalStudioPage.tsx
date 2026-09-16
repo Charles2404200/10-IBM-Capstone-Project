@@ -34,18 +34,6 @@ const PROPOSAL_OBJECTIVES = [
     description: 'After completing all the sections, you are able to have AI review your proposal. It will note which areas require improvement and is recommended before submitting the proposal to the client.',
     targets: ['.objective-review'],
   },
-  {
-    id: 'submit',
-    objective: 'Save, review and submit',
-    description: 'Your draft saves as you work, so nothing is lost between sections. Run the review whenever you want feedback on your reasoning, then submit when you decide the proposal is ready.',
-    targets: ['.objective-submit'],
-  },
-  {
-    id: 'outcome',
-    objective: 'What happens after you submit',
-    description: 'The client responds to what you actually wrote, and this workspace is replaced by the outcome and your review. The response is worked out from the evidence you used and the scenario rules, not from a fixed script.',
-    targets: ['.objective-submit'],
-  },
 ]
 
 export default function ProposalStudioPage() {
@@ -81,17 +69,15 @@ export default function ProposalStudioPage() {
       <div className={styles.canvas}>
       <header className={styles.header}>
         <div>
+          <p className={styles.eyebrow}>Evidence-grounded proposal</p>
           <Heading>{PHASE_LABEL.PROPOSAL}</Heading>
           <p className={styles.subtitle}>Build a concise recommendation from client evidence. The coach reviews your reasoning; it never writes the proposal for you.</p>
         </div>
-        <div className={`${styles.headerActions} objective-submit`}>
+        <div className={styles.headerActions}>
           {isReviewing ? <InlineLoading description="Reviewing proposal" /> : isSubmitting ? <InlineLoading description="Submitting to client" /> : <SaveStatus state={studio.saveState} />}
-          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={isReviewing || isSubmitting || studio.saveDraft.isPending}>
-            {isReviewing ? 'Reviewing proposal' : 'Review proposal'}
-          </Button>
-          <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={isSubmitting || isReviewing || studio.saveDraft.isPending}>
-            {isSubmitting ? 'Submitting to client' : 'Submit to client'}
-          </Button>
+          {studio.saveState === 'error' && <Button kind="ghost" size="sm" renderIcon={Renew} onClick={() => void studio.retrySave()} disabled={studio.saveDraft.isPending}>Retry save</Button>}
+          <Button kind="tertiary" renderIcon={Renew} onClick={() => void studio.reviewCurrentDraft()} disabled={isReviewing || isSubmitting || studio.saveDraft.isPending}>{isReviewing ? 'Reviewing proposal' : 'Review proposal'}</Button>
+          <Button renderIcon={Send} onClick={() => void studio.submit()} disabled={isSubmitting || isReviewing || studio.saveDraft.isPending}>{isSubmitting ? 'Submitting to client' : 'Submit to client'}</Button>
         </div>
       </header>
 

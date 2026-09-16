@@ -79,6 +79,7 @@ class ScenarioServiceTest {
         // create scenario
         Scenario scenario = Scenario.create("Test Scenario", "Retail", "Test description", 3);
         scenario.updateBriefing("Consultant", "Test objective", List.of("Test success criteria"), 3);
+        scenario.updateProblemBriefing("Test business situation", "Test symptom", "Test mandate", List.of("Test unknown"));
         scenario.updateRubricWeights(Map.of("Communication", 50, "Commercial", 50));
         scenario.addPersona("Test Persona", "Manager", "Test Organisation", null, null, null, null);
 

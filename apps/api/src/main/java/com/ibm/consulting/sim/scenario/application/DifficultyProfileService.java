@@ -3,7 +3,10 @@ package com.ibm.consulting.sim.scenario.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
+import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
+import com.ibm.consulting.sim.scenario.domain.DifficultyLevel;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
@@ -17,10 +20,13 @@ import java.util.UUID;
 public class DifficultyProfileService {
     private final ObjectMapper objectMapper;
     private final ScenarioRepository scenarioRepository;
+    private final LeadRepository leadRepository;
 
-    public DifficultyProfileService(ObjectMapper objectMapper, ScenarioRepository scenarioRepository) {
+    public DifficultyProfileService(ObjectMapper objectMapper, ScenarioRepository scenarioRepository,
+                                    LeadRepository leadRepository) {
         this.objectMapper = objectMapper;
         this.scenarioRepository = scenarioRepository;
+        this.leadRepository = leadRepository;
     }
 
     public DifficultyProfile forScenario(Scenario scenario) {
@@ -29,11 +35,25 @@ public class DifficultyProfileService {
 
     public DifficultyProfile forEngagement(Engagement engagement) {
         String snapshot = engagement.getDifficultyProfileSnapshot();
-        if (snapshot != null && !snapshot.isBlank()) return decode(snapshot);
-        Scenario scenario = scenarioRepository.findById(engagement.getScenarioId())
-                .orElseThrow(() -> new NotFoundException("Scenario", engagement.getScenarioId()));
-        return forScenario(scenario);
+        DifficultyProfile profile = snapshot != null && !snapshot.isBlank()
+            ? decode(snapshot)
+            : forScenario(scenarioRepository.findById(engagement.getScenarioId())
+                .orElseThrow(() -> new NotFoundException("Scenario", engagement.getScenarioId())));
+        return engagement.getSelectedLeadId() == null
+            ? profile
+            : leadRepository.findById(engagement.getSelectedLeadId())
+                .map(lead -> forLeadDifficulty(profile, lead.getDifficulty()))
+                .orElse(profile);
     }
+
+        public DifficultyProfile forLeadDifficulty(DifficultyProfile profile, LeadDifficulty leadDifficulty) {
+        DifficultyLevel level = switch (leadDifficulty == null ? LeadDifficulty.MEDIUM : leadDifficulty) {
+            case EASY -> DifficultyLevel.EASY;
+            case MEDIUM -> DifficultyLevel.MEDIUM;
+            case HARD -> DifficultyLevel.HARD;
+        };
+        return profile.withLevel(level);
+        }
 
     public String snapshot(DifficultyProfile profile) { return encode(profile); }
 

@@ -90,16 +90,17 @@ public class GeminiProvider implements AiProvider {
         // Simulation Engine, not by the model (see AiTaskType javadoc). Disabling it
         // (thinkingBudget=0) measured ~1.2s vs ~5-13s for an identical prompt.
         boolean lowLatency = AiTaskType.fromUseCase(useCase) != AiTaskType.ASSESSMENT;
+        int maxOutputTokens = AiTaskType.fromUseCase(useCase) == AiTaskType.CLIENT_INTELLIGENCE ? 8_192 : 1_024;
         Map<String, Object> generationConfig = lowLatency
                 ? Map.of(
                         "responseMimeType", "application/json",
                         "temperature", 0.4,
-                        "maxOutputTokens", 1024,
+                        "maxOutputTokens", maxOutputTokens,
                         "thinkingConfig", Map.of("thinkingBudget", 0))
                 : Map.of(
                         "responseMimeType", "application/json",
                         "temperature", 0.4,
-                        "maxOutputTokens", 1024);
+                        "maxOutputTokens", maxOutputTokens);
         Map<String, Object> body = Map.of(
                 "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
                 "generationConfig", generationConfig);

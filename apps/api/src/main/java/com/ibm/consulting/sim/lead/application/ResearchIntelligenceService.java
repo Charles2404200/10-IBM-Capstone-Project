@@ -1,6 +1,8 @@
 package com.ibm.consulting.sim.lead.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.ibm.consulting.sim.ai.application.AiOrchestrationService;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
@@ -11,7 +13,9 @@ import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
-import com.ibm.consulting.sim.shared.config.CacheConfig;
+import com.ibm.consulting.sim.knowledge.application.KnowledgeRetrievalService;
+import com.ibm.consulting.sim.knowledge.application.KnowledgeRetrievalService.ResearchCorpusPassage;
+import com.ibm.consulting.sim.knowledge.domain.KnowledgeCollection;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
 import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
@@ -19,52 +23,175 @@ import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import com.ibm.consulting.sim.scenario.domain.ScenarioAuthoringConfig;
 import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.scenario.domain.CanonicalFact;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ResearchSource;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockPurpose;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockType;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Service
 public class ResearchIntelligenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ResearchIntelligenceService.class);
+        private static final String SOURCE_DECK_TEMPLATE_VERSION = "v13-concise-lane-excerpts";
 
     private final EngagementRepository engagementRepository;
     private final LeadRepository leadRepository;
     private final ResearchEvidenceRepository evidenceRepository;
     private final AiOrchestrationService aiOrchestrationService;
     private final ObjectMapper objectMapper;
-    private final CacheManager cacheManager;
+    /** L1 cache keeps the document deck interactive even if a distributed cache is degraded. */
+    private final Cache<String, List<ResearchArtifactResponse>> sourceDeckCache = Caffeine.newBuilder()
+            .maximumSize(2_000)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
+    private final Cache<String, ResearchSourceDeckResponse> completeDeckCache = Caffeine.newBuilder()
+            .maximumSize(500)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
+    /** Hot engagement cache avoids database round-trips when learners revisit Research. */
+    private final Cache<String, ResearchSourceDeckResponse> hotDeckCache = Caffeine.newBuilder()
+            .maximumSize(1_000)
+            .expireAfterAccess(Duration.ofMinutes(5))
+            .build();
+    /** One AI enrichment job per deck key prevents refresh polling from multiplying provider calls. */
+    private final Cache<String, CompletableFuture<ResearchSourceDeckResponse>> deckEnrichmentJobs = Caffeine.newBuilder()
+            .maximumSize(500)
+            .expireAfterWrite(Duration.ofMinutes(10))
+            .build();
     private final DifficultyProfileService difficultyProfileService;
     private final ScenarioRepository scenarioRepository;
     private final ScenarioAuthoringConfigService authoringConfigService;
+    private final ExecutorService researchSourceDeckExecutor;
+        private final KnowledgeRetrievalService knowledgeRetrievalService;
 
     public ResearchIntelligenceService(EngagementRepository engagementRepository,
                                        LeadRepository leadRepository,
                                        ResearchEvidenceRepository evidenceRepository,
                                        AiOrchestrationService aiOrchestrationService,
                                        ObjectMapper objectMapper,
-                                       CacheManager cacheManager, DifficultyProfileService difficultyProfileService,
+                                       DifficultyProfileService difficultyProfileService,
                                        ScenarioRepository scenarioRepository,
-                                       ScenarioAuthoringConfigService authoringConfigService) {
+                                       ScenarioAuthoringConfigService authoringConfigService,
+                                       @Qualifier("researchSourceDeckExecutor") ExecutorService researchSourceDeckExecutor,
+                                       KnowledgeRetrievalService knowledgeRetrievalService) {
         this.engagementRepository = engagementRepository;
         this.leadRepository = leadRepository;
         this.evidenceRepository = evidenceRepository;
         this.aiOrchestrationService = aiOrchestrationService;
         this.objectMapper = objectMapper;
-        this.cacheManager = cacheManager;
         this.difficultyProfileService = difficultyProfileService;
         this.scenarioRepository = scenarioRepository;
         this.authoringConfigService = authoringConfigService;
+        this.researchSourceDeckExecutor = researchSourceDeckExecutor;
+        this.knowledgeRetrievalService = knowledgeRetrievalService;
+    }
+
+    /** Opens all learner-facing document lanes concurrently and caches the assembled deck. */
+    @Transactional(readOnly = true)
+    public ResearchSourceDeckResponse generateDeck(UUID engagementId, UUID userId) {
+        String hotDeckKey = "deck:hot:" + SOURCE_DECK_TEMPLATE_VERSION + ":" + engagementId + ":" + userId;
+        ResearchSourceDeckResponse hotCached = hotDeckCache.getIfPresent(hotDeckKey);
+        if (hotCached != null) {
+            return hotCached;
+        }
+        Engagement engagement = loadOwnedEngagement(engagementId, userId);
+        Lead lead = loadLead(engagement);
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        Scenario scenario = loadScenario(engagement);
+        ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
+        List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
+        String deckKey = "deck:" + SOURCE_DECK_TEMPLATE_VERSION + ":"
+                + cacheKey(lead, scenario, EvidenceType.COMPANY_NEWS, discovered, profile)
+                + ":" + Integer.toHexString(authoringConfig.hashCode())
+                + ":" + corpusFingerprint(scenario);
+        ResearchSourceDeckResponse cached = completeDeckCache.getIfPresent(deckKey);
+        if (cached != null) {
+            hotDeckCache.put(hotDeckKey, cached);
+            return cached;
+        }
+
+        List<EvidenceType> lanes = List.of(
+                EvidenceType.COMPANY_NEWS,
+                EvidenceType.STAKEHOLDER_PROFILE,
+                EvidenceType.FINANCIAL_SIGNAL,
+                EvidenceType.TECHNOLOGY_INDICATOR);
+        Map<EvidenceType, CompletableFuture<List<ResearchArtifactResponse>>> futures = new java.util.LinkedHashMap<>();
+        for (EvidenceType lane : lanes) {
+            futures.put(lane, CompletableFuture.supplyAsync(
+                    () -> generateImmediately(lead, scenario, lane, profile, authoringConfig, discovered),
+                    researchSourceDeckExecutor));
+        }
+
+        Map<String, List<ResearchArtifactResponse>> sourcesByType = new java.util.LinkedHashMap<>();
+        futures.forEach((lane, future) -> {
+            try {
+                sourcesByType.put(lane.name(), future.join());
+            } catch (RuntimeException exception) {
+                log.error("Research deck lane {} failed; returning the deterministic scenario pack", lane, exception);
+                sourcesByType.put(lane.name(), templateGenerate(lead, scenario, lane, profile, authoringConfig));
+            }
+        });
+        boolean corpusComplete = lanes.stream()
+                .allMatch(lane -> supportsCorpusDossier(conciseCorpus(researchCorpus(lane, scenario))));
+        ResearchSourceDeckResponse response = new ResearchSourceDeckResponse(sourcesByType, !corpusComplete);
+        completeDeckCache.put(deckKey, response);
+        hotDeckCache.put(hotDeckKey, response);
+        if (!corpusComplete) {
+            scheduleDeckEnrichment(deckKey, hotDeckKey, engagementId, engagement, lead, scenario, profile,
+                    authoringConfig, discovered, sourcesByType);
+        }
+        return response;
+    }
+
+    private void scheduleDeckEnrichment(String deckKey, String hotDeckKey, UUID engagementId, Engagement engagement,
+                                        Lead lead, Scenario scenario, DifficultyProfile profile,
+                                        ScenarioAuthoringConfig authoringConfig, List<ResearchEvidence> discovered,
+                                        Map<String, List<ResearchArtifactResponse>> templateSources) {
+        if (deckEnrichmentJobs.getIfPresent(deckKey) != null) return;
+
+        List<EvidenceType> lanes = List.of(
+                EvidenceType.COMPANY_NEWS,
+                EvidenceType.STAKEHOLDER_PROFILE,
+                EvidenceType.FINANCIAL_SIGNAL,
+                EvidenceType.TECHNOLOGY_INDICATOR);
+        Map<EvidenceType, CompletableFuture<List<ResearchArtifactResponse>>> futures = new java.util.LinkedHashMap<>();
+        for (EvidenceType lane : lanes) {
+            futures.put(lane, CompletableFuture.supplyAsync(
+                    () -> synthesizeSourceDeck(engagementId, engagement, lead, scenario, lane, profile, authoringConfig, discovered),
+                    researchSourceDeckExecutor));
+        }
+        CompletableFuture<ResearchSourceDeckResponse> enrichment = CompletableFuture
+                .allOf(futures.values().toArray(CompletableFuture[]::new))
+                .thenApply(ignored -> {
+                    Map<String, List<ResearchArtifactResponse>> enriched = new java.util.LinkedHashMap<>();
+                    futures.forEach((lane, future) -> enriched.put(lane.name(), future.join()));
+                    return new ResearchSourceDeckResponse(enriched, false);
+                })
+                .exceptionally(error -> {
+                    log.warn("Source deck AI enrichment failed; retaining the fact-guarded template", error);
+                    return new ResearchSourceDeckResponse(templateSources, false);
+                });
+        deckEnrichmentJobs.put(deckKey, enrichment);
+        enrichment.thenAccept(enriched -> {
+            completeDeckCache.put(deckKey, enriched);
+            hotDeckCache.put(hotDeckKey, enriched);
+        });
     }
 
     @Transactional(readOnly = true)
@@ -72,79 +199,151 @@ public class ResearchIntelligenceService {
         Engagement engagement = loadOwnedEngagement(engagementId, userId);
         Lead lead = loadLead(engagement);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
-        ScenarioAuthoringConfig authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
-                .map(authoringConfigService::forScenario)
-                .orElseGet(ScenarioAuthoringConfig::defaults);
-        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, type);
+        Scenario scenario = loadScenario(engagement);
+        ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
         List<ResearchEvidence> discovered = evidenceRepository.findByEngagementId(engagementId);
-        String cacheKey = cacheKey(lead, type, discovered, profile);
-        try {
-            List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
-            if (cached != null) {
-                return cached;
-            }
-            ClientIntelligenceResponseParser parser = new ClientIntelligenceResponseParser(objectMapper, facts, type);
-            List<ResearchArtifactResponse> artifacts = aiOrchestrationService.execute(
-                    "client_intelligence",
-                    engagementId,
-                    buildPrompt(lead, engagement, type, facts, discovered, null, profile),
-                    1,
-                    parser,
-                    () -> templateGenerate(lead, type, profile, authoringConfig));
-            List<ResearchArtifactResponse> filtered = removeDuplicates(shapeForDifficulty(lead, type, artifacts, profile), discovered);
-            cacheArtifacts(cacheKey, filtered);
-            return filtered;
-        } catch (RuntimeException e) {
-            log.warn("Client intelligence AI path failed for engagement {} and type {}; using scenario-safe fallback",
-                    engagementId, type, e);
-            return removeDuplicates(templateGenerate(lead, type, profile, authoringConfig), discovered);
+        return generateImmediately(lead, scenario, type, profile, authoringConfig, discovered);
+    }
+
+    /**
+     * Research is a reading workflow, so source availability cannot depend on an
+     * external model. The first response is generated from canonical scenario facts
+     * and cached; provider enrichment remains outside this latency-critical path.
+     */
+    private List<ResearchArtifactResponse> generateImmediately(Lead lead, Scenario scenario, EvidenceType type,
+                                                                DifficultyProfile profile,
+                                                                ScenarioAuthoringConfig authoringConfig,
+                                                                List<ResearchEvidence> discovered) {
+        List<ResearchCorpusPassage> corpus = conciseCorpus(researchCorpus(type, scenario));
+        String cacheKey = SOURCE_DECK_TEMPLATE_VERSION + ":" + cacheKey(lead, scenario, type, discovered, profile)
+                + ":" + Integer.toHexString(authoringConfig.hashCode()) + ":" + corpusFingerprint(corpus);
+        List<ResearchArtifactResponse> cached = cachedArtifacts(cacheKey);
+        if (cached != null) {
+            return cached;
         }
+        List<ResearchArtifactResponse> sources = supportsCorpusDossier(corpus)
+                ? List.of(corpusDossier(lead, scenario, type, corpus))
+                : templateGenerate(lead, scenario, type, profile, authoringConfig);
+        List<ResearchArtifactResponse> filtered = removeDuplicates(sources, discovered);
+        cacheArtifacts(cacheKey, filtered);
+        return filtered;
+    }
+
+    private List<ResearchArtifactResponse> synthesizeSourceDeck(UUID engagementId, Engagement engagement, Lead lead,
+                                                                  Scenario scenario, EvidenceType type,
+                                                                  DifficultyProfile profile,
+                                                                  ScenarioAuthoringConfig authoringConfig,
+                                                                  List<ResearchEvidence> discovered) {
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, scenario, type);
+        List<ResearchCorpusPassage> corpus = conciseCorpus(researchCorpus(type, scenario));
+                if (!supportsCorpusDossier(corpus)) {
+            return templateGenerate(lead, scenario, type, profile, authoringConfig);
+        }
+        return aiOrchestrationService.execute(
+                "client_intelligence",
+                engagementId,
+                buildSourceDeckPrompt(engagement, lead, scenario, type, profile, facts, discovered, corpus),
+                10,
+                new ClientIntelligenceResponseParser(objectMapper, facts, type, ResearchDocumentPolicy.corpusBacked(),
+                        corpus.stream().map(passage -> passage.chunkId().toString()).collect(java.util.stream.Collectors.toSet())),
+                () -> List.of(corpusDossier(lead, scenario, type, corpus)));
     }
 
     @SuppressWarnings("unchecked")
     private List<ResearchArtifactResponse> cachedArtifacts(String key) {
-        Cache cache = cacheManager.getCache(CacheConfig.CLIENT_INTELLIGENCE_CACHE);
-        if (cache == null) {
-            return null;
-        }
-        Cache.ValueWrapper wrapper = cache.get(key);
-        return wrapper == null ? null : (List<ResearchArtifactResponse>) wrapper.get();
+        return sourceDeckCache.getIfPresent(key);
     }
 
     private void cacheArtifacts(String key, List<ResearchArtifactResponse> artifacts) {
-        Cache cache = cacheManager.getCache(CacheConfig.CLIENT_INTELLIGENCE_CACHE);
-        if (cache != null) {
-            cache.put(key, artifacts);
-        }
+        sourceDeckCache.put(key, List.copyOf(artifacts));
     }
 
-    private String cacheKey(Lead lead, EvidenceType type, List<ResearchEvidence> discovered, DifficultyProfile profile) {
+    private String cacheKey(Lead lead, Scenario scenario, EvidenceType type, List<ResearchEvidence> discovered, DifficultyProfile profile) {
         String discoveredFingerprint = discovered.stream()
                 .map(e -> e.getId() + ":" + e.getEvidenceType() + ":" + e.getSequenceNo())
                 .sorted()
                 .collect(java.util.stream.Collectors.joining("|"));
-        return "%s:%s:%s:%s".formatted(
-                lead.getId(), profile.hashCode(), type.name(),
+        String problemFrame = String.join("|", scenario.getBusinessSituation(), scenario.getObservableSymptom(),
+                scenario.getConsultingMandate(), String.join("|", scenario.getUnknownsToValidate()));
+        return "%s:%s:%s:%s:%s".formatted(
+                lead.getId(), profile.hashCode(), type.name(), Integer.toHexString(problemFrame.hashCode()),
                 Integer.toHexString(discoveredFingerprint.hashCode()));
     }
 
-    private List<ResearchArtifactResponse> templateGenerate(Lead lead, EvidenceType type, DifficultyProfile profile,
+    private List<ResearchArtifactResponse> templateGenerate(Lead lead, Scenario scenario, EvidenceType type, DifficultyProfile profile,
                                                             ScenarioAuthoringConfig authoringConfig) {
-        List<ResearchArtifactResponse> base = switch (type) {
-            case COMPANY_NEWS -> companyNews(lead);
-            case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead);
-            case FINANCIAL_SIGNAL -> financialSignals(lead, profile.budgetVisible());
-            case TECHNOLOGY_INDICATOR -> technologySignals(lead);
+                List<ResearchArtifactResponse> generated = switch (type) {
+            case COMPANY_NEWS -> companyNews(lead, scenario);
+            case STAKEHOLDER_PROFILE -> stakeholderProfiles(lead, scenario);
+            case FINANCIAL_SIGNAL -> financialSignals(lead, scenario, profile.budgetVisible());
+            case TECHNOLOGY_INDICATOR -> technologySignals(lead, scenario);
             case MARKET_TREND -> marketTrends(lead);
             case OTHER, HYPOTHESIS -> List.of();
         };
-        List<ResearchArtifactResponse> withAuthoredFacts = new ArrayList<>(base);
-        authoringConfig.canonicalFacts().stream()
+                List<ResearchArtifactResponse> base = generated.isEmpty() ? generated : List.of(generated.getFirst());
+        List<CanonicalFact> researchFacts = authoringConfig.canonicalFacts().stream()
                 .filter(CanonicalFact::availableInResearch)
                 .filter(fact -> fact.evidenceType() == type)
-                .forEach(fact -> withAuthoredFacts.add(artifact("author-" + fact.id(), fact.label(), "Scenario-approved source",
-                        fact.value(), type, ConfidenceLevel.HIGH, fact.id())));
-        return shapeForDifficulty(lead, type, withAuthoredFacts, profile);
+                .toList();
+        return incorporateCanonicalFacts(base, researchFacts);
+    }
+
+    /**
+     * Author-written facts strengthen the primary document for a research lane.
+     * They are not emitted as short, generic pseudo-sources: that undermines the
+     * learner's job of judging a coherent piece of client evidence.
+     */
+    private List<ResearchArtifactResponse> incorporateCanonicalFacts(List<ResearchArtifactResponse> artifacts,
+                                                                       List<CanonicalFact> facts) {
+        if (artifacts.isEmpty() || facts.isEmpty()) return List.copyOf(artifacts);
+
+        ResearchArtifactResponse primary = artifacts.getFirst();
+        List<ResearchSourceBlock> enrichedBlocks = new ArrayList<>(primary.blocks());
+        int blockOffset = enrichedBlocks.size();
+                int availableSlots = Math.max(0, 6 - enrichedBlocks.size());
+                List<CanonicalFact> additions = facts.stream()
+                                .filter(fact -> primary.allowedFactKeys().stream().noneMatch(fact.id()::equals))
+                                .limit(availableSlots)
+                                .toList();
+                for (int index = 0; index < additions.size(); index++) {
+                        CanonicalFact fact = additions.get(index);
+            enrichedBlocks.add(new ResearchSourceBlock(
+                    primary.id() + "-fact-" + (blockOffset + index + 1),
+                    ResearchSourceBlockType.PARAGRAPH,
+                    fact.value(),
+                    fact.label(),
+                    List.of(fact.id()),
+                    true,
+                    ResearchSourceBlockPurpose.FACT));
+        }
+        ResearchArtifactResponse enrichedPrimary = new ResearchArtifactResponse(
+                primary.id(), primary.title(), primary.sourceType(), primary.summary(), primary.evidenceType(),
+                primary.confidence(), primary.origin(), primary.publishedOn(), primary.relevanceScore(),
+                mergeFactIds(primary.allowedFactKeys(), additions), primary.correlatesWithEvidence(),
+                primary.relevanceRationale(), enrichedBlocks);
+
+        List<ResearchArtifactResponse> enriched = new ArrayList<>(artifacts);
+        enriched.set(0, enrichedPrimary);
+        return List.copyOf(enriched);
+    }
+
+    private List<String> mergeFactIds(List<String> existing, List<CanonicalFact> additions) {
+        return java.util.stream.Stream.concat(existing.stream(), additions.stream().map(CanonicalFact::id))
+                .distinct()
+                .toList();
+    }
+
+    private ResearchArtifactResponse toArtifact(ResearchSource source) {
+        return new ResearchArtifactResponse("source-" + source.id(), source.title(), source.sourceType(), source.summary(),
+                source.evidenceType().name(), source.confidence().name(), EvidenceOrigin.SCENARIO_CURATED.name(),
+                LocalDate.now().minusDays(14), source.relevanceScore(), List.of("source-" + source.id()), List.of(),
+                "Assess this source against the client problem before using it in your case.", source.effectiveBlocks());
+    }
+
+    private boolean hasGroundedBlocks(List<ResearchSourceBlock> blocks) {
+        return blocks.stream().anyMatch(block -> Boolean.TRUE.equals(block.selectable())
+                && !block.factIds().isEmpty()
+                && block.factIds().stream().noneMatch("scenario_source"::equals));
     }
 
     private List<ResearchArtifactResponse> removeDuplicates(List<ResearchArtifactResponse> artifacts,
@@ -174,10 +373,9 @@ public class ResearchIntelligenceService {
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
         EvidenceType inferredType = inferType(context);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
-        ScenarioAuthoringConfig authoringConfig = scenarioRepository.findById(engagement.getScenarioId())
-                .map(authoringConfigService::forScenario)
-                .orElseGet(ScenarioAuthoringConfig::defaults);
-        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, inferredType);
+        Scenario scenario = loadScenario(engagement);
+        ScenarioAuthoringConfig authoringConfig = authoringConfigService.forScenario(scenario);
+        Map<String, String> facts = canonicalFacts(lead, profile.budgetVisible(), authoringConfig, scenario, inferredType);
         List<String> relatedEvidence = evidence.stream()
                 .filter(e -> e.getEvidenceType() == inferredType)
                 .map(e -> "E-%02d".formatted(e.getSequenceNo()))
@@ -186,7 +384,7 @@ public class ResearchIntelligenceService {
         ResearchArtifactResponse aiCorrelation = aiOrchestrationService.execute(
                 "client_intelligence",
                 engagementId,
-                buildPrompt(lead, engagement, inferredType, facts, evidence, context, profile),
+                buildPrompt(lead, engagement, scenario, inferredType, facts, evidence, context, profile),
                 2,
                 new ClientIntelligenceResponseParser(objectMapper, facts, inferredType),
                 () -> List.of(externalContextFallback(context, inferredType))).stream().findFirst()
@@ -234,8 +432,13 @@ public class ResearchIntelligenceService {
                 .orElseThrow(() -> new NotFoundException("Lead", engagement.getSelectedLeadId()));
     }
 
+    private Scenario loadScenario(Engagement engagement) {
+        return scenarioRepository.findById(engagement.getScenarioId())
+                .orElseThrow(() -> new NotFoundException("Scenario", engagement.getScenarioId()));
+    }
+
     private Map<String, String> canonicalFacts(Lead lead, boolean budgetVisible, ScenarioAuthoringConfig authoringConfig,
-                                               EvidenceType researchType) {
+                                               Scenario scenario, EvidenceType researchType) {
         Map<String, String> facts = new java.util.LinkedHashMap<>();
         putFact(facts, "company_name", lead.getCompanyName());
         putFact(facts, "industry", lead.getIndustry());
@@ -247,6 +450,9 @@ public class ResearchIntelligenceService {
         putFact(facts, "potential_value_range", lead.getPotentialValueRange());
         lead.getSignals().forEach(signal -> putFact(facts, "signal_" + signal.getCategory().toLowerCase(Locale.ROOT),
                 signal.getLabel()));
+        putFact(facts, "business_situation", scenario.getBusinessSituation());
+        putFact(facts, "observable_symptom", scenario.getObservableSymptom());
+        putFact(facts, "consulting_mandate", scenario.getConsultingMandate());
         authoringConfig.canonicalFacts().stream()
                 .filter(CanonicalFact::availableInResearch)
                 .filter(fact -> fact.evidenceType() == researchType)
@@ -260,7 +466,7 @@ public class ResearchIntelligenceService {
         }
     }
 
-    private String buildPrompt(Lead lead, Engagement engagement, EvidenceType type, Map<String, String> facts,
+    private String buildPrompt(Lead lead, Engagement engagement, Scenario scenario, EvidenceType type, Map<String, String> facts,
                                List<ResearchEvidence> discovered, String userContext, DifficultyProfile profile) {
         String factLines = facts.entrySet().stream()
                 .map(e -> "- %s: %s".formatted(e.getKey(), e.getValue()))
@@ -304,6 +510,12 @@ public class ResearchIntelligenceService {
                 Sensitive budget visibility: %s. Contradiction pressure: %d. Do not disclose budget details when visibility is false.
                 Company: %s
 
+                Scenario problem frame (use this only to prioritize what is relevant; it is not a diagnosis or a solution):
+                - Business situation: %s
+                - Observable symptom: %s
+                - Consulting mandate: %s
+                - Unknowns to validate: %s
+
                 Canonical facts:
                 %s
 
@@ -319,97 +531,299 @@ public class ResearchIntelligenceService {
                 profile.level().name(), profile.researchArtifactsPerAction(), profile.distractorArtifactsPerAction(),
                 profile.budgetVisible(), profile.contradictionCount(),
                 lead.getCompanyName(),
+                scenario.getBusinessSituation(), scenario.getObservableSymptom(), scenario.getConsultingMandate(),
+                scenario.getUnknownsToValidate().isEmpty() ? "None specified" : String.join("; ", scenario.getUnknownsToValidate()),
                 factLines,
                 discoveredLines.isBlank() ? "None" : discoveredLines,
                 userContext == null || userContext.isBlank() ? "None" : userContext);
     }
 
-    /** Adds controlled non-decisive context; the model never chooses game truth or distractor volume. */
+    /**
+     * Creates the content for the immersive source reader. Presentation is
+     * deliberately handled by React templates; this prompt produces research
+     * substance only, anchored to the exact scenario facts visible to the lane.
+     */
+    private String buildSourceDeckPrompt(Engagement engagement, Lead lead, Scenario scenario, EvidenceType type,
+                                         DifficultyProfile profile, Map<String, String> facts,
+                                         List<ResearchEvidence> discovered, List<ResearchCorpusPassage> corpus) {
+        String factLines = facts.entrySet().stream()
+                .map(entry -> "- " + entry.getKey() + ": " + entry.getValue())
+                .collect(java.util.stream.Collectors.joining("\n"));
+        String discoveredLines = discovered.stream()
+                .map(evidence -> "- E-%02d [%s]: %s".formatted(
+                        evidence.getSequenceNo(), evidence.getEvidenceType(), evidence.getNote()))
+                .collect(java.util.stream.Collectors.joining("\n"));
+        String corpusPassages = java.util.stream.IntStream.range(0, corpus.size())
+                .mapToObj(index -> "[P%02d | %s] %s".formatted(index + 1, corpus.get(index).chunkId(), corpus.get(index).content()))
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+
+        return """
+                You write simulated, enterprise research documents for a consulting training product.
+                Produce ONE corpus-backed, evidence-dense dossier for the requested research lane. The learner will
+                read, highlight, and assess it before forming a hypothesis, so every paragraph must carry a distinct signal.
+
+                                                                NON-NEGOTIABLE GROUNDING RULES:
+                                                                - The lane corpus below is the approved source material for this dossier. It is the only place to find
+                                                                        detailed operational, commercial, technical, or stakeholder information.
+                                                                - Never fabricate a hard client fact: no new names, companies, figures, budgets, dates, systems,
+                                                                        causes, outcomes, URLs, stakeholders, quotations, approvals, events, or external citations.
+                                                                - You MAY generate bounded, scenario-consistent research detail by unpacking a canonical fact into a
+                                                                        concrete operational observation. For example, a fact about local reporting workarounds can support
+                                                                        a distinct observation about teams reconciling records before a decision. Each generated detail must
+                                                                        cite the factIds that anchor it, remain consistent with those facts, and never present an unverified
+                                                                        mechanism or outcome as proven.
+                - Every artifact must cite the exact canonical fact keys it uses in supportedFactIds.
+                                                                - Every sentence must introduce a new client fact, a material uncertainty, or essential source context.
+                                                                        Delete a sentence if it merely says that another fact is relevant, central, retained, documented, or
+                                                                        part of the research narrative.
+                                                                - Do not restate the whole scenario description. The writing should read like a credible article, dossier,
+                                                                        analyst note, or technical brief rather than a scenario summary or consulting playbook.
+                - A "QUOTE" block may only repeat a canonical fact word-for-word and must have no invented attribution.
+                - Never write consultant instructions, recommended next steps, hypotheses, source-record notices, or meta commentary
+                  inside a source document. The source is client intelligence, not a coaching response.
+                - Avoid boilerplate such as "the available record", "this source", "the consulting team", or "the learner".
+                  Write from the perspective of the simulated publisher or internal author.
+                                                                - Do not emit INTERPRETATION, CONTEXT, UNCERTAINTY, or GUIDANCE blocks. There must be no explanatory
+                                                                        callouts such as "derived interpretation" or "not yet confirmed" inside the document.
+                - Return JSON only. No markdown and no prose outside the JSON.
+
+                Required JSON schema:
+                {
+                  "artifacts": [
+                    {
+                      "id": "short-stable-id",
+                      "title": "specific, reader-facing title",
+                      "category": "%s",
+                      "content": "a one-sentence reader-facing dek, no more than 28 words and not repeating a block",
+                      "sourceType": "COMPANY_NEWS|STAKEHOLDER_PROFILE|FINANCIAL_REPORT|TECHNOLOGY_NOTE|MARKET_BRIEF|SIMULATED_REPORT",
+                      "reliability": "LOW|MEDIUM|HIGH",
+                      "supportedFactIds": ["exact-fact-key"],
+                      "relevance": 0.0,
+                      "confidence": 0.0,
+                      "blocks": [
+                        {"type": "PARAGRAPH", "content": "...", "attribution": "Research corpus", "purpose": "FACT", "selectable": true, "factIds": ["exact-fact-key"], "corpusChunkIds": ["exact UUID from corpus"]}
+                      ]
+                    }
+                  ]
+                }
+
+                Document requirements:
+                                                                - Return exactly 1 artifact containing 4 to 6 selectable FACT blocks and 180 to 320 words across
+                                                                        the blocks. Each block should be concise and cite one or two corpus passages.
+                - Every block must introduce a distinct, actionable client signal and cite one or more exact factIds.
+                  Do not repeat a corpus passage, fact, sentence, or conclusion in another block with altered wording.
+                                                                - Cover at least 4 different corpus passages across the document. Each block must return the exact UUIDs
+                                                                        of passages it uses in corpusChunkIds; do not invent identifiers or cite passages outside this lane corpus.
+                - The content/dek field is a single short preview sentence. It must not recap the document, repeat a
+                  source block, or contain more than 28 words.
+                - Use only PARAGRAPH, QUOTE, or METRIC blocks. Use METRIC only for a numeric fact present in the canonical facts.
+                - COMPANY_NEWS: include business or executive pressure, an operating signal, and company context; do not
+                                                                        disclose financial or technical details that are reserved for their dedicated lanes.
+                                                                - STAKEHOLDER_PROFILE: focus on the named role, stated priorities, decision context, and influence signals.
+                                                                - FINANCIAL_SIGNAL: include 3 to 5 commercial signals, such as value range, funding, baseline, or timing;
+                                                                        do not restate the technology narrative.
+                                                                - TECHNOLOGY_INDICATOR: focus on systems, data conditions, operational hand-offs, and technical constraints.
+                                                                - Information asymmetry is mandatory: no single source may reveal the complete scenario. Reserve meaningful
+                                                                        details for the other research lanes so the learner must investigate all four areas.
+
+                Engagement state: %s
+                Research lane: %s
+                Difficulty: %s; distractor allowance: %d
+                Company: %s
+
+                Problem frame:
+                - Business situation: %s
+                - Observable symptom: %s
+                - Consulting mandate: %s
+                - Unknowns to validate: %s
+
+                Canonical facts (the complete allowed truth):
+                %s
+
+                Evidence already captured by the learner:
+                %s
+
+                Approved lane corpus:
+                %s
+                """.formatted(
+                type.name(),
+                engagement.getState().name(), type.name(), profile.level().name(), profile.distractorArtifactsPerAction(),
+                lead.getCompanyName(),
+                scenario.getBusinessSituation(), scenario.getObservableSymptom(), scenario.getConsultingMandate(),
+                scenario.getUnknownsToValidate().isEmpty() ? "None specified" : String.join("; ", scenario.getUnknownsToValidate()),
+                factLines,
+                                discoveredLines.isBlank() ? "None" : discoveredLines,
+                                corpusPassages);
+    }
+
+        private KnowledgeCollection researchCollection(EvidenceType type) {
+                return switch (type) {
+                        case COMPANY_NEWS -> KnowledgeCollection.RESEARCH_COMPANY_NEWS;
+                        case STAKEHOLDER_PROFILE -> KnowledgeCollection.RESEARCH_STAKEHOLDER;
+                        case FINANCIAL_SIGNAL -> KnowledgeCollection.RESEARCH_FINANCIAL;
+                        case TECHNOLOGY_INDICATOR -> KnowledgeCollection.RESEARCH_TECHNOLOGY;
+                        default -> throw new IllegalArgumentException("No research corpus collection for " + type);
+                };
+        }
+
+    /**
+     * Difficulty must be authored as a scenario fact or a scenario-specific contradiction.
+     * Generic distractor documents train learners to collect filler, so this layer now
+     * deliberately preserves only the sources grounded in the current scenario.
+     */
     private List<ResearchArtifactResponse> shapeForDifficulty(Lead lead, EvidenceType type,
                                                                 List<ResearchArtifactResponse> artifacts,
                                                                 DifficultyProfile profile) {
-        if (type == EvidenceType.OTHER || type == EvidenceType.HYPOTHESIS) return List.copyOf(artifacts);
-        List<ResearchArtifactResponse> shaped = new ArrayList<>(artifacts.stream()
-                .limit(Math.max(1, profile.researchArtifactsPerAction() - profile.distractorArtifactsPerAction()))
-                .toList());
-        for (int index = 0; index < profile.distractorArtifactsPerAction(); index++) {
-            boolean ambiguity = index < Math.max(1, profile.contradictionCount() / 2);
-            String title = ambiguity ? "Context signal requires validation" : "Adjacent industry signal";
-            String summary = ambiguity
-                    ? "A public signal suggests change activity, but does not confirm that the operating problem is resolved or funded."
-                    : "%s organisations are discussing adjacent priorities that may not be material to this client decision."
-                    .formatted(lead.getIndustry());
-            shaped.add(new ResearchArtifactResponse("context-" + type.name().toLowerCase(Locale.ROOT) + "-" + index,
-                    title, "Controlled market context", summary, type.name(), ConfidenceLevel.LOW.name(),
-                    EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(7 + index),
-                    ambiguity ? 25 : 15,
-                    List.of("public_description"), List.of(),
-                    "Context only: test relevance against client evidence before adding it to the evidence board."));
-        }
-        return List.copyOf(shaped);
+        return List.copyOf(artifacts);
     }
 
-    private List<ResearchArtifactResponse> companyNews(Lead lead) {
-        List<ResearchArtifactResponse> artifacts = new ArrayList<>();
-        artifacts.add(artifact("company-news-1", "Digital transformation programme expands at " + lead.getCompanyName(),
-                "Company news", "%s is increasing focus on operational modernisation. Visible signals suggest %s."
-                        .formatted(lead.getCompanyName(), lead.getPainSeverity() != null ? lead.getPainSeverity() : "meaningful business pressure"),
-                EvidenceType.COMPANY_NEWS, ConfidenceLevel.HIGH, "pain_severity"));
-        artifacts.add(artifact("company-news-2", "Leadership team faces execution pressure",
-                "Industry press", "Recent public signals indicate leadership attention on delivery risk and measurable outcomes.",
-                EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, "commercial_pressure"));
-        return artifacts;
-    }
-
-    private List<ResearchArtifactResponse> stakeholderProfiles(Lead lead) {
+    private List<ResearchArtifactResponse> companyNews(Lead lead, Scenario scenario) {
+        List<ResearchSourceBlock> operatingStory = documentBlocks("company-news-1",
+                factualNarrative("The commercial setting described in the current record is clear: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The operating condition now drawing attention is equally specific: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                narratedSignal(lead, 0, "A related client signal reported alongside the operating picture is: "),
+                factualNarrative("The available system context is recorded as follows: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology environment is available in this report."),
+                factualNarrative("The client is described in the available background as: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public company description has been confirmed for this report."),
+                interpretation("Read together, the reported commercial priority, operating symptom and system context describe a possible chain of pressure. They do not, however, establish which process step or decision is the root cause. That distinction matters before a response is treated as a client need.",
+                        "business_situation", "observable_symptom", "technology_stack"),
+                interpretation("The reported symptom is material because it is attached to an explicit business outcome rather than an isolated operational complaint. The current evidence supports investigating the connection; it does not support claiming that the connection has been proven.",
+                        "business_situation", "observable_symptom"),
+                uncertainty(unknownsParagraph(scenario)));
+        List<ResearchSourceBlock> contextStory = documentBlocks("company-news-2",
+                factualNarrative("The wider company context in the source material is: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public company description has been confirmed for this report."),
+                factualNarrative("Against that backdrop, leaders are dealing with this operating reality: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 1, "A second reported signal is: "),
+                factualNarrative("The visible performance or operating symptom is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The systems and data context currently available is: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology environment is available in this report."),
+                interpretation("This account gives a coherent reason to investigate the operating signal in more detail. It should not be read as proof of a technical failure, an approved initiative, or a preferred solution, because none of those conclusions appears in the verified record.",
+                        "business_situation", "observable_symptom", "technology_stack"),
+                uncertainty(unknownsParagraph(scenario)));
         return List.of(
-                artifact("stakeholder-1", lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "Potential executive sponsor",
-                        "Stakeholder profile",
-                        "%s appears to be the most relevant stakeholder to validate pain, sponsorship and decision process."
-                                .formatted(lead.getDecisionMaker() != null ? lead.getDecisionMaker() : "A senior operational leader"),
-                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, "decision_maker"),
-                artifact("stakeholder-2", "Commercial stakeholder influence",
-                        "Stakeholder map",
-                        "Budget and risk approval likely require commercial validation beyond the primary business sponsor.",
-                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, "stakeholder_complexity"));
+                artifact("company-news-1", sourceHeadline(scenario.getObservableSymptom()),
+                        "Industry operations journal", scenario.getObservableSymptom(), EvidenceType.COMPANY_NEWS,
+                        ConfidenceLevel.HIGH, operatingStory),
+                artifact("company-news-2", sourceHeadline(scenario.getBusinessSituation()),
+                        "Client operations review", "A fact-grounded view of the business situation and operating signal.",
+                        EvidenceType.COMPANY_NEWS, ConfidenceLevel.MEDIUM, contextStory));
     }
 
-    private List<ResearchArtifactResponse> financialSignals(Lead lead, boolean budgetVisible) {
-        if (!budgetVisible) {
-            return List.of(
-                    artifact("financial-visibility-1", "Funding signals require discovery",
-                            "Financial intelligence", "No client-confirmed budget detail is available in the research phase. "
-                                    + "Use discovery to validate commercial priorities and investment appetite.",
-                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description"),
-                    artifact("financial-visibility-2", "Opportunity sizing remains provisional",
-                            "Commercial analysis", "Public context suggests an opportunity, but no approved budget range is available. "
-                                    + "Treat any estimate as a consultant assumption until the client validates it.",
-                            EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "public_description"));
-        }
+    private List<ResearchArtifactResponse> stakeholderProfiles(Lead lead, Scenario scenario) {
+        List<ResearchSourceBlock> namedProfile = documentBlocks("stakeholder-1",
+                factualNarrative("The named contact in the available client record is: ", valueOr(lead.getDecisionMaker(), ""),
+                        "decision_maker", "No named stakeholder has been confirmed for this dossier."),
+                factualNarrative("The organisation associated with this role is described as: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public company description has been confirmed for this dossier."),
+                factualNarrative("The operating concern in the stakeholder's reported context is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The stated business context around that concern is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 0, "A related signal in the client record is: "),
+                interpretation("The role and operating context make this a relevant profile for understanding the client situation. That is an assessment of relevance, not confirmation that this person owns a budget, signs off a decision, or will sponsor change.",
+                        "decision_maker", "business_situation", "observable_symptom"),
+                interpretation("The record links this role to a live business issue, but it does not state the stakeholder's success measure, concerns, or authority. Those are separate facts that must be established through subsequent discovery rather than inferred from a senior title.",
+                        "decision_maker", "observable_symptom"),
+                uncertainty("Decision authority, sponsorship and the stakeholder's success measure remain unconfirmed."));
+        List<ResearchSourceBlock> influenceContext = documentBlocks("stakeholder-2",
+                factualNarrative("The business situation that frames the stakeholder landscape is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The evidence currently visible at operating level is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                narratedSignal(lead, 1, "A further reported client signal is: "),
+                factualNarrative("The available technology or data context is: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology owner or environment is available in this dossier."),
+                factualNarrative("The financial context visible at this stage is: ", valueOr(lead.getBudgetSignal(), ""),
+                        "budget_signal", "No client-confirmed budget owner or funding decision is available in this dossier."),
+                interpretation("The available facts identify several domains that may shape the decision process. They do not identify the approval path, and they should not be used to assign influence or decision rights to a stakeholder without direct evidence.",
+                        "business_situation", "observable_symptom", "technology_stack"),
+                uncertainty(unknownsParagraph(scenario)));
         return List.of(
-                artifact("financial-1", "Funding signal under review",
-                        "Financial intelligence",
-                        "%s. Any proposal should connect spend to measurable operational or risk reduction outcomes."
-                                .formatted(lead.getBudgetSignal() != null ? lead.getBudgetSignal() : "Budget is not yet confirmed"),
-                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "budget_signal"),
-                artifact("financial-2", "Potential opportunity sizing",
-                        "Commercial analysis",
-                        "The likely opportunity range is %s, but this should be validated through discovery before proposal."
-                                .formatted(lead.getPotentialValueRange() != null ? lead.getPotentialValueRange() : "not yet confirmed"),
-                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, "potential_value_range"));
+                artifact("stakeholder-1", valueOr(lead.getDecisionMaker(), "Stakeholder context under review"),
+                        "Stakeholder dossier", "Known role and client signals, separated from the decisions still to validate.",
+                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.HIGH, namedProfile),
+                artifact("stakeholder-2", sourceHeadline(scenario.getBusinessSituation()),
+                        "Stakeholder landscape", "Known client context and unresolved decision ownership.",
+                        EvidenceType.STAKEHOLDER_PROFILE, ConfidenceLevel.MEDIUM, influenceContext));
     }
 
-    private List<ResearchArtifactResponse> technologySignals(Lead lead) {
+    private List<ResearchArtifactResponse> financialSignals(Lead lead, Scenario scenario, boolean budgetVisible) {
+        List<ResearchSourceBlock> funding = documentBlocks("financial-1",
+                budgetVisible ? factualNarrative("The client-confirmed budget signal currently available is: ", valueOr(lead.getBudgetSignal(), ""), "budget_signal")
+                        : uncertainty("No client-confirmed budget signal is available at this stage."),
+                factualNarrative("The potential value range recorded for this opportunity is: ", valueOr(lead.getPotentialValueRange(), ""),
+                        "potential_value_range", "No confirmed value range is available at this stage."),
+                factualNarrative("The operating symptom with possible commercial consequences is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The business context that makes the signal material is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 0, "A related commercial or operating signal is: "),
+                interpretation("The available facts support further sizing because an operating symptom is connected to a stated business priority. They do not establish a financial baseline, a funded business case, or an approved investment; those are materially different claims.",
+                        "business_situation", "observable_symptom", "potential_value_range"),
+                interpretation("The value range should be treated as an opportunity frame, not as realised benefit. The source does not specify the baseline, the accountable owner, or the timing assumptions needed to convert that range into a credible impact estimate.",
+                        "potential_value_range"),
+                uncertainty(unknownsParagraph(scenario)));
+        List<ResearchSourceBlock> commercialContext = documentBlocks("financial-2",
+                factualNarrative("The commercial priority described in the client record is: ",
+                        scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The operating condition affecting that priority is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                narratedSignal(lead, 1, "Another signal relevant to commercial materiality is: "),
+                factualNarrative("The available company background is: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public commercial context has been confirmed for this report."),
+                factualNarrative("The current range or budget context is: ", valueOr(lead.getPotentialValueRange(), ""),
+                        "potential_value_range", "No confirmed value range is available at this stage."),
+                interpretation("The operating issue may have commercial implications, but the record provides neither an agreed baseline nor an approval route. It therefore supports a financial research question, not a claim that funding or payback is already secured.",
+                        "business_situation", "observable_symptom", "potential_value_range"),
+                uncertainty("Commercial materiality and investment timing remain to be validated."));
         return List.of(
-                artifact("technology-1", "Current technology environment",
-                        "Technology research",
-                        "%s. This may create integration, change-management and rollout risk."
-                                .formatted(lead.getTechnologyStack() != null ? lead.getTechnologyStack() : "Technology stack is not yet confirmed"),
-                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.HIGH, "technology_stack"),
-                artifact("technology-2", "Implementation risk indicator",
-                        "Architecture note",
-                        "Legacy environments suggest phased migration, rollback planning and stakeholder training should be explored.",
-                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, "implementation_risk"));
+                artifact("financial-1", budgetVisible ? sourceHeadline(valueOr(lead.getBudgetSignal(), scenario.getObservableSymptom())) : sourceHeadline(scenario.getObservableSymptom()),
+                        "Financial intelligence", "Confirmed commercial signals and explicit gaps in the available record.",
+                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, funding),
+                artifact("financial-2", sourceHeadline(scenario.getBusinessSituation()),
+                        "Commercial analysis", "A fact-grounded view of the commercial and operating context.",
+                        EvidenceType.FINANCIAL_SIGNAL, ConfidenceLevel.MEDIUM, commercialContext));
+    }
+
+    private List<ResearchArtifactResponse> technologySignals(Lead lead, Scenario scenario) {
+        List<ResearchSourceBlock> environment = documentBlocks("technology-1",
+                factualNarrative("The current technology and data environment is described as: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No confirmed technology environment is available in this brief."),
+                factualNarrative("The business-facing symptom that this environment may relate to is: ",
+                        scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The wider business situation is: ", scenario.getBusinessSituation(), "business_situation"),
+                narratedSignal(lead, 0, "A related client signal is: "),
+                factualNarrative("The available company background is: ", valueOr(lead.getPublicDescription(), ""),
+                        "public_description", "No public operating-system context has been confirmed for this brief."),
+                interpretation("The environment may be relevant because the operating symptom sits alongside the stated data and system context. The available record does not establish a technical root cause, integration failure, or target architecture, so each of those remains a hypothesis rather than a source fact.",
+                        "technology_stack", "observable_symptom", "business_situation"),
+                interpretation("The source is useful for locating the technical questions inside the client context. It is not evidence that technology alone caused the commercial outcome, because the relationship has not yet been demonstrated in the scenario facts.",
+                        "technology_stack", "observable_symptom"),
+                uncertainty(unknownsParagraph(scenario)));
+        List<ResearchSourceBlock> operatingDependency = documentBlocks("technology-2",
+                factualNarrative("The client is operating within this business context: ", scenario.getBusinessSituation(), "business_situation"),
+                factualNarrative("The signal that requires investigation is: ", scenario.getObservableSymptom(), "observable_symptom"),
+                factualNarrative("The named systems or data conditions are: ", valueOr(lead.getTechnologyStack(), ""),
+                        "technology_stack", "No named system dependency has been confirmed in this brief."),
+                narratedSignal(lead, 1, "An additional signal associated with the operating environment is: "),
+                factualNarrative("The commercial context currently available is: ", valueOr(lead.getBudgetSignal(), ""),
+                        "budget_signal", "No client-confirmed investment decision is available in this brief."),
+                interpretation("The relationship between the environment and the client outcome remains an evidence question rather than a confirmed architecture diagnosis. The facts justify tracing the relevant hand-offs and data dependencies, but they do not identify a system owner or prescribe a technical response.",
+                        "business_situation", "observable_symptom", "technology_stack"),
+                uncertainty("System ownership, data flow and non-disruptable dependencies remain unconfirmed."));
+        return List.of(
+                artifact("technology-1", sourceHeadline(valueOr(lead.getTechnologyStack(), scenario.getObservableSymptom())), "Technology due diligence brief",
+                        "Known system context and the operating signal it may relate to.", EvidenceType.TECHNOLOGY_INDICATOR,
+                        ConfidenceLevel.HIGH, environment),
+                artifact("technology-2", sourceHeadline(scenario.getBusinessSituation()), "Architecture research note",
+                        "Available technical context and explicitly unresolved dependencies.",
+                        EvidenceType.TECHNOLOGY_INDICATOR, ConfidenceLevel.MEDIUM, operatingDependency));
     }
 
     private List<ResearchArtifactResponse> marketTrends(Lead lead) {
@@ -421,8 +835,141 @@ public class ResearchIntelligenceService {
     private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
                                               EvidenceType type, ConfidenceLevel confidence, String factKey) {
         return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
-                EvidenceOrigin.AI_SYNTHESIZED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
-                "Generated from scenario-approved facts only; learner must decide whether it is relevant.");
+                EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
+                "Generated from scenario-approved facts only; learner must decide whether it is relevant.", blocks(id, summary));
+    }
+
+    private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
+                                              EvidenceType type, ConfidenceLevel confidence, String factKey,
+                                              List<ResearchSourceBlock> blocks) {
+        return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
+                EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence), List.of(factKey), List.of(),
+                "Generated from scenario-approved facts only; learner must decide whether it is relevant.", blocks);
+    }
+
+    private ResearchArtifactResponse artifact(String id, String title, String sourceType, String summary,
+                                              EvidenceType type, ConfidenceLevel confidence,
+                                              List<ResearchSourceBlock> blocks) {
+        List<String> factIds = blocks.stream()
+                .flatMap(block -> block.factIds().stream())
+                .filter(factId -> !factId.isBlank())
+                .distinct()
+                .toList();
+        return new ResearchArtifactResponse(id, title, sourceType, summary, type.name(), confidence.name(),
+                EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(14), relevanceFor(confidence),
+                factIds.isEmpty() ? List.of("business_situation") : factIds, List.of(),
+                "Source content is grounded in scenario facts; unresolved items are marked separately.", blocks);
+    }
+
+    private List<ResearchSourceBlock> documentBlocks(String sourceId, SourceBlockSeed... seeds) {
+        List<ResearchSourceBlock> blocks = new ArrayList<>();
+        for (SourceBlockSeed seed : seeds) {
+            if (seed.purpose() != ResearchSourceBlockPurpose.FACT || seed.content() == null || seed.content().isBlank()) continue;
+            blocks.add(new ResearchSourceBlock(sourceId + "-block-" + (blocks.size() + 1),
+                    seed.type(), seed.content(), null, seed.factIds(), true, ResearchSourceBlockPurpose.FACT));
+        }
+        return List.copyOf(blocks);
+    }
+
+    private SourceBlockSeed fact(String content, String... factIds) {
+        return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), true, ResearchSourceBlockPurpose.FACT);
+    }
+
+    private SourceBlockSeed factualNarrative(String leadIn, String content, String factId) {
+        return factualNarrative(leadIn, content, factId, "No verified detail is available in this document.");
+    }
+
+    private SourceBlockSeed factualNarrative(String leadIn, String content, String factId, String unavailableMessage) {
+        return content == null || content.isBlank()
+                ? context(unavailableMessage)
+                : fact(leadIn + content, factId);
+    }
+
+    private SourceBlockSeed optionalFact(String content, String factId, String unavailableMessage) {
+        return content == null || content.isBlank()
+                ? context(unavailableMessage)
+                : fact(content, factId);
+    }
+
+    private SourceBlockSeed signalFact(Lead lead, int index) {
+        List<com.ibm.consulting.sim.lead.domain.LeadSignal> signals = lead.getSignals().stream()
+                .filter(signal -> signal.getLabel() != null && !signal.getLabel().isBlank())
+                .toList();
+        if (signals.isEmpty()) return context("No additional client signal is available in this source.");
+        var signal = signals.get(Math.floorMod(index, signals.size()));
+        return fact(signal.getLabel(), "signal_" + signal.getCategory().toLowerCase(Locale.ROOT));
+    }
+
+    private SourceBlockSeed narratedSignal(Lead lead, int index, String leadIn) {
+        List<com.ibm.consulting.sim.lead.domain.LeadSignal> signals = lead.getSignals().stream()
+                .filter(signal -> signal.getLabel() != null && !signal.getLabel().isBlank())
+                .toList();
+        if (signals.isEmpty()) return context("No additional client signal is available in this document.");
+        var signal = signals.get(Math.floorMod(index, signals.size()));
+        return fact(leadIn + signal.getLabel(), "signal_" + signal.getCategory().toLowerCase(Locale.ROOT));
+    }
+
+    private SourceBlockSeed interpretation(String content, String... factIds) {
+        return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), true,
+                ResearchSourceBlockPurpose.INTERPRETATION);
+    }
+
+    private SourceBlockSeed context(String content, String... factIds) {
+        return new SourceBlockSeed(ResearchSourceBlockType.PARAGRAPH, content, List.of(factIds), false,
+                ResearchSourceBlockPurpose.CONTEXT);
+    }
+
+    private SourceBlockSeed uncertainty(String content) {
+        return new SourceBlockSeed(ResearchSourceBlockType.CAPTION, content, List.of(), false,
+                ResearchSourceBlockPurpose.UNCERTAINTY);
+    }
+
+    private List<ResearchSourceBlock> blocks(String sourceId, String... paragraphs) {
+        List<ResearchSourceBlock> fallbackBlocks = new ArrayList<>();
+        for (int index = 0; index < paragraphs.length; index++) {
+            String paragraph = paragraphs[index];
+            if (paragraph == null || paragraph.isBlank()) continue;
+            fallbackBlocks.add(new ResearchSourceBlock(sourceId + "-block-" + (index + 1), ResearchSourceBlockType.PARAGRAPH,
+                    paragraph, null, List.of(), false, ResearchSourceBlockPurpose.CONTEXT));
+        }
+        return List.copyOf(fallbackBlocks);
+    }
+
+    private String unknownsParagraph(Scenario scenario) {
+        return scenario.getUnknownsToValidate().isEmpty()
+                ? "The root cause, stakeholder constraints and viable next step still require validation."
+                : "Questions still open for validation: " + String.join("; ", scenario.getUnknownsToValidate()) + ".";
+    }
+
+    private String valueOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private record SourceBlockSeed(ResearchSourceBlockType type, String content, List<String> factIds,
+                                   boolean selectable, ResearchSourceBlockPurpose purpose) {}
+
+    private String conciseSymptom(Scenario scenario) {
+        return truncateAtWord(scenario.getObservableSymptom(), 88);
+    }
+
+    /** A deck headline may abbreviate a fact, but may never introduce a new claim. */
+    private String sourceHeadline(String fact) {
+        return truncateAtWord(fact, 112);
+    }
+
+    private String conciseMandate(Scenario scenario) {
+        return truncateAtWord(scenario.getConsultingMandate(), 82);
+    }
+
+    private String truncateAtWord(String value, int maximumLength) {
+        if (value == null || value.isBlank() || value.length() <= maximumLength) return valueOr(value, "client operations");
+        int boundary = value.lastIndexOf(' ', maximumLength - 3);
+        return (boundary > 0 ? value.substring(0, boundary) : value.substring(0, maximumLength - 3)).trim() + "...";
+    }
+
+    private String lowerCaseFirst(String value) {
+        if (value == null || value.isBlank()) return "validate the client problem before proposing a response";
+        return Character.toLowerCase(value.charAt(0)) + value.substring(1);
     }
 
     private int relevanceFor(ConfidenceLevel confidence) {
@@ -432,6 +979,112 @@ public class ResearchIntelligenceService {
             case LOW -> 30;
         };
     }
+
+        private List<ResearchCorpusPassage> researchCorpus(EvidenceType type, Scenario scenario) {
+                if (type != EvidenceType.COMPANY_NEWS && type != EvidenceType.STAKEHOLDER_PROFILE
+                                && type != EvidenceType.FINANCIAL_SIGNAL && type != EvidenceType.TECHNOLOGY_INDICATOR) {
+                        return List.of();
+                }
+                return knowledgeRetrievalService.retrieveResearchCorpusPassages(researchCollection(type), scenario.getId());
+        }
+
+        private boolean supportsCorpusDossier(List<ResearchCorpusPassage> corpus) {
+                return corpus.size() >= ResearchDocumentPolicy.corpusBacked().minimumBlocks()
+                        && corpus.size() <= ResearchDocumentPolicy.corpusBacked().maximumBlocks()
+                        && corpus.stream().allMatch(passage -> wordCount(passage.content()) >= 40);
+        }
+
+        /**
+         * A research session needs four sharply distinct signals, not an entire raw
+         * archive. Sample evenly across a lane and retain the source chunk id for
+         * every excerpt so learner selections remain auditable.
+         */
+        private List<ResearchCorpusPassage> conciseCorpus(List<ResearchCorpusPassage> corpus) {
+                int requiredPassages = ResearchDocumentPolicy.corpusBacked().minimumBlocks();
+                if (corpus.size() <= requiredPassages) {
+                        return corpus.stream().map(this::concisePassage).toList();
+                }
+                return java.util.stream.IntStream.range(0, requiredPassages)
+                                .mapToObj(index -> corpus.get(index * corpus.size() / requiredPassages))
+                                .map(this::concisePassage)
+                                .toList();
+        }
+
+        private ResearchCorpusPassage concisePassage(ResearchCorpusPassage passage) {
+                String[] words = passage.content().trim().split("\\s+");
+                int excerptWords = Math.min(words.length, 62);
+                String excerpt = String.join(" ", java.util.Arrays.copyOf(words, excerptWords));
+                if (excerptWords < words.length && !excerpt.endsWith(".") && !excerpt.endsWith("!") && !excerpt.endsWith("?")) {
+                        excerpt += "...";
+                }
+                return new ResearchCorpusPassage(passage.chunkId(), passage.documentId(), passage.sequence(), excerpt);
+        }
+
+        private ResearchArtifactResponse corpusDossier(Lead lead, Scenario scenario, EvidenceType type,
+                                                                                                        List<ResearchCorpusPassage> corpus) {
+                String sourceId = "corpus-" + type.name().toLowerCase(Locale.ROOT).replace('_', '-');
+                String factId = sourceFactId(type);
+                List<ResearchSourceBlock> blocks = java.util.stream.IntStream.range(0, corpus.size())
+                                .mapToObj(index -> {
+                                        ResearchCorpusPassage passage = corpus.get(index);
+                                        return new ResearchSourceBlock(sourceId + "-" + (index + 1), ResearchSourceBlockType.PARAGRAPH,
+                                                        passage.content(), "Approved scenario research corpus", List.of(factId),
+                                                        List.of(passage.chunkId().toString()), true, ResearchSourceBlockPurpose.FACT);
+                                })
+                                .toList();
+                return new ResearchArtifactResponse(sourceId, corpusTitle(type, lead), corpusSourceType(type),
+                                "An approved scenario dossier assembled from lane-specific research passages.", type.name(),
+                                ConfidenceLevel.HIGH.name(), EvidenceOrigin.SCENARIO_CURATED.name(), LocalDate.now().minusDays(7), 90,
+                                List.of(factId), List.of(), "Every paragraph is traceable to an approved scenario corpus passage.", blocks);
+        }
+
+        private String corpusFingerprint(Scenario scenario) {
+                return java.util.stream.Stream.of(EvidenceType.COMPANY_NEWS, EvidenceType.STAKEHOLDER_PROFILE,
+                                                EvidenceType.FINANCIAL_SIGNAL, EvidenceType.TECHNOLOGY_INDICATOR)
+                                .flatMap(type -> researchCorpus(type, scenario).stream())
+                                .map(passage -> passage.chunkId() + ":" + passage.content().hashCode())
+                                .collect(java.util.stream.Collectors.joining("|"));
+        }
+
+        private String corpusFingerprint(List<ResearchCorpusPassage> corpus) {
+                return corpus.stream().map(passage -> passage.chunkId() + ":" + passage.content().hashCode())
+                                .collect(java.util.stream.Collectors.joining("|"));
+        }
+
+        private int wordCount(String text) {
+                String normalized = text == null ? "" : text.trim().replaceAll("\\s+", " ");
+                return normalized.isEmpty() ? 0 : normalized.split(" ").length;
+        }
+
+        private String sourceFactId(EvidenceType type) {
+                return switch (type) {
+                        case COMPANY_NEWS -> "business_situation";
+                        case STAKEHOLDER_PROFILE -> "decision_maker";
+                        case FINANCIAL_SIGNAL -> "potential_value_range";
+                        case TECHNOLOGY_INDICATOR -> "technology_stack";
+                        default -> "business_situation";
+                };
+        }
+
+        private String corpusTitle(EvidenceType type, Lead lead) {
+                return switch (type) {
+                        case COMPANY_NEWS -> lead.getCompanyName() + " operating news dossier";
+                        case STAKEHOLDER_PROFILE -> lead.getCompanyName() + " stakeholder dossier";
+                        case FINANCIAL_SIGNAL -> lead.getCompanyName() + " financial signals dossier";
+                        case TECHNOLOGY_INDICATOR -> lead.getCompanyName() + " technology landscape dossier";
+                        default -> lead.getCompanyName() + " research dossier";
+                };
+        }
+
+        private String corpusSourceType(EvidenceType type) {
+                return switch (type) {
+                        case COMPANY_NEWS -> "COMPANY_NEWS";
+                        case STAKEHOLDER_PROFILE -> "STAKEHOLDER_PROFILE";
+                        case FINANCIAL_SIGNAL -> "FINANCIAL_REPORT";
+                        case TECHNOLOGY_INDICATOR -> "TECHNOLOGY_NOTE";
+                        default -> "SIMULATED_REPORT";
+                };
+        }
 
     private EvidenceType inferType(String context) {
         String c = context.toLowerCase(Locale.ROOT);

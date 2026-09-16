@@ -20,13 +20,21 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 @RestController
 @RequestMapping("/api/v1/engagements/{engagementId}/proposal")
 public class ProposalController {
+    private static final int DRAFT_SAVE_LOCK_STRIPES = 64;
     private final ProposalService proposalService;
+    private final ReentrantLock[] draftSaveLocks = new ReentrantLock[DRAFT_SAVE_LOCK_STRIPES];
 
-    public ProposalController(ProposalService proposalService) { this.proposalService = proposalService; }
+    public ProposalController(ProposalService proposalService) {
+        this.proposalService = proposalService;
+        for (int index = 0; index < DRAFT_SAVE_LOCK_STRIPES; index++) {
+            draftSaveLocks[index] = new ReentrantLock();
+        }
+    }
 
     record OutcomeRequest(
             @Size(max = ProposalRequestLimits.ITEM_MAX_LENGTH) String outcome,
@@ -124,7 +132,13 @@ public class ProposalController {
     @PutMapping("/draft")
     ProposalResponse saveDraft(@PathVariable UUID engagementId, @Valid @RequestBody ProposalDraftRequest request,
                                @AuthenticationPrincipal User user) {
-        return proposalService.saveDraft(engagementId, user.getId(), request.toContent());
+        ReentrantLock lock = draftSaveLocks[Math.floorMod(engagementId.hashCode(), DRAFT_SAVE_LOCK_STRIPES)];
+        lock.lock();
+        try {
+            return proposalService.saveDraft(engagementId, user.getId(), request.toContent());
+        } finally {
+            lock.unlock();
+        }
     }
 
     @PostMapping("/review")

@@ -13,5 +13,8 @@ public interface UserRepository {
     /** Serializes security-credential issuance scoped to one account. */
     Optional<User> findByEmailForUpdate(String email);
     boolean existsByEmail(String email);
+    long countByRoleAndActive(UserRole role, boolean active);
     List<User> findAll();
+    UserDirectoryPage findDirectory(UserDirectoryQuery query);
+    void delete(User user);
 }
