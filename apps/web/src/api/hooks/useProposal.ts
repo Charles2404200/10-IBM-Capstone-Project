@@ -19,7 +19,7 @@ export interface ProposalDraftRequest {
   problemStatement: string
   solutionStrategy: string
   components: string[]
-  budget: string
+  budget: number
   timelineWeeks: number
   budgetConfidence: string
   budgetSource: string
