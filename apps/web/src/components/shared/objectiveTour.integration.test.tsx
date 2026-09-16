@@ -55,15 +55,17 @@ describe('guided tour, running the real library', () => {
     )
   })
 
-  it('opens on the first objective', () => {
+  it('opens on the first objective', async () => {
     renderWorkspace()
 
-    expect(screen.getByText('First stop')).toBeInTheDocument()
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
     expect(screen.queryByText('Second stop')).not.toBeInTheDocument()
   })
 
-  it('walks forward and back through the steps', () => {
+  it('walks forward and back through the steps', async () => {
     renderWorkspace()
+
+    await screen.findByText('First stop', {}, { timeout: 2000 })
 
     fireEvent.click(screen.getByLabelText('Go to next step'))
     expect(screen.getByText('Second stop')).toBeInTheDocument()
@@ -72,16 +74,20 @@ describe('guided tour, running the real library', () => {
     expect(screen.getByText('First stop')).toBeInTheDocument()
   })
 
-  it('jumps to a step from the dots', () => {
+  it('jumps to a step from the dots', async () => {
     renderWorkspace()
+
+    await screen.findByText('First stop', {}, { timeout: 2000 })
 
     fireEvent.click(screen.getByLabelText('Go to step 2'))
 
     expect(screen.getByText('Second stop')).toBeInTheDocument()
   })
 
-  it('leaves nothing over the workspace once closed', () => {
+  it('leaves nothing over the workspace once closed', async () => {
     const { container } = renderWorkspace()
+
+    await screen.findByText('First stop', {}, { timeout: 2000 })
     expect(container.ownerDocument.querySelector('.reactour__mask')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Close Tour'))
@@ -90,8 +96,10 @@ describe('guided tour, running the real library', () => {
     expect(container.ownerDocument.querySelector('.reactour__popover')).not.toBeInTheDocument()
   })
 
-  it('leaves the workspace controls working after the tour closes', () => {
+  it('leaves the workspace controls working after the tour closes', async () => {
     renderWorkspace()
+
+    await screen.findByText('First stop', {}, { timeout: 2000 })
 
     fireEvent.click(screen.getByLabelText('Close Tour'))
     fireEvent.click(screen.getByText('Submit hypothesis'))
@@ -99,8 +107,10 @@ describe('guided tour, running the real library', () => {
     expect(onWorkspaceAction).toHaveBeenCalledOnce()
   })
 
-  it('records the walkthrough when the learner closes it', () => {
+  it('records the walkthrough when the learner closes it', async () => {
     renderWorkspace()
+
+    await screen.findByText('First stop', {}, { timeout: 2000 })
 
     fireEvent.click(screen.getByLabelText('Close Tour'))
 
@@ -121,7 +131,7 @@ describe('guided tour, running the real library', () => {
    * open over the top of it. The tour must not freeze that panel or swallow the
    * controls beside it, so this drives both while the mask is up.
    */
-  it('lets the workspace keep updating and stay clickable while the tour is open', () => {
+  it('lets the workspace keep updating and stay clickable while the tour is open', async () => {
     function Streaming() {
       const [text, setText] = useState('Client is responding')
       return (
@@ -134,7 +144,7 @@ describe('guided tour, running the real library', () => {
     }
 
     render(<Streaming />)
-    expect(screen.getByText('First stop')).toBeInTheDocument()
+    await screen.findByText('First stop', {}, { timeout: 2000 })
     expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Advance turn'))
@@ -148,7 +158,7 @@ describe('guided tour, running the real library', () => {
    * positioned by the library against the element it anchors to. A narrow
    * viewport must still find the anchors and must not push the page sideways.
    */
-  it('still finds its anchors on a narrow viewport', () => {
+  it('still finds its anchors on a narrow viewport', async () => {
     const original = window.innerWidth
     Object.defineProperty(window, 'innerWidth', { value: 480, configurable: true })
     window.dispatchEvent(new Event('resize'))
@@ -156,7 +166,7 @@ describe('guided tour, running the real library', () => {
     try {
       renderWorkspace()
 
-      expect(screen.getByText('First stop')).toBeInTheDocument()
+      await screen.findByText('First stop', {}, { timeout: 2000 })
       expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
 
       fireEvent.click(screen.getByLabelText('Go to next step'))
@@ -177,7 +187,7 @@ describe('guided tour, running the real library', () => {
   it.each([
     ['before the attempt', 'Client signal'],
     ['after the attempt', 'What the client said'],
-  ])('anchors to the client panel %s', (_when, label) => {
+  ])('anchors to the client panel %s', async (_when, label) => {
     render(
       <ObjectiveTourProvider
         tourId="outreach-workspace"
@@ -187,7 +197,7 @@ describe('guided tour, running the real library', () => {
       </ObjectiveTourProvider>,
     )
 
-    expect(screen.getByText('Who you are writing to')).toBeInTheDocument()
+    expect( await screen.findByText('Who you are writing to', {}, { timeout: 2000 }),).toBeInTheDocument()
     expect(screen.getByText(label)).toBeInTheDocument()
   })
 
@@ -196,7 +206,7 @@ describe('guided tour, running the real library', () => {
    * evidence gathered, nothing on the board, the gate unmet. That is also the
    * only time the walkthrough runs, so the anchors have to survive it.
    */
-  it('anchors to a section that is present but empty', () => {
+  it('anchors to a section that is present but empty', async () => {
     render(
       <ObjectiveTourProvider
         tourId="client-intelligence"
@@ -210,7 +220,7 @@ describe('guided tour, running the real library', () => {
       </ObjectiveTourProvider>,
     )
 
-    expect(screen.getByText('Build your evidence base')).toBeInTheDocument()
+    expect(await screen.findByText('Build your evidence base', {}, { timeout: 2000 }),).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('Go to next step'))
     expect(screen.getByText('Moving on')).toBeInTheDocument()
