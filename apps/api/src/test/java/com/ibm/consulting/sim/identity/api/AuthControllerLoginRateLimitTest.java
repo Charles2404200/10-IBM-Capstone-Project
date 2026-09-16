@@ -24,6 +24,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -58,7 +60,10 @@ class AuthControllerLoginRateLimitTest {
         attempt("target@example.com")
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "60"))
-                .andExpect(jsonPath("$.type").value("https://consulting-sim.ibm.com/problems/login-rate-limit"));
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.type").value("https://consulting-sim.ibm.com/problems/login-rate-limit"))
+                .andExpect(jsonPath("$.detail").isNotEmpty());
+        verify(authenticateUseCase, times(2)).execute(eq("target@example.com"), anyString());
 
         attempt("another@example.com").andExpect(status().isUnprocessableEntity());
     }
