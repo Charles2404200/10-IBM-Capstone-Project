@@ -176,14 +176,25 @@ export default function AssessmentReviewPage() {
               <Tile>
                 <Stack gap={2}>
                   <h5 className={styles.sectionTitle}>Strengths</h5>
-                  <ol className={styles.orderedList}>
-                    {result.strengths.map((s, i) => (
-                      <li key={i} className={styles.listItem}>
-                        {s}
-                      </li>
-                    ))}
-                  </ol>
-                  {result.strengths.length === 0 && <p className={styles.emptyText}>None recorded.</p>}
+                  {result.coachingPending ? (
+                    <InlineLoading
+                      description="Preparing strengths..."
+                      status="active"
+                    />
+                  ) : (
+                    <>
+                      <ol className={styles.orderedList}>
+                        {result.strengths.map((s, i) => (
+                          <li key={i} className={styles.listItem}>
+                            {s}
+                          </li>
+                        ))}
+                      </ol>
+                      {result.strengths.length === 0 && (
+                        <p className={styles.emptyText}>None recorded.</p>
+                      )}
+                    </>
+                  )}
                 </Stack>
               </Tile>
             </Column>
@@ -191,14 +202,25 @@ export default function AssessmentReviewPage() {
               <Tile>
                 <Stack gap={2}>
                   <h5 className={styles.sectionTitle}>Areas for Improvement</h5>
-                  <ol className={styles.orderedList}>
-                    {result.improvementAreas.map((s, i) => (
-                      <li key={i} className={styles.listItem}>
-                        {s}
-                      </li>
-                    ))}
-                  </ol>
-                  {result.improvementAreas.length === 0 && <p className={styles.emptyText}>None recorded.</p>}
+                  {result.coachingPending ? (
+                    <InlineLoading
+                      description="Preparing areas for improvement..."
+                      status="active"
+                    />
+                  ) : (
+                    <>
+                      <ol className={styles.orderedList}>
+                        {result.improvementAreas.map((s, i) => (
+                          <li key={i} className={styles.listItem}>
+                            {s}
+                          </li>
+                        ))}
+                      </ol>
+                      {result.improvementAreas.length === 0 && (
+                        <p className={styles.emptyText}>None recorded.</p>
+                      )}
+                    </>
+                  )}
                 </Stack>
               </Tile>
             </Column>
