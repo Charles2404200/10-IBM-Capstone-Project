@@ -48,16 +48,16 @@ class LeadControllerTrustBoundaryTest {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     @Test
-    void writableResearchSchemaDoesNotAdvertiseServerOwnedProvenance() throws Exception {
+    void writableResearchSchemaAcceptsSourceOriginButNotCallerControlledVerification() throws Exception {
         assertThat(Stream.of(LeadController.SaveResearchRequest.class.getRecordComponents())
                 .map(java.lang.reflect.RecordComponent::getName))
-                .doesNotContain("origin", "verificationStatus");
+                .contains("origin")
+                .doesNotContain("verificationStatus");
 
         var request = new LeadController.SaveResearchRequest(
                 "Learner note", null, EvidenceType.COMPANY_NEWS, null, null,
                 null, ConfidenceLevel.HIGH, 100, null, Set.of());
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsBytes(request));
-        assertThat(json.has("origin")).isFalse();
         assertThat(json.has("verificationStatus")).isFalse();
     }
 

@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.lead.domain;
 
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -30,6 +31,34 @@ class ResearchHumanJourneySimulationTest {
         assertThat(quality.confidencePercent()).isGreaterThanOrEqualTo(70);
         assertThat(quality.groundedHypothesis()).isTrue();
         assertThat(ResearchReadinessPolicy.isResearchComplete(journey)).isTrue();
+    }
+
+    @Test
+    void reviewedScenarioEvidenceMeetsEveryHardClientIntelligenceCriterion() {
+        DifficultyProfile profile = DifficultyProfile.defaults(4, 4, 4, 4);
+        ResearchEvidence company = curatedFinding(
+                EvidenceType.COMPANY_NEWS, "Approved company evidence", 90);
+        ResearchEvidence stakeholder = curatedFinding(
+                EvidenceType.STAKEHOLDER_PROFILE, "Approved stakeholder evidence", 90);
+        ResearchEvidence financial = curatedFinding(
+                EvidenceType.FINANCIAL_SIGNAL, "Approved financial evidence", 90);
+        ResearchEvidence technology = curatedFinding(
+                EvidenceType.TECHNOLOGY_INDICATOR, "Approved technology evidence", 90);
+        ResearchEvidence hypothesis = hypothesis(Set.of(
+                company.getId(), stakeholder.getId(), financial.getId(), technology.getId()));
+        List<ResearchEvidence> journey = List.of(
+                company, stakeholder, financial, technology, hypothesis);
+        var quality = ResearchReadinessPolicy.assess(journey);
+
+        assertThat(ResearchReadinessPolicy.evidenceCount(journey))
+                .isEqualTo(profile.requiredEvidenceCount());
+        assertThat(ResearchReadinessPolicy.hasStakeholderEvidence(journey)).isTrue();
+        assertThat(ResearchReadinessPolicy.coverageCount(journey))
+                .isGreaterThanOrEqualTo(ResearchReadinessPolicy.requiredCoverageCount(profile));
+        assertThat(quality.groundedHypothesis()).isTrue();
+        assertThat(quality.confidencePercent())
+                .isGreaterThanOrEqualTo(profile.requiredConfidencePercent());
+        assertThat(ResearchReadinessPolicy.isResearchComplete(journey, profile)).isTrue();
     }
 
     @Test
@@ -73,6 +102,20 @@ class ResearchHumanJourneySimulationTest {
                 .evidenceType(type)
                 .confidence(ConfidenceLevel.HIGH)
                 .origin(EvidenceOrigin.AI_SYNTHESIZED)
+                .verificationStatus(EvidenceVerificationStatus.CORROBORATED)
+                .relevanceScore(relevance)
+                .sequenceNo(++sequence)
+                .build();
+    }
+
+    private ResearchEvidence curatedFinding(EvidenceType type, String note, int relevance) {
+        return ResearchEvidence.builder()
+                .engagementId(UUID.randomUUID())
+                .leadId(UUID.randomUUID())
+                .note(note)
+                .evidenceType(type)
+                .confidence(ConfidenceLevel.HIGH)
+                .origin(EvidenceOrigin.SCENARIO_CURATED)
                 .verificationStatus(EvidenceVerificationStatus.CORROBORATED)
                 .relevanceScore(relevance)
                 .sequenceNo(++sequence)

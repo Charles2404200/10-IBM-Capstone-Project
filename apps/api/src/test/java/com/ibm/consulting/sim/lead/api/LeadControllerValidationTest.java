@@ -8,6 +8,10 @@ import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
 import com.ibm.consulting.sim.lead.application.LeadNotSelectedException;
 import com.ibm.consulting.sim.lead.application.LeadService;
 import com.ibm.consulting.sim.lead.application.ResearchIntelligenceService;
+import com.ibm.consulting.sim.lead.domain.ConfidenceLevel;
+import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
+import com.ibm.consulting.sim.lead.domain.EvidenceType;
+import com.ibm.consulting.sim.lead.domain.EvidenceVerificationStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,6 +30,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -96,6 +102,25 @@ class LeadControllerValidationTest {
 
         verify(leadService).saveEvidence(any(), any(), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void reviewedScenarioEvidenceIsCorroboratedByTheServer() throws Exception {
+        Map<String, Object> payload = validPayload(Map.of(
+                "sourceTitle", "Approved client dossier",
+                "origin", "SCENARIO_CURATED",
+                "verificationStatus", "VERIFIED",
+                "confidence", "HIGH",
+                "relevanceScore", 90));
+
+        mockMvc.perform(researchRequest(objectMapper.writeValueAsString(payload)))
+                .andExpect(status().isCreated());
+
+        verify(leadService).saveEvidence(
+                eq(engagementId), eq(learner.getId()), eq(VALID_NOTE), isNull(),
+                eq(EvidenceType.COMPANY_NEWS), isNull(), eq("Approved client dossier"),
+                eq(EvidenceOrigin.SCENARIO_CURATED), eq(EvidenceVerificationStatus.CORROBORATED),
+                isNull(), eq(ConfidenceLevel.HIGH), eq(90), isNull(), isNull());
     }
 
     @Test
