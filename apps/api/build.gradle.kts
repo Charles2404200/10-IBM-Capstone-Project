@@ -18,7 +18,8 @@ repositories {
 }
 
 val jjwtVersion = "0.12.6"
-val testcontainersVersion = "1.20.1"
+// 1.21.4 retains the 1.x API while adding compatibility with Docker Engine 29.
+val testcontainersVersion = "1.21.4"
 val springdocVersion = "2.6.0"
 val logstashLogbackVersion = "8.0"
 
@@ -59,6 +60,9 @@ dependencies {
     // HTTP client for watsonx calls
     implementation("org.springframework.boot:spring-boot-starter-webflux")
 
+    //Kafka
+    implementation ("org.springframework.kafka:spring-kafka")
+
     // Circuit breaker for the multi-provider AI orchestration layer (Gemini/OpenRouter/watsonx
     // fallback chain) — a free API rate-limiting or timing out must not cascade into every
     // learner request waiting out its full timeout before falling back.
@@ -69,6 +73,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
 
     // Test
+    testImplementation("org.springframework.kafka:spring-kafka-test")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")

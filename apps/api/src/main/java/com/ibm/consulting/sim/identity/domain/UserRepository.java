@@ -13,4 +13,5 @@ public interface UserRepository {
     List<User> findAll();
     UserDirectoryPage findDirectory(UserDirectoryQuery query);
     void delete(User user);
+    List<User> findAllActiveByRole(UserRole role);
 }

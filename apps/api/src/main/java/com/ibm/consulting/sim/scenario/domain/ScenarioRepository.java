@@ -12,6 +12,7 @@ public interface ScenarioRepository {
     List<Scenario> findAll();
     List<Scenario> findByLineageIdAndStatus(UUID lineageId, ScenarioStatus status);
     Optional<Scenario> findById(UUID id);
+    Optional<Scenario> findByIdAndStatus(UUID id,ScenarioStatus status);
     List<Scenario> findByIdIn(List<UUID> ids);
     Scenario save(Scenario scenario);
 }

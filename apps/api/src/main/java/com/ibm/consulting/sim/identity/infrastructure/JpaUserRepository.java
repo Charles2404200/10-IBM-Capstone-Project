@@ -8,6 +8,7 @@ import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,6 +24,7 @@ import java.util.UUID;
 interface SpringDataUserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    List<User> findByActiveTrueAndRole(UserRole role);
     long countByRoleAndActive(UserRole role, boolean active);
 }
 
@@ -70,5 +72,8 @@ class JpaUserRepository implements UserRepository {
                     ? criteriaBuilder.conjunction()
                     : criteriaBuilder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+    @Override public List<User> findAllActiveByRole(UserRole role) {
+        return repo.findByActiveTrueAndRole(role);
     }
 }

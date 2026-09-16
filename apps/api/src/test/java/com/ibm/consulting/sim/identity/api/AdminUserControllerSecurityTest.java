@@ -20,8 +20,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -79,6 +81,37 @@ class AdminUserControllerSecurityTest {
 
         mockMvc.perform(get("/api/v1/admin/users"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCannotCreateUserWithBlankAccountFields() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/users")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": " ",
+                                  "displayName": " ",
+                                  "role": "LEARNER"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.email").exists())
+                .andExpect(jsonPath("$.violations.displayName").exists());
+
+        verifyNoInteractions(adminUserService);
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCannotChangeUserToNullRole() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/users/{id}/role", UUID.randomUUID())
+                        .contentType("application/json")
+                        .content("{\"role\": null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.role").exists());
+
+        verifyNoInteractions(adminUserService);
     }
 
     private record RoleBody(UserRole role) {}
