@@ -15,8 +15,8 @@ export interface PersonaSummary {
   name: string
   jobTitle: string
   organisation: string
-  communicationStyle: string | null
-  visibleConcerns: string | null
+  communicationStyle: string
+  visibleConcerns: string
 }
 
 export interface DifficultyProfile {
@@ -82,11 +82,11 @@ export interface PlatformOverview {
   totalEngagements: number
   activeEngagements: number
   completedEngagements: number
-    completionRatePercent: number
-    averageAssessmentScore: number | null
-    engagementsByState: Record<string, number>
-    scenariosByStatus: Record<string, number>
-    scenarios: ScenarioActivity[]
+  completionRatePercent: number
+  averageAssessmentScore: number | null
+  engagementsByState: Record<string, number>
+  scenariosByStatus: Record<string, number>
+  scenarios: ScenarioActivity[]
 }
 
 export interface GameplayDifficultyProfile {
@@ -125,12 +125,12 @@ export interface ScenarioSummary {
   industry: string
   description: string
   difficulty: number
-  contentVersion: number
+  version: number
   status: string
   personas: PersonaSummary[]
   rubricWeights: Record<string, number>
   difficultyProfile: DifficultyProfile
-  gameplayDifficulty: GameplayDifficultyProfile
+  gameplayDifficulty?: GameplayDifficultyProfile
   briefing: ScenarioBriefing
 }
 
@@ -187,13 +187,13 @@ export interface LeadIntelligence {
 // ─── Research Evidence ────────────────────────────────────────────────────────
 
 export type EvidenceType =
-  | 'COMPANY_NEWS'
-  | 'FINANCIAL_SIGNAL'
-  | 'TECHNOLOGY_INDICATOR'
-  | 'STAKEHOLDER_PROFILE'
-  | 'MARKET_TREND'
-  | 'HYPOTHESIS'
-  | 'OTHER'
+    | 'COMPANY_NEWS'
+    | 'FINANCIAL_SIGNAL'
+    | 'TECHNOLOGY_INDICATOR'
+    | 'STAKEHOLDER_PROFILE'
+    | 'MARKET_TREND'
+    | 'HYPOTHESIS'
+    | 'OTHER'
 
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
@@ -226,6 +226,8 @@ export interface SaveResearchPayload {
   evidenceType: EvidenceType
   sourceUrl?: string
   sourceTitle?: string
+  origin?: EvidenceOrigin
+  verificationStatus?: EvidenceVerificationStatus
   occurredOn?: string
   confidence?: ConfidenceLevel
   relevanceScore?: number
@@ -300,20 +302,20 @@ export interface ResearchGateStatus {
 // ─── Engagement ───────────────────────────────────────────────────────────────
 
 export type EngagementState =
-  | 'QUALIFYING'
-  | 'CLIENT_INTELLIGENCE'
-  | 'HYPOTHESIS_READY'
-  | 'OUTREACHING'
-  | 'MEETING_SECURED'
-  | 'PREPARING'
-  | 'IN_MEETING'
-  | 'MEETING_FAILED'
-  | 'DISCOVERY_COMPLETE'
-  | 'PROPOSAL_DRAFT'
-  | 'PROPOSAL_SUBMITTED'
-  | 'CLIENT_DECISION'
-  | 'REVIEW'
-  | 'COMPLETED'
+    | 'QUALIFYING'
+    | 'CLIENT_INTELLIGENCE'
+    | 'HYPOTHESIS_READY'
+    | 'OUTREACHING'
+    | 'MEETING_SECURED'
+    | 'PREPARING'
+    | 'IN_MEETING'
+    | 'MEETING_FAILED'
+    | 'DISCOVERY_COMPLETE'
+    | 'PROPOSAL_DRAFT'
+    | 'PROPOSAL_SUBMITTED'
+    | 'CLIENT_DECISION'
+    | 'REVIEW'
+    | 'COMPLETED'
 
 export interface EngagementEvent {
   id: string
@@ -323,16 +325,16 @@ export interface EngagementEvent {
 }
 
 export type EngagementPhase =
-  | 'LEAD'
-  | 'CLIENT_INTELLIGENCE'
-  | 'OUTREACH'
-  | 'MEETING_PREPARATION'
-  | 'LIVE_MEETING'
-  | 'MEETING_REVIEW'
-  | 'PROPOSAL'
-  | 'OUTCOME'
-  | 'REVIEW'
-  | 'COMPLETED'
+    | 'LEAD'
+    | 'CLIENT_INTELLIGENCE'
+    | 'OUTREACH'
+    | 'MEETING_PREPARATION'
+    | 'LIVE_MEETING'
+    | 'MEETING_REVIEW'
+    | 'PROPOSAL'
+    | 'OUTCOME'
+    | 'REVIEW'
+    | 'COMPLETED'
 
 export interface Engagement {
   id: string
@@ -505,13 +507,13 @@ export interface MeetingResponseOptions {
 export type ProposalDecision = 'PENDING' | 'WON' | 'LOST'
 export type ProposalStatus = 'DRAFT' | 'SUBMITTED'
 export type ClientDecisionOutcome =
-  | 'PILOT_APPROVED'
-  | 'PROPOSAL_ACCEPTED'
-  | 'REVISION_REQUESTED'
-  | 'FURTHER_DISCOVERY_REQUIRED'
-  | 'DEFERRED'
-  | 'REJECTED'
-  | 'STRATEGIC_PARTNERSHIP'
+    | 'PILOT_APPROVED'
+    | 'PROPOSAL_ACCEPTED'
+    | 'REVISION_REQUESTED'
+    | 'FURTHER_DISCOVERY_REQUIRED'
+    | 'DEFERRED'
+    | 'REJECTED'
+    | 'STRATEGIC_PARTNERSHIP'
 
 export interface ProposalBusinessOutcome {
   outcome: string
@@ -608,7 +610,7 @@ export interface Proposal {
   problemStatement: string
   solutionStrategy: string | null
   components: string[]
-  budget: number
+  budget: string
   timelineWeeks: number
   budgetConfidence: string | null
   budgetSource: string | null
@@ -619,15 +621,15 @@ export interface Proposal {
   evidenceLinks: ProposalEvidenceLink[]
   alignmentScore: number
   decision: ProposalDecision
-  decisionRationale: string | null
+  decisionRationale: string
   clientResponse: string | null
-  clientDecisionOutcome: ClientDecisionOutcome | null
+  clientDecisionOutcome: ClientDecisionOutcome
   decisionConfidence: number
   learnerPerformanceScore: number
   decisionDimensions: ProposalDecisionDimension[]
   decisionInsights: ProposalDecisionInsight[]
   evidenceImpacts: ProposalEvidenceImpact[]
-  submittedAt: string | null
+  submittedAt: string
 }
 
 // ─── Assessment ───────────────────────────────────────────────────────────────
@@ -707,13 +709,13 @@ export interface ReplayComparison {
 // ─── Achievements ─────────────────────────────────────────────────────────────
 
 export type ConditionType =
-  | 'MIN_ENGAGEMENTS_COMPLETED'
-  | 'MIN_ENGAGEMENTS_WON'
-  | 'MIN_BEST_OVERALL_SCORE'
-  | 'MIN_AVERAGE_OVERALL_SCORE'
-  | 'MIN_COMPETENCY_SCORE'
-  | 'MIN_DISTINCT_SCENARIOS_COMPLETED'
-  | 'MIN_WIN_RATE_PERCENT'
+    | 'MIN_ENGAGEMENTS_COMPLETED'
+    | 'MIN_ENGAGEMENTS_WON'
+    | 'MIN_BEST_OVERALL_SCORE'
+    | 'MIN_AVERAGE_OVERALL_SCORE'
+    | 'MIN_COMPETENCY_SCORE'
+    | 'MIN_DISTINCT_SCENARIOS_COMPLETED'
+    | 'MIN_WIN_RATE_PERCENT'
 
 export type LogicalOperator = 'AND' | 'OR'
 
@@ -731,7 +733,7 @@ export interface ConditionNode {
 export interface AchievementSummary {
   id: string
   name: string
-  description: string | null
+  description: string
   iconKey: string
   unlocked: boolean
   unlockedAt: string | null
@@ -741,7 +743,7 @@ export interface AchievementSummary {
 export interface AchievementAdminView {
   id: string
   name: string
-  description: string | null
+  description: string
   iconKey: string
   active: boolean
   rule: ConditionNode
@@ -749,7 +751,7 @@ export interface AchievementAdminView {
 
 export interface UpsertAchievementRequest {
   name: string
-  description: string | null
+  description: string
   iconKey: string
   rule: ConditionNode
 }
@@ -866,13 +868,13 @@ export interface UpdateScenarioBlueprintRequest {
 export interface LeadAuthoringRequest {
   companyName: string
   industry: string
-  publicDescription: string | null
+  publicDescription: string
   difficulty: LeadSummary['difficulty']
-  potentialValueRange: string | null
-  decisionMaker: string | null
-  technologyStack: string | null
-  budgetSignal: string | null
-  painSeverity: string | null
+  potentialValueRange: string
+  decisionMaker: string
+  technologyStack: string
+  budgetSignal: string
+  painSeverity: string
   signals: Array<{ label: string; category: string }>
 }
 

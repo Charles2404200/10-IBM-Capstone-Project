@@ -37,7 +37,6 @@ import type {
   ScenarioSummary,
   UpdateScenarioBlueprintRequest,
 } from '@/api/types'
-import { leadAuthoringFormFrom, type LeadAuthoringForm } from '@/features/scenario/services/scenarioAuthoringContract'
 import styles from '@/pages/Admin/ScenarioBuilderPage.module.css'
 import { getProblemDetail } from '@/api/problemDetails'
 
@@ -66,7 +65,7 @@ function blueprintFrom(scenario: ScenarioSummary): UpdateScenarioBlueprintReques
   }
 }
 
-const emptyLead: LeadAuthoringForm = {
+const emptyLead: LeadAuthoringRequest = {
   companyName: '', industry: '', publicDescription: '', difficulty: 'MEDIUM', potentialValueRange: '',
   decisionMaker: '', technologyStack: '', budgetSignal: '', painSeverity: '', signals: [],
 }
@@ -97,13 +96,13 @@ function newResearchSourceBlock(): ResearchSourceBlock {
 }
 
 function sourceFromBriefing(
-  evidenceType: ResearchSource['evidenceType'],
-  title: string,
-  sourceType: string,
-  confidence: ResearchSource['confidence'],
-  relevanceScore: number,
-  summary: string,
-  paragraphs: string[],
+    evidenceType: ResearchSource['evidenceType'],
+    title: string,
+    sourceType: string,
+    confidence: ResearchSource['confidence'],
+    relevanceScore: number,
+    summary: string,
+    paragraphs: string[],
 ): ResearchSource {
   const source = newResearchSource()
   return {
@@ -130,21 +129,21 @@ function sourceFromBriefing(
 /** Creates an editable, schema-valid first draft. Authors remain responsible for every scenario fact. */
 function starterResearchPack(blueprint: UpdateScenarioBlueprintRequest): ResearchSource[] {
   const openQuestions = blueprint.unknownsToValidate.length > 0
-    ? `Open questions for validation: ${blueprint.unknownsToValidate.join('; ')}.`
-    : 'Open questions for validation should be confirmed through research and client discovery.'
+      ? `Open questions for validation: ${blueprint.unknownsToValidate.join('; ')}.`
+      : 'Open questions for validation should be confirmed through research and client discovery.'
   return [
     sourceFromBriefing('COMPANY_NEWS', `Operating context: ${blueprint.title}`, 'Scenario business journal', 'HIGH', 90,
-      blueprint.businessSituation,
-      [blueprint.businessSituation, `Observed signal: ${blueprint.observableSymptom}`, `The consulting mandate is to ${blueprint.consultingMandate}`, openQuestions, 'Scenario-authored public context. Review and edit before publishing.']),
+        blueprint.businessSituation,
+        [blueprint.businessSituation, `Observed signal: ${blueprint.observableSymptom}`, `The consulting mandate is to ${blueprint.consultingMandate}`, openQuestions, 'Scenario-authored public context. Review and edit before publishing.']),
     sourceFromBriefing('STAKEHOLDER_PROFILE', 'Stakeholder decision context', 'Stakeholder dossier', 'MEDIUM', 74,
-      'A stakeholder profile designed to separate decision influence from unverified assumptions.',
-      [`The business context is ${blueprint.businessSituation}`, `The observable issue is ${blueprint.observableSymptom}`, 'Identify who owns the operating problem, who can sponsor a next step, and who may impose delivery or commercial constraints.', openQuestions, 'Scenario-authored stakeholder research prompt.']),
+        'A stakeholder profile designed to separate decision influence from unverified assumptions.',
+        [`The business context is ${blueprint.businessSituation}`, `The observable issue is ${blueprint.observableSymptom}`, 'Identify who owns the operating problem, who can sponsor a next step, and who may impose delivery or commercial constraints.', openQuestions, 'Scenario-authored stakeholder research prompt.']),
     sourceFromBriefing('FINANCIAL_SIGNAL', 'Commercial signal review', 'Analyst financial brief', 'MEDIUM', 68,
-      'A commercial briefing that keeps value assumptions explicitly provisional.',
-      [`The scenario pressure is ${blueprint.observableSymptom}`, `Any value case should support this mandate: ${blueprint.consultingMandate}`, 'Do not treat a visible signal as a confirmed budget, approval path, or business case until a stakeholder validates it.', openQuestions, 'Scenario-authored commercial analysis.']),
+        'A commercial briefing that keeps value assumptions explicitly provisional.',
+        [`The scenario pressure is ${blueprint.observableSymptom}`, `Any value case should support this mandate: ${blueprint.consultingMandate}`, 'Do not treat a visible signal as a confirmed budget, approval path, or business case until a stakeholder validates it.', openQuestions, 'Scenario-authored commercial analysis.']),
     sourceFromBriefing('TECHNOLOGY_INDICATOR', 'Operating systems briefing', 'Technology landscape note', 'MEDIUM', 66,
-      'A technology research brief focused on constraints that must be validated before solutioning.',
-      [`The operating context is ${blueprint.businessSituation}`, `The symptom to investigate is ${blueprint.observableSymptom}`, 'Research the current workflow, dependencies, data flow, security obligations and adoption constraints before proposing a technical response.', openQuestions, 'Scenario-authored technology research prompt.']),
+        'A technology research brief focused on constraints that must be validated before solutioning.',
+        [`The operating context is ${blueprint.businessSituation}`, `The symptom to investigate is ${blueprint.observableSymptom}`, 'Research the current workflow, dependencies, data flow, security obligations and adoption constraints before proposing a technical response.', openQuestions, 'Scenario-authored technology research prompt.']),
   ]
 }
 
@@ -186,7 +185,18 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   }
   const startEditingLead = (item: LeadAuthoringView) => {
     setEditingLeadId(item.id)
-    setLead(leadAuthoringFormFrom(item))
+    setLead({
+      companyName: item.companyName,
+      industry: item.industry,
+      publicDescription: item.publicDescription ?? '',
+      difficulty: item.difficulty as LeadAuthoringRequest['difficulty'],
+      potentialValueRange: item.potentialValueRange ?? '',
+      decisionMaker: item.decisionMaker ?? '',
+      technologyStack: item.technologyStack ?? '',
+      budgetSignal: item.budgetSignal ?? '',
+      painSeverity: item.painSeverity ?? '',
+      signals: item.signals,
+    })
   }
   const resetLeadForm = () => {
     setEditingLeadId(null)
@@ -198,168 +208,168 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   })
 
   return (
-    <Stack gap={5} className={styles.authoringWorkspace}>
-      <Tile className={styles.readinessTile}>
-        <div className={styles.readinessHeader}>
-          <div>
-            <p className={styles.sectionEyebrow}>Version {scenario.contentVersion} · {scenario.status}</p>
-            <h5>{readiness.readyToPublish ? 'Ready to publish' : 'Publishing checklist'}</h5>
+      <Stack gap={5} className={styles.authoringWorkspace}>
+        <Tile className={styles.readinessTile}>
+          <div className={styles.readinessHeader}>
+            <div>
+              <p className={styles.sectionEyebrow}>Version {scenario.version} · {scenario.status}</p>
+              <h5>{readiness.readyToPublish ? 'Ready to publish' : 'Publishing checklist'}</h5>
+            </div>
+            <Tag type={readiness.readyToPublish ? 'green' : 'warm-gray'}>{readiness.readyToPublish ? 'Ready' : `${readiness.blockers.length} actions needed`}</Tag>
           </div>
-          <Tag type={readiness.readyToPublish ? 'green' : 'warm-gray'}>{readiness.readyToPublish ? 'Ready' : `${readiness.blockers.length} actions needed`}</Tag>
-        </div>
-        {readiness.blockers.length > 0 ? (
-          <ul className={styles.readinessList}>{readiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>
-        ) : <p className={styles.readyCopy}>This revision has a persona, a playable lead, governed truth, reveal rules and an assessment rubric.</p>}
-        <div className={styles.readinessMetrics}>
-          <span>{readiness.personaCount} personas</span><span>{readiness.leadCount} leads</span>
-          <span>{readiness.canonicalFactCount} facts</span><span>{readiness.revealRuleCount} reveal rules</span>
-        </div>
-      </Tile>
-
-      {!editable && (
-        <Tile className={styles.revisionTile}>
-          <h5>Published content is immutable</h5>
-          <p>Create a draft revision to change content. Existing learner engagements remain on this published version.</p>
-          {revisionCreated && <InlineNotification kind="success" title="Draft revision created" subtitle="Find the new draft in the scenario catalogue and complete its checklist before publishing." hideCloseButton />}
-          <Button size="sm" renderIcon={CopyFile} disabled={createRevision.isPending} onClick={() => createRevision.mutate(undefined, { onSuccess: () => setRevisionCreated(true) })}>
-            Create draft revision
-          </Button>
+          {readiness.blockers.length > 0 ? (
+              <ul className={styles.readinessList}>{readiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul>
+          ) : <p className={styles.readyCopy}>This revision has a persona, a playable lead, governed truth, reveal rules and an assessment rubric.</p>}
+          <div className={styles.readinessMetrics}>
+            <span>{readiness.personaCount} personas</span><span>{readiness.leadCount} leads</span>
+            <span>{readiness.canonicalFactCount} facts</span><span>{readiness.revealRuleCount} reveal rules</span>
+          </div>
         </Tile>
-      )}
 
-      {editable && <>
-        <section className={styles.authoringSection}>
-          <div><p className={styles.sectionEyebrow}>01 · Scenario blueprint</p><h5>Context and learning contract</h5></div>
-          <div className={styles.authoringGrid}>
-            <TextInput id={`${scenario.id}-blueprint-title`} labelText="Scenario title" value={blueprint.title} onChange={(event) => setBlueprint({ ...blueprint, title: event.target.value })} />
-            <TextInput id={`${scenario.id}-blueprint-industry`} labelText="Industry" value={blueprint.industry} onChange={(event) => setBlueprint({ ...blueprint, industry: event.target.value })} />
-            <TextInput id={`${scenario.id}-blueprint-role`} labelText="Learner role" value={blueprint.consultantRole} onChange={(event) => setBlueprint({ ...blueprint, consultantRole: event.target.value })} />
-            <NumberInput id={`${scenario.id}-blueprint-days`} label="Simulated days" min={1} max={90} value={blueprint.simulatedDays} onChange={(_event, state) => setBlueprint({ ...blueprint, simulatedDays: Number(state?.value ?? 10) })} />
-            <TextArea id={`${scenario.id}-blueprint-description`} className={styles.fullWidth} labelText="Scenario description" rows={3} value={blueprint.description} onChange={(event) => setBlueprint({ ...blueprint, description: event.target.value })} />
-            <TextArea id={`${scenario.id}-blueprint-business-situation`} className={styles.fullWidth} labelText="Business situation" rows={2} value={blueprint.businessSituation} onChange={(event) => setBlueprint({ ...blueprint, businessSituation: event.target.value })} />
-            <TextArea id={`${scenario.id}-blueprint-observable-symptom`} className={styles.fullWidth} labelText="Observable symptom" rows={2} value={blueprint.observableSymptom} onChange={(event) => setBlueprint({ ...blueprint, observableSymptom: event.target.value })} />
-            <TextArea id={`${scenario.id}-blueprint-consulting-mandate`} className={styles.fullWidth} labelText="Consulting mandate" rows={2} value={blueprint.consultingMandate} onChange={(event) => setBlueprint({ ...blueprint, consultingMandate: event.target.value })} />
-            <TextArea id={`${scenario.id}-blueprint-unknowns`} className={styles.fullWidth} labelText="Unknowns to validate (one per line)" rows={3} value={blueprint.unknownsToValidate.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, unknownsToValidate: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
-            <TextArea id={`${scenario.id}-blueprint-objective`} className={styles.fullWidth} labelText="Learning objective" rows={3} value={blueprint.objective} onChange={(event) => setBlueprint({ ...blueprint, objective: event.target.value })} />
-            <TextArea id={`${scenario.id}-blueprint-criteria`} className={styles.fullWidth} labelText="Success criteria (one per line)" rows={4} value={blueprint.successCriteria.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, successCriteria: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
-          </div>
-          {updateBlueprint.isError && <InlineNotification kind="error" title="Blueprint could not be saved" subtitle="Only draft versions can be edited. Review the required fields and try again." />}
-          <Button size="sm" disabled={updateBlueprint.isPending || !blueprint.title || !blueprint.industry || !blueprint.description || !blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate || blueprint.unknownsToValidate.length === 0 || !blueprint.objective} onClick={saveBlueprint}>Save blueprint</Button>
-        </section>
+        {!editable && (
+            <Tile className={styles.revisionTile}>
+              <h5>Published content is immutable</h5>
+              <p>Create a draft revision to change content. Existing learner engagements remain on this published version.</p>
+              {revisionCreated && <InlineNotification kind="success" title="Draft revision created" subtitle="Find the new draft in the scenario catalogue and complete its checklist before publishing." hideCloseButton />}
+              <Button size="sm" renderIcon={CopyFile} disabled={createRevision.isPending} onClick={() => createRevision.mutate(undefined, { onSuccess: () => setRevisionCreated(true) })}>
+                Create draft revision
+              </Button>
+            </Tile>
+        )}
 
-        <section className={styles.authoringSection}>
-          <div><p className={styles.sectionEyebrow}>02 · Evidence deck</p><h5>Sources learners must assess</h5><p className={styles.sectionHelp}>These are fixed, versioned scenario sources. Learners must review a source and write their own takeaway before it enters the evidence board.</p></div>
-          <Button size="sm" kind="secondary" renderIcon={CopyFile} disabled={!blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate} onClick={addStarterResearchPack}>
-            Create starter source pack
-          </Button>
-          <Stack gap={3}>
-            {config.researchSources.map((source, index) => (
-              <div className={styles.factRow} key={source.id}>
-                <TextInput id={`${scenario.id}-source-id-${index}`} labelText="Source ID" value={source.id} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} />
-                <TextInput id={`${scenario.id}-source-title-${index}`} labelText="Source title" value={source.title} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item) })} />
-                <TextInput id={`${scenario.id}-source-type-${index}`} labelText="Source type" value={source.sourceType} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, sourceType: event.target.value } : item) })} />
-                <Select id={`${scenario.id}-source-category-${index}`} labelText="Research category" value={source.evidenceType} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, evidenceType: event.target.value as EvidenceType } : item) })}>{evidenceTypes.map((type) => <SelectItem key={type} value={type} text={label(type)} />)}</Select>
-                <Select id={`${scenario.id}-source-reliability-${index}`} labelText="Reliability" value={source.confidence} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, confidence: event.target.value as ResearchSource['confidence'] } : item) })}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select>
-                <NumberInput id={`${scenario.id}-source-relevance-${index}`} label="Problem relevance" min={0} max={100} value={source.relevanceScore} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, relevanceScore: Number(state?.value ?? 0) } : item) })} />
-                <TextArea id={`${scenario.id}-source-summary-${index}`} className={styles.fullWidth} labelText="What the source says" rows={2} value={source.summary} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, summary: event.target.value } : item) })} />
-                <div className={`${styles.fullWidth} ${styles.sourceBlocks}`}>
-                  <span>Document blocks (optional: learners can select text from these blocks)</span>
-                  {source.blocks.map((block, blockIndex) => <div className={styles.sourceBlockRow} key={block.id}>
-                    <Select id={`${scenario.id}-source-block-type-${index}-${blockIndex}`} labelText="Block type" value={block.type} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, type: event.target.value as ResearchSourceBlock['type'] } : entry) } : item) })}>
-                      {(['PARAGRAPH', 'QUOTE', 'METRIC', 'CAPTION'] as const).map((type) => <SelectItem key={type} value={type} text={label(type)} />)}
+        {editable && <>
+          <section className={styles.authoringSection}>
+            <div><p className={styles.sectionEyebrow}>01 · Scenario blueprint</p><h5>Context and learning contract</h5></div>
+            <div className={styles.authoringGrid}>
+              <TextInput id={`${scenario.id}-blueprint-title`} labelText="Scenario title" value={blueprint.title} onChange={(event) => setBlueprint({ ...blueprint, title: event.target.value })} />
+              <TextInput id={`${scenario.id}-blueprint-industry`} labelText="Industry" value={blueprint.industry} onChange={(event) => setBlueprint({ ...blueprint, industry: event.target.value })} />
+              <TextInput id={`${scenario.id}-blueprint-role`} labelText="Learner role" value={blueprint.consultantRole} onChange={(event) => setBlueprint({ ...blueprint, consultantRole: event.target.value })} />
+              <NumberInput id={`${scenario.id}-blueprint-days`} label="Simulated days" min={1} max={90} value={blueprint.simulatedDays} onChange={(_event, state) => setBlueprint({ ...blueprint, simulatedDays: Number(state?.value ?? 10) })} />
+              <TextArea id={`${scenario.id}-blueprint-description`} className={styles.fullWidth} labelText="Scenario description" rows={3} value={blueprint.description} onChange={(event) => setBlueprint({ ...blueprint, description: event.target.value })} />
+              <TextArea id={`${scenario.id}-blueprint-business-situation`} className={styles.fullWidth} labelText="Business situation" rows={2} value={blueprint.businessSituation} onChange={(event) => setBlueprint({ ...blueprint, businessSituation: event.target.value })} />
+              <TextArea id={`${scenario.id}-blueprint-observable-symptom`} className={styles.fullWidth} labelText="Observable symptom" rows={2} value={blueprint.observableSymptom} onChange={(event) => setBlueprint({ ...blueprint, observableSymptom: event.target.value })} />
+              <TextArea id={`${scenario.id}-blueprint-consulting-mandate`} className={styles.fullWidth} labelText="Consulting mandate" rows={2} value={blueprint.consultingMandate} onChange={(event) => setBlueprint({ ...blueprint, consultingMandate: event.target.value })} />
+              <TextArea id={`${scenario.id}-blueprint-unknowns`} className={styles.fullWidth} labelText="Unknowns to validate (one per line)" rows={3} value={blueprint.unknownsToValidate.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, unknownsToValidate: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
+              <TextArea id={`${scenario.id}-blueprint-objective`} className={styles.fullWidth} labelText="Learning objective" rows={3} value={blueprint.objective} onChange={(event) => setBlueprint({ ...blueprint, objective: event.target.value })} />
+              <TextArea id={`${scenario.id}-blueprint-criteria`} className={styles.fullWidth} labelText="Success criteria (one per line)" rows={4} value={blueprint.successCriteria.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, successCriteria: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
+            </div>
+            {updateBlueprint.isError && <InlineNotification kind="error" title="Blueprint could not be saved" subtitle="Only draft versions can be edited. Review the required fields and try again." />}
+            <Button size="sm" disabled={updateBlueprint.isPending || !blueprint.title || !blueprint.industry || !blueprint.description || !blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate || blueprint.unknownsToValidate.length === 0 || !blueprint.objective} onClick={saveBlueprint}>Save blueprint</Button>
+          </section>
+
+          <section className={styles.authoringSection}>
+            <div><p className={styles.sectionEyebrow}>02 · Evidence deck</p><h5>Sources learners must assess</h5><p className={styles.sectionHelp}>These are fixed, versioned scenario sources. Learners must review a source and write their own takeaway before it enters the evidence board.</p></div>
+            <Button size="sm" kind="secondary" renderIcon={CopyFile} disabled={!blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate} onClick={addStarterResearchPack}>
+              Create starter source pack
+            </Button>
+            <Stack gap={3}>
+              {config.researchSources.map((source, index) => (
+                  <div className={styles.factRow} key={source.id}>
+                    <TextInput id={`${scenario.id}-source-id-${index}`} labelText="Source ID" value={source.id} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} />
+                    <TextInput id={`${scenario.id}-source-title-${index}`} labelText="Source title" value={source.title} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item) })} />
+                    <TextInput id={`${scenario.id}-source-type-${index}`} labelText="Source type" value={source.sourceType} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, sourceType: event.target.value } : item) })} />
+                    <Select id={`${scenario.id}-source-category-${index}`} labelText="Research category" value={source.evidenceType} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, evidenceType: event.target.value as EvidenceType } : item) })}>{evidenceTypes.map((type) => <SelectItem key={type} value={type} text={label(type)} />)}</Select>
+                    <Select id={`${scenario.id}-source-reliability-${index}`} labelText="Reliability" value={source.confidence} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, confidence: event.target.value as ResearchSource['confidence'] } : item) })}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select>
+                    <NumberInput id={`${scenario.id}-source-relevance-${index}`} label="Problem relevance" min={0} max={100} value={source.relevanceScore} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, relevanceScore: Number(state?.value ?? 0) } : item) })} />
+                    <TextArea id={`${scenario.id}-source-summary-${index}`} className={styles.fullWidth} labelText="What the source says" rows={2} value={source.summary} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, summary: event.target.value } : item) })} />
+                    <div className={`${styles.fullWidth} ${styles.sourceBlocks}`}>
+                      <span>Document blocks (optional: learners can select text from these blocks)</span>
+                      {source.blocks.map((block, blockIndex) => <div className={styles.sourceBlockRow} key={block.id}>
+                        <Select id={`${scenario.id}-source-block-type-${index}-${blockIndex}`} labelText="Block type" value={block.type} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, type: event.target.value as ResearchSourceBlock['type'] } : entry) } : item) })}>
+                          {(['PARAGRAPH', 'QUOTE', 'METRIC', 'CAPTION'] as const).map((type) => <SelectItem key={type} value={type} text={label(type)} />)}
+                        </Select>
+                        <Select id={`${scenario.id}-source-block-purpose-${index}-${blockIndex}`} labelText="Content role" value={block.purpose} onChange={(event) => {
+                          const purpose = event.target.value as ResearchSourceBlock['purpose']
+                          const selectable = purpose === 'FACT' || purpose === 'INTERPRETATION'
+                          setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, purpose, selectable } : entry) } : item) })
+                        }}>
+                          <SelectItem value="FACT" text="Scenario fact" />
+                          <SelectItem value="INTERPRETATION" text="Derived interpretation" />
+                          <SelectItem value="CONTEXT" text="Context only" />
+                          <SelectItem value="UNCERTAINTY" text="Unresolved" />
+                          <SelectItem value="GUIDANCE" text="Guidance (not selectable)" />
+                        </Select>
+                        <TextArea id={`${scenario.id}-source-block-content-${index}-${blockIndex}`} labelText="Content" rows={2} value={block.content} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, content: event.target.value } : entry) } : item) })} />
+                        <TextInput id={`${scenario.id}-source-block-facts-${index}-${blockIndex}`} labelText="Canonical fact IDs (comma separated)" value={block.factIds.join(', ')} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, factIds: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } : entry) } : item) })} />
+                        <TextInput id={`${scenario.id}-source-block-attribution-${index}-${blockIndex}`} labelText="Attribution (optional)" value={block.attribution ?? ''} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, attribution: event.target.value || null } : entry) } : item) })} />
+                        <Checkbox id={`${scenario.id}-source-block-selectable-${index}-${blockIndex}`} labelText="Learner can add as evidence" checked={block.selectable} disabled={block.purpose !== 'FACT' && block.purpose !== 'INTERPRETATION'} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, selectable: Boolean(state.checked) } : entry) } : item) })} />
+                        <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription="Remove document block" onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.filter((_entry, entryIndex) => entryIndex !== blockIndex) } : item) })} />
+                      </div>)}
+                      <Button size="sm" kind="ghost" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: [...item.blocks, newResearchSourceBlock()] } : item) })}>Add document block</Button>
+                    </div>
+                    <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${source.title || 'source'}`} onClick={() => setConfig({ ...config, researchSources: config.researchSources.filter((_item, itemIndex) => itemIndex !== index) })} />
+                  </div>
+              ))}
+              <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: [...config.researchSources, newResearchSource()] })}>Add research source</Button>
+            </Stack>
+          </section>
+
+          <section className={styles.authoringSection}>
+            <div><p className={styles.sectionEyebrow}>02 · Canonical truth</p><h5>Facts the simulation is allowed to use</h5><p className={styles.sectionHelp}>Facts are versioned ground truth. AI may phrase them, but cannot add or replace them.</p></div>
+            <Stack gap={3}>
+              {config.canonicalFacts.map((fact, index) => (
+                  <div className={styles.factRow} key={fact.id}>
+                    <TextInput id={`${scenario.id}-fact-id-${index}`} labelText="Fact ID" value={fact.id} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} />
+                    <TextInput id={`${scenario.id}-fact-label-${index}`} labelText="Fact label" value={fact.label} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} />
+                    <Select id={`${scenario.id}-fact-type-${index}`} labelText="Research category" value={fact.evidenceType} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, evidenceType: event.target.value as EvidenceType } : item) })}>
+                      {evidenceTypes.map((type) => <SelectItem key={type} value={type} text={label(type)} />)}
                     </Select>
-                    <Select id={`${scenario.id}-source-block-purpose-${index}-${blockIndex}`} labelText="Content role" value={block.purpose} onChange={(event) => {
-                      const purpose = event.target.value as ResearchSourceBlock['purpose']
-                      const selectable = purpose === 'FACT' || purpose === 'INTERPRETATION'
-                      setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, purpose, selectable } : entry) } : item) })
-                    }}>
-                      <SelectItem value="FACT" text="Scenario fact" />
-                      <SelectItem value="INTERPRETATION" text="Derived interpretation" />
-                      <SelectItem value="CONTEXT" text="Context only" />
-                      <SelectItem value="UNCERTAINTY" text="Unresolved" />
-                      <SelectItem value="GUIDANCE" text="Guidance (not selectable)" />
+                    <TextArea id={`${scenario.id}-fact-value-${index}`} labelText="Canonical value" rows={2} value={fact.value} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item) })} />
+                    <Checkbox id={`${scenario.id}-fact-research-${index}`} labelText="Available in research" checked={fact.availableInResearch} onChange={(_event, state) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, availableInResearch: Boolean(state.checked) } : item) })} />
+                    <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${fact.label || 'fact'}`} onClick={() => setConfig({ ...config, canonicalFacts: config.canonicalFacts.filter((_item, itemIndex) => itemIndex !== index) })} />
+                  </div>
+              ))}
+              <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, canonicalFacts: [...config.canonicalFacts, newFact()] })}>Add canonical fact</Button>
+            </Stack>
+          </section>
+
+          <section className={styles.authoringSection}>
+            <div><p className={styles.sectionEyebrow}>03 · Evidence reveal rules</p><h5>What learners must earn before an insight appears</h5></div>
+            <Stack gap={3}>
+              {config.revealRules.map((rule, index) => (
+                  <div className={styles.ruleRow} key={`${rule.target}-${index}`}>
+                    <Select id={`${scenario.id}-reveal-target-${index}`} labelText="Unlock field" value={rule.target} onChange={(event) => setConfig({ ...config, revealRules: config.revealRules.map((item, itemIndex) => itemIndex === index ? { ...item, target: event.target.value as RevealTarget } : item) })}>
+                      {targets.map((target) => <SelectItem key={target} value={target} text={label(target)} />)}
                     </Select>
-                    <TextArea id={`${scenario.id}-source-block-content-${index}-${blockIndex}`} labelText="Content" rows={2} value={block.content} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, content: event.target.value } : entry) } : item) })} />
-                    <TextInput id={`${scenario.id}-source-block-facts-${index}-${blockIndex}`} labelText="Canonical fact IDs (comma separated)" value={block.factIds.join(', ')} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, factIds: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } : entry) } : item) })} />
-                    <TextInput id={`${scenario.id}-source-block-attribution-${index}-${blockIndex}`} labelText="Attribution (optional)" value={block.attribution ?? ''} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, attribution: event.target.value || null } : entry) } : item) })} />
-                    <Checkbox id={`${scenario.id}-source-block-selectable-${index}-${blockIndex}`} labelText="Learner can add as evidence" checked={block.selectable} disabled={block.purpose !== 'FACT' && block.purpose !== 'INTERPRETATION'} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, selectable: Boolean(state.checked) } : entry) } : item) })} />
-                    <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription="Remove document block" onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.filter((_entry, entryIndex) => entryIndex !== blockIndex) } : item) })} />
-                  </div>)}
-                  <Button size="sm" kind="ghost" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: [...item.blocks, newResearchSourceBlock()] } : item) })}>Add document block</Button>
-                </div>
-                <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${source.title || 'source'}`} onClick={() => setConfig({ ...config, researchSources: config.researchSources.filter((_item, itemIndex) => itemIndex !== index) })} />
-              </div>
-            ))}
-            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: [...config.researchSources, newResearchSource()] })}>Add research source</Button>
-          </Stack>
-        </section>
+                    <NumberInput id={`${scenario.id}-reveal-count-${index}`} label="Minimum evidence" min={1} max={8} value={rule.minimumEvidenceCount} onChange={(_event, state) => setConfig({ ...config, revealRules: config.revealRules.map((item, itemIndex) => itemIndex === index ? { ...item, minimumEvidenceCount: Number(state?.value ?? 1) } : item) })} />
+                    <div className={styles.ruleTypes}><span>Required evidence types</span>{evidenceTypes.map((type) => <Checkbox key={type} id={`${scenario.id}-reveal-${index}-${type}`} labelText={label(type)} checked={rule.requiredEvidenceTypes.includes(type)} onChange={(_event, state) => setConfig({ ...config, revealRules: config.revealRules.map((item, itemIndex) => itemIndex === index ? { ...item, requiredEvidenceTypes: state.checked ? [...new Set([...item.requiredEvidenceTypes, type])] : item.requiredEvidenceTypes.filter((value) => value !== type) } : item) })} />)}</div>
+                    <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${label(rule.target)} rule`} onClick={() => setConfig({ ...config, revealRules: config.revealRules.filter((_item, itemIndex) => itemIndex !== index) })} />
+                  </div>
+              ))}
+              <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, revealRules: [...config.revealRules, newRule()] })}>Add reveal rule</Button>
+              {updateConfig.isError && <InlineNotification kind="error" title="Truth configuration could not be saved" subtitle="Fact IDs and reveal targets must be unique. Each rule needs at least one evidence type." />}
+              <Button size="sm" disabled={updateConfig.isPending || config.canonicalFacts.some((fact) => !fact.id.trim() || !fact.label.trim() || !fact.value.trim()) || config.researchSources.some((source) => !source.id.trim() || !source.title.trim() || !source.sourceType.trim() || !source.summary.trim() || source.blocks.some((block) => !block.id.trim() || !block.content.trim())) || config.revealRules.some((rule) => rule.requiredEvidenceTypes.length === 0)} onClick={saveConfig}>Save research design</Button>
+            </Stack>
+          </section>
 
-        <section className={styles.authoringSection}>
-          <div><p className={styles.sectionEyebrow}>02 · Canonical truth</p><h5>Facts the simulation is allowed to use</h5><p className={styles.sectionHelp}>Facts are versioned ground truth. AI may phrase them, but cannot add or replace them.</p></div>
-          <Stack gap={3}>
-            {config.canonicalFacts.map((fact, index) => (
-              <div className={styles.factRow} key={fact.id}>
-                <TextInput id={`${scenario.id}-fact-id-${index}`} labelText="Fact ID" value={fact.id} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} />
-                <TextInput id={`${scenario.id}-fact-label-${index}`} labelText="Fact label" value={fact.label} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} />
-                <Select id={`${scenario.id}-fact-type-${index}`} labelText="Research category" value={fact.evidenceType} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, evidenceType: event.target.value as EvidenceType } : item) })}>
-                  {evidenceTypes.map((type) => <SelectItem key={type} value={type} text={label(type)} />)}
-                </Select>
-                <TextArea id={`${scenario.id}-fact-value-${index}`} labelText="Canonical value" rows={2} value={fact.value} onChange={(event) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, value: event.target.value } : item) })} />
-                <Checkbox id={`${scenario.id}-fact-research-${index}`} labelText="Available in research" checked={fact.availableInResearch} onChange={(_event, state) => setConfig({ ...config, canonicalFacts: config.canonicalFacts.map((item, itemIndex) => itemIndex === index ? { ...item, availableInResearch: Boolean(state.checked) } : item) })} />
-                <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${fact.label || 'fact'}`} onClick={() => setConfig({ ...config, canonicalFacts: config.canonicalFacts.filter((_item, itemIndex) => itemIndex !== index) })} />
-              </div>
-            ))}
-            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, canonicalFacts: [...config.canonicalFacts, newFact()] })}>Add canonical fact</Button>
-          </Stack>
-        </section>
-
-        <section className={styles.authoringSection}>
-          <div><p className={styles.sectionEyebrow}>03 · Evidence reveal rules</p><h5>What learners must earn before an insight appears</h5></div>
-          <Stack gap={3}>
-            {config.revealRules.map((rule, index) => (
-              <div className={styles.ruleRow} key={`${rule.target}-${index}`}>
-                <Select id={`${scenario.id}-reveal-target-${index}`} labelText="Unlock field" value={rule.target} onChange={(event) => setConfig({ ...config, revealRules: config.revealRules.map((item, itemIndex) => itemIndex === index ? { ...item, target: event.target.value as RevealTarget } : item) })}>
-                  {targets.map((target) => <SelectItem key={target} value={target} text={label(target)} />)}
-                </Select>
-                <NumberInput id={`${scenario.id}-reveal-count-${index}`} label="Minimum evidence" min={1} max={8} value={rule.minimumEvidenceCount} onChange={(_event, state) => setConfig({ ...config, revealRules: config.revealRules.map((item, itemIndex) => itemIndex === index ? { ...item, minimumEvidenceCount: Number(state?.value ?? 1) } : item) })} />
-                <div className={styles.ruleTypes}><span>Required evidence types</span>{evidenceTypes.map((type) => <Checkbox key={type} id={`${scenario.id}-reveal-${index}-${type}`} labelText={label(type)} checked={rule.requiredEvidenceTypes.includes(type)} onChange={(_event, state) => setConfig({ ...config, revealRules: config.revealRules.map((item, itemIndex) => itemIndex === index ? { ...item, requiredEvidenceTypes: state.checked ? [...new Set([...item.requiredEvidenceTypes, type])] : item.requiredEvidenceTypes.filter((value) => value !== type) } : item) })} />)}</div>
-                <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${label(rule.target)} rule`} onClick={() => setConfig({ ...config, revealRules: config.revealRules.filter((_item, itemIndex) => itemIndex !== index) })} />
-              </div>
-            ))}
-            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, revealRules: [...config.revealRules, newRule()] })}>Add reveal rule</Button>
-            {updateConfig.isError && <InlineNotification kind="error" title="Truth configuration could not be saved" subtitle="Fact IDs and reveal targets must be unique. Each rule needs at least one evidence type." />}
-            <Button size="sm" disabled={updateConfig.isPending || config.canonicalFacts.some((fact) => !fact.id.trim() || !fact.label.trim() || !fact.value.trim()) || config.researchSources.some((source) => !source.id.trim() || !source.title.trim() || !source.sourceType.trim() || !source.summary.trim() || source.blocks.some((block) => !block.id.trim() || !block.content.trim())) || config.revealRules.some((rule) => rule.requiredEvidenceTypes.length === 0)} onClick={saveConfig}>Save research design</Button>
-          </Stack>
-        </section>
-
-        <section className={styles.authoringSection}>
-          <div><p className={styles.sectionEyebrow}>04 · Lead definitions</p><h5>Playable entry points</h5><p className={styles.sectionHelp}>Lead intelligence is canonical scenario truth and is never returned by learner-facing lead APIs.</p></div>
-          <div className={styles.leadList}>{(leads.data ?? []).map((item) => <div className={styles.leadRow} key={item.id}><div><strong>{item.companyName}</strong><span>{item.industry} · {item.difficulty}</span></div><div><Button hasIconOnly kind="ghost" renderIcon={Edit} iconDescription={`Edit ${item.companyName}`} disabled={deleteLead.isPending} onClick={() => startEditingLead(item)} /><Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Delete ${item.companyName}`} disabled={deleteLead.isPending} onClick={() => deleteLead.mutate(item.id)} /></div></div>)}</div>
-          <div className={styles.authoringGrid}>
-            <TextInput id={`${scenario.id}-lead-company`} labelText="Company" value={lead.companyName} onChange={(event) => setLead({ ...lead, companyName: event.target.value })} />
-            <TextInput id={`${scenario.id}-lead-industry`} labelText="Industry" value={lead.industry} onChange={(event) => setLead({ ...lead, industry: event.target.value })} />
-            <Select id={`${scenario.id}-lead-difficulty`} labelText="Difficulty" value={lead.difficulty} onChange={(event) => setLead({ ...lead, difficulty: event.target.value as LeadAuthoringRequest['difficulty'] })}><SelectItem value="EASY" text="Easy" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HARD" text="Hard" /></Select>
-            <TextInput id={`${scenario.id}-lead-decision-maker`} labelText="Decision maker" value={lead.decisionMaker} onChange={(event) => setLead({ ...lead, decisionMaker: event.target.value })} />
-            <TextArea id={`${scenario.id}-lead-description`} className={styles.fullWidth} labelText="Public description" rows={2} value={lead.publicDescription} onChange={(event) => setLead({ ...lead, publicDescription: event.target.value })} />
-            <TextInput id={`${scenario.id}-lead-tech`} labelText="Technology stack" value={lead.technologyStack} onChange={(event) => setLead({ ...lead, technologyStack: event.target.value })} />
-            <TextInput id={`${scenario.id}-lead-budget`} labelText="Budget signal" value={lead.budgetSignal} onChange={(event) => setLead({ ...lead, budgetSignal: event.target.value })} />
-            <TextInput id={`${scenario.id}-lead-value`} labelText="Potential value range" value={lead.potentialValueRange} onChange={(event) => setLead({ ...lead, potentialValueRange: event.target.value })} />
-            <TextInput id={`${scenario.id}-lead-pain`} labelText="Pain severity" value={lead.painSeverity} onChange={(event) => setLead({ ...lead, painSeverity: event.target.value })} />
-            <TextArea id={`${scenario.id}-lead-signals`} className={styles.fullWidth} labelText="Visible signals (one per line: signal | category)" rows={3} value={lead.signals.map((signal) => `${signal.label} | ${signal.category}`).join('\n')} onChange={(event) => setLead({ ...lead, signals: parseSignals(event.target.value) })} />
-          </div>
-          {(createLead.isError || updateLead.isError) && (
-            <InlineNotification
-              kind="error"
-              title="Lead could not be saved"
-              subtitle={getProblemDetail(createLead.error ?? updateLead.error, 'Check the required lead fields and try again.')}
-            />
-          )}
-          <div className={styles.inlineActions}>
-            <Button size="sm" renderIcon={editingLeadId ? Edit : Add} disabled={createLead.isPending || updateLead.isPending || !lead.companyName.trim() || !lead.industry.trim()} onClick={() => editingLeadId ? updateLead.mutate({ leadId: editingLeadId, request: lead }, { onSuccess: resetLeadForm }) : createLead.mutate(lead, { onSuccess: resetLeadForm })}>{editingLeadId ? 'Save lead' : 'Add lead'}</Button>
-            {editingLeadId && <Button size="sm" kind="tertiary" onClick={resetLeadForm}>Cancel</Button>}
-          </div>
-        </section>
-      </>}
-    </Stack>
+          <section className={styles.authoringSection}>
+            <div><p className={styles.sectionEyebrow}>04 · Lead definitions</p><h5>Playable entry points</h5><p className={styles.sectionHelp}>Lead intelligence is canonical scenario truth and is never returned by learner-facing lead APIs.</p></div>
+            <div className={styles.leadList}>{(leads.data ?? []).map((item) => <div className={styles.leadRow} key={item.id}><div><strong>{item.companyName}</strong><span>{item.industry} · {item.difficulty}</span></div><div><Button hasIconOnly kind="ghost" renderIcon={Edit} iconDescription={`Edit ${item.companyName}`} disabled={deleteLead.isPending} onClick={() => startEditingLead(item)} /><Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Delete ${item.companyName}`} disabled={deleteLead.isPending} onClick={() => deleteLead.mutate(item.id)} /></div></div>)}</div>
+            <div className={styles.authoringGrid}>
+              <TextInput id={`${scenario.id}-lead-company`} labelText="Company" value={lead.companyName} onChange={(event) => setLead({ ...lead, companyName: event.target.value })} />
+              <TextInput id={`${scenario.id}-lead-industry`} labelText="Industry" value={lead.industry} onChange={(event) => setLead({ ...lead, industry: event.target.value })} />
+              <Select id={`${scenario.id}-lead-difficulty`} labelText="Difficulty" value={lead.difficulty} onChange={(event) => setLead({ ...lead, difficulty: event.target.value as LeadAuthoringRequest['difficulty'] })}><SelectItem value="EASY" text="Easy" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HARD" text="Hard" /></Select>
+              <TextInput id={`${scenario.id}-lead-decision-maker`} labelText="Decision maker" value={lead.decisionMaker} onChange={(event) => setLead({ ...lead, decisionMaker: event.target.value })} />
+              <TextArea id={`${scenario.id}-lead-description`} className={styles.fullWidth} labelText="Public description" rows={2} value={lead.publicDescription} onChange={(event) => setLead({ ...lead, publicDescription: event.target.value })} />
+              <TextInput id={`${scenario.id}-lead-tech`} labelText="Technology stack" value={lead.technologyStack} onChange={(event) => setLead({ ...lead, technologyStack: event.target.value })} />
+              <TextInput id={`${scenario.id}-lead-budget`} labelText="Budget signal" value={lead.budgetSignal} onChange={(event) => setLead({ ...lead, budgetSignal: event.target.value })} />
+              <TextInput id={`${scenario.id}-lead-value`} labelText="Potential value range" value={lead.potentialValueRange} onChange={(event) => setLead({ ...lead, potentialValueRange: event.target.value })} />
+              <TextInput id={`${scenario.id}-lead-pain`} labelText="Pain severity" value={lead.painSeverity} onChange={(event) => setLead({ ...lead, painSeverity: event.target.value })} />
+              <TextArea id={`${scenario.id}-lead-signals`} className={styles.fullWidth} labelText="Visible signals (one per line: signal | category)" rows={3} value={lead.signals.map((signal) => `${signal.label} | ${signal.category}`).join('\n')} onChange={(event) => setLead({ ...lead, signals: parseSignals(event.target.value) })} />
+            </div>
+            {(createLead.isError || updateLead.isError) && (
+                <InlineNotification
+                    kind="error"
+                    title="Lead could not be saved"
+                    subtitle={getProblemDetail(createLead.error ?? updateLead.error, 'Check the required lead fields and try again.')}
+                />
+            )}
+            <div className={styles.inlineActions}>
+              <Button size="sm" renderIcon={editingLeadId ? Edit : Add} disabled={createLead.isPending || updateLead.isPending || !lead.companyName.trim() || !lead.industry.trim()} onClick={() => editingLeadId ? updateLead.mutate({ leadId: editingLeadId, request: lead }, { onSuccess: resetLeadForm }) : createLead.mutate(lead, { onSuccess: resetLeadForm })}>{editingLeadId ? 'Save lead' : 'Add lead'}</Button>
+              {editingLeadId && <Button size="sm" kind="tertiary" onClick={resetLeadForm}>Cancel</Button>}
+            </div>
+          </section>
+        </>}
+      </Stack>
   )
 }
