@@ -105,7 +105,7 @@ public class LeadService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         UUID leadId = engagement.getSelectedLeadId();
         if (leadId == null) {
-            throw new IllegalStateException("No lead selected for engagement");
+            throw new LeadNotSelectedException(engagementId);
         }
 
         Set<UUID> validatedSupportingIds = validateSupportingEvidence(engagementId, supportingEvidenceIds);
@@ -221,7 +221,7 @@ public class LeadService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         UUID leadId = engagement.getSelectedLeadId();
         if (leadId == null) {
-            throw new IllegalStateException("No lead selected for engagement");
+            throw new LeadNotSelectedException(engagementId);
         }
         Lead lead = leadRepository.findById(leadId)
                 .orElseThrow(() -> new NotFoundException("Lead", leadId));

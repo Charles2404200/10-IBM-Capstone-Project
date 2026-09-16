@@ -24,8 +24,12 @@ import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -33,6 +37,8 @@ public class OutreachService {
 
     private static final int MAX_ATTEMPTS = 3;
     private static final int PROMPT_VERSION = 1;
+    private static final byte[] IDEMPOTENCY_NAMESPACE =
+            "consulting-sim:outreach-attempt:v1".getBytes(StandardCharsets.UTF_8);
 
     private final OutreachRepository outreachRepository;
     private final EngagementRepository engagementRepository;
@@ -60,8 +66,31 @@ public class OutreachService {
 
     @Transactional
     public OutreachResponse send(UUID engagementId, UUID userId, String subject, String body) {
+        return send(engagementId, userId, subject, body, null);
+    }
+
+    @Transactional
+    public OutreachResponse send(UUID engagementId, UUID userId, String subject, String body,
+                                 String requestId) {
         Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
+        String normalizedRequestId = normalizeRequestId(requestId);
+        UUID idempotentAttemptId = normalizedRequestId == null
+                ? null
+                : idempotentAttemptId(engagementId, normalizedRequestId);
+
+        if (idempotentAttemptId != null) {
+            var existing = outreachRepository.findById(idempotentAttemptId);
+            if (existing.isPresent()) {
+                OutreachAttempt attempt = existing.get();
+                if (!attempt.getEngagementId().equals(engagementId)
+                        || !attempt.getSubject().equals(subject)
+                        || !attempt.getBody().equals(body)) {
+                    throw new IdempotencyKeyConflictException(normalizedRequestId);
+                }
+                return OutreachResponse.from(attempt);
+            }
+        }
 
         if (engagement.getState() != EngagementState.HYPOTHESIS_READY
                 && engagement.getState() != EngagementState.OUTREACHING) {
@@ -83,7 +112,10 @@ public class OutreachService {
             engagement.transitionTo(EngagementState.OUTREACHING, "Outreach attempt #" + (attemptCount + 1));
         }
 
-        OutreachAttempt attempt = OutreachAttempt.create(engagementId, attemptCount + 1, subject, body);
+        OutreachAttempt attempt = idempotentAttemptId == null
+                ? OutreachAttempt.create(engagementId, attemptCount + 1, subject, body)
+                : OutreachAttempt.createIdempotent(
+                        idempotentAttemptId, engagementId, attemptCount + 1, subject, body);
         DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
         Lead lead = leadRepository.findById(engagement.getSelectedLeadId())
                 .orElseThrow(() -> new NotFoundException("Lead", engagement.getSelectedLeadId()));
@@ -117,6 +149,39 @@ public class OutreachService {
         engagementRepository.save(engagement);
 
         return OutreachResponse.from(attempt);
+    }
+
+    private String normalizeRequestId(String requestId) {
+        if (requestId == null || requestId.isBlank()) {
+            return null;
+        }
+        String normalized = requestId.trim();
+        if (normalized.length() > 100) {
+            throw new InvalidRequestIdException();
+        }
+        return normalized;
+    }
+
+    private UUID idempotentAttemptId(UUID engagementId, String requestId) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(IDEMPOTENCY_NAMESPACE);
+            digest.update((byte) 0);
+            digest.update(ByteBuffer.allocate(16)
+                    .putLong(engagementId.getMostSignificantBits())
+                    .putLong(engagementId.getLeastSignificantBits())
+                    .array());
+            digest.update((byte) 0);
+            byte[] hash = digest.digest(requestId.getBytes(StandardCharsets.UTF_8));
+
+            // RFC 9562 version 8 identifies an application-defined, name-based UUID.
+            hash[6] = (byte) ((hash[6] & 0x0f) | 0x80);
+            hash[8] = (byte) ((hash[8] & 0x3f) | 0x80);
+            ByteBuffer value = ByteBuffer.wrap(hash);
+            return new UUID(value.getLong(), value.getLong());
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 
     private void assertFollowUpIsAllowed(OutreachAttempt latestAttempt) {
@@ -178,6 +243,18 @@ public class OutreachService {
     public static class RequiredOutreachActionException extends DomainException {
         RequiredOutreachActionException(String message) {
             super(message);
+        }
+    }
+
+    public static class IdempotencyKeyConflictException extends DomainException {
+        IdempotencyKeyConflictException(String requestId) {
+            super("Outreach request ID " + requestId + " was already used with different content");
+        }
+    }
+
+    public static class InvalidRequestIdException extends DomainException {
+        InvalidRequestIdException() {
+            super("Outreach request ID must not exceed 100 characters");
         }
     }
 }
