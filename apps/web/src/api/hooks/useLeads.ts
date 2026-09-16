@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/api/client'
-import type { EvidenceType, LeadCatalogPage, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, SaveResearchPayload } from '@/api/types'
+import type { LeadCatalogPage, LeadIntelligence, LeadSummary, ResearchArtifact, ResearchEvidence, ResearchGateStatus, ResearchSourceDeck, SaveResearchPayload } from '@/api/types'
 
 export interface LeadCatalogFilters {
   scenarioId?: string
@@ -14,6 +14,7 @@ export interface LeadCatalogFilters {
 
 const LEAD_CATALOG_STALE_TIME = 60_000
 const LEADS_BY_SCENARIO_STALE_TIME = 10 * 60_000
+const RESEARCH_SOURCE_DECK_STALE_TIME = 10 * 60_000
 
 async function fetchLeadCatalog(filters: LeadCatalogFilters) {
   const res = await apiClient.get<LeadCatalogPage>('/api/v1/lead-catalog', { params: filters })
@@ -113,15 +114,20 @@ export function useSaveResearch(engagementId: string) {
   })
 }
 
-export function useGenerateResearchIntelligence(engagementId: string) {
-  return useMutation({
-    mutationFn: async (evidenceType: EvidenceType) => {
-      const res = await apiClient.post<ResearchArtifact[]>(
-        `/api/v1/engagements/${engagementId}/research-intelligence`,
-        { evidenceType }
-      )
+/** Immutable scenario-authored source deck. The API fans out lanes concurrently. */
+export function useResearchSourceDeck(engagementId: string) {
+  return useQuery({
+    queryKey: ['research-source-deck', engagementId],
+    queryFn: async () => {
+      const res = await apiClient.get<ResearchSourceDeck>(`/api/v1/engagements/${engagementId}/research-source-deck`)
       return res.data
     },
+    enabled: Boolean(engagementId),
+    staleTime: RESEARCH_SOURCE_DECK_STALE_TIME,
+    gcTime: 30 * 60_000,
+    refetchInterval: (query) => query.state.data?.enrichmentPending ? 2_000 : false,
+    refetchOnWindowFocus: false,
+    retry: 1,
   })
 }
 

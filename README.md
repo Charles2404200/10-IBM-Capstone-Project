@@ -193,6 +193,31 @@ docker compose --profile containerized-web up -d --build web
 # Web: http://localhost:3000 (nginx-served production build)
 ```
 
+## Corpus-Backed Client Intelligence
+
+Long-form client research is a governed scenario corpus, not an unconstrained
+model completion. Authors upload material only to a DRAFT scenario through
+`POST /api/v1/admin/scenarios/{scenarioId}/documents`, then publish the
+revision through the normal scenario workflow. Use one document collection per
+research lane:
+
+| Learner lane | Knowledge collection |
+|---|---|
+| Company news | `RESEARCH_COMPANY_NEWS` |
+| Stakeholder profile | `RESEARCH_STAKEHOLDER` |
+| Financial signal | `RESEARCH_FINANCIAL` |
+| Technology indicator | `RESEARCH_TECHNOLOGY` |
+
+Each lane must contain 4-6 authored paragraphs with 180-320 words in total.
+Across Company News, Stakeholder, Financial and Technology this gives learners
+approximately 1,000 words of scenario-specific material. Separate paragraphs
+with blank lines; ingestion preserves each as a research passage and records
+its chunk UUID. The reader serves this approved corpus immediately with a chunk
+ID attached to every selectable paragraph. AI enrichment is optional and is
+rejected unless every paragraph cites approved lane chunk IDs and covers every
+required passage. Lanes outside this contract retain the compact fact-grounded
+source deck, so no source is padded from sparse scenario data.
+
 
 ## Project Structure
 

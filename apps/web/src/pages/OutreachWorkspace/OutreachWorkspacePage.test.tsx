@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import OutreachWorkspacePage from './OutreachWorkspacePage'
@@ -54,6 +54,7 @@ function makeEvidence(sequenceNo: number): ResearchEvidence {
     occurredOn: null,
     confidence: 'HIGH',
     relevanceScore: 80,
+    reasoningLane: null,
     sequenceNo,
     supportingEvidenceIds: [],
     createdAt: '2026-08-01T10:00:00Z',
@@ -124,7 +125,8 @@ describe('OutreachWorkspacePage evidence assistant', () => {
     setup([makeEvidence(1)])
     renderPage()
 
-    const evidenceCard = screen.getByRole('button', { name: /Client signal number 1/, })
+    const evidenceAssistant = screen.getByRole('region', { name: 'Evidence you can reference' })
+    const evidenceCard = within(evidenceAssistant).getByRole('button', { name: /Client signal number 1/, })
     await user.click(evidenceCard)
     const messageField = screen.getByLabelText('Message') as HTMLTextAreaElement
 
@@ -132,13 +134,11 @@ describe('OutreachWorkspacePage evidence assistant', () => {
     expect(messageField.value).toContain('Client signal number 1')
   })
 
-  // changed after qa changes
-  it('does not show a separate "evidence you can reference" strip outside the assist panel', () => {
+  it('shows an evidence strip before the meeting is secured', () => {
     setup([makeEvidence(1)])
     renderPage()
 
-    // evidence should now be contained within the assist panel
-    expect(screen.queryByText('Grounded context')).not.toBeInTheDocument()
+    expect(screen.getByText('Grounded context')).toBeInTheDocument()
   })
 })
 

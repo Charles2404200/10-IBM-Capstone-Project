@@ -7,6 +7,8 @@ const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const apiClient = axios.create({
   baseURL: apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
+  // A stalled dependency must surface as a recoverable UI error, never a forever-loading workspace.
+  timeout: 8_000,
 })
 
 // Attach JWT token to every request

@@ -83,7 +83,9 @@ public class LeadService {
         if (!lead.getScenarioId().equals(engagement.getScenarioId())) {
             throw new LeadNotInScenarioException(leadId, engagement.getScenarioId());
         }
-        engagement.selectLead(leadId);
+        String profileSnapshot = difficultyProfileService.snapshot(
+                difficultyProfileService.forLeadDifficulty(difficultyProfileService.forEngagement(engagement), lead.getDifficulty()));
+        engagement.selectLead(leadId, profileSnapshot);
         engagementRepository.save(engagement);
     }
 
@@ -95,6 +97,7 @@ public class LeadService {
                                                 EvidenceOrigin origin, EvidenceVerificationStatus verificationStatus,
                                                 LocalDate occurredOn, ConfidenceLevel confidence,
                                                 Integer relevanceScore,
+                                                ReasoningLane reasoningLane,
                                                 Set<UUID> supportingEvidenceIds) {
         Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
@@ -119,6 +122,7 @@ public class LeadService {
                 .occurredOn(occurredOn)
                 .confidence(confidence)
                 .relevanceScore(normalizeRelevance(origin, relevanceScore))
+                .reasoningLane(reasoningLane)
                 .sequenceNo(nextSequence)
                 .supportingEvidenceIds(validatedSupportingIds)
                 .build();

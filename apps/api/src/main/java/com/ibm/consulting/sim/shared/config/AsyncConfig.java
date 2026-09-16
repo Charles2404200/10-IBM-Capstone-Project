@@ -150,6 +150,26 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor.getThreadPoolExecutor();
     }
 
+    /**
+     * Serves the four read-only research lanes in parallel. It is deliberately
+     * isolated from AI and email work so opening a source deck stays responsive
+     * during provider or SMTP degradation.
+     */
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService researchSourceDeckExecutor(
+            @Value("${app.async.research-deck-pool-size:4}") int poolSize,
+            @Value("${app.async.research-deck-queue-capacity:32}") int queueCapacity) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(poolSize);
+        executor.setMaxPoolSize(poolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix("research-deck-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        executor.initialize();
+        return executor.getThreadPoolExecutor();
+    }
+
     /** General-purpose pool for {@code @Async}-annotated application methods. */
     @Override
     public Executor getAsyncExecutor() {

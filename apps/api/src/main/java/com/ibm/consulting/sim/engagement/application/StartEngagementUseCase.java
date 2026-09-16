@@ -89,7 +89,8 @@ public class StartEngagementUseCase {
                         .orElseThrow(() -> new PersonaNotInScenarioException(personaId, scenario.getId()));
 
         Engagement engagement = Engagement.start(userId, scenario.getId(), persona.getId(),
-                difficultyProfileService.snapshot(difficultyProfileService.forScenario(scenario)));
+            difficultyProfileService.snapshot(difficultyProfileService.forLeadDifficulty(
+                difficultyProfileService.forScenario(scenario), lead.getDifficulty())));
         engagement.selectLead(lead.getId());
         engagementRepository.save(engagement);
         return EngagementResponse.from(engagement);

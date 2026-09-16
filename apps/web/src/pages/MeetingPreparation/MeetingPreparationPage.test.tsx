@@ -42,7 +42,7 @@ const mockedUpdatePreparation = vi.mocked(useUpdateMeetingPreparation)
 const mockedStartMeeting = vi.mocked(useStartMeeting)
 
 // helper function to set up the mocked meeting preparation data for tests
-function setup(preparation: Partial<MeetingPreparation>) {
+function setup(preparation: Partial<MeetingPreparation>, isStarting = false) {
   mockedPreparation.mockReturnValue({
     data: {
       id: 'prep-1',
@@ -66,7 +66,7 @@ function setup(preparation: Partial<MeetingPreparation>) {
 
   mockedStartMeeting.mockReturnValue({
     mutate: vi.fn(),
-    isPending: false,
+    isPending: isStarting,
   } as unknown as ReturnType<typeof useStartMeeting>)
 }
 
@@ -122,5 +122,17 @@ describe('MeetingPreparationPage readiness labels', () => {
 
     // the editor should still allow additional agenda items beyond the minimum readiness threshold
     expect(screen.getByLabelText('Agenda item 4')).toBeInTheDocument()
+  })
+
+  it('shows a spinner while the meeting is opening', () => {
+    setup({
+      objective: 'Confirm client priorities',
+      agenda: ['Opening', 'Discovery', 'Next steps'],
+      discoveryQuestions: ['Question one', 'Question two', 'Question three'],
+    }, true)
+    renderPage()
+
+    expect(screen.getByText('Opening meeting')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Opening meeting/i })).toBeDisabled()
   })
 })

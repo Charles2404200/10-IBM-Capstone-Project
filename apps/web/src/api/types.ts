@@ -38,6 +38,15 @@ export interface AdminUserSummary {
   displayName: string
   role: UserRole
   active: boolean
+  emailVerified: boolean
+}
+
+export interface AdminUserPage {
+  items: AdminUserSummary[]
+  totalElements: number
+  page: number
+  size: number
+  totalPages: number
 }
 
 export interface AiProviderStat {
@@ -161,6 +170,10 @@ export interface ScenarioBriefing {
   objective: string
   successCriteria: string[]
   simulatedDays: number
+  businessSituation: string
+  observableSymptom: string
+  consultingMandate: string
+  unknownsToValidate: string[]
 }
 
 export interface ScenarioSummary {
@@ -243,6 +256,7 @@ export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
 export type EvidenceOrigin = 'SCENARIO_CURATED' | 'AI_SYNTHESIZED' | 'USER_SUPPLIED' | 'MEETING_DISCOVERY'
 export type EvidenceVerificationStatus = 'VERIFIED' | 'CORROBORATED' | 'UNVERIFIED' | 'CONTRADICTED'
+export type ReasoningLane = 'SYMPTOM' | 'LIKELY_CAUSE' | 'STAKEHOLDER_CONSTRAINT' | 'BUSINESS_IMPACT' | 'OPEN_QUESTION'
 
 export interface ResearchEvidence {
   id: string
@@ -257,6 +271,7 @@ export interface ResearchEvidence {
   occurredOn: string | null
   confidence: ConfidenceLevel
   relevanceScore: number
+  reasoningLane: ReasoningLane | null
   sequenceNo: number
   supportingEvidenceIds: string[]
   createdAt: string
@@ -273,6 +288,7 @@ export interface SaveResearchPayload {
   occurredOn?: string
   confidence?: ConfidenceLevel
   relevanceScore?: number
+  reasoningLane?: ReasoningLane
   supportingEvidenceIds?: string[]
 }
 
@@ -298,6 +314,27 @@ export interface ResearchArtifact {
   allowedFactKeys: string[]
   correlatesWithEvidence: string[]
   relevanceRationale: string
+  blocks: ResearchSourceBlock[]
+}
+
+/** Immutable source documents grouped for the persistent research workspace. */
+export interface ResearchSourceDeck {
+  sourcesByType: Partial<Record<EvidenceType, ResearchArtifact[]>>
+  enrichmentPending: boolean
+}
+
+export type ResearchSourceBlockType = 'PARAGRAPH' | 'QUOTE' | 'METRIC' | 'CAPTION'
+export type ResearchSourceBlockPurpose = 'FACT' | 'INTERPRETATION' | 'CONTEXT' | 'UNCERTAINTY' | 'GUIDANCE'
+
+export interface ResearchSourceBlock {
+  id: string
+  type: ResearchSourceBlockType
+  content: string
+  attribution: string | null
+  factIds: string[]
+  corpusChunkIds: string[]
+  selectable: boolean
+  purpose: ResearchSourceBlockPurpose
 }
 
 /** Requirements checklist gating "Proceed to Outreach" — mirrors backend `ResearchGateStatus`. */
@@ -449,6 +486,8 @@ export interface Meeting {
   engagementId: string
   personaId: string
   status: MeetingStatus
+  interactionMode: MeetingInteractionMode
+  meetingThreshold: number
   completedAt: string | null
   transcriptStorageReference: string | null
   completionOutcome: 'PASSED' | 'FAILED' | null
@@ -835,6 +874,18 @@ export interface RevealRule {
 export interface ScenarioAuthoringConfig {
   canonicalFacts: CanonicalFact[]
   revealRules: RevealRule[]
+  researchSources: ResearchSource[]
+}
+
+export interface ResearchSource {
+  id: string
+  title: string
+  sourceType: string
+  summary: string
+  evidenceType: EvidenceType
+  confidence: ConfidenceLevel
+  relevanceScore: number
+  blocks: ResearchSourceBlock[]
 }
 
 export interface ScenarioPublishReadiness {
@@ -862,6 +913,10 @@ export interface UpdateScenarioBlueprintRequest {
   objective: string
   successCriteria: string[]
   simulatedDays: number
+  businessSituation: string
+  observableSymptom: string
+  consultingMandate: string
+  unknownsToValidate: string[]
   informationAmbiguity: number
   stakeholderComplexity: number
   commercialPressure: number

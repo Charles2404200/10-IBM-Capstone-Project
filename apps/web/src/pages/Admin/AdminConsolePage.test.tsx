@@ -7,6 +7,7 @@ import { useAllScenariosForAdmin } from '@/api/hooks/useAdminScenarios'
 import { useAuthStore } from '@/store/authStore'
 import AdminConsolePage from './AdminConsolePage'
 
+// mock hooks and shared components for tests
 vi.mock('@/api/hooks/useAdminAiOperations', () => ({ useAdminAiOperations: vi.fn() }))
 vi.mock('@/api/hooks/useAdminPlatformOverview', () => ({ useAdminPlatformOverview: vi.fn() }))
 vi.mock('@/api/hooks/useAdminScenarios', () => ({ useAllScenariosForAdmin: vi.fn() }))
@@ -14,11 +15,13 @@ vi.mock('@/store/authStore', () => ({ useAuthStore: vi.fn() }))
 vi.mock('@/components/shared/LoadingState', () => ({ default: () => <div>Loading...</div> }))
 vi.mock('@/components/shared/ErrorState', () => ({ default: () => <div>Error...</div> }))
 
+// typed mock references
 const mockedAiOps = vi.mocked(useAdminAiOperations)
 const mockedPlatform = vi.mocked(useAdminPlatformOverview)
 const mockedScenarios = vi.mocked(useAllScenariosForAdmin)
 const mockedAuth = vi.mocked(useAuthStore)
 
+// default data for test purposes
 const basePlatform = {
   activeEngagements: 4,
   totalEngagements: 10,
@@ -34,6 +37,7 @@ const basePlatform = {
   }],
 }
 
+// sets up the mocked hooks for a given role
 function setupAsRole(role: 'ADMINISTRATOR' | 'SCENARIO_AUTHOR' | 'REVIEWER') {
   mockedAuth.mockImplementation((selector) =>
     selector({ role } as ReturnType<typeof useAuthStore.getState>))
@@ -73,6 +77,7 @@ function renderPage() {
 describe('AdminConsolePage states', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  // tests admin data loading and dashboard rendering
   it('shows the loading state on first load', () => {
     setupAsRole('ADMINISTRATOR')
     mockedPlatform.mockReturnValue({
@@ -84,6 +89,15 @@ describe('AdminConsolePage states', () => {
     } as unknown as ReturnType<typeof useAdminPlatformOverview>)
     renderPage()
     expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+
+  // api failure state when a role-relevant query fails
+  it('keeps the console available when one administrator query fails', () => {
+    setupAsRole('ADMINISTRATOR')
+    mockedPlatform.mockReturnValue({ data: undefined, isLoading: false, isError: true, isFetching: false, refetch: vi.fn() } as unknown as ReturnType<typeof useAdminPlatformOverview>)
+    renderPage()
+    expect(screen.queryByText('Error...')).not.toBeInTheDocument()
+    expect(screen.getByText('Some administration data is unavailable')).toBeInTheDocument()
   })
 
   it('shows the error state when a role-relevant query fails', () => {
@@ -99,7 +113,9 @@ describe('AdminConsolePage states', () => {
     expect(screen.getByText('Error...')).toBeInTheDocument()
   })
 
+  // api failure state when a role-irrelevant query fails
   it('does not error on a failed query the current role does not depend on', () => {
+    // a scenario author never queries platform overview, so its failure should not block the page
     setupAsRole('SCENARIO_AUTHOR')
     mockedPlatform.mockReturnValue({
       data: undefined,
@@ -112,6 +128,7 @@ describe('AdminConsolePage states', () => {
     expect(screen.queryByText('Error...')).not.toBeInTheDocument()
   })
 
+  // empty state when no scenarios exist
   it('shows the empty-activity message when there are no scenarios yet', () => {
     setupAsRole('ADMINISTRATOR')
     mockedPlatform.mockReturnValue({
@@ -126,6 +143,7 @@ describe('AdminConsolePage states', () => {
       .toBeInTheDocument()
   })
 
+  // scenario rows when activity exists
   it('shows scenario rows when activity exists', () => {
     setupAsRole('ADMINISTRATOR')
     renderPage()
@@ -144,6 +162,7 @@ describe('AdminConsolePage role-based visibility and navigation', () => {
       .toHaveAttribute('href', '/dashboard/admin/notify')
   })
 
+  // administrator-only visibility for non-admin roles
   it('hides administrator-only cards from a reviewer', () => {
     setupAsRole('REVIEWER')
     renderPage()
@@ -152,12 +171,14 @@ describe('AdminConsolePage role-based visibility and navigation', () => {
     expect(screen.queryByRole('link', { name: /Send notifications/i })).not.toBeInTheDocument()
   })
 
+  // platform overview query is not called for non-admin roles
   it('does not fetch platform overview for a non-administrator role', () => {
     setupAsRole('REVIEWER')
     renderPage()
     expect(mockedPlatform).toHaveBeenCalledWith(false)
   })
 
+  // navigation between people and access card and user management route
   it('links the People and Access card to the user management route', () => {
     setupAsRole('ADMINISTRATOR')
     renderPage()
@@ -165,6 +186,7 @@ describe('AdminConsolePage role-based visibility and navigation', () => {
       .toHaveAttribute('href', '/dashboard/admin/users')
   })
 
+  // navigation between ai delivery card and ai operations route
   it('links the AI delivery card to the AI operations route', () => {
     setupAsRole('ADMINISTRATOR')
     renderPage()

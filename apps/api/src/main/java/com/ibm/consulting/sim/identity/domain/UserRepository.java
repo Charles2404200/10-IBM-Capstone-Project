@@ -9,6 +9,9 @@ public interface UserRepository {
     Optional<User> findById(UUID id);
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+    long countByRoleAndActive(UserRole role, boolean active);
     List<User> findAll();
+    UserDirectoryPage findDirectory(UserDirectoryQuery query);
+    void delete(User user);
     List<User> findAllActiveByRole(UserRole role);
 }

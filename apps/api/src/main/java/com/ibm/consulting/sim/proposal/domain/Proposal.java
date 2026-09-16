@@ -154,16 +154,23 @@ public class Proposal extends BaseEntity {
     private void apply(ProposalDraftContent content) {
         this.problemStatement = content.problemStatement();
         this.solutionStrategy = content.solutionStrategy();
-        this.components = new ArrayList<>(content.components());
+        replaceIfChanged(this.components, content.components(), values -> this.components = values);
         this.budget = content.budget();
         this.timelineWeeks = content.timelineWeeks();
         this.budgetConfidence = content.budgetConfidence();
         this.budgetSource = content.budgetSource();
-        this.businessOutcomes = new ArrayList<>(content.businessOutcomes());
-        this.milestones = new ArrayList<>(content.milestones());
-        this.risks = new ArrayList<>(content.risks());
-        this.assumptions = new ArrayList<>(content.assumptions());
-        this.evidenceLinks = new ArrayList<>(content.evidenceLinks());
+        replaceIfChanged(this.businessOutcomes, content.businessOutcomes(), values -> this.businessOutcomes = values);
+        replaceIfChanged(this.milestones, content.milestones(), values -> this.milestones = values);
+        replaceIfChanged(this.risks, content.risks(), values -> this.risks = values);
+        replaceIfChanged(this.assumptions, content.assumptions(), values -> this.assumptions = values);
+        replaceIfChanged(this.evidenceLinks, content.evidenceLinks(), values -> this.evidenceLinks = values);
+    }
+
+    private static <T> void replaceIfChanged(List<T> current, List<T> next,
+                                             java.util.function.Consumer<List<T>> replacement) {
+        if (!current.equals(next)) {
+            replacement.accept(new ArrayList<>(next));
+        }
     }
 
     public UUID getEngagementId() { return engagementId; }

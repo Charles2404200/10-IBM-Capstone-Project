@@ -17,6 +17,7 @@ import { useEngagement, useMyEngagements } from '@/api/hooks/useEngagements'
 import { resolveEngagementRoute } from '@/api/engagementRouting'
 import { usePersonaState } from '@/api/hooks/useMeeting'
 import type { EngagementPhase, PersonaState } from '@/api/types'
+import EngagementEvidenceHint from './EngagementEvidenceHint'
 import { selectActiveEngagement } from '../activeEngagement'
 import {
   isEngagementRoute,
@@ -224,6 +225,7 @@ export default function EngagementHUD() {
   if (!onEngagement) return null
 
   return (
+    <>
     <div className={styles.hud}>
       {/* Compact summary: the only thing shown on a phone until expanded. */}
       <button
@@ -314,5 +316,7 @@ export default function EngagementHUD() {
         </div>
       </div>
     </div>
+    {engagementId && <EngagementEvidenceHint engagementId={engagementId} />}
+    </>
   )
 }

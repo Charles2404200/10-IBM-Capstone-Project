@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.meeting.domain;
 
+import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
 /**
  * Determines when a meeting has moved into its final confirmation exchange.
  *
@@ -15,15 +16,25 @@ public final class MeetingClosingPolicy {
 
     /** True when the next client response must conclude rather than open new discovery. */
     public static boolean requiresConclusionAfterReply(PersonaState state, int learnerTurnsAlreadyCompleted) {
+        return requiresConclusionAfterReply(state, null, learnerTurnsAlreadyCompleted);
+    }
+
+    public static boolean requiresConclusionAfterReply(PersonaState state, DifficultyProfile profile,
+                                                        int learnerTurnsAlreadyCompleted) {
         return learnerTurnsAlreadyCompleted >= MINIMUM_LEARNER_TURNS
-                && MeetingCompletionPolicy.evaluate(state).passed();
+                && MeetingCompletionPolicy.evaluate(state, profile).passed();
     }
 
     /** The learner's final confirmation must not have undone the relationship gate. */
     public static boolean canConclude(PersonaState state, boolean conclusionWasRequired,
                                       int learnerTurnsIncludingCurrent) {
+        return canConclude(state, null, conclusionWasRequired, learnerTurnsIncludingCurrent);
+    }
+
+    public static boolean canConclude(PersonaState state, DifficultyProfile profile, boolean conclusionWasRequired,
+                                      int learnerTurnsIncludingCurrent) {
         return conclusionWasRequired
                 && learnerTurnsIncludingCurrent >= MINIMUM_LEARNER_TURNS
-                && MeetingCompletionPolicy.evaluate(state).passed();
+                && MeetingCompletionPolicy.evaluate(state, profile).passed();
     }
 }

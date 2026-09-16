@@ -651,6 +651,35 @@
   }
 }
 
+.problemBriefGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  > div {
+    border-left: 3px solid #0f62fe;
+    min-width: 0;
+    padding-left: 0.75rem;
+  }
+
+  span {
+    color: #525252;
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  p,
+  ul {
+    margin: 0.25rem 0 0;
+  }
+
+  ul {
+    padding-left: 1rem;
+  }
+}
+
 .difficultyDimensions {
   display: flex;
   flex-direction: column;
@@ -745,6 +774,12 @@
 
   .completedScore {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .problemBriefGrid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -29,6 +29,8 @@ import type {
   EvidenceType,
   LeadAuthoringRequest,
   LeadAuthoringView,
+  ResearchSourceBlock,
+  ResearchSource,
   RevealRule,
   RevealTarget,
   ScenarioAuthoringConfig,
@@ -53,6 +55,10 @@ function blueprintFrom(scenario: ScenarioSummary): UpdateScenarioBlueprintReques
     objective: scenario.briefing.objective,
     successCriteria: scenario.briefing.successCriteria,
     simulatedDays: scenario.briefing.simulatedDays,
+    businessSituation: scenario.briefing.businessSituation || scenario.description,
+    observableSymptom: scenario.briefing.observableSymptom || scenario.description,
+    consultingMandate: scenario.briefing.consultingMandate || scenario.briefing.objective,
+    unknownsToValidate: scenario.briefing.unknownsToValidate ?? scenario.briefing.successCriteria ?? [],
     informationAmbiguity: scenario.difficultyProfile.informationAmbiguity,
     stakeholderComplexity: scenario.difficultyProfile.stakeholderComplexity,
     commercialPressure: scenario.difficultyProfile.commercialPressure,
@@ -72,6 +78,75 @@ function newRule(): RevealRule {
   return { target: 'DECISION_MAKER', requiredEvidenceTypes: ['STAKEHOLDER_PROFILE'], minimumEvidenceCount: 1 }
 }
 
+function newResearchSource(): ResearchSource {
+  return { id: `source-${crypto.randomUUID().slice(0, 8)}`, title: '', sourceType: '', summary: '', evidenceType: 'COMPANY_NEWS', confidence: 'MEDIUM', relevanceScore: 70, blocks: [] }
+}
+
+function newResearchSourceBlock(): ResearchSourceBlock {
+  return {
+    id: `block-${crypto.randomUUID().slice(0, 8)}`,
+    type: 'PARAGRAPH',
+    content: '',
+    attribution: null,
+    factIds: ['scenario_source'],
+    corpusChunkIds: [],
+    selectable: true,
+    purpose: 'FACT',
+  }
+}
+
+function sourceFromBriefing(
+  evidenceType: ResearchSource['evidenceType'],
+  title: string,
+  sourceType: string,
+  confidence: ResearchSource['confidence'],
+  relevanceScore: number,
+  summary: string,
+  paragraphs: string[],
+): ResearchSource {
+  const source = newResearchSource()
+  return {
+    ...source,
+    title,
+    sourceType,
+    evidenceType,
+    confidence,
+    relevanceScore,
+    summary,
+    blocks: paragraphs.filter(Boolean).map((content, index) => ({
+      id: `${source.id}-block-${index + 1}`,
+      type: index === paragraphs.length - 1 ? 'CAPTION' : 'PARAGRAPH',
+      content,
+      attribution: null,
+      factIds: ['scenario_source'],
+      corpusChunkIds: [],
+      selectable: index !== paragraphs.length - 1,
+      purpose: index === paragraphs.length - 1 ? 'CONTEXT' : 'FACT',
+    })),
+  }
+}
+
+/** Creates an editable, schema-valid first draft. Authors remain responsible for every scenario fact. */
+function starterResearchPack(blueprint: UpdateScenarioBlueprintRequest): ResearchSource[] {
+  const openQuestions = blueprint.unknownsToValidate.length > 0
+    ? `Open questions for validation: ${blueprint.unknownsToValidate.join('; ')}.`
+    : 'Open questions for validation should be confirmed through research and client discovery.'
+  return [
+    sourceFromBriefing('COMPANY_NEWS', `Operating context: ${blueprint.title}`, 'Scenario business journal', 'HIGH', 90,
+      blueprint.businessSituation,
+      [blueprint.businessSituation, `Observed signal: ${blueprint.observableSymptom}`, `The consulting mandate is to ${blueprint.consultingMandate}`, openQuestions, 'Scenario-authored public context. Review and edit before publishing.']),
+    sourceFromBriefing('STAKEHOLDER_PROFILE', 'Stakeholder decision context', 'Stakeholder dossier', 'MEDIUM', 74,
+      'A stakeholder profile designed to separate decision influence from unverified assumptions.',
+      [`The business context is ${blueprint.businessSituation}`, `The observable issue is ${blueprint.observableSymptom}`, 'Identify who owns the operating problem, who can sponsor a next step, and who may impose delivery or commercial constraints.', openQuestions, 'Scenario-authored stakeholder research prompt.']),
+    sourceFromBriefing('FINANCIAL_SIGNAL', 'Commercial signal review', 'Analyst financial brief', 'MEDIUM', 68,
+      'A commercial briefing that keeps value assumptions explicitly provisional.',
+      [`The scenario pressure is ${blueprint.observableSymptom}`, `Any value case should support this mandate: ${blueprint.consultingMandate}`, 'Do not treat a visible signal as a confirmed budget, approval path, or business case until a stakeholder validates it.', openQuestions, 'Scenario-authored commercial analysis.']),
+    sourceFromBriefing('TECHNOLOGY_INDICATOR', 'Operating systems briefing', 'Technology landscape note', 'MEDIUM', 66,
+      'A technology research brief focused on constraints that must be validated before solutioning.',
+      [`The operating context is ${blueprint.businessSituation}`, `The symptom to investigate is ${blueprint.observableSymptom}`, 'Research the current workflow, dependencies, data flow, security obligations and adoption constraints before proposing a technical response.', openQuestions, 'Scenario-authored technology research prompt.']),
+  ]
+}
+
 export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: ScenarioSummary }) {
   const authoring = useScenarioAuthoring(scenario.id)
   const leads = useScenarioAuthoringLeads(scenario.id)
@@ -82,14 +157,14 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   const deleteLead = useDeleteScenarioLead(scenario.id)
   const updateLead = useUpdateScenarioLead(scenario.id)
   const [blueprint, setBlueprint] = useState(() => blueprintFrom(scenario))
-  const [config, setConfig] = useState<ScenarioAuthoringConfig>({ canonicalFacts: [], revealRules: [] })
+  const [config, setConfig] = useState<ScenarioAuthoringConfig>({ canonicalFacts: [], revealRules: [], researchSources: [] })
   const [lead, setLead] = useState<LeadAuthoringRequest>({ ...emptyLead })
   const [revisionCreated, setRevisionCreated] = useState(false)
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
 
   useEffect(() => setBlueprint(blueprintFrom(scenario)), [scenario])
   useEffect(() => {
-    if (authoring.data) setConfig(authoring.data.config)
+    if (authoring.data) setConfig({ ...authoring.data.config, researchSources: (authoring.data.config.researchSources ?? []).map((source) => ({ ...source, blocks: source.blocks ?? [] })) })
   }, [authoring.data])
 
   if (authoring.isLoading || leads.isLoading) return <InlineLoading description="Loading authoring workspace" />
@@ -101,6 +176,13 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
   const editable = scenario.status === 'DRAFT'
   const saveBlueprint = () => updateBlueprint.mutate(blueprint)
   const saveConfig = () => updateConfig.mutate(config)
+  const addStarterResearchPack = () => {
+    const existingTypes = new Set(config.researchSources.map((source) => source.evidenceType))
+    const newSources = starterResearchPack(blueprint).filter((source) => !existingTypes.has(source.evidenceType))
+    if (newSources.length > 0) {
+      setConfig({ ...config, researchSources: [...config.researchSources, ...newSources] })
+    }
+  }
   const startEditingLead = (item: LeadAuthoringView) => {
     setEditingLeadId(item.id)
     setLead({
@@ -164,11 +246,62 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
             <TextInput id={`${scenario.id}-blueprint-role`} labelText="Learner role" value={blueprint.consultantRole} onChange={(event) => setBlueprint({ ...blueprint, consultantRole: event.target.value })} />
             <NumberInput id={`${scenario.id}-blueprint-days`} label="Simulated days" min={1} max={90} value={blueprint.simulatedDays} onChange={(_event, state) => setBlueprint({ ...blueprint, simulatedDays: Number(state?.value ?? 10) })} />
             <TextArea id={`${scenario.id}-blueprint-description`} className={styles.fullWidth} labelText="Scenario description" rows={3} value={blueprint.description} onChange={(event) => setBlueprint({ ...blueprint, description: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-business-situation`} className={styles.fullWidth} labelText="Business situation" rows={2} value={blueprint.businessSituation} onChange={(event) => setBlueprint({ ...blueprint, businessSituation: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-observable-symptom`} className={styles.fullWidth} labelText="Observable symptom" rows={2} value={blueprint.observableSymptom} onChange={(event) => setBlueprint({ ...blueprint, observableSymptom: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-consulting-mandate`} className={styles.fullWidth} labelText="Consulting mandate" rows={2} value={blueprint.consultingMandate} onChange={(event) => setBlueprint({ ...blueprint, consultingMandate: event.target.value })} />
+            <TextArea id={`${scenario.id}-blueprint-unknowns`} className={styles.fullWidth} labelText="Unknowns to validate (one per line)" rows={3} value={blueprint.unknownsToValidate.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, unknownsToValidate: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
             <TextArea id={`${scenario.id}-blueprint-objective`} className={styles.fullWidth} labelText="Learning objective" rows={3} value={blueprint.objective} onChange={(event) => setBlueprint({ ...blueprint, objective: event.target.value })} />
             <TextArea id={`${scenario.id}-blueprint-criteria`} className={styles.fullWidth} labelText="Success criteria (one per line)" rows={4} value={blueprint.successCriteria.join('\n')} onChange={(event) => setBlueprint({ ...blueprint, successCriteria: event.target.value.split('\n').map((line) => line.trim()).filter(Boolean) })} />
           </div>
           {updateBlueprint.isError && <InlineNotification kind="error" title="Blueprint could not be saved" subtitle="Only draft versions can be edited. Review the required fields and try again." />}
-          <Button size="sm" disabled={updateBlueprint.isPending || !blueprint.title || !blueprint.industry || !blueprint.description || !blueprint.objective} onClick={saveBlueprint}>Save blueprint</Button>
+          <Button size="sm" disabled={updateBlueprint.isPending || !blueprint.title || !blueprint.industry || !blueprint.description || !blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate || blueprint.unknownsToValidate.length === 0 || !blueprint.objective} onClick={saveBlueprint}>Save blueprint</Button>
+        </section>
+
+        <section className={styles.authoringSection}>
+          <div><p className={styles.sectionEyebrow}>02 · Evidence deck</p><h5>Sources learners must assess</h5><p className={styles.sectionHelp}>These are fixed, versioned scenario sources. Learners must review a source and write their own takeaway before it enters the evidence board.</p></div>
+          <Button size="sm" kind="secondary" renderIcon={CopyFile} disabled={!blueprint.businessSituation || !blueprint.observableSymptom || !blueprint.consultingMandate} onClick={addStarterResearchPack}>
+            Create starter source pack
+          </Button>
+          <Stack gap={3}>
+            {config.researchSources.map((source, index) => (
+              <div className={styles.factRow} key={source.id}>
+                <TextInput id={`${scenario.id}-source-id-${index}`} labelText="Source ID" value={source.id} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} />
+                <TextInput id={`${scenario.id}-source-title-${index}`} labelText="Source title" value={source.title} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item) })} />
+                <TextInput id={`${scenario.id}-source-type-${index}`} labelText="Source type" value={source.sourceType} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, sourceType: event.target.value } : item) })} />
+                <Select id={`${scenario.id}-source-category-${index}`} labelText="Research category" value={source.evidenceType} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, evidenceType: event.target.value as EvidenceType } : item) })}>{evidenceTypes.map((type) => <SelectItem key={type} value={type} text={label(type)} />)}</Select>
+                <Select id={`${scenario.id}-source-reliability-${index}`} labelText="Reliability" value={source.confidence} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, confidence: event.target.value as ResearchSource['confidence'] } : item) })}><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select>
+                <NumberInput id={`${scenario.id}-source-relevance-${index}`} label="Problem relevance" min={0} max={100} value={source.relevanceScore} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, relevanceScore: Number(state?.value ?? 0) } : item) })} />
+                <TextArea id={`${scenario.id}-source-summary-${index}`} className={styles.fullWidth} labelText="What the source says" rows={2} value={source.summary} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, summary: event.target.value } : item) })} />
+                <div className={`${styles.fullWidth} ${styles.sourceBlocks}`}>
+                  <span>Document blocks (optional: learners can select text from these blocks)</span>
+                  {source.blocks.map((block, blockIndex) => <div className={styles.sourceBlockRow} key={block.id}>
+                    <Select id={`${scenario.id}-source-block-type-${index}-${blockIndex}`} labelText="Block type" value={block.type} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, type: event.target.value as ResearchSourceBlock['type'] } : entry) } : item) })}>
+                      {(['PARAGRAPH', 'QUOTE', 'METRIC', 'CAPTION'] as const).map((type) => <SelectItem key={type} value={type} text={label(type)} />)}
+                    </Select>
+                    <Select id={`${scenario.id}-source-block-purpose-${index}-${blockIndex}`} labelText="Content role" value={block.purpose} onChange={(event) => {
+                      const purpose = event.target.value as ResearchSourceBlock['purpose']
+                      const selectable = purpose === 'FACT' || purpose === 'INTERPRETATION'
+                      setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, purpose, selectable } : entry) } : item) })
+                    }}>
+                      <SelectItem value="FACT" text="Scenario fact" />
+                      <SelectItem value="INTERPRETATION" text="Derived interpretation" />
+                      <SelectItem value="CONTEXT" text="Context only" />
+                      <SelectItem value="UNCERTAINTY" text="Unresolved" />
+                      <SelectItem value="GUIDANCE" text="Guidance (not selectable)" />
+                    </Select>
+                    <TextArea id={`${scenario.id}-source-block-content-${index}-${blockIndex}`} labelText="Content" rows={2} value={block.content} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, content: event.target.value } : entry) } : item) })} />
+                    <TextInput id={`${scenario.id}-source-block-facts-${index}-${blockIndex}`} labelText="Canonical fact IDs (comma separated)" value={block.factIds.join(', ')} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, factIds: event.target.value.split(',').map((value) => value.trim()).filter(Boolean) } : entry) } : item) })} />
+                    <TextInput id={`${scenario.id}-source-block-attribution-${index}-${blockIndex}`} labelText="Attribution (optional)" value={block.attribution ?? ''} onChange={(event) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, attribution: event.target.value || null } : entry) } : item) })} />
+                    <Checkbox id={`${scenario.id}-source-block-selectable-${index}-${blockIndex}`} labelText="Learner can add as evidence" checked={block.selectable} disabled={block.purpose !== 'FACT' && block.purpose !== 'INTERPRETATION'} onChange={(_event, state) => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.map((entry, entryIndex) => entryIndex === blockIndex ? { ...entry, selectable: Boolean(state.checked) } : entry) } : item) })} />
+                    <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription="Remove document block" onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: item.blocks.filter((_entry, entryIndex) => entryIndex !== blockIndex) } : item) })} />
+                  </div>)}
+                  <Button size="sm" kind="ghost" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: config.researchSources.map((item, itemIndex) => itemIndex === index ? { ...item, blocks: [...item.blocks, newResearchSourceBlock()] } : item) })}>Add document block</Button>
+                </div>
+                <Button hasIconOnly kind="ghost" renderIcon={TrashCan} iconDescription={`Remove ${source.title || 'source'}`} onClick={() => setConfig({ ...config, researchSources: config.researchSources.filter((_item, itemIndex) => itemIndex !== index) })} />
+              </div>
+            ))}
+            <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, researchSources: [...config.researchSources, newResearchSource()] })}>Add research source</Button>
+          </Stack>
         </section>
 
         <section className={styles.authoringSection}>
@@ -205,7 +338,7 @@ export default function ScenarioBlueprintWorkspace({ scenario }: { scenario: Sce
             ))}
             <Button size="sm" kind="tertiary" renderIcon={Add} onClick={() => setConfig({ ...config, revealRules: [...config.revealRules, newRule()] })}>Add reveal rule</Button>
             {updateConfig.isError && <InlineNotification kind="error" title="Truth configuration could not be saved" subtitle="Fact IDs and reveal targets must be unique. Each rule needs at least one evidence type." />}
-            <Button size="sm" disabled={updateConfig.isPending || config.canonicalFacts.some((fact) => !fact.id.trim() || !fact.label.trim() || !fact.value.trim()) || config.revealRules.some((rule) => rule.requiredEvidenceTypes.length === 0)} onClick={saveConfig}>Save truth and reveal rules</Button>
+            <Button size="sm" disabled={updateConfig.isPending || config.canonicalFacts.some((fact) => !fact.id.trim() || !fact.label.trim() || !fact.value.trim()) || config.researchSources.some((source) => !source.id.trim() || !source.title.trim() || !source.sourceType.trim() || !source.summary.trim() || source.blocks.some((block) => !block.id.trim() || !block.content.trim())) || config.revealRules.some((rule) => rule.requiredEvidenceTypes.length === 0)} onClick={saveConfig}>Save research design</Button>
           </Stack>
         </section>
 

@@ -11,8 +11,8 @@ export function useAdminPlatformOverview(enabled: boolean) {
     queryKey: adminPlatformKeys.overview,
     enabled,
     queryFn: async () => (await apiClient.get<PlatformOverview>('/api/v1/admin/platform/overview')).data,
-    staleTime: 20_000,
-    refetchInterval: 30_000,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
     refetchOnWindowFocus: false,
   })
 }

@@ -13,7 +13,7 @@ import {
   TextArea,
   Tile,
 } from '@carbon/react'
-import { ArrowRight, Send } from '@carbon/icons-react'
+import { ArrowRight, Idea, Send } from '@carbon/icons-react'
 import { useMeeting, useMeetingResponseOptions, useMeetingTranscript, usePersonaState, useRetryMeeting } from '@/api/hooks/useMeeting'
 import { useRetryEngagement } from '@/api/hooks/useEngagements'
 import { useMeetingSocket } from '@/api/hooks/useMeetingSocket'
@@ -23,64 +23,39 @@ import type { ConversationTurn, MeetingBehaviourFeedback, MeetingTermination, Pe
 import styles from './LiveMeetingPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
-const MEETING_THRESHOLD = 70
+const DEFAULT_MEETING_THRESHOLD = 70
 
 const LIVE_MEETING_OBJECTIVES = [
   {
-    id: 'transcript',
-    objective: 'The conversation so far',
-    description: 'Everything you and the client have said appears here, newest at the bottom. The client replies to what you actually wrote, so the transcript is the record the rest of the engagement is judged against.',
-    targets: ['.objective-transcript'],
-  },
-  {
-    id: 'compose',
-    objective: 'Your turn',
-    description: 'This is where you reply. Depending on the difficulty of this engagement you will either write freely or choose from prepared options. Either way the reply is yours to decide.',
-    targets: ['.objective-compose'],
-  },
-  {
-    id: 'trust',
-    objective: 'Trust',
-    description: 'How far the client believes what you tell them.',
-    targets: ['.objective-trust'],
-  },
-  {
-    id: 'interest',
-    objective: 'Interest',
-    description: 'How engaged the client is in what you are proposing.',
-    targets: ['.objective-interest'],
-  },
-  {
-    id: 'patience',
-    objective: 'Patience',
-    description: 'How much more of the conversation the client is willing to give you.',
-    targets: ['.objective-patience'],
-  },
-  {
     id: 'relationship',
-    objective: 'How these move',
-    description: 'All three respond to what you say during the meeting, and the meeting can only close once each reaches the threshold shown here. They are not a score of your answers; they are the client reacting.',
+    objective: 'Understand relationship state',
+    description: 'This shows your current relationship state with the client and your goal metrics before you can move to the debrief and proposal stage.',
     targets: ['.objective-relationship'],
   },
   {
+    id: 'meeting-options',
+    objective: 'Determine your responses',
+    description: 'This is the area where your meeting will take place. You will either have the choice to choose a generated response or type in your response here, depending on the difficulty of this engagement.',
+    targets: ['.objective-meeting-view'],
+  },
+  {
     id: 'hints',
-    objective: 'Observations from the conversation',
-    description: 'When this appears it points out something in the client\u2019s last message that you may not have picked up. It reports what was said; it does not tell you what to reply.',
+    objective: 'Meeting hints',
+    description: 'Pay attention to this whole section, as it may provide useful hints to guide an appropriate response to the client.',
     targets: ['.objective-hints'],
   },
 ]
 
-
-function RelationshipMeter({ label, value, targetClass }: { label: string; value: number; targetClass?: string }) {
-  const tone = value >= MEETING_THRESHOLD ? styles.meterPass : value >= 50 ? styles.meterWatch : styles.meterRisk
+function RelationshipMeter({ label, value, threshold }: { label: string; value: number; threshold: number }) {
+  const tone = value >= threshold ? styles.meterPass : value >= 50 ? styles.meterWatch : styles.meterRisk
   return (
-    <div className={`${styles.relationshipMetric} ${targetClass ?? ''}`}>
+    <div className={styles.relationshipMetric}>
       <div>
         <span>{label}</span>
         <strong>{value}<small>/100</small></strong>
       </div>
       <div className={styles.meterTrack}><div className={tone} style={{ width: `${value}%` }} /></div>
-      <p>{value >= MEETING_THRESHOLD ? 'Meeting threshold met' : `${MEETING_THRESHOLD - value} points to threshold`}</p>
+      <p>{value >= threshold ? 'Meeting threshold met' : `${threshold - value} points to threshold`}</p>
     </div>
   )
 }
@@ -92,7 +67,7 @@ function scoreDelta(value: number) {
 function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback }) {
   const positive = feedback.trustDelta >= 0 && feedback.interestDelta >= 0 && feedback.patienceDelta >= 0
   return (
-    <Tile className={`${styles.behaviourPanel} ${positive ? styles.behaviourPositive : styles.behaviourRecovery}`}>
+    <section className={`${styles.behaviourPanel} ${positive ? styles.behaviourPositive : styles.behaviourRecovery}`}>
       <p className={styles.eyebrow}>Simulation Director</p>
       <div className={styles.behaviourHeading}>
         <h3>{feedback.quality.replaceAll('_', ' ').toLowerCase()}</h3>
@@ -112,6 +87,36 @@ function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback })
         <strong>Next best action</strong>
         <span>{feedback.nextBestAction}</span>
       </div>
+    </section>
+  )
+}
+
+function MeetingIntelligence({
+  feedback,
+  disclosedFacts,
+  readyToClose,
+}: {
+  feedback: MeetingBehaviourFeedback | null
+  disclosedFacts: string[]
+  readyToClose: boolean
+}) {
+  return (
+    <Tile className={styles.liveIntelligencePanel}>
+      {disclosedFacts.length > 0 && (
+        <section className={styles.validatedFacts}>
+          <p className={styles.eyebrow}>Validated during meeting</p>
+          <h3>Facts disclosed</h3>
+          <ul>{disclosedFacts.map((fact) => <li key={fact}>{fact.replace(/_/g, ' ')}</li>)}</ul>
+        </section>
+      )}
+      {readyToClose && (
+        <section className={styles.readyToClosePanel}>
+          <p className={styles.eyebrow}>Client readiness</p>
+          <h3>Ready to conclude</h3>
+          <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
+        </section>
+      )}
+      {feedback && <BehaviourFeedback feedback={feedback} />}
     </Tile>
   )
 }
@@ -127,7 +132,7 @@ function TurnBubble({ turn, isStreaming = false }: { turn: ConversationTurn; isS
   )
 }
 
-function deriveHint(transcript: ConversationTurn[], signals: string[], state: PersonaState) {
+function deriveHint(transcript: ConversationTurn[], signals: string[], state: PersonaState, threshold: number) {
   const latestPersonaTurn = [...transcript].reverse().find((turn) => turn.actor === 'PERSONA')
   const question = latestPersonaTurn?.content.match(/[^?.!]*\?/)?.[0]?.trim()
   const signal = signals.find((item) => item.startsWith('objection:'))?.replace('objection:', '').trim()
@@ -136,9 +141,9 @@ function deriveHint(transcript: ConversationTurn[], signals: string[], state: Pe
   if (question) guidance.push(`Answer the client’s specific question: “${question}”`)
   else if (latestPersonaTurn) guidance.push('Acknowledge the client’s latest point before moving to your next question.')
   if (signal) guidance.push(`Address this concern directly: ${signal}`)
-  if (state.patience < MEETING_THRESHOLD) guidance.push('Keep the next response focused: one point, one question.')
-  if (state.trust < MEETING_THRESHOLD) guidance.push('Use a concrete detail from what the client has already shared.')
-  if (state.interest < MEETING_THRESHOLD) guidance.push('Connect the next question to a business outcome the client cares about.')
+  if (state.patience < threshold) guidance.push('Keep the next response focused: one point, one question.')
+  if (state.trust < threshold) guidance.push('Use a concrete detail from what the client has already shared.')
+  if (state.interest < threshold) guidance.push('Connect the next question to a business outcome the client cares about.')
 
   return guidance.slice(0, 3)
 }
@@ -156,42 +161,44 @@ export default function LiveMeetingPage() {
   const { data: meeting, isLoading: meetingLoading, isError: meetingError } = useMeeting(meetingId!)
   const { data: transcript, isLoading: transcriptLoading } = useMeetingTranscript(meetingId!)
   const { data: persistedPersonaState, isLoading: personaStateLoading } = usePersonaState(meetingId!)
-  const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(meetingId!, meeting?.status === 'IN_PROGRESS')
+  const { data: responseOptions, isLoading: responseOptionsLoading, isError: responseOptionsError, refetch: refetchResponseOptions } = useMeetingResponseOptions(
+    meetingId!,
+    meeting?.status === 'IN_PROGRESS' && meeting.interactionMode !== 'FREEFORM',
+  )
   const retryMeeting = useRetryMeeting(meetingId!, engagementId!)
   const { streamingText, isStreaming, error, personaState, latestSignals, termination, guidedOptionsPending, guidedOptionsError, behaviourFeedback, sendMessage } = useMeetingSocket(meetingId!)
   const retryEngagement = useRetryEngagement(engagementId!)
   const [message, setMessage] = useState('')
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [terminationDismissed, setTerminationDismissed] = useState(false)
+  const [hintOpen, setHintOpen] = useState(false)
   const transcriptRef = useRef<HTMLDivElement>(null)
 
   const turns = useMemo(() => transcript ?? [], [transcript])
   const currentState = personaState ?? persistedPersonaState
   const latestPersistedFeedback = meeting?.behaviourLedger?.[meeting.behaviourLedger.length - 1] ?? null
   const currentBehaviourFeedback = behaviourFeedback ?? latestPersistedFeedback
+  const meetingThreshold = meeting?.meetingThreshold ?? DEFAULT_MEETING_THRESHOLD
   const hint = useMemo(
-    () => currentState ? deriveHint(turns, latestSignals, currentState) : [],
-    [turns, latestSignals, currentState]
+    () => currentState ? deriveHint(turns, latestSignals, currentState, meetingThreshold) : [],
+    [turns, latestSignals, currentState, meetingThreshold]
   )
 
   useEffect(() => {
     const transcriptViewport = transcriptRef.current
     if (!transcriptViewport) return
 
-    if (typeof transcriptViewport.scrollTo === 'function') {
-      transcriptViewport.scrollTo({
-        top: transcriptViewport.scrollHeight,
-        behavior: 'smooth',
-      })
-    } else {
-      transcriptViewport.scrollTop = transcriptViewport.scrollHeight
-    }
+    transcriptViewport.scrollTo({
+      top: transcriptViewport.scrollHeight,
+      behavior: 'smooth',
+    })
   }, [turns.length, streamingText])
 
   useEffect(() => {
     setMessage('')
     setPendingMessage(null)
     setTerminationDismissed(false)
+    setHintOpen(false)
   }, [meetingId])
 
   if (meetingLoading || transcriptLoading || personaStateLoading) return <LoadingState />
@@ -199,6 +206,8 @@ export default function LiveMeetingPage() {
   if (!currentState) return <ErrorState />
 
   const isCompleted = meeting.status === 'COMPLETED'
+  const isFreeformMeeting = meeting.interactionMode === 'FREEFORM'
+  const isGuidedMeeting = !isFreeformMeeting
   const debriefTips = meeting.debriefTips ?? []
   const automaticTermination = termination ?? toTermination(
     meeting.terminationReason,
@@ -209,8 +218,8 @@ export default function LiveMeetingPage() {
   )
   const canRetryMeeting = automaticTermination?.meetingRetryAvailable ?? meeting.meetingRetryAvailable
   const meetingRetriesRemaining = automaticTermination?.meetingRetriesRemaining ?? meeting.meetingRetriesRemaining
-  const meetingGateMet = currentState.trust >= MEETING_THRESHOLD
-    && currentState.interest >= MEETING_THRESHOLD && currentState.patience >= MEETING_THRESHOLD
+  const meetingGateMet = currentState.trust >= meetingThreshold
+    && currentState.interest >= meetingThreshold && currentState.patience >= meetingThreshold
   const clientReadyToClose = latestSignals.includes('client_ready_to_close')
     || latestSignals.includes('client_committed_next_step')
   const pendingIsPersisted = pendingMessage !== null
@@ -244,36 +253,57 @@ export default function LiveMeetingPage() {
   return (
     <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
     <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
-      <Grid fullWidth narrow className={styles.headerGrid}>
+      <Grid fullWidth className={styles.headerGrid}>
         <Column lg={16} md={8} sm={4}>
           <div className={styles.pageHeader}>
             <div>
+              <p className={styles.eyebrow}>Live discovery</p>
               <Heading>Live Client Meeting</Heading>
             </div>
           </div>
         </Column>
       </Grid>
 
-      <Grid fullWidth narrow className={styles.workspaceGrid}>
+      <Grid fullWidth className={styles.workspaceGrid}>
         <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
-          <section className={styles.conversationPanel} aria-label="Live client conversation">
-            {!isCompleted && (
-              <div className={`${styles.transcriptViewport} objective-transcript ${turns.length === 0 && !pendingMessage && !streamingText ? styles.emptyTranscriptViewport : ''}`} ref={transcriptRef} >
-                {turns.length === 0 && !pendingMessage && (<p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>)}
-                {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
-                {pendingMessage && !pendingIsPersisted && (
-                  <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />
-                )}
-                {isStreaming && streamingText && (
-                  <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
+          <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
+            {!isCompleted && hint.length > 0 && (
+              <div className={styles.meetingHint}>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  renderIcon={Idea}
+                  iconDescription="Show response hint"
+                  className={styles.hintTrigger}
+                  aria-expanded={hintOpen}
+                  aria-controls="meeting-response-hint"
+                  onClick={() => setHintOpen((open) => !open)}
+                >
+                  Stuck? Get a hint
+                </Button>
+                {hintOpen && (
+                  <section className={styles.hintPopover} id="meeting-response-hint" aria-label="Response hint">
+                    <p className={styles.eyebrow}>Next-turn hint</p>
+                    <p>{hint[0]}</p>
+                  </section>
                 )}
               </div>
             )}
+            <div className={styles.transcriptViewport} ref={transcriptRef}>
+              {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
+              {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
+              {pendingMessage && !pendingIsPersisted && (
+                <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />
+              )}
+              {isStreaming && streamingText && (
+                <TurnBubble turn={{ id: 'streaming-persona', meetingId: meetingId!, actor: 'PERSONA', content: streamingText, sequence: -1, signals: null, createdAt: new Date().toISOString() }} isStreaming />
+              )}
+            </div>
 
-            {error && !isCompleted && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
+            {error && <InlineNotification className={styles.errorNotification} kind="error" lowContrast title="Message failed" subtitle={error} hideCloseButton />}
 
-            {!isCompleted && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
-              <section className={`${styles.guidedComposer} objective-compose`} aria-label="Guided response choices">
+            {!isCompleted && isGuidedMeeting && (responseOptionsLoading || responseOptionsError || responseOptions?.interactionMode === 'GUIDED') && (
+              <section className={styles.guidedComposer} aria-label="Guided response choices">
                 <div className={styles.guidedHeading}>
                   <div>
                     <p className={styles.eyebrow}>Guided response</p>
@@ -320,28 +350,40 @@ export default function LiveMeetingPage() {
               </section>
             )}
 
-            {!isCompleted && responseOptions?.interactionMode === 'FREEFORM' && (
-              <div className={`${styles.composer} objective-compose`}>
-                <TextArea
-                  id="message"
-                  labelText="Response"
-                  hideLabel
-                  rows={3}
-                  placeholder="Respond to the client..."
-                  value={message}
-                  disabled={isStreaming}
-                  onChange={(event) => setMessage(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !event.shiftKey) {
-                      event.preventDefault()
-                      void handleSend()
-                    }
-                  }}
-                />
-                <Button renderIcon={Send} disabled={isStreaming || !message.trim()} onClick={() => void handleSend()}>
-                  {isStreaming ? 'Client is responding...' : 'Send'}
-                </Button>
-              </div>
+            {!isCompleted && isFreeformMeeting && (
+              <section className={styles.freeformComposer} aria-label="Freeform meeting response">
+                <div className={styles.freeformHeading}>
+                  <div>
+                    <p className={styles.eyebrow}>Hard mode · live dialogue</p>
+                    <h3>{meetingGateMet ? 'Bring the conversation to a natural close' : 'Respond in your own words'}</h3>
+                  </div>
+                  <Tag type="purple">Freeform</Tag>
+                </div>
+                <p>{meetingGateMet
+                  ? 'The client is ready to wrap up. Confirm the shared next step, owner and timing in one concise response.'
+                  : 'Listen carefully, address the client’s actual concern, and move the conversation forward without scripted choices.'}</p>
+                <div className={styles.composer}>
+                  <TextArea
+                    id="message"
+                    labelText="Response"
+                    hideLabel
+                    rows={3}
+                    placeholder={meetingGateMet ? 'Confirm the agreed next step, owner and timing...' : 'Respond to the client in your own words...'}
+                    value={message}
+                    disabled={isStreaming}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault()
+                        void handleSend()
+                      }
+                    }}
+                  />
+                  <Button renderIcon={Send} disabled={isStreaming || !message.trim()} onClick={() => void handleSend()}>
+                    {isStreaming ? 'Client is responding...' : meetingGateMet ? 'Confirm next step' : 'Send response'}
+                  </Button>
+                </div>
+              </section>
             )}
           </section>
 
@@ -382,48 +424,30 @@ export default function LiveMeetingPage() {
         </Column>
 
         <Column lg={5} md={8} sm={4}>
-          <aside className={styles.decisionRail}>
+          <aside className={`${styles.decisionRail} objective-hints`}>
             <section className={`${styles.relationshipPanel} objective-relationship`}>
               <div className={styles.railHeading}>
                 <div>
                   <p className={styles.eyebrow}>Relationship state</p>
                   <h2>Meeting gate</h2>
                 </div>
-                <Tag type={currentState.trust >= MEETING_THRESHOLD && currentState.interest >= MEETING_THRESHOLD && currentState.patience >= MEETING_THRESHOLD ? 'green' : 'gray'}>
-                  All metrics {MEETING_THRESHOLD}+
+                <Tag type={meetingGateMet ? 'green' : 'gray'}>
+                  All metrics {meetingThreshold}+
                 </Tag>
               </div>
               <Stack gap={5}>
-                <RelationshipMeter label="Trust" value={currentState.trust} targetClass="objective-trust" />
-                <RelationshipMeter label="Interest" value={currentState.interest} targetClass="objective-interest" />
-                <RelationshipMeter label="Patience" value={currentState.patience} targetClass="objective-patience" />
+                <RelationshipMeter label="Trust" value={currentState.trust} threshold={meetingThreshold} />
+                <RelationshipMeter label="Interest" value={currentState.interest} threshold={meetingThreshold} />
+                <RelationshipMeter label="Patience" value={currentState.patience} threshold={meetingThreshold} />
               </Stack>
             </section>
 
-            {!isCompleted && hint.length > 0 && (
-              <Tile className={`${styles.hintPanel} objective-hints`}>
-                <p className={styles.eyebrow}>Response-based hint</p>
-                <h3>Focus your next turn</h3>
-                <ul>{hint.map((item) => <li key={item}>{item}</li>)}</ul>
-              </Tile>
-            )}
-
-            {currentBehaviourFeedback && <BehaviourFeedback feedback={currentBehaviourFeedback} />}
-
-            {!isCompleted && (meetingGateMet || clientReadyToClose) && (
-              <Tile className={styles.readyToClosePanel}>
-                <p className={styles.eyebrow}>Client readiness</p>
-                <h3>Ready to conclude</h3>
-                <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
-              </Tile>
-            )}
-
-            {currentState.disclosedFacts.length > 0 && (
-              <Tile className={styles.factsPanel}>
-                <p className={styles.eyebrow}>Validated during meeting</p>
-                <h3>Facts disclosed</h3>
-                <ul>{currentState.disclosedFacts.map((fact) => <li key={fact}>{fact.replace(/_/g, ' ')}</li>)}</ul>
-              </Tile>
+            {(currentBehaviourFeedback || currentState.disclosedFacts.length > 0 || (!isCompleted && (meetingGateMet || clientReadyToClose))) && (
+              <MeetingIntelligence
+                feedback={currentBehaviourFeedback}
+                disclosedFacts={currentState.disclosedFacts}
+                readyToClose={!isCompleted && (meetingGateMet || clientReadyToClose)}
+              />
             )}
           </aside>
         </Column>

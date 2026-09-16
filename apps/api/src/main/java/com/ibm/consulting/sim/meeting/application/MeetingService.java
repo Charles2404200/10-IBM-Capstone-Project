@@ -103,7 +103,7 @@ public class MeetingService {
         personaStateRepository.findByEngagementId(engagementId)
                 .orElseGet(() -> personaStateRepository.save(PersonaState.initial(engagementId, profile)));
 
-        return MeetingResponse.from(meeting);
+        return MeetingResponse.from(meeting, profile, false, 0);
     }
 
     @Transactional(readOnly = true)
@@ -213,7 +213,7 @@ public class MeetingService {
         PersonaProfile persona = personaCatalogService.getPersona(meeting.getPersonaId());
         PersonaState state = personaStateRepository.findByEngagementId(meeting.getEngagementId())
                 .orElseGet(() -> PersonaState.initial(meeting.getEngagementId(), profile));
-        boolean conclusionRequired = MeetingClosingPolicy.requiresConclusionAfterReply(state, (int) learnerTurnCount);
+        boolean conclusionRequired = MeetingClosingPolicy.requiresConclusionAfterReply(state, profile, (int) learnerTurnCount);
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(meeting.getEngagementId());
         int transcriptStart = Math.max(0, existingTurns.size() - PROMPT_TRANSCRIPT_WINDOW);
         List<ConversationTurn> recentTurns = existingTurns.subList(transcriptStart, existingTurns.size());
@@ -268,7 +268,7 @@ public class MeetingService {
 
         // The simulation engine owns lifecycle truth. A provider cannot keep a
         // passed meeting alive by asking another question or omitting a signal.
-        if (MeetingClosingPolicy.canConclude(state, conclusionRequired, (int) learnerTurnCount + 1)) {
+        if (MeetingClosingPolicy.canConclude(state, profile, conclusionRequired, (int) learnerTurnCount + 1)) {
             aiResponse = MeetingClosingResponsePolicy.conclude(aiResponse);
         }
 
@@ -285,8 +285,8 @@ public class MeetingService {
 
         MeetingResponse completedMeeting = null;
         if (relationshipTermination.isEmpty() && MeetingNaturalCompletionPolicy.shouldConclude(
-                state, aiResponse.meetingSignals(), (int) learnerTurnCount + 1)) {
-            completedMeeting = completeMeeting(meeting, engagement, state);
+                state, profile, aiResponse.meetingSignals(), (int) learnerTurnCount + 1)) {
+            completedMeeting = completeMeeting(meeting, engagement, state, profile);
         }
         MeetingResponseOptionsResponse nextResponseOptions = completedMeeting == null && relationshipTermination.isEmpty()
                 ? guidedResponseService.cachePreGenerated(
@@ -397,10 +397,11 @@ public class MeetingService {
                 "Manual meeting completion is not supported. The meeting closes automatically after the client confirms a passed next step.");
     }
 
-    private MeetingResponse completeMeeting(Meeting meeting, Engagement engagement, PersonaState state) {
-        MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state);
+    private MeetingResponse completeMeeting(Meeting meeting, Engagement engagement, PersonaState state,
+                                            DifficultyProfile profile) {
+        MeetingCompletionDecision decision = MeetingCompletionPolicy.evaluate(state, profile);
         List<ConversationTurn> turns = turnRepository.findByMeetingIdOrderBySequenceAsc(meeting.getId());
-        MeetingDebriefNarrative debrief = createDebrief(meeting, state, decision, turns);
+        MeetingDebriefNarrative debrief = createDebrief(meeting, state, profile, decision, turns);
 
         meeting.complete(decision.outcome(), debrief.feedback(), debrief.tips());
         exportTranscriptBestEffort(meeting);
@@ -473,14 +474,14 @@ public class MeetingService {
         }
     }
 
-    private MeetingDebriefNarrative createDebrief(Meeting meeting, PersonaState state,
+    private MeetingDebriefNarrative createDebrief(Meeting meeting, PersonaState state, DifficultyProfile profile,
                                                    MeetingCompletionDecision decision,
                                                    List<ConversationTurn> turns) {
         try {
             return aiOrchestrationService.execute(
                     "meeting_debrief",
                     meeting.getEngagementId(),
-                    buildDebriefPrompt(state, decision, turns),
+                    buildDebriefPrompt(state, profile, decision, turns),
                     PROMPT_VERSION,
                     new MeetingDebriefParser(objectMapper),
                     () -> MeetingDebriefNarrative.fallback(decision.passed(), decision.unmetRequirements()));
@@ -492,7 +493,10 @@ public class MeetingService {
 
     private MeetingResponse responseFor(Meeting meeting) {
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);
-        return MeetingResponse.from(meeting, eligibility.available(), eligibility.retriesRemaining());
+        Engagement engagement = engagementRepository.findById(meeting.getEngagementId())
+                .orElseThrow(() -> new NotFoundException("Engagement", meeting.getEngagementId()));
+        DifficultyProfile profile = difficultyProfileService.forEngagement(engagement);
+        return MeetingResponse.from(meeting, profile, eligibility.available(), eligibility.retriesRemaining());
     }
 
     private MeetingBehaviourFeedbackResponse behaviourFeedbackFor(Meeting meeting, int learnerSequence) {
@@ -508,7 +512,7 @@ public class MeetingService {
                 meetingRepository.findAllByEngagementIdOrderByCreatedAtAsc(meeting.getEngagementId()));
     }
 
-    private String buildDebriefPrompt(PersonaState state, MeetingCompletionDecision decision,
+    private String buildDebriefPrompt(PersonaState state, DifficultyProfile profile, MeetingCompletionDecision decision,
                                       List<ConversationTurn> turns) {
         String transcript = turns.stream()
                 .skip(Math.max(0, turns.size() - 8))
@@ -525,7 +529,7 @@ public class MeetingService {
                 Recent transcript:
                 %s
                 """.formatted(decision.outcome(), state.getTrust(), state.getInterest(), state.getPatience(),
-                MeetingCompletionPolicy.REQUIRED_SCORE, decision.unmetRequirements(), transcript);
+                MeetingCompletionPolicy.requiredScoreFor(profile), decision.unmetRequirements(), transcript);
     }
 
     public static class MeetingTurnLimitReachedException extends DomainException {

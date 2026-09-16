@@ -18,6 +18,9 @@ import com.ibm.consulting.sim.proposal.application.ProposalSource;
 import com.ibm.consulting.sim.proposal.application.ProposalValidationEngine;
 import com.ibm.consulting.sim.proposal.domain.*;
 import com.ibm.consulting.sim.scenario.domain.DifficultyProfile;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlock;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockPurpose;
+import com.ibm.consulting.sim.scenario.domain.ResearchSourceBlockType;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -60,7 +63,8 @@ class AiEvaluationRegressionSuiteTest {
             List<String> cited = strings(factGuardCase.path("artifactFacts"));
             ResearchArtifactResponse artifact = new ResearchArtifactResponse(
                     "artifact-1", "Controlled intelligence", "SCENARIO_SOURCE", "Scenario-approved summary",
-                    "COMPANY_NEWS", "HIGH", "AI_SYNTHESIZED", null, 90, cited, List.of(), "Grounded by canonical facts");
+                    "COMPANY_NEWS", "HIGH", "AI_SYNTHESIZED", null, 90, cited,
+                    List.of(), "Grounded by canonical facts", factualBlocks(allowed.getFirst()));
             Map<String, String> allowedFacts = allowed.stream().collect(Collectors.toMap(value -> value, value -> value));
 
             if (factGuardCase.path("expectedValid").asBoolean()) {
@@ -71,6 +75,20 @@ class AiEvaluationRegressionSuiteTest {
                         .hasMessageContaining("Unsupported fact id");
             }
         }
+    }
+
+    private static List<ResearchSourceBlock> factualBlocks(String factId) {
+        return List.of(
+                factualBlock("block-1", "The scenario record identifies a current operating condition." , factId),
+                factualBlock("block-2", "The approved source distinguishes this condition from a confirmed outcome.", factId),
+                factualBlock("block-3", "The record preserves the relevant client context for validation.", factId),
+                factualBlock("block-4", "The reported signal remains attributable to the approved source.", factId),
+                factualBlock("block-5", "The available facts do not establish an unverified causal claim.", factId));
+    }
+
+    private static ResearchSourceBlock factualBlock(String id, String content, String factId) {
+        return new ResearchSourceBlock(id, ResearchSourceBlockType.PARAGRAPH, content, "Scenario source",
+                List.of(factId), List.of(), true, ResearchSourceBlockPurpose.FACT);
     }
 
     @Test

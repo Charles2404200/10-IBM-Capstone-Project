@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Mock AI gateway for local development and demo fallback.
@@ -39,23 +40,7 @@ public class MockAiGateway implements AiModelGateway {
                     }
                     """;
             case "persona_dialogue" -> personaDialogueReply(prompt);
-            case "client_intelligence" -> """
-                    {
-                      "artifacts": [
-                        {
-                          "id": "mock-client-intel-1",
-                          "title": "Controlled client intelligence brief",
-                          "category": "COMPANY_NEWS",
-                          "content": "The organisation is signalling operational modernisation pressure based only on the provided canonical facts.",
-                          "sourceType": "COMPANY_NEWS",
-                          "reliability": "MEDIUM",
-                          "supportedFactIds": ["company_name"],
-                          "relevance": 0.75,
-                          "confidence": 0.72
-                        }
-                      ]
-                    }
-                    """;
+            case "client_intelligence" -> clientIntelligenceReply(prompt);
             case "assessment_feedback" -> """
                     {
                       "feedbackSummary": "You demonstrated solid discovery work and built trust steadily through the meeting. Your proposal reflected the client's stated priorities well.",
@@ -168,5 +153,233 @@ public class MockAiGateway implements AiModelGateway {
 
     private static String escapeJson(String value) {
         return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ");
+    }
+
+    /**
+     * The local gateway follows the same prompt contract as a real provider.
+     * It is intentionally grounded in the prompt's canonical facts, not a
+     * generic hard-coded story, so local demos and tests exercise the full
+     * document-research workflow without an external model credential.
+     */
+    private static String clientIntelligenceReply(String prompt) {
+        String lane = lineValue(prompt, "Research lane:");
+        if (lane.isBlank()) lane = lineValue(prompt, "Research category:");
+        if (lane.isBlank()) lane = "COMPANY_NEWS";
+        String company = factValue(prompt, "company_name", "The client");
+        String situation = lineValue(prompt, "- Business situation:");
+        String symptom = lineValue(prompt, "- Observable symptom:");
+        String mandate = lineValue(prompt, "- Consulting mandate:");
+        String unknowns = lineValue(prompt, "- Unknowns to validate:");
+        String decisionMaker = factValue(prompt, "decision_maker", "the accountable operational leader");
+        String technology = factValue(prompt, "technology_stack", "the current operating systems");
+        String publicDescription = factValue(prompt, "public_description", "The client is assessing its current operating model.");
+        String budgetSignal = factValue(prompt, "budget_signal", "No client-confirmed budget detail is visible in this research lane.");
+        String signals = signalValues(prompt);
+        List<String> signalFactIds = signalFactIds(prompt);
+
+        if (situation.isBlank()) situation = factValue(prompt, "business_situation", "The operating context needs validation.");
+        if (symptom.isBlank()) symptom = factValue(prompt, "observable_symptom", "The visible operating signal needs validation.");
+        if (mandate.isBlank()) mandate = factValue(prompt, "consulting_mandate", "Build a grounded next step.");
+        if (unknowns.isBlank()) unknowns = "The root cause, accountable owner and measurable baseline remain open.";
+        if (signals.isBlank()) signals = "No additional client signal has been supplied; treat the remaining questions as open.";
+
+        String sourceType = sourceTypeFor(lane);
+        String laneFactId = laneFactId(lane);
+        boolean laneFactAvailable = hasFact(prompt, laneFactId);
+        boolean publicDescriptionAvailable = hasFact(prompt, "public_description");
+        DocumentBlock laneSpecificBlock = laneFactAvailable
+                ? fact(laneFact(lane, decisionMaker, technology, budgetSignal), laneFactId)
+            : fact("The business situation frames the current research for this lane: " + situation,
+            "business_situation");
+        DocumentBlock publicDescriptionBlock = publicDescriptionAvailable
+                ? fact(publicDescription, "public_description")
+            : fact("The document keeps its company context within the reported business situation: " + situation,
+            "business_situation");
+        String firstTitle = switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "Stakeholder dossier: " + decisionMaker;
+            case "FINANCIAL_SIGNAL" -> "Commercial readiness review for " + company;
+            case "TECHNOLOGY_INDICATOR" -> "Technology dependency briefing: " + company;
+            default -> company + " reviews the operating issue behind " + shorten(symptom, 74);
+        };
+        String secondTitle = switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "Decision influence and validation map";
+            case "FINANCIAL_SIGNAL" -> "Value-case assumptions requiring client confirmation";
+            case "TECHNOLOGY_INDICATOR" -> "Operational implications of the current technology environment";
+            default -> "Client decision context: " + company;
+        };
+
+        String first = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-1", firstTitle, lane, sourceType,
+                "HIGH", 0.9, situation,
+                List.of(
+                        fact(company + " is the organisation named in the scenario for this research brief.", "company_name"),
+                        fact(situation, "business_situation"),
+                        fact(symptom, "observable_symptom"),
+                        fact(signals, signalFactIds),
+                        fact(mandate, "consulting_mandate"),
+                        laneSpecificBlock,
+                        publicDescriptionBlock,
+                        fact("The reported business situation, operating symptom and related client signals describe the current conditions surrounding "
+                                + company + ". They provide a concrete frame for the issue without establishing a single confirmed cause or outcome.",
+                            "business_situation"),
+                        fact("The current picture combines the business situation of " + situation + " The operating signal is "
+                                + symptom + " The related client signal is " + signals + " Taken together, these recorded points describe why the topic is material to "
+                                + company + " while keeping the underlying mechanism and final decision outside the confirmed evidence.",
+                            "observable_symptom"),
+                        fact("The briefing keeps the business situation, operating signal and stated mandate in the same reporting frame. "
+                            + "It records that " + mandate + " while preserving the client context supplied for " + company + ".",
+                            "consulting_mandate")));
+        String second = documentJson("mock-" + lane.toLowerCase(Locale.ROOT) + "-2", secondTitle, lane, sourceType,
+                "MEDIUM", 0.74, publicDescription,
+                List.of(
+                        fact(company + " is the client organisation referenced by the current research material.", "company_name"),
+                        publicDescriptionBlock,
+                        fact(situation, "business_situation"),
+                        fact(symptom, "observable_symptom"),
+                        laneSpecificBlock,
+                        fact(signals, signalFactIds),
+                        fact(mandate, "consulting_mandate"),
+                        fact("The reported client context links the business situation with the operating symptom and the lane-specific signal. "
+                                + "It provides a different research angle without adding an unverified claim about cause, funding, authority or solution.",
+                            List.of("business_situation", "observable_symptom")),
+                        fact("The research material identifies " + situation + " alongside " + symptom + " It also records "
+                                + signals + " These are distinct observations in the client context; their relationship is relevant to assess but is not stated as a confirmed causal finding.",
+                            "observable_symptom"),
+                        fact("The document retains the stated mandate, " + mandate + ", as part of the client research context. "
+                            + "The narrative is anchored to the reported conditions rather than a separate claim about the outcome of that work.",
+                            "consulting_mandate")));
+        return "{\"artifacts\":[" + first + "," + second + "]}";
+    }
+
+    private static String documentJson(String id, String title, String lane, String sourceType, String reliability,
+                                       double relevance, String summary, List<DocumentBlock> documentBlocks) {
+        StringBuilder blocks = new StringBuilder();
+        List<String> artifactFactIds = new java.util.ArrayList<>(List.of("company_name"));
+        for (DocumentBlock block : documentBlocks.stream().limit(5).toList()) {
+            if (!blocks.isEmpty()) blocks.append(',');
+            blocks.append(blockJson("PARAGRAPH", block));
+            block.factIds().forEach(factId -> { if (!artifactFactIds.contains(factId)) artifactFactIds.add(factId); });
+        }
+        return "{\"id\":\"" + escapeJson(id) + "\",\"title\":\"" + escapeJson(title)
+                + "\",\"category\":\"" + escapeJson(lane) + "\",\"content\":\"" + escapeJson(summary)
+                + "\",\"sourceType\":\"" + sourceType + "\",\"reliability\":\"" + reliability
+                + "\",\"supportedFactIds\": [" + artifactFactIds.stream().map(factId -> "\"" + escapeJson(factId) + "\"").collect(java.util.stream.Collectors.joining(",")) + "]"
+                + ",\"relevance\":" + relevance + ",\"confidence\":" + relevance + ",\"blocks\":[" + blocks + "]}";
+    }
+
+    private static String blockJson(String type, DocumentBlock block) {
+        String factIds = block.factIds().stream().map(factId -> "\"" + escapeJson(factId) + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
+        return "{\"type\":\"" + type + "\",\"content\":\"" + escapeJson(block.content())
+                + "\",\"purpose\":\"" + block.purpose() + "\",\"selectable\":" + block.selectable()
+                + ",\"factIds\": [" + factIds + "]}";
+    }
+
+    private static String lineValue(String prompt, String marker) {
+        int start = prompt.indexOf(marker);
+        if (start < 0) return "";
+        start += marker.length();
+        int end = prompt.indexOf('\n', start);
+        return prompt.substring(start, end < 0 ? prompt.length() : end).trim();
+    }
+
+    private static String factValue(String prompt, String factKey, String fallback) {
+        return valueOr(lineValue(prompt, "- " + factKey + ":"), fallback);
+    }
+
+    private static boolean hasFact(String prompt, String factKey) {
+        return !lineValue(prompt, "- " + factKey + ":").isBlank();
+    }
+
+    private static String signalValues(String prompt) {
+        StringBuilder values = new StringBuilder();
+        for (String line : prompt.split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith("- signal_")) continue;
+            int separator = trimmed.indexOf(':');
+            if (separator < 0 || separator == trimmed.length() - 1) continue;
+            if (!values.isEmpty()) values.append(' ');
+            values.append(trimmed.substring(separator + 1).trim());
+        }
+        return values.toString();
+    }
+
+    private static List<String> signalFactIds(String prompt) {
+        List<String> ids = new java.util.ArrayList<>();
+        for (String line : prompt.split("\\R")) {
+            String trimmed = line.trim();
+            if (!trimmed.startsWith("- signal_")) continue;
+            int separator = trimmed.indexOf(':');
+            if (separator > 2) ids.add(trimmed.substring(2, separator).trim());
+        }
+        return ids.isEmpty() ? List.of("business_situation") : List.copyOf(ids);
+    }
+
+    private static String sourceTypeFor(String lane) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "STAKEHOLDER_PROFILE";
+            case "FINANCIAL_SIGNAL" -> "FINANCIAL_REPORT";
+            case "TECHNOLOGY_INDICATOR" -> "TECHNOLOGY_NOTE";
+            default -> "COMPANY_NEWS";
+        };
+    }
+
+    private static String interpretedSignal(String lane, String company, String symptom, String technology) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "The available stakeholder context identifies a potential source of validation, but does not confirm decision authority or sponsorship.";
+            case "FINANCIAL_SIGNAL" -> "The available commercial signals indicate an operating issue that may have material consequences; no funding decision is confirmed here.";
+            case "TECHNOLOGY_INDICATOR" -> "The current systems may contribute to the observed operating signal, but the specific dependency has not been confirmed.";
+            default -> "The stated business context and observable operating signal may be connected, but this source does not establish the causal mechanism.";
+        };
+    }
+
+    private static String laneFact(String lane, String decisionMaker, String technology, String budgetSignal) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> decisionMaker;
+            case "FINANCIAL_SIGNAL" -> budgetSignal;
+            case "TECHNOLOGY_INDICATOR" -> technology;
+            default -> technology;
+        };
+    }
+
+    private static String laneFactId(String lane) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "decision_maker";
+            case "FINANCIAL_SIGNAL" -> "budget_signal";
+            case "TECHNOLOGY_INDICATOR" -> "technology_stack";
+            default -> "technology_stack";
+        };
+    }
+
+    private static String secondInterpretation(String lane, String symptom, String technology) {
+        return switch (lane) {
+            case "STAKEHOLDER_PROFILE" -> "The available role information identifies a potential source of validation, but not a confirmed decision maker.";
+            case "FINANCIAL_SIGNAL" -> "The available commercial signal is not enough to establish a funded value case or quantify the client impact.";
+            case "TECHNOLOGY_INDICATOR" -> "The stated technology environment and the operating symptom may be connected, but the evidence does not confirm a root technical cause.";
+            default -> "The operating signal and current technology environment may be connected, but this source does not establish a root cause.";
+        };
+    }
+
+    private static DocumentBlock fact(String content, String factId) {
+        return fact(content, List.of(factId));
+    }
+
+    private static DocumentBlock fact(String content, List<String> factIds) {
+        return new DocumentBlock(content, "FACT", factIds, true);
+    }
+
+    private record DocumentBlock(String content, String purpose, List<String> factIds, boolean selectable) {}
+
+    private static String shorten(String value, int maximumLength) {
+        if (value.length() <= maximumLength) return value;
+        int boundary = value.lastIndexOf(' ', maximumLength - 3);
+        return (boundary > 0 ? value.substring(0, boundary) : value.substring(0, maximumLength - 3)) + "...";
+    }
+
+    private static String lowerCaseFirst(String value) {
+        return value == null || value.isBlank() ? "the client problem" : Character.toLowerCase(value.charAt(0)) + value.substring(1);
+    }
+
+    private static String valueOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 }
