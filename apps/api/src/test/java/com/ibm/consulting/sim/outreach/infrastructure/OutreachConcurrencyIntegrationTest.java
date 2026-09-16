@@ -56,6 +56,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest
@@ -122,10 +124,33 @@ class OutreachConcurrencyIntegrationTest {
         assertThat(outcomes).filteredOn(Outcome::succeeded).hasSize(1);
     }
 
+    @Test
+    void concurrentDuplicateRequestIdsCreateOneAttemptAndOneEvaluation() throws Exception {
+        TestData data = inTransaction(this::persistBaseOutreachEngagement);
+        AiOrchestrationService ai = aiService();
+        OutreachService service = service(outreachRepository, data, ai);
+
+        List<Outcome> outcomes = runConcurrently(
+                () -> service.send(data.engagementId(), data.userId(), "Subject", "A valid outreach body",
+                        "same-client-request"),
+                () -> service.send(data.engagementId(), data.userId(), "Subject", "A valid outreach body",
+                        "same-client-request"));
+
+        List<OutreachAttempt> attempts = inTransaction(
+                () -> outreachRepository.findByEngagementId(data.engagementId()));
+        assertThat(outcomes).allMatch(Outcome::succeeded);
+        assertThat(outcomes).extracting(Outcome::response)
+                .extracting(response -> ((com.ibm.consulting.sim.outreach.application.OutreachResponse) response).id())
+                .containsOnly(attempts.getFirst().getId());
+        assertThat(attempts).hasSize(1);
+        verify(ai, times(1)).execute(anyString(), any(UUID.class), anyString(), anyInt(), any(), any());
+    }
+
     private OutreachService service(OutreachRepository attempts, TestData data) {
-        AiOrchestrationService ai = mock(AiOrchestrationService.class);
-        when(ai.execute(anyString(), any(UUID.class), anyString(), anyInt(), any(), any()))
-                .thenReturn(OutreachEvaluationResult.safeFallback());
+        return service(attempts, data, aiService());
+    }
+
+    private OutreachService service(OutreachRepository attempts, TestData data, AiOrchestrationService ai) {
         DifficultyProfileService difficulty = mock(DifficultyProfileService.class);
         when(difficulty.forEngagement(any(Engagement.class))).thenReturn(DifficultyProfile.defaults(3, 3, 3, 3));
         LeadRepository leads = mock(LeadRepository.class);
@@ -134,6 +159,13 @@ class OutreachConcurrencyIntegrationTest {
         when(evidence.findByEngagementId(data.engagementId())).thenReturn(List.of());
         return new OutreachService(attempts, new EntityManagerEngagementRepository(entityManager), ai,
                 new ObjectMapper(), difficulty, leads, evidence);
+    }
+
+    private AiOrchestrationService aiService() {
+        AiOrchestrationService ai = mock(AiOrchestrationService.class);
+        when(ai.execute(anyString(), any(UUID.class), anyString(), anyInt(), any(), any()))
+                .thenReturn(OutreachEvaluationResult.safeFallback());
+        return ai;
     }
 
     private OutreachRepository gateAttemptSaves(OutreachRepository delegate, CountDownLatch savesReached) {

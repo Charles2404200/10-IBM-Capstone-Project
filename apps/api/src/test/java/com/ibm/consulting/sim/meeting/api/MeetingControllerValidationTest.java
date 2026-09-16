@@ -111,6 +111,16 @@ class MeetingControllerValidationTest {
         verifyNoInteractions(preparationService);
     }
 
+    @Test
+    void blankAgendaAndDiscoveryItemsAreRejectedBeforeTheService() throws Exception {
+        updatePreparation("Objective", List.of("   "), List.of("Valid question"))
+                .andExpect(status().isBadRequest());
+        updatePreparation("Objective", List.of("Valid agenda item"), List.of("   "))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(preparationService);
+    }
+
     private org.springframework.test.web.servlet.ResultActions sendMessage(String message, String messageId)
             throws Exception {
         return mockMvc.perform(post("/api/v1/meetings/{meetingId}/messages", meetingId)

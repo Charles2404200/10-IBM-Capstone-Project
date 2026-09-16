@@ -3,7 +3,11 @@ package com.ibm.consulting.sim.lead.api;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.ibm.consulting.sim.engagement.domain.Engagement;
+import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
+import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.identity.domain.User;
+import com.ibm.consulting.sim.lead.application.LeadNotInScenarioException;
 import com.ibm.consulting.sim.lead.application.LeadService;
 import com.ibm.consulting.sim.lead.application.ResearchIntelligenceService;
 import com.ibm.consulting.sim.lead.application.ResearchEvidenceSummary;
@@ -11,9 +15,17 @@ import com.ibm.consulting.sim.lead.domain.ConfidenceLevel;
 import com.ibm.consulting.sim.lead.domain.EvidenceOrigin;
 import com.ibm.consulting.sim.lead.domain.EvidenceType;
 import com.ibm.consulting.sim.lead.domain.EvidenceVerificationStatus;
+import com.ibm.consulting.sim.lead.domain.Lead;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
+import com.ibm.consulting.sim.lead.domain.LeadRepository;
 import com.ibm.consulting.sim.lead.domain.ResearchEvidence;
+import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
+import com.ibm.consulting.sim.scenario.application.DifficultyProfileService;
+import com.ibm.consulting.sim.scenario.application.ScenarioAuthoringConfigService;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -22,9 +34,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class LeadControllerTrustBoundaryTest {
 
@@ -96,5 +111,59 @@ class LeadControllerTrustBoundaryTest {
 
         assertThat(json.path("origin").asText()).isEqualTo("USER_SUPPLIED");
         assertThat(json.path("verificationStatus").asText()).isEqualTo("UNVERIFIED");
+    }
+
+    @Test
+    void crossScenarioLeadSelectionLeavesTheEngagementUntouched() {
+        UUID userId = UUID.randomUUID();
+        UUID engagementId = UUID.randomUUID();
+        UUID scenarioA = UUID.randomUUID();
+        UUID scenarioB = UUID.randomUUID();
+        Engagement engagement = Engagement.start(userId, scenarioA, UUID.randomUUID(), "frozen-profile");
+        Lead foreignLead = Lead.create(scenarioB, "Foreign Co", "Finance",
+                "Unrelated opportunity", LeadDifficulty.HARD);
+        EngagementRepository engagements = mock(EngagementRepository.class);
+        LeadRepository leads = mock(LeadRepository.class);
+        when(engagements.findByIdAndUserIdForUpdate(engagementId, userId))
+                .thenReturn(Optional.of(engagement));
+        when(leads.findById(foreignLead.getId())).thenReturn(Optional.of(foreignLead));
+        LeadService service = service(leads, engagements);
+
+        assertThatThrownBy(() -> service.selectLead(engagementId, foreignLead.getId(), userId))
+                .isInstanceOf(LeadNotInScenarioException.class);
+
+        assertThat(engagement.getSelectedLeadId()).isNull();
+        assertThat(engagement.getState()).isEqualTo(EngagementState.QUALIFYING);
+        assertThat(engagement.getDifficultyProfileSnapshot()).isEqualTo("frozen-profile");
+        assertThat(engagement.getEvents()).hasSize(1);
+        verify(engagements, never()).save(any());
+    }
+
+    @Test
+    void reselectingTheSameLeadIsAnIdempotentNoOp() {
+        UUID userId = UUID.randomUUID();
+        UUID engagementId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        Engagement engagement = Engagement.start(userId, UUID.randomUUID(), UUID.randomUUID());
+        engagement.selectLead(leadId, "lead-profile");
+        EngagementRepository engagements = mock(EngagementRepository.class);
+        LeadRepository leads = mock(LeadRepository.class);
+        when(engagements.findByIdAndUserIdForUpdate(engagementId, userId))
+                .thenReturn(Optional.of(engagement));
+        LeadService service = service(leads, engagements);
+
+        service.selectLead(engagementId, leadId, userId);
+
+        assertThat(engagement.getSelectedLeadId()).isEqualTo(leadId);
+        assertThat(engagement.getState()).isEqualTo(EngagementState.CLIENT_INTELLIGENCE);
+        assertThat(engagement.getEvents()).hasSize(2);
+        verifyNoInteractions(leads);
+        verify(engagements, never()).save(any());
+    }
+
+    private LeadService service(LeadRepository leads, EngagementRepository engagements) {
+        return new LeadService(leads, mock(ResearchEvidenceRepository.class), engagements,
+                mock(DifficultyProfileService.class), mock(ScenarioRepository.class),
+                mock(ScenarioAuthoringConfigService.class));
     }
 }
