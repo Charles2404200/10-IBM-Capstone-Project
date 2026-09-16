@@ -100,8 +100,22 @@ describe('AdminConsolePage states', () => {
     expect(screen.getByText('Some administration data is unavailable')).toBeInTheDocument()
   })
 
-  it('shows the error state when a role-relevant query fails', () => {
+  it('shows the error state when all role-relevant queries fail', () => {
     setupAsRole('ADMINISTRATOR')
+    mockedScenarios.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useAllScenariosForAdmin>)
+    mockedAiOps.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useAdminAiOperations>)
     mockedPlatform.mockReturnValue({
       data: undefined,
       isLoading: false,
