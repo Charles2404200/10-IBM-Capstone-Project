@@ -4,6 +4,8 @@ import type { Assessment } from '@/api/types'
 import { engagementKeys } from '@/api/hooks/useEngagements'
 import { portfolioKeys } from '@/api/hooks/usePortfolio'
 
+const ASSESSMENT_REQUEST_TIMEOUT_MS = 30_000
+
 export const assessmentKeys = {
   detail: (engagementId: string) => ['assessment', engagementId] as const,
 }
@@ -27,7 +29,9 @@ export function useGenerateAssessment(engagementId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async () => {
-      const res = await apiClient.post<Assessment>(`/api/v1/engagements/${engagementId}/assessment`)
+      const res = await apiClient.post<Assessment>(`/api/v1/engagements/${engagementId}/assessment`, undefined, {
+        timeout: ASSESSMENT_REQUEST_TIMEOUT_MS,
+      })
       return res.data
     },
     onSuccess: () => {

@@ -83,7 +83,9 @@ public class LeadService {
         if (!lead.getScenarioId().equals(engagement.getScenarioId())) {
             throw new LeadNotInScenarioException(leadId, engagement.getScenarioId());
         }
-        engagement.selectLead(leadId);
+        String profileSnapshot = difficultyProfileService.snapshot(
+                difficultyProfileService.forLeadDifficulty(difficultyProfileService.forEngagement(engagement), lead.getDifficulty()));
+        engagement.selectLead(leadId, profileSnapshot);
         engagementRepository.save(engagement);
     }
 

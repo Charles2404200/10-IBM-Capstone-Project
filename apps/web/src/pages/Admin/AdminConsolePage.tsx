@@ -1,4 +1,4 @@
-import { Button, InlineLoading, Tag } from '@carbon/react'
+import { Button, InlineLoading, InlineNotification, Tag } from '@carbon/react'
 import {
   ArrowRight,
   ChartLine,
@@ -93,7 +93,11 @@ export default function AdminConsolePage() {
   const activeRuns = platform.isLoading ? '...' : platform.data?.activeEngagements ?? 0
   const completionRate = platform.isLoading ? '...' : `${platform.data?.completionRatePercent ?? 0}%`
 
-  const isError = (canAuthorScenarios && scenarios.isError) || (canViewAiOperations && aiOperations.isError) || (canAdminister && platform.isError)
+  const failedQueryCount = Number(canAuthorScenarios && scenarios.isError)
+    + Number(canViewAiOperations && aiOperations.isError)
+    + Number(canAdminister && platform.isError)
+  const requiredQueryCount = Number(canAuthorScenarios) + Number(canViewAiOperations) + Number(canAdminister)
+  const isError = requiredQueryCount > 0 && failedQueryCount === requiredQueryCount
   if (isError) {
     return (
       <ErrorState
@@ -127,6 +131,8 @@ export default function AdminConsolePage() {
           {canAuthorScenarios && <Button as={Link} to="/dashboard/admin/scenarios" size="sm" renderIcon={DocumentAdd}>Create scenario</Button>}
         </div>
       </header>
+
+      {failedQueryCount > 0 && <InlineNotification kind="warning" lowContrast title="Some administration data is unavailable" subtitle="The remaining workspace is ready. Use Refresh to retry the unavailable data." hideCloseButton />}
 
       <section className={styles.metrics} aria-label="Platform summary">
         <Metric icon={Settings} label="Learning journeys" value={activeScenarios} detail={`${scenarioTotal} total scenarios`} tone="blue" />

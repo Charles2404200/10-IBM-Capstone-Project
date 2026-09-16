@@ -8,6 +8,8 @@ import type {
   ProposalWorkspace,
 } from '@/api/types'
 
+const PROPOSAL_REQUEST_TIMEOUT_MS = 30_000
+
 export const proposalKeys = {
   detail: (engagementId: string) => ['proposal', engagementId] as const,
   workspace: (engagementId: string) => ['proposal-workspace', engagementId] as const,
@@ -49,7 +51,9 @@ export function useSaveProposalDraft(engagementId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: ProposalDraftRequest) =>
-      (await apiClient.put<Proposal>(`/api/v1/engagements/${engagementId}/proposal/draft`, data)).data,
+      (await apiClient.put<Proposal>(`/api/v1/engagements/${engagementId}/proposal/draft`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
     retry: 1,
     retryDelay: 300,
     onSuccess: (proposal) => {
@@ -65,14 +69,18 @@ export function useSaveProposalDraft(engagementId: string) {
 export function useProposalReview(engagementId: string) {
   return useMutation({
     mutationFn: async (data: ProposalDraftRequest) =>
-      (await apiClient.post<ProposalReview>(`/api/v1/engagements/${engagementId}/proposal/review`, data)).data,
+      (await apiClient.post<ProposalReview>(`/api/v1/engagements/${engagementId}/proposal/review`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
   })
 }
 
 export function useProposalChallenge(engagementId: string) {
   return useMutation({
     mutationFn: async (data: ProposalDraftRequest) =>
-      (await apiClient.post<ProposalChallenge>(`/api/v1/engagements/${engagementId}/proposal/challenge`, data)).data,
+      (await apiClient.post<ProposalChallenge>(`/api/v1/engagements/${engagementId}/proposal/challenge`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
   })
 }
 
@@ -80,7 +88,9 @@ export function useSubmitProposal(engagementId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: ProposalDraftRequest) =>
-      (await apiClient.post<Proposal>(`/api/v1/engagements/${engagementId}/proposal`, data)).data,
+      (await apiClient.post<Proposal>(`/api/v1/engagements/${engagementId}/proposal`, data, {
+        timeout: PROPOSAL_REQUEST_TIMEOUT_MS,
+      })).data,
     onSuccess: (proposal) => {
       qc.setQueryData(proposalKeys.detail(engagementId), proposal)
       qc.setQueryData<ProposalWorkspace | undefined>(proposalKeys.workspace(engagementId), (current) =>

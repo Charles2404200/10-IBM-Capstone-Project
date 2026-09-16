@@ -50,4 +50,18 @@ class MeetingResponseTest {
         assertEquals("FREEFORM", response.interactionMode());
         assertEquals(80, response.meetingThreshold());
     }
+
+    @Test
+    void exposesGuidedChoicesForEasyAndMediumMeetings() {
+        Meeting meeting = org.mockito.Mockito.mock(Meeting.class);
+        when(meeting.getId()).thenReturn(UUID.randomUUID());
+        when(meeting.getEngagementId()).thenReturn(UUID.randomUUID());
+        when(meeting.getPersonaId()).thenReturn(UUID.randomUUID());
+        when(meeting.getStatus()).thenReturn(MeetingStatus.IN_PROGRESS);
+        when(meeting.getDebriefTips()).thenReturn(List.of());
+        when(meeting.getBehaviourLedger()).thenReturn(List.of());
+
+        assertEquals("GUIDED", MeetingResponse.from(meeting, DifficultyProfile.defaults(1, 1, 1, 1), false, 0).interactionMode());
+        assertEquals("GUIDED", MeetingResponse.from(meeting, DifficultyProfile.defaults(3, 3, 3, 3), false, 0).interactionMode());
+    }
 }

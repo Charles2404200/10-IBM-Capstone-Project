@@ -1265,6 +1265,11 @@ $accent-blue-dark: #0043ce;
   min-width: 0;
 }
 
+.evidenceCardFooter {
+  flex-wrap: wrap;
+  row-gap: 0.125rem;
+}
+
 .compactEvidenceSupport {
   align-items: center;
   color: $accent-blue-dark;
@@ -1828,17 +1833,25 @@ $accent-blue-dark: #0043ce;
   }
 
   .evidenceCard {
-    height: 5.5rem;
+    height: 7.5rem;
     padding: $spacing-03;
   }
 
   .evidenceTitle {
+    flex: 0 0 auto;
     -webkit-line-clamp: 1;
     margin: 0.125rem 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .evidenceNote {
-    -webkit-line-clamp: 1;
+    display: none;
+  }
+
+  .evidenceCardFooter {
+    align-content: flex-end;
+    flex: 1 1 auto;
   }
 
   .decisionRail {

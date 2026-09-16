@@ -7,6 +7,7 @@ import {
   TextInput,
   TextArea,
   ProgressBar,
+  InlineLoading,
   InlineNotification,
   Tag,
   Tabs,
@@ -303,8 +304,14 @@ export default function MeetingPreparationPage() {
             <Button kind="tertiary" disabled={isSaving} onClick={handleSave}>
               {updatePreparation.isPending && !launchingMeeting ? 'Saving...' : 'Save plan'}
             </Button>
-            <Button renderIcon={ArrowRight} disabled={!ready || isSaving || startMeeting.isPending} onClick={handleStartMeeting}>
-              {launchingMeeting ? 'Opening meeting...' : startMeeting.isPending ? 'Starting...' : 'Start meeting'}
+            <Button
+              renderIcon={launchingMeeting || startMeeting.isPending ? undefined : ArrowRight}
+              disabled={!ready || isSaving || startMeeting.isPending}
+              onClick={handleStartMeeting}
+            >
+              {launchingMeeting || startMeeting.isPending
+                ? <InlineLoading description="Opening meeting" status="active" />
+                : 'Start meeting'}
             </Button>
           </div>
         </header>
