@@ -37,11 +37,11 @@ function proposal(overrides: Partial<Proposal> = {}): Proposal {
 
 describe('proposal frontend/backend contract', () => {
   it('preserves textual money at the API boundary', () => {
-    const request = { ...createEmptyProposalDraft(), budget: '125000.50' }
+    const request = { ...createEmptyProposalDraft(), budget: 125000.50 }
 
-    expect(request.budget).toBe('125000.50')
-    expect(typeof request.budget).toBe('string')
-    expect(proposalToDraft(proposal()).budget).toBe('125000.5')
+    expect(request.budget).toBe(125000.50)
+    expect(typeof request.budget).toBe('number')
+    expect(proposalToDraft(proposal()).budget).toBe(125000.5)
   })
 
   it('represents draft lifecycle fields with contract-safe values', () => {
