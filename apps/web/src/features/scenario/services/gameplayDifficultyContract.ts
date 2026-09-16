@@ -24,6 +24,9 @@ export const GAMEPLAY_DIFFICULTY_RANGES: Record<NumericGameplayField, { min: num
 export function gameplayDifficultyFromScenario(
   scenario: Pick<ScenarioSummary, 'gameplayDifficulty'>,
 ): GameplayDifficultyProfile {
+  if (!scenario.gameplayDifficulty) {
+    throw new Error('Scenario response is missing its gameplay difficulty profile')
+  }
   return scenario.gameplayDifficulty
 }
 

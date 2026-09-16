@@ -71,7 +71,7 @@ class AdminAchievementControllerContractTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRATOR")
-    void optionalDescriptionCanBeOmittedAndSerializesAsNull() throws Exception {
+    void optionalDescriptionCanBeOmittedAndSerializesAsAnEmptyString() throws Exception {
         ConditionNode rule = ConditionNode.leaf(ConditionType.MIN_ENGAGEMENTS_WON, null, 1);
         UUID achievementId = UUID.randomUUID();
         when(achievementService.create(any())).thenReturn(
@@ -88,11 +88,11 @@ class AdminAchievementControllerContractTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.description").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.description").value(""));
         mockMvc.perform(put("/api/v1/admin/achievements/{id}", achievementId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.description").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.description").value(""));
     }
 }

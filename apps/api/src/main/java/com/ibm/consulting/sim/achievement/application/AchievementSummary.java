@@ -15,6 +15,11 @@ public record AchievementSummary(
         Instant unlockedAt,
         double progressPercent) {
 
+    public AchievementSummary {
+        description = java.util.Objects.requireNonNullElse(description, "");
+        iconKey = java.util.Objects.requireNonNullElse(iconKey, "");
+    }
+
     public static AchievementSummary locked(Achievement a, double progressPercent) {
         return new AchievementSummary(a.getId(), a.getName(), a.getDescription(), a.getIconKey(),
                 false, null, progressPercent);

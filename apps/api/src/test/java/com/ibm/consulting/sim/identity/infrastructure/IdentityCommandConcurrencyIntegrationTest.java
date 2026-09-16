@@ -217,7 +217,16 @@ class IdentityCommandConcurrencyIntegrationTest {
                 awaitPeer(checksReached);
                 return exists;
             }
+            @Override public long countByRoleAndActive(
+                    com.ibm.consulting.sim.identity.domain.UserRole role, boolean active) {
+                return delegate.countByRoleAndActive(role, active);
+            }
             @Override public List<User> findAll() { return delegate.findAll(); }
+            @Override public com.ibm.consulting.sim.identity.domain.UserDirectoryPage findDirectory(
+                    com.ibm.consulting.sim.identity.domain.UserDirectoryQuery query) {
+                return delegate.findDirectory(query);
+            }
+            @Override public void delete(User user) { delegate.delete(user); }
         };
     }
 

@@ -57,18 +57,18 @@ describe('new frontend/backend authoring contracts', () => {
     expect(adjusted.distractorArtifactsPerAction).toBe(1)
   })
 
-  it('normalizes nullable draft lead fields for controlled form inputs', () => {
+  it('preserves required draft lead strings for controlled form inputs', () => {
     const draft: LeadAuthoringView = {
       id: 'lead-1',
       companyName: 'Example Corp',
       industry: 'Technology',
-      publicDescription: null,
+      publicDescription: '',
       difficulty: 'MEDIUM',
-      potentialValueRange: null,
-      decisionMaker: null,
-      technologyStack: null,
-      budgetSignal: null,
-      painSeverity: null,
+      potentialValueRange: '',
+      decisionMaker: '',
+      technologyStack: '',
+      budgetSignal: '',
+      painSeverity: '',
       signals: [],
     }
 

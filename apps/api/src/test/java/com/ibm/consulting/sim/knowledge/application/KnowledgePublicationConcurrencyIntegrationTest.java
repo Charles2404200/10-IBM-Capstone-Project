@@ -155,6 +155,11 @@ class KnowledgePublicationConcurrencyIntegrationTest {
     private Fixture persistReadyScenario(Mutation mutation) {
         Scenario scenario = Scenario.create("Ready", "Technology", "Description", 3);
         scenario.updateBriefing("Consultant", "Objective", List.of("Success"), 5);
+        scenario.updateProblemBriefing(
+                "The client must modernise a critical workflow.",
+                "Delivery delays are affecting business outcomes.",
+                "Validate the causes and recommend a grounded response.",
+                List.of("Which constraint is driving the delays?"));
         scenario.updateRubricWeights(Map.of("Communication", 100));
         scenario.addPersona("Client", "CIO", "Example", "Direct", null, null, null);
         entityManager.persist(scenario);
@@ -234,6 +239,8 @@ class KnowledgePublicationConcurrencyIntegrationTest {
         @Override public List<DocumentChunk> saveAll(List<DocumentChunk> chunks) { return chunks; }
         @Override public List<DocumentChunk> findByCollectionAndScope(
                 KnowledgeCollection collection, UUID scenarioId, UUID personaId) { return List.of(); }
+        @Override public List<DocumentChunk> findResearchCorpus(
+                KnowledgeCollection collection, UUID scenarioId) { return List.of(); }
         @Override public void deleteByDocumentId(UUID documentId) {}
     }
 

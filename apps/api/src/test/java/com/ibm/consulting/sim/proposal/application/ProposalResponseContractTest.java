@@ -22,19 +22,18 @@ class ProposalResponseContractTest {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     @Test
-    void draftSerializesNumericBudgetAndNullDecisionFields() throws Exception {
+    void draftSerializesFrontendCompatibleBudgetAndDecisionFields() throws Exception {
         ProposalResponse response = ProposalResponse.from(draft());
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsBytes(response));
 
-        assertThat(json.path("budget").isNumber()).isTrue();
-        assertThat(json.path("budget").decimalValue()).isEqualByComparingTo("125000.50");
-        assertThat(json.path("clientDecisionOutcome").isNull()).isTrue();
-        assertThat(json.path("decisionRationale").isNull()).isTrue();
-        assertThat(json.path("submittedAt").isNull()).isTrue();
+        assertThat(json.path("budget").asText()).isEqualTo("125000.50");
+        assertThat(json.path("clientDecisionOutcome").asText()).isEqualTo("DEFERRED");
+        assertThat(json.path("decisionRationale").asText()).isEmpty();
+        assertThat(json.path("submittedAt").asText()).isEmpty();
     }
 
     @Test
-    void submittedButUnresolvedProposalKeepsDecisionFieldsNull() throws Exception {
+    void submittedButUnresolvedProposalUsesContractSafeDecisionFields() throws Exception {
         Proposal proposal = draft();
         proposal.submit();
 
@@ -43,8 +42,8 @@ class ProposalResponseContractTest {
 
         assertThat(response.submittedAt()).isNotNull();
         assertThat(json.path("submittedAt").isTextual()).isTrue();
-        assertThat(json.path("clientDecisionOutcome").isNull()).isTrue();
-        assertThat(json.path("decisionRationale").isNull()).isTrue();
+        assertThat(json.path("clientDecisionOutcome").asText()).isEqualTo("DEFERRED");
+        assertThat(json.path("decisionRationale").asText()).isEmpty();
     }
 
     @Test

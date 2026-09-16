@@ -15,17 +15,17 @@ class LeadAuthoringContractTest {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    void incompleteDraftLeadSerializesNullableFieldsAndAnEmptySignalsArray() throws Exception {
+    void incompleteDraftLeadSerializesNonNullStringsAndAnEmptySignalsArray() throws Exception {
         Lead draft = Lead.create(UUID.randomUUID(), "Example Corp", "Technology", null, LeadDifficulty.MEDIUM);
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsBytes(LeadAuthoringView.from(draft)));
 
-        assertThat(json.path("publicDescription").isNull()).isTrue();
-        assertThat(json.path("potentialValueRange").isNull()).isTrue();
-        assertThat(json.path("decisionMaker").isNull()).isTrue();
-        assertThat(json.path("technologyStack").isNull()).isTrue();
-        assertThat(json.path("budgetSignal").isNull()).isTrue();
-        assertThat(json.path("painSeverity").isNull()).isTrue();
+        assertThat(json.path("publicDescription").asText()).isEmpty();
+        assertThat(json.path("potentialValueRange").asText()).isEmpty();
+        assertThat(json.path("decisionMaker").asText()).isEmpty();
+        assertThat(json.path("technologyStack").asText()).isEmpty();
+        assertThat(json.path("budgetSignal").asText()).isEmpty();
+        assertThat(json.path("painSeverity").asText()).isEmpty();
         assertThat(json.path("signals").isArray()).isTrue();
         assertThat(json.path("signals")).isEmpty();
     }

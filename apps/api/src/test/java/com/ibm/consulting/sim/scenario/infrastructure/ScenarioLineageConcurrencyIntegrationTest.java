@@ -142,7 +142,8 @@ class ScenarioLineageConcurrencyIntegrationTest {
         ScenarioService scenarios = service(mock(KnowledgeIngestionService.class));
         LeadService leads = new LeadService(
                 new EntityManagerLeadRepository(), mock(ResearchEvidenceRepository.class),
-                mock(EngagementRepository.class), new DifficultyProfileService(new ObjectMapper(), scenarioRepository),
+                mock(EngagementRepository.class), new DifficultyProfileService(
+                        new ObjectMapper(), scenarioRepository, mock(LeadRepository.class)),
                 scenarioRepository, new ScenarioAuthoringConfigService(new ObjectMapper()));
 
         assertThat(inTransaction(() -> scenarios.getActiveById(activeId)).id()).isEqualTo(activeId);
@@ -206,7 +207,7 @@ class ScenarioLineageConcurrencyIntegrationTest {
         ObjectMapper objectMapper = new ObjectMapper();
         return new ScenarioService(
                 scenarioRepository,
-                new DifficultyProfileService(objectMapper, scenarioRepository),
+                new DifficultyProfileService(objectMapper, scenarioRepository, mock(LeadRepository.class)),
                 new ScenarioAuthoringConfigService(objectMapper),
                 new EntityManagerLeadRepository(),
                 knowledge,
@@ -216,6 +217,11 @@ class ScenarioLineageConcurrencyIntegrationTest {
     private UUID persistReadyScenario(String title, boolean active) {
         Scenario scenario = Scenario.create(title, "Technology", "A production-ready scenario", 3);
         scenario.updateBriefing("Consultant", "Deliver a grounded recommendation", List.of("Evidence used"), 10);
+        scenario.updateProblemBriefing(
+                "The client must modernise a critical workflow.",
+                "Delivery delays are affecting business outcomes.",
+                "Validate the causes and recommend a grounded response.",
+                List.of("Which constraint is driving the delays?"));
         scenario.updateRubricWeights(java.util.Map.of("Communication", 100));
         scenario.addPersona("Client", "CIO", "Example Corp", "Direct", "Delivery risk", "Budget", "Modernise");
         new ScenarioAuthoringConfigService(new ObjectMapper()).update(scenario, new ScenarioAuthoringConfig(

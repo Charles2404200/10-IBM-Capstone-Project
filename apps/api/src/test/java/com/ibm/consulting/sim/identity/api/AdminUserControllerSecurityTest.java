@@ -101,7 +101,7 @@ class AdminUserControllerSecurityTest {
     void administratorCanChangeUserToAValidRole() throws Exception {
         UUID userId = UUID.randomUUID();
         when(adminUserService.changeRole(userId, UserRole.REVIEWER)).thenReturn(
-                new UserSummary(userId, "reviewer@example.com", "Reviewer", UserRole.REVIEWER, true));
+                new UserSummary(userId, "reviewer@example.com", "Reviewer", UserRole.REVIEWER, true, true));
 
         mockMvc.perform(patch("/api/v1/admin/users/{id}/role", userId)
                         .contentType("application/json")
@@ -119,37 +119,42 @@ class AdminUserControllerSecurityTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRATOR")
-    void administratorCannotCreateUserWithATooShortNormalisedDisplayName() throws Exception {
-        assertInvalidDisplayName(" A ");
+    void administratorCannotCreateUserWithATooShortDisplayName() throws Exception {
+        assertInvalidDisplayName("A");
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRATOR")
-    void administratorCreatesUserWithTheNormalisedDisplayName() throws Exception {
+    void administratorForwardsTheCompleteUserCreationRequest() throws Exception {
         UUID userId = UUID.randomUUID();
-        when(adminUserService.createUser("new.learner@example.com", "Alice Example", UserRole.LEARNER))
+        when(adminUserService.createUser(
+                "new.learner@example.com", "StrongPassword123!", "  Alice Example  ", UserRole.LEARNER, false))
                 .thenReturn(new UserSummary(userId, "new.learner@example.com", "Alice Example",
-                        UserRole.LEARNER, true));
+                        UserRole.LEARNER, true, false));
 
         mockMvc.perform(post("/api/v1/admin/users")
                         .contentType("application/json")
                         .content("""
                                 {
                                   "email": "new.learner@example.com",
+                                  "password": "StrongPassword123!",
                                   "displayName": "  Alice Example  ",
-                                  "role": "LEARNER"
+                                  "role": "LEARNER",
+                                  "skipEmailVerification": false
                                 }
                                 """))
                 .andExpect(status().isCreated());
 
-        verify(adminUserService).createUser("new.learner@example.com", "Alice Example", UserRole.LEARNER);
+        verify(adminUserService).createUser(
+                "new.learner@example.com", "StrongPassword123!", "  Alice Example  ", UserRole.LEARNER, false);
     }
 
     private void assertInvalidDisplayName(String displayName) throws Exception {
         mockMvc.perform(post("/api/v1/admin/users")
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(new CreateUserBody(
-                                "new.learner@example.com", displayName, UserRole.LEARNER))))
+                                "new.learner@example.com", "StrongPassword123!", displayName,
+                                UserRole.LEARNER, false))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.violations.displayName").exists());
 
@@ -157,5 +162,6 @@ class AdminUserControllerSecurityTest {
     }
 
     private record RoleBody(UserRole role) {}
-    private record CreateUserBody(String email, String displayName, UserRole role) {}
+    private record CreateUserBody(
+            String email, String password, String displayName, UserRole role, boolean skipEmailVerification) {}
 }

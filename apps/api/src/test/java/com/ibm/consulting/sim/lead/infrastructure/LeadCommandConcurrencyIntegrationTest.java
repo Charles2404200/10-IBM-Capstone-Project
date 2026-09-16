@@ -143,7 +143,7 @@ class LeadCommandConcurrencyIntegrationTest {
     private void saveEvidence(LeadService service, TestData data, String note) {
         service.saveEvidence(data.engagementId(), data.userId(), note, null, EvidenceType.OTHER,
                 null, null, EvidenceOrigin.USER_SUPPLIED, EvidenceVerificationStatus.UNVERIFIED,
-                null, ConfidenceLevel.MEDIUM, 35, Set.of());
+                null, ConfidenceLevel.MEDIUM, 35, null, Set.of());
     }
 
     private void persistReadyEvidence(TestData data) {

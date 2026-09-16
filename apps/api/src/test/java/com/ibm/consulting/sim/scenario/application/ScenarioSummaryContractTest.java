@@ -12,18 +12,17 @@ class ScenarioSummaryContractTest {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    void serializedSummaryUsesContentVersionAndPreservesOptionalPersonaFields() throws Exception {
+    void serializedSummaryUsesFrontendVersionAndNonNullPersonaFields() throws Exception {
         Scenario scenario = Scenario.create("Contract scenario", "Technology", "Description", 3);
         scenario.addPersona("Client", "CIO", "Example Co", null, null,
                 "Hidden concern", "Improve delivery");
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsBytes(ScenarioSummary.from(scenario)));
 
-        assertThat(json.has("contentVersion")).isTrue();
-        assertThat(json.has("version")).isFalse();
-        assertThat(json.path("contentVersion").asInt()).isEqualTo(1);
-        assertThat(json.at("/personas/0/communicationStyle").isNull()).isTrue();
-        assertThat(json.at("/personas/0/visibleConcerns").isNull()).isTrue();
+        assertThat(json.has("contentVersion")).isFalse();
+        assertThat(json.path("version").asInt()).isEqualTo(1);
+        assertThat(json.at("/personas/0/communicationStyle").asText()).isEmpty();
+        assertThat(json.at("/personas/0/visibleConcerns").asText()).isEmpty();
         assertThat(json.at("/personas/0").has("hiddenConcerns")).isFalse();
         assertThat(json.path("gameplayDifficulty").isObject()).isTrue();
         assertThat(json.at("/gameplayDifficulty/level").asText()).isEqualTo("MEDIUM");

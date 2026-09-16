@@ -20,6 +20,7 @@ import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,7 +40,7 @@ class LeadControllerTrustBoundaryTest {
 
         var request = new LeadController.SaveResearchRequest(
                 "Learner note", null, EvidenceType.COMPANY_NEWS, null, null,
-                null, ConfidenceLevel.HIGH, 100, Set.of());
+                null, ConfidenceLevel.HIGH, 100, null, Set.of());
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsBytes(request));
         assertThat(json.has("origin")).isFalse();
         assertThat(json.has("verificationStatus")).isFalse();
@@ -56,11 +57,12 @@ class LeadControllerTrustBoundaryTest {
 
         controller.saveResearch(engagementId, new LeadController.SaveResearchRequest(
                 "Learner note", null, EvidenceType.COMPANY_NEWS, null, null,
-                null, ConfidenceLevel.HIGH, 100, Set.of()), learner);
+                null, ConfidenceLevel.HIGH, 100, null, Set.of()), learner);
 
         verify(leadService).saveEvidence(eq(engagementId), eq(userId), eq("Learner note"), any(),
                 eq(EvidenceType.COMPANY_NEWS), any(), any(), eq(EvidenceOrigin.USER_SUPPLIED),
-                eq(EvidenceVerificationStatus.UNVERIFIED), any(), eq(ConfidenceLevel.HIGH), eq(100), eq(Set.of()));
+                eq(EvidenceVerificationStatus.UNVERIFIED), any(), eq(ConfidenceLevel.HIGH), eq(100), isNull(),
+                eq(Set.of()));
     }
 
     @Test
