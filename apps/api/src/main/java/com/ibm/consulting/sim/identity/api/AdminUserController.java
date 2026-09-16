@@ -3,20 +3,22 @@ package com.ibm.consulting.sim.identity.api;
 import com.ibm.consulting.sim.identity.application.AdminUserService;
 import com.ibm.consulting.sim.identity.application.AdminUserPage;
 import com.ibm.consulting.sim.identity.application.UserSummary;
+import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserDirectoryQuery;
 import com.ibm.consulting.sim.identity.domain.UserRole;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.HttpStatus;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,7 +64,7 @@ public class AdminUserController {
     }
 
     @PatchMapping("/{userId}/role")
-    UserSummary changeRole(@PathVariable UUID userId, @RequestBody ChangeRoleRequest req) {
+    UserSummary changeRole(@PathVariable UUID userId, @Valid @RequestBody ChangeRoleRequest req) {
         return adminUserService.changeRole(userId, req.role());
     }
 

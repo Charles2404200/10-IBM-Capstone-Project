@@ -120,18 +120,18 @@ public class CacheConfig {
         // Persona reference data changes only via the admin authoring API, so it
         // can safely be cached longer than the general default (used by e.g.
         // scenario summaries, which authors also edit but check more often).
-        Map<String, Duration> ttlOverrides = Map.of(
-                PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds),
-                ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30),
-                PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60),
-                ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20),
-                ADMIN_AI_OPERATIONS_CACHE, Duration.ofSeconds(30),
-                ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45),
-                ADMIN_USER_DIRECTORY_CACHE, Duration.ofSeconds(30),
-                PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15),
-                PROPOSAL_DECISION_NARRATIVE_CACHE, Duration.ofHours(1),
-                ASSESSMENT_FEEDBACK_CACHE, Duration.ofHours(1),
-                NOTIFICATION_DETAIL_CACHE, Duration.ofMinutes(5));
+        Map<String, Duration> ttlOverrides = Map.ofEntries(
+                Map.entry(PERSONA_CACHE, Duration.ofSeconds(personaTtlSeconds)),
+                Map.entry(ENGAGEMENT_DASHBOARD_CACHE, Duration.ofSeconds(30)),
+                Map.entry(PORTFOLIO_SUMMARY_CACHE, Duration.ofSeconds(60)),
+                Map.entry(ADMIN_PLATFORM_OVERVIEW_CACHE, Duration.ofSeconds(20)),
+                Map.entry(ADMIN_AI_OPERATIONS_CACHE, Duration.ofSeconds(30)),
+                Map.entry(ADMIN_SCENARIO_CATALOG_CACHE, Duration.ofSeconds(45)),
+                Map.entry(ADMIN_USER_DIRECTORY_CACHE, Duration.ofSeconds(30)),
+                Map.entry(PROPOSAL_REVIEW_CACHE, Duration.ofMinutes(15)),
+                Map.entry(PROPOSAL_DECISION_NARRATIVE_CACHE, Duration.ofHours(1)),
+                Map.entry(ASSESSMENT_FEEDBACK_CACHE, Duration.ofHours(1)),
+                Map.entry(NOTIFICATION_DETAIL_CACHE, Duration.ofMinutes(5)));
         return new UpstashRedisCacheManager(upstashRestClient, Duration.ofSeconds(defaultTtlSeconds), ttlOverrides);
     }
 }
