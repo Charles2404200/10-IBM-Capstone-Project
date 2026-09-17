@@ -9,6 +9,7 @@ import com.ibm.consulting.sim.meeting.application.MeetingPreparationResponse;
 import com.ibm.consulting.sim.meeting.application.MeetingPreparationService;
 import com.ibm.consulting.sim.meeting.application.MeetingRequestLimits;
 import com.ibm.consulting.sim.meeting.application.MeetingService;
+import com.ibm.consulting.sim.meeting.domain.InvalidMeetingStateException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -33,6 +35,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -109,6 +113,21 @@ class MeetingControllerValidationTest {
         updatePreparation("Objective", normal, oversizedItem).andExpect(status().isBadRequest());
 
         verifyNoInteractions(preparationService);
+    }
+
+    @Test
+    void invalidPreparationStateReturnsTheEstablishedDomainProblem() throws Exception {
+        when(preparationService.update(engagementId, learner.getId(),
+                "Objective", List.of(), List.of()))
+                .thenThrow(new InvalidMeetingStateException("Preparation is unavailable in state: QUALIFYING"));
+
+        updatePreparation("Objective", List.of(), List.of())
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type")
+                        .value("https://consulting-sim.ibm.com/problems/domain-error"))
+                .andExpect(jsonPath("$.detail")
+                        .value("Preparation is unavailable in state: QUALIFYING"));
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
+import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.outreach.application.CapabilityBriefService;
 import com.ibm.consulting.sim.outreach.application.OutreachService;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import java.util.UUID;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -62,6 +64,20 @@ class OutreachControllerValidationTest {
 
         verify(outreachService).send(
                 engagementId, learner.getId(), "Valid subject", "Valid outreach body", null);
+    }
+
+    @Test
+    void invalidLifecycleStateReturnsTheEstablishedDomainProblem() throws Exception {
+        when(outreachService.send(engagementId, learner.getId(),
+                "Valid subject", "Valid outreach body", null))
+                .thenThrow(new OutreachService.InvalidOutreachStateException(EngagementState.QUALIFYING));
+
+        sendJson("{\"subject\":\"Valid subject\",\"body\":\"Valid outreach body\"}")
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type")
+                        .value("https://consulting-sim.ibm.com/problems/domain-error"))
+                .andExpect(jsonPath("$.detail").value("Cannot send outreach in state: QUALIFYING"));
     }
 
     @Test

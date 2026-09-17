@@ -15,6 +15,8 @@ import com.ibm.consulting.sim.meeting.domain.Meeting;
 import com.ibm.consulting.sim.meeting.domain.MeetingPreparationRepository;
 import com.ibm.consulting.sim.meeting.domain.MeetingRepository;
 import com.ibm.consulting.sim.meeting.domain.PersonaStateRepository;
+import com.ibm.consulting.sim.outreach.application.OutreachService;
+import com.ibm.consulting.sim.outreach.domain.OutreachRepository;
 import com.ibm.consulting.sim.proposal.application.ProposalService;
 import com.ibm.consulting.sim.proposal.domain.ProposalDraftContent;
 import com.ibm.consulting.sim.proposal.domain.ProposalRepository;
@@ -83,6 +85,30 @@ class LearnerOwnershipBoundaryTest {
 
         verify(preparations, never()).findByEngagementId(any());
         verify(preparations, never()).save(any());
+        verify(engagements, never()).save(any());
+    }
+
+    @Test
+    void anotherUserCannotReadOrCreateOutreachAttempts() {
+        OutreachRepository outreach = mock(OutreachRepository.class);
+        EngagementRepository engagements = mock(EngagementRepository.class);
+        AiOrchestrationService ai = mock(AiOrchestrationService.class);
+        LeadRepository leads = mock(LeadRepository.class);
+        ResearchEvidenceRepository evidence = mock(ResearchEvidenceRepository.class);
+        OutreachService service = new OutreachService(outreach, engagements, ai, new ObjectMapper(),
+                mock(DifficultyProfileService.class), leads, evidence);
+        UUID engagementId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> service.listAttempts(engagementId, otherUserId))
+                .isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.send(
+                engagementId, otherUserId, "Private subject", "Private outreach body", "private-request"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(outreach, never()).findByEngagementId(any());
+        verify(outreach, never()).save(any());
+        verify(ai, never()).execute(any(), any(), any(), anyInt(), any(), any());
         verify(engagements, never()).save(any());
     }
 

@@ -4,6 +4,7 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
+import com.ibm.consulting.sim.engagement.domain.EngagementState;
 import com.ibm.consulting.sim.proposal.application.ProposalService;
 import com.ibm.consulting.sim.proposal.domain.ProposalDraftContent;
 import org.junit.jupiter.api.Test;
@@ -22,12 +23,16 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.http.MediaType;
 
 @WebMvcTest(ProposalController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -81,6 +86,20 @@ class ProposalControllerValidationContractTest {
         assertThat(captor.getValue().problemStatement()).isEmpty();
         assertThat(captor.getValue().budget()).isZero();
         assertThat(captor.getValue().timelineWeeks()).isEqualTo(1);
+    }
+
+    @Test
+    void invalidProposalStateReturnsTheEstablishedDomainProblem() throws Exception {
+        when(proposalService.review(eq(engagementId), eq(learner.getId()), any()))
+                .thenThrow(new ProposalService.InvalidProposalStateException(EngagementState.QUALIFYING));
+
+        mockMvc.perform(post(path("review")).with(authentication()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type")
+                        .value("https://consulting-sim.ibm.com/problems/domain-error"))
+                .andExpect(jsonPath("$.detail").value("Cannot edit a proposal in state: QUALIFYING"));
     }
 
     @Test

@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class OutreachServiceTest {
@@ -99,6 +101,23 @@ class OutreachServiceTest {
                 .containsExactly(1, 2);
         verify(fixture.ai(), times(2)).execute(eq("outreach_evaluation"),
                 eq(fixture.engagement().getId()), anyString(), anyInt(), any(), any());
+    }
+
+    @Test
+    void invalidLifecycleStateRejectsBeforeAttemptOrAiMutation() {
+        Fixture fixture = fixture(OutreachEvaluationResult.safeFallback());
+        fixture.engagement().transitionTo(EngagementState.OUTREACHING, "Outreach started");
+        fixture.engagement().transitionTo(EngagementState.MEETING_SECURED, "Meeting secured");
+        int eventsBeforeRequest = fixture.engagement().getEvents().size();
+
+        assertThatThrownBy(() -> fixture.service().send(
+                fixture.engagement().getId(), fixture.userId(), VALID_SUBJECT, VALID_BODY))
+                .isInstanceOf(OutreachService.InvalidOutreachStateException.class);
+
+        assertThat(fixture.attempts().findByEngagementId(fixture.engagement().getId())).isEmpty();
+        assertThat(fixture.engagement().getState()).isEqualTo(EngagementState.MEETING_SECURED);
+        assertThat(fixture.engagement().getEvents()).hasSize(eventsBeforeRequest);
+        verifyNoInteractions(fixture.ai());
     }
 
     private Fixture fixture(OutreachEvaluationResult evaluation) {
