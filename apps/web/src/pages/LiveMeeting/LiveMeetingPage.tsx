@@ -252,7 +252,7 @@ export default function LiveMeetingPage() {
   }
 
   return (
-    <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
+    <ObjectiveTourProvider tours={[{ tourId: 'live-meeting', objectives: LIVE_MEETING_OBJECTIVES }]}>
     <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
       <Grid fullWidth narrow className={styles.headerGrid}>
         <Column lg={11} md={8} sm={4}>

@@ -66,6 +66,27 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
   },
 ]
 
+const DROP_AND_DROP_OBJECTIVES = [
+  {
+    id: 'view',
+    objective: 'View the evidence',
+    description: 'Peruse through this document to gather information about the client.',
+    targets: ['.objective-view'],
+  },
+  {
+    id: 'highlight',
+    objective: 'Highlight significant sections',
+    description: 'Highlight sections, sentences, or paragraphs that you believe are important and will be useful to know about the client. Once you highlight it, you will see a button to assess the evidence. In other words, add the evidence to your evidence board.',
+    targets: ['.objective-highlight'],
+  },
+  {
+    id: 'goal',
+    objective: 'In case you forget...',
+    description: 'This section will be here to remind you that you must highlight and assess the evidence for it to count towards your collected evidence.',
+    targets: ['.objective-goal'],
+  },
+]
+
 const EVIDENCE_TYPES: Exclude<EvidenceType, 'HYPOTHESIS'>[] = [
   'COMPANY_NEWS', 'FINANCIAL_SIGNAL', 'TECHNOLOGY_INDICATOR',
   'STAKEHOLDER_PROFILE', 'MARKET_TREND', 'OTHER',
@@ -219,7 +240,7 @@ function SourceDocument({ artifact, onSelectionChange }: { artifact: ResearchArt
   }
 
   return (
-      <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass}`} onMouseUp={scheduleSelectionCapture} onPointerUp={scheduleSelectionCapture} onKeyUp={scheduleSelectionCapture}>
+      <article ref={documentRef} className={`${styles.sourceDocument} ${templateClass} objective-view objective-highlight`} onMouseUp={scheduleSelectionCapture} onPointerUp={scheduleSelectionCapture} onKeyUp={scheduleSelectionCapture}>
         {isNewspaper && <div className={styles.documentMasthead} data-selectable="false"><strong>{template.label}</strong><span>{template.edition}</span><span>{artifact.publishedOn}</span></div>}
         {isNewspaper && (
             <div className={styles.newspaperSectionBar} data-selectable="false">
@@ -667,7 +688,7 @@ export default function ClientIntelligencePage() {
   const activeResearchAction = RESEARCH_ACTIONS.find((a) => a.type === activeAction)
 
   return (
-      <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
+      <ObjectiveTourProvider tours={[{ tourId: 'client-intelligence', objectives: CLIENT_INTELLIGENCE_OBJECTIVES, }, { tourId: 'drop-and-drop', objectives: DROP_AND_DROP_OBJECTIVES, },]}>
         <Grid fullWidth narrow className={styles.page}>
           <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
             <header className={styles.pageHeader}>
@@ -760,7 +781,7 @@ export default function ClientIntelligencePage() {
                 </Button>
               </div>}
 
-              <footer className={styles.sourceDeckFooter}>
+              <footer className={`${styles.sourceDeckFooter} objective-goal`}>
                 <span><b>1</b> Highlight evidence</span>
                 <span><b>2</b> Assess evidence</span>
                 <span><b>3</b> Add evidence to board</span>

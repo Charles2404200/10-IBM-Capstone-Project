@@ -292,7 +292,7 @@ export default function MeetingPreparationPage() {
   const isSaving = updatePreparation.isPending || launchingMeeting
 
   return (
-    <ObjectiveTourProvider tourId="meeting-preparation" objectives={MEETING_PREP_OBJECTIVES}>
+    <ObjectiveTourProvider tours={[{ tourId: 'meeting-preparation', objectives: MEETING_PREP_OBJECTIVES }]}>
     <div className={styles.page}>
       <div className={styles.canvas}>
         <header className={styles.pageHeader}>
