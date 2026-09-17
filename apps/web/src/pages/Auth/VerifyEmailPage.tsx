@@ -54,7 +54,9 @@ export default function VerifyEmailPage() {
         setConfirmed(true)
         sessionStorage.removeItem('pendingVerificationEmail')
         window.history.replaceState(null, document.title, '/verify-email?confirmed=1')
-      } catch {}
+      } catch {
+        // error exposed through confirmationFailed
+      }
     }
     void confirmEmail()
   }, [token, confirmVerification])
