@@ -28,6 +28,11 @@ class JpaAiTraceRepository implements AiTraceRepository {
     }
 
     @Override
+    public AiTrace saveAndFlush(AiTrace trace) {
+        return repo.saveAndFlush(trace);
+    }
+
+    @Override
     public List<AiTrace> findByEngagementId(UUID engagementId) {
         return repo.findByEngagementIdOrderByCreatedAtAsc(engagementId);
     }

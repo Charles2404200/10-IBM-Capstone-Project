@@ -84,7 +84,7 @@ public class MeetingService {
 
     @Transactional
     public MeetingResponse start(UUID engagementId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         if (engagement.getState() != EngagementState.PREPARING) {
@@ -136,7 +136,7 @@ public class MeetingService {
     @Transactional
     public MeetingResponse retry(UUID meetingId, UUID userId) {
         Meeting failedMeeting = loadOwnedMeeting(meetingId, userId);
-        Engagement engagement = engagementRepository.findByIdAndUserId(failedMeeting.getEngagementId(), userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(failedMeeting.getEngagementId(), userId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
         List<Meeting> attempts = meetingRepository.findAllByEngagementIdOrderByCreatedAtAsc(engagement.getId());
         Meeting latestAttempt = attempts.isEmpty() ? failedMeeting : attempts.get(attempts.size() - 1);
@@ -178,7 +178,7 @@ public class MeetingService {
      */
     @Transactional
     public MeetingTurnResult sendMessage(UUID meetingId, UUID userId, String learnerMessage, String clientMessageId) {
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
                 .orElseThrow(() -> new NotFoundException("Meeting", meetingId));
         // Single ownership-validating fetch — the resulting Engagement is reused
         // below for scenarioId, instead of re-querying it a second time later in
@@ -391,6 +391,7 @@ public class MeetingService {
     public MeetingResponse complete(UUID meetingId, UUID userId) {
         Meeting meeting = loadOwnedMeeting(meetingId, userId);
         if (meeting.getStatus() == MeetingStatus.COMPLETED) {
+            transcriptExportService.scheduleAfterCommit(meeting.getId());
             return responseFor(meeting);
         }
         throw new InvalidMeetingStateException(
@@ -404,7 +405,7 @@ public class MeetingService {
         MeetingDebriefNarrative debrief = createDebrief(meeting, state, profile, decision, turns);
 
         meeting.complete(decision.outcome(), debrief.feedback(), debrief.tips());
-        exportTranscriptBestEffort(meeting);
+        transcriptExportService.scheduleAfterCommit(meeting.getId());
         meetingRepository.save(meeting);
 
         if (decision.passed()) {
@@ -443,7 +444,7 @@ public class MeetingService {
     private MeetingRetryEligibility completeAutomatically(Meeting meeting, Engagement engagement,
                                                           MeetingTerminationDecision decision) {
         meeting.complete(MeetingCompletionOutcome.FAILED, decision.message(), decision.retryGuidance(), decision.reason());
-        exportTranscriptBestEffort(meeting);
+        transcriptExportService.scheduleAfterCommit(meeting.getId());
         meetingRepository.save(meeting);
 
         MeetingRetryEligibility eligibility = retryEligibilityFor(meeting);

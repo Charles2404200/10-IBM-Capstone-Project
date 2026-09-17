@@ -47,6 +47,7 @@ function openThenClose(tourId = TOUR) {
 describe('ObjectiveGuide', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
     document.body.innerHTML = ''
     renderTargets()
     useTourProgressStore.setState({ completedByUser: {} })
@@ -57,6 +58,8 @@ describe('ObjectiveGuide', () => {
 
   it('opens the walkthrough for a learner who is still being onboarded', () => {
     render(<ObjectiveGuide tourId={TOUR} />)
+
+    vi.advanceTimersByTime(1000)
 
     expect(setIsOpen).toHaveBeenCalledWith(true)
   })
@@ -88,6 +91,8 @@ describe('ObjectiveGuide', () => {
     useTourProgressStore.getState().markComplete('user-1', TOUR)
 
     render(<ObjectiveGuide tourId="outreach-workspace" />)
+
+    vi.advanceTimersByTime(1000)
 
     expect(setIsOpen).toHaveBeenCalledWith(true)
   })
@@ -128,6 +133,8 @@ describe('ObjectiveGuide', () => {
 
     render(<ObjectiveGuide tourId={TOUR} />)
 
+    vi.advanceTimersByTime(1000)
+
     expect(setIsOpen).toHaveBeenCalledWith(true)
   })
 
@@ -135,6 +142,8 @@ describe('ObjectiveGuide', () => {
     tour(false, [STEP, MISSING_STEP])
 
     render(<ObjectiveGuide tourId={TOUR} />)
+
+    vi.advanceTimersByTime(1000)
 
     expect(setSteps).toHaveBeenCalledWith([STEP])
     expect(setIsOpen).toHaveBeenCalledWith(true)
@@ -145,6 +154,8 @@ describe('ObjectiveGuide', () => {
 
     render(<ObjectiveGuide tourId={TOUR} />)
 
+    vi.advanceTimersByTime(1000)
+
     expect(setSteps).not.toHaveBeenCalled()
   })
 
@@ -152,6 +163,8 @@ describe('ObjectiveGuide', () => {
     tour(false, [MISSING_STEP])
 
     render(<ObjectiveGuide tourId={TOUR} />)
+
+    vi.advanceTimersByTime(1000)
 
     expect(setIsOpen).not.toHaveBeenCalled()
     expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(false)

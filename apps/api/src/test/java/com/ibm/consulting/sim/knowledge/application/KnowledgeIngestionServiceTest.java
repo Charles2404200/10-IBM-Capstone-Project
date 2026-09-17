@@ -14,6 +14,7 @@ import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
 import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
@@ -38,6 +39,7 @@ class KnowledgeIngestionServiceTest {
     @Mock DocumentChunkRepository chunkRepository;
     @Mock EmbeddingGateway embeddingGateway;
     @Mock PersonaRepository personaRepository;
+    @Mock ScenarioRepository scenarioRepository;
     @Mock AuditLogger auditLogger;
     @InjectMocks KnowledgeIngestionService service;
 
@@ -46,6 +48,7 @@ class KnowledgeIngestionServiceTest {
         UUID actualScenarioId = UUID.randomUUID();
         UUID attackerSuppliedScenarioId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
+        allowDraft(attackerSuppliedScenarioId);
 
         KnowledgeDocument document = KnowledgeDocument.create(
                 actualScenarioId, null, KnowledgeCollection.SCENARIO_TRUTH, "Real doc", "Real content");
@@ -65,6 +68,7 @@ class KnowledgeIngestionServiceTest {
         UUID scenarioId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
         UUID foreignPersonaId = UUID.randomUUID();
+        allowDraft(scenarioId);
 
         KnowledgeDocument document = KnowledgeDocument.create(
                 scenarioId, null, KnowledgeCollection.SCENARIO_TRUTH, "Doc", "Content");
@@ -86,6 +90,7 @@ class KnowledgeIngestionServiceTest {
         UUID actualScenarioId = UUID.randomUUID();
         UUID attackerSuppliedScenarioId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
+        allowDraft(attackerSuppliedScenarioId);
 
         KnowledgeDocument document = KnowledgeDocument.create(
                 actualScenarioId, null, KnowledgeCollection.SCENARIO_TRUTH, "Doc", "Content");
@@ -102,6 +107,7 @@ class KnowledgeIngestionServiceTest {
     @Test
     void logsDocumentAdded() {
         UUID scenarioId = UUID.randomUUID();
+        allowDraft(scenarioId);
 
         // mock document save and embedding
         when(documentRepository.save(any(KnowledgeDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -121,6 +127,7 @@ class KnowledgeIngestionServiceTest {
     void logsDocumentUpdated() {
         UUID scenarioId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
+        allowDraft(scenarioId);
 
         // mock existing document
         KnowledgeDocument document = org.mockito.Mockito.mock(KnowledgeDocument.class);
@@ -143,6 +150,7 @@ class KnowledgeIngestionServiceTest {
     void logsDocumentDeleted() {
         UUID scenarioId = UUID.randomUUID();
         UUID documentId = UUID.randomUUID();
+        allowDraft(scenarioId);
 
         // mock existing document
         KnowledgeDocument document = org.mockito.Mockito.mock(KnowledgeDocument.class);
@@ -182,5 +190,25 @@ class KnowledgeIngestionServiceTest {
         verify(auditLogger, never()).recordAdmin(
             eq(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED),
             any(), any(), any());
+    }
+
+    @Test
+    void ingestRejectsPublishedScenarioBeforeEmbedding() {
+        UUID scenarioId = UUID.randomUUID();
+        Scenario published = Scenario.create("Published", "Retail", "Description", 3);
+        published.publish();
+        when(scenarioRepository.findByIdForUpdate(scenarioId)).thenReturn(Optional.of(published));
+
+        assertThatThrownBy(() -> service.ingest(scenarioId, null, KnowledgeCollection.SCENARIO_TRUTH,
+                "Document", "Content"))
+                .isInstanceOf(KnowledgeIngestionService.ScenarioContentLockedException.class);
+
+        verify(embeddingGateway, never()).embed(any());
+        verify(documentRepository, never()).save(any());
+    }
+
+    private void allowDraft(UUID scenarioId) {
+        when(scenarioRepository.findByIdForUpdate(scenarioId))
+                .thenReturn(Optional.of(Scenario.create("Draft", "Retail", "Description", 3)));
     }
 }

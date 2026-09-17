@@ -6,18 +6,18 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "scenarios")
+@Table(name = "scenarios", uniqueConstraints = @UniqueConstraint(
+        name = "uq_scenarios_lineage_content_version",
+        columnNames = {"scenario_lineage_id", "content_version"}))
 public class Scenario extends BaseEntity {
 
     private static final String DEFAULT_ROLE = "Management Consultant";
-    private static final String CRITERIA_DELIMITER = "|";
 
     @Column(nullable = false)
     private String title;
@@ -56,7 +56,7 @@ public class Scenario extends BaseEntity {
     @Column(columnDefinition = "text", nullable = false)
     private String objective = "";
 
-    /** Pipe-delimited list of success criteria bullet points — see {@link #getSuccessCriteria()}. */
+    /** Reversibly encoded list of success criteria; legacy pipe-delimited rows remain readable. */
     @Column(name = "success_criteria", columnDefinition = "text", nullable = false)
     private String successCriteria = "";
 
@@ -73,7 +73,7 @@ public class Scenario extends BaseEntity {
     @Column(name = "consulting_mandate", columnDefinition = "text", nullable = false)
     private String consultingMandate = "";
 
-    /** Pipe-delimited questions the learner must validate through the engagement. */
+    /** Reversibly encoded questions the learner must validate through the engagement. */
     @Column(name = "unknowns_to_validate", columnDefinition = "text", nullable = false)
     private String unknownsToValidate = "";
 
@@ -117,6 +117,14 @@ public class Scenario extends BaseEntity {
 
     /** Creates a new DRAFT revision while preserving the published revision for active engagements. */
     public Scenario createRevision() {
+        return createRevision(contentVersion + 1);
+    }
+
+    /** Creates a draft from this content using the next version allocated under a lineage lock. */
+    public Scenario createRevision(int nextContentVersion) {
+        if (nextContentVersion <= contentVersion) {
+            throw new IllegalArgumentException("A revision version must be newer than its source");
+        }
         Scenario revision = new Scenario();
         revision.title = title;
         revision.industry = industry;
@@ -137,7 +145,7 @@ public class Scenario extends BaseEntity {
         revision.rubricWeightsEncoded = rubricWeightsEncoded;
         revision.authoringConfig = authoringConfig;
         revision.scenarioLineageId = scenarioLineageId;
-        revision.contentVersion = contentVersion + 1;
+        revision.contentVersion = nextContentVersion;
         revision.status = ScenarioStatus.DRAFT;
         return revision;
     }
@@ -155,7 +163,7 @@ public class Scenario extends BaseEntity {
         assertDraftEditable();
         this.consultantRole = (consultantRole == null || consultantRole.isBlank()) ? DEFAULT_ROLE : consultantRole;
         this.objective = objective == null ? "" : objective;
-        this.successCriteria = successCriteria == null ? "" : String.join(CRITERIA_DELIMITER, successCriteria);
+        this.successCriteria = SuccessCriteriaCodec.encode(successCriteria);
         this.simulatedDays = simulatedDays > 0 ? simulatedDays : 10;
     }
 
@@ -166,10 +174,11 @@ public class Scenario extends BaseEntity {
         this.businessSituation = required(businessSituation, "Business situation");
         this.observableSymptom = required(observableSymptom, "Observable symptom");
         this.consultingMandate = required(consultingMandate, "Consulting mandate");
-        this.unknownsToValidate = unknownsToValidate == null ? "" : unknownsToValidate.stream()
+        List<String> normalizedUnknowns = unknownsToValidate == null ? List.of() : unknownsToValidate.stream()
                 .filter(value -> value != null && !value.isBlank())
                 .map(String::trim)
-                .collect(java.util.stream.Collectors.joining(CRITERIA_DELIMITER));
+                .toList();
+        this.unknownsToValidate = SuccessCriteriaCodec.encode(normalizedUnknowns);
     }
 
     /** Author/admin capability: configure how the difficulty is broken down for learners. */
@@ -211,7 +220,15 @@ public class Scenario extends BaseEntity {
     public void updateRubricWeights(Map<String, Integer> weights) {
         assertDraftEditable();
         if (weights != null && !weights.isEmpty()) {
-            int total = weights.values().stream().mapToInt(Integer::intValue).sum();
+            weights.forEach((name, weight) -> {
+                if (name == null || name.isBlank()) {
+                    throw new InvalidRubricWeightsException("Rubric competency names cannot be blank");
+                }
+                if (weight == null || weight < 0 || weight > 100) {
+                    throw new InvalidRubricWeightsException("Rubric weights must be between 0 and 100");
+                }
+            });
+            long total = weights.values().stream().mapToLong(Integer::longValue).sum();
             if (total != 100) {
                 throw new InvalidRubricWeightsException(total);
             }
@@ -235,16 +252,14 @@ public class Scenario extends BaseEntity {
     public String getConsultantRole() { return consultantRole; }
     public String getObjective() { return objective; }
     public List<String> getSuccessCriteria() {
-        if (successCriteria == null || successCriteria.isBlank()) return List.of();
-        return Arrays.stream(successCriteria.split("\\" + CRITERIA_DELIMITER)).map(String::strip).toList();
+        return SuccessCriteriaCodec.decode(successCriteria);
     }
     public int getSimulatedDays() { return simulatedDays; }
     public String getBusinessSituation() { return businessSituation; }
     public String getObservableSymptom() { return observableSymptom; }
     public String getConsultingMandate() { return consultingMandate; }
     public List<String> getUnknownsToValidate() {
-        if (unknownsToValidate == null || unknownsToValidate.isBlank()) return List.of();
-        return Arrays.stream(unknownsToValidate.split("\\" + CRITERIA_DELIMITER)).map(String::strip).toList();
+        return SuccessCriteriaCodec.decode(unknownsToValidate);
     }
     public int getContentVersion() { return contentVersion; }
     public UUID getScenarioLineageId() { return scenarioLineageId; }
@@ -267,8 +282,12 @@ public class Scenario extends BaseEntity {
     }
 
     public static class InvalidRubricWeightsException extends DomainException {
-        public InvalidRubricWeightsException(int total) {
+        public InvalidRubricWeightsException(long total) {
             super("Rubric weights must sum to 100, got: " + total);
+        }
+
+        public InvalidRubricWeightsException(String message) {
+            super(message);
         }
     }
 }

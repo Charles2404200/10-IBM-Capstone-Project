@@ -8,7 +8,9 @@ import java.util.UUID;
 
 /** Records that a specific user has unlocked a specific achievement, and when. */
 @Entity
-@Table(name = "user_achievements")
+@Table(name = "user_achievements", uniqueConstraints = @UniqueConstraint(
+        name = "uq_user_achievements_user_achievement",
+        columnNames = {"user_id", "achievement_id"}))
 public class UserAchievement extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)

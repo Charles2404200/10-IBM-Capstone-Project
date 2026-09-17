@@ -46,19 +46,25 @@ public class AsyncTransactionalEmailDispatcher {
                 log.warn("Transactional email delivery attempt {}/{} failed for recipient={}; cause={} ({})",
                         attempt, maxAttempts, mask(event.email().recipient()),
                         diagnosticMessage(deliveryFailure), rootCause(deliveryFailure).getClass().getSimpleName());
-                waitBeforeRetry(attempt);
+                if (!waitBeforeRetry(attempt)) {
+                    return;
+                }
             }
         }
-        log.error("Transactional email delivery exhausted retries for recipient={}",
-                mask(event.email().recipient()), lastFailure);
+        Throwable rootFailure = rootCause(lastFailure);
+        log.error("Transactional email delivery exhausted retries for recipient={}; cause={} ({})",
+                mask(event.email().recipient()), diagnosticMessage(rootFailure),
+                rootFailure.getClass().getSimpleName());
     }
 
-    private void waitBeforeRetry(int completedAttempt) {
-        if (completedAttempt >= maxAttempts || initialBackoffMs == 0) return;
+    private boolean waitBeforeRetry(int completedAttempt) {
+        if (completedAttempt >= maxAttempts || initialBackoffMs == 0) return true;
         try {
             Thread.sleep(initialBackoffMs * completedAttempt);
+            return true;
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
+            return false;
         }
     }
 

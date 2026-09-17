@@ -2,10 +2,10 @@ package com.ibm.consulting.sim.proposal.application;
 
 import com.ibm.consulting.sim.proposal.domain.Proposal;
 import com.ibm.consulting.sim.proposal.domain.ClientDecisionOutcome;
+import com.ibm.consulting.sim.proposal.domain.ProposalDecision;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public record ProposalResponse(
@@ -15,7 +15,7 @@ public record ProposalResponse(
         String problemStatement,
         String solutionStrategy,
         List<String> components,
-        BigDecimal budget,
+        String budget,
         int timelineWeeks,
         String budgetConfidence,
         String budgetSource,
@@ -34,11 +34,11 @@ public record ProposalResponse(
         List<ProposalDecisionDimensionResponse> decisionDimensions,
         List<ProposalDecisionInsightResponse> decisionInsights,
         List<ProposalEvidenceImpactResponse> evidenceImpacts,
-        Instant submittedAt) {
+        String submittedAt) {
 
     public static ProposalResponse from(Proposal p) {
         return new ProposalResponse(p.getId(), p.getEngagementId(), p.getStatus().name(), p.getProblemStatement(),
-                p.getSolutionStrategy(), List.copyOf(p.getComponents()), p.getBudget(), p.getTimelineWeeks(),
+                p.getSolutionStrategy(), List.copyOf(p.getComponents()), p.getBudget().toPlainString(), p.getTimelineWeeks(),
                 p.getBudgetConfidence(), p.getBudgetSource(),
                 p.getBusinessOutcomes().stream().map(item -> new ProposalOutcomeResponse(item.getOutcome(), item.getMetric(), item.getTarget())).toList(),
                 p.getMilestones().stream().map(item -> new ProposalMilestoneResponse(item.getPhase(), item.getDuration())).toList(),
@@ -46,16 +46,18 @@ public record ProposalResponse(
                 List.copyOf(p.getAssumptions()),
                 p.getEvidenceLinks().stream().map(item -> new ProposalEvidenceLinkResponse(item.getSection(), item.getSourceId())).toList(),
                 p.getAlignmentScore(),
-                p.getDecision().name(), p.getDecisionRationale(), p.getClientResponse(),
-                outcome(p).name(), valueOr(p.getDecisionConfidence(), p.getAlignmentScore()),
+                p.getDecision().name(), Objects.requireNonNullElse(p.getDecisionRationale(), ""), p.getClientResponse(),
+                outcome(p), valueOr(p.getDecisionConfidence(), p.getAlignmentScore()),
                 valueOr(p.getLearnerPerformanceScore(), p.getAlignmentScore()),
-                dimensions(p), insights(p), impacts(p), p.getSubmittedAt());
+                dimensions(p), insights(p), impacts(p),
+                p.getSubmittedAt() == null ? "" : p.getSubmittedAt().toString());
     }
 
-    private static ClientDecisionOutcome outcome(Proposal proposal) {
-        if (proposal.getClientDecisionOutcome() != null) return proposal.getClientDecisionOutcome();
-        return proposal.getDecision() != null && proposal.getDecision().name().equals("WON")
-                ? ClientDecisionOutcome.PROPOSAL_ACCEPTED : ClientDecisionOutcome.REJECTED;
+    private static String outcome(Proposal proposal) {
+        if (proposal.getClientDecisionOutcome() != null) return proposal.getClientDecisionOutcome().name();
+        if (proposal.getDecision() == ProposalDecision.WON) return ClientDecisionOutcome.PROPOSAL_ACCEPTED.name();
+        if (proposal.getDecision() == ProposalDecision.LOST) return ClientDecisionOutcome.REJECTED.name();
+        return ClientDecisionOutcome.DEFERRED.name();
     }
     private static int valueOr(Integer value, int fallback) { return value == null ? fallback : value; }
     private static List<ProposalDecisionDimensionResponse> dimensions(Proposal proposal) {

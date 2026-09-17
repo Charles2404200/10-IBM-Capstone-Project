@@ -12,13 +12,13 @@ import java.util.List;
 public record LeadAuthoringRequest(
         @NotBlank String companyName,
         @NotBlank String industry,
-        String publicDescription,
+        @Size(max = 2_000) String publicDescription,
         @NotNull LeadDifficulty difficulty,
-        String potentialValueRange,
-        String decisionMaker,
-        String technologyStack,
-        String budgetSignal,
-        String painSeverity,
+        @Size(max = 100) String potentialValueRange,
+        @Size(max = 150) String decisionMaker,
+        @Size(max = 200) String technologyStack,
+        @Size(max = 150) String budgetSignal,
+        @Size(max = 100) String painSeverity,
         @Size(max = 8) List<@Valid Signal> signals) {
-    public record Signal(@NotBlank String label, @NotBlank String category) {}
+    public record Signal(@NotBlank @Size(max = 300) String label, @NotBlank @Size(max = 100) String category) {}
 }

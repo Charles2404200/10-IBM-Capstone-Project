@@ -2,6 +2,7 @@ package com.ibm.consulting.sim.shared.domain;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Base JPA entity — lives in infrastructure layer but referenced by domain for convenience. */
@@ -22,7 +23,11 @@ public abstract class BaseEntity {
     private Long version;
 
     protected BaseEntity() {
-        this.id = UUID.randomUUID();
+        this(UUID.randomUUID());
+    }
+
+    protected BaseEntity(UUID id) {
+        this.id = Objects.requireNonNull(id, "id");
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
     }

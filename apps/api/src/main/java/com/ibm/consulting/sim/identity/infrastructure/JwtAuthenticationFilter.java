@@ -46,6 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     logAuthRejection("user_not_found", null);
                 } else if (!user.get().isActive()) {
                     logAuthRejection("inactive_user", null);
+                } else if (!jwtTokenProvider.isValidForUser(token, user.get())) {
+                    logAuthRejection("credentials_changed", null);
                 } else {
                     var activeUser = user.get();
                     MDC.put("userId", activeUser.getId().toString());

@@ -2,10 +2,13 @@ package com.ibm.consulting.sim.engagement.infrastructure;
 
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
+import jakarta.persistence.LockModeType;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -27,6 +30,10 @@ interface SpringDataEngagementRepository extends JpaRepository<Engagement, UUID>
     List<Engagement> findDashboardByUserId(UUID userId);
 
     Optional<Engagement> findByIdAndUserId(UUID id, UUID userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select engagement from Engagement engagement where engagement.id = :id and engagement.userId = :userId")
+    Optional<Engagement> findByIdAndUserIdForUpdate(@Param("id") UUID id, @Param("userId") UUID userId);
 }
 
 @Repository
@@ -57,6 +64,9 @@ class JpaEngagementRepository implements EngagementRepository {
     @Override public List<Engagement> findDashboardByUserId(UUID userId) { return repo.findDashboardByUserId(userId); }
     @Override public Optional<Engagement> findByIdAndUserId(UUID id, UUID userId) {
         return repo.findByIdAndUserId(id, userId);
+    }
+    @Override public Optional<Engagement> findByIdAndUserIdForUpdate(UUID id, UUID userId) {
+        return repo.findByIdAndUserIdForUpdate(id, userId);
     }
 
     private void evictLearnerReadModelsAfterCommit(UUID userId) {

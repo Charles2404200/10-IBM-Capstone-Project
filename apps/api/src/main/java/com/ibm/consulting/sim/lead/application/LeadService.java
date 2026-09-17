@@ -42,6 +42,8 @@ public class LeadService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "leadsByScenario", key = "#scenarioId")
     public List<LeadSummary> listForScenario(UUID scenarioId) {
+        scenarioRepository.findByIdAndStatus(scenarioId, com.ibm.consulting.sim.scenario.domain.ScenarioStatus.ACTIVE)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
         return leadRepository.findByScenarioId(scenarioId).stream()
                 .map(LeadSummary::from)
                 .toList();
@@ -62,7 +64,7 @@ public class LeadService {
 
     @Transactional
     public void selectLead(UUID engagementId, UUID leadId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         // Idempotent no-op: re-selecting the same lead (e.g. a stale UI retry)
@@ -99,11 +101,11 @@ public class LeadService {
                                                 Integer relevanceScore,
                                                 ReasoningLane reasoningLane,
                                                 Set<UUID> supportingEvidenceIds) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         UUID leadId = engagement.getSelectedLeadId();
         if (leadId == null) {
-            throw new IllegalStateException("No lead selected for engagement");
+            throw new LeadNotSelectedException(engagementId);
         }
 
         Set<UUID> validatedSupportingIds = validateSupportingEvidence(engagementId, supportingEvidenceIds);
@@ -188,7 +190,7 @@ public class LeadService {
      */
     @Transactional
     public ResearchGateStatus completeResearch(UUID engagementId, UUID userId) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         List<ResearchEvidence> evidence = evidenceRepository.findByEngagementId(engagementId);
 
@@ -219,7 +221,7 @@ public class LeadService {
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
         UUID leadId = engagement.getSelectedLeadId();
         if (leadId == null) {
-            throw new IllegalStateException("No lead selected for engagement");
+            throw new LeadNotSelectedException(engagementId);
         }
         Lead lead = leadRepository.findById(leadId)
                 .orElseThrow(() -> new NotFoundException("Lead", leadId));

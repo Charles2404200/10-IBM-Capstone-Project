@@ -87,8 +87,8 @@ public class ScenarioService {
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = SCENARIO_CACHE, key = "#id")
-    public ScenarioSummary getById(UUID id) {
-        return scenarioRepository.findById(id)
+    public ScenarioSummary getActiveById(UUID id) {
+        return scenarioRepository.findByIdAndStatus(id, ScenarioStatus.ACTIVE)
                 .map(this::summary)
                 .orElseThrow(() -> new NotFoundException("Scenario", id));
     }
@@ -142,11 +142,16 @@ public class ScenarioService {
             @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioSummary publish(UUID scenarioId) {
-        Scenario scenario = findScenario(scenarioId);
+        List<Scenario> lineage = lockLineageForScenario(scenarioId);
+        Scenario scenario = lineage.stream().filter(candidate -> candidate.getId().equals(scenarioId))
+                .findFirst().orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
         ScenarioAuthoringView.Readiness readiness = readiness(scenario);
         if (!readiness.readyToPublish()) throw new ScenarioNotReadyException(readiness.blockers());
-        scenarioRepository.findByLineageIdAndStatus(scenario.getScenarioLineageId(), ScenarioStatus.ACTIVE)
-                .stream().filter(active -> !active.getId().equals(scenarioId)).forEach(Scenario::archive);
+        lineage.stream().filter(active -> active.getStatus() == ScenarioStatus.ACTIVE)
+                .filter(active -> !active.getId().equals(scenarioId)).forEach(Scenario::archive);
+        // PostgreSQL's partial unique index is immediate. Persist archival first
+        // so Hibernate cannot reorder the new ACTIVE update ahead of it.
+        scenarioRepository.flush();
         scenario.publish();
         ScenarioSummary saved = summary(scenarioRepository.save(scenario));
         auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_PUBLISHED, "SCENARIO", scenarioId.toString());
@@ -197,8 +202,9 @@ public class ScenarioService {
     })
     public ScenarioSummary updateDifficultyProfile(UUID scenarioId, UpdateDifficultyProfileRequest request) {
         Scenario scenario = findScenario(scenarioId);
-        difficultyProfileService.updateScenarioProfile(scenario, request.profile());
-        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DIFFICULTY_CHANGED, "SCENARIO", scenarioId.toString(), request.profile().toString());
+        var profile = request.toDomain();
+        difficultyProfileService.updateScenarioProfile(scenario, profile);
+        auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DIFFICULTY_CHANGED, "SCENARIO", scenarioId.toString(), profile.toString());
         return summary(scenarioRepository.save(scenario));
     }
 
@@ -261,8 +267,11 @@ public class ScenarioService {
             @CacheEvict(cacheNames = ADMIN_SCENARIO_CATALOG_CACHE, allEntries = true)
     })
     public ScenarioAuthoringView createRevision(UUID scenarioId) {
-        Scenario source = findScenario(scenarioId);
-        Scenario revision = scenarioRepository.save(source.createRevision());
+        List<Scenario> lineage = lockLineageForScenario(scenarioId);
+        Scenario source = lineage.stream().filter(candidate -> candidate.getId().equals(scenarioId))
+                .findFirst().orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        int nextVersion = lineage.stream().mapToInt(Scenario::getContentVersion).max().orElseThrow() + 1;
+        Scenario revision = scenarioRepository.save(source.createRevision(nextVersion));
 
         Map<UUID, UUID> personaIdMap = new LinkedHashMap<>();
         source.getPersonas().forEach(persona -> {
@@ -337,13 +346,28 @@ public class ScenarioService {
                 .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
     }
 
+    private List<Scenario> lockLineageForScenario(UUID scenarioId) {
+        UUID lineageId = scenarioRepository.findLineageIdById(scenarioId)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        // Every revision points at the original scenario row. Lock that stable
+        // anchor before querying the lineage so a waiter takes a fresh snapshot
+        // after the preceding revision/publication transaction commits.
+        scenarioRepository.findByIdForUpdate(lineageId)
+                .orElseThrow(() -> new NotFoundException("Scenario lineage", lineageId));
+        return scenarioRepository.findLineageForUpdate(lineageId);
+    }
+
     private ScenarioAuthoringView.Readiness readiness(Scenario scenario) {
         List<String> blockers = new ArrayList<>();
         ScenarioAuthoringConfig config = authoringConfigService.forScenario(scenario);
         int personas = scenario.getPersonas().size();
-        int leads = leadRepository.findByScenarioId(scenario.getId()).size();
+        List<Lead> authoredLeads = leadRepository.findByScenarioId(scenario.getId());
+        int leads = authoredLeads.size();
         if (personas == 0) blockers.add("Add at least one client persona.");
         if (leads == 0) blockers.add("Add at least one lead definition.");
+        else if (authoredLeads.stream().anyMatch(ScenarioService::isLeadIncomplete)) {
+            blockers.add("Complete every lead's description, intelligence fields, and visible signals.");
+        }
         if (scenario.getObjective() == null || scenario.getObjective().isBlank()) blockers.add("Define the learner objective.");
         if (scenario.getBusinessSituation() == null || scenario.getBusinessSituation().isBlank()) blockers.add("Define the client business situation.");
         if (scenario.getObservableSymptom() == null || scenario.getObservableSymptom().isBlank()) blockers.add("Define the observable client symptom.");
@@ -354,6 +378,20 @@ public class ScenarioService {
         if (scenario.getRubricWeights().isEmpty()) blockers.add("Save competency rubric weights.");
         return new ScenarioAuthoringView.Readiness(blockers.isEmpty(), List.copyOf(blockers), personas, leads,
                 config.canonicalFacts().size(), config.revealRules().size());
+    }
+
+    private static boolean isLeadIncomplete(Lead lead) {
+        return isBlank(lead.getPublicDescription())
+                || isBlank(lead.getPotentialValueRange())
+                || isBlank(lead.getDecisionMaker())
+                || isBlank(lead.getTechnologyStack())
+                || isBlank(lead.getBudgetSignal())
+                || isBlank(lead.getPainSeverity())
+                || lead.getSignals().isEmpty();
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void configureLead(Lead lead, LeadAuthoringRequest request) {

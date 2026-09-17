@@ -49,4 +49,54 @@ class ScenarioRevisionTest {
         assertThatThrownBy(() -> new ScenarioAuthoringConfig(List.of(), List.of(decisionMaker, decisionMaker)))
                 .isInstanceOf(InvalidScenarioAuthoringConfigException.class);
     }
+
+    @Test
+    void successCriteriaRoundTripWithoutDelimiterOrWhitespaceCorruption() {
+        Scenario scenario = Scenario.create("Contract", "Technology", "Description", 3);
+        List<String> criteria = List.of(
+                "Reduce cost | protect quality",
+                "Punctuation: commas, semicolons; and periods.",
+                "Unicode: café — 東京",
+                "  preserve authored whitespace  ");
+
+        scenario.updateBriefing("Consultant", "Objective", criteria, 10);
+
+        assertThat(scenario.getSuccessCriteria()).containsExactlyElementsOf(criteria);
+    }
+
+    @Test
+    void emptySuccessCriteriaRemainAnEmptyList() {
+        Scenario scenario = Scenario.create("Contract", "Technology", "Description", 3);
+        scenario.updateBriefing("Consultant", "", List.of(), 10);
+
+        assertThat(scenario.getSuccessCriteria()).isEmpty();
+    }
+
+    @Test
+    void codecDistinguishesAnEmptyCriterionFromAnEmptyCriteriaList() {
+        assertThat(SuccessCriteriaCodec.decode(SuccessCriteriaCodec.encode(List.of(""))))
+                .containsExactly("");
+        assertThat(SuccessCriteriaCodec.decode(SuccessCriteriaCodec.encode(List.of())))
+                .isEmpty();
+    }
+
+    @Test
+    void legacyPipeDelimitedCriteriaRemainReadable() {
+        assertThat(SuccessCriteriaCodec.decode("Identify need|Build trust|Secure approval"))
+                .containsExactly("Identify need", "Build trust", "Secure approval");
+    }
+
+    @Test
+    void rubricDomainInvariantRejectsInvalidEntriesEvenOutsideHttp() {
+        Scenario scenario = Scenario.create("Contract", "Technology", "Description", 3);
+        java.util.Map<String, Integer> nullValue = new java.util.LinkedHashMap<>();
+        nullValue.put("Communication", null);
+
+        assertThatThrownBy(() -> scenario.updateRubricWeights(nullValue))
+                .isInstanceOf(Scenario.InvalidRubricWeightsException.class);
+        assertThatThrownBy(() -> scenario.updateRubricWeights(java.util.Map.of("Communication", -20, "Consulting", 120)))
+                .isInstanceOf(Scenario.InvalidRubricWeightsException.class);
+        assertThatThrownBy(() -> scenario.updateRubricWeights(java.util.Map.of("", 100)))
+                .isInstanceOf(Scenario.InvalidRubricWeightsException.class);
+    }
 }

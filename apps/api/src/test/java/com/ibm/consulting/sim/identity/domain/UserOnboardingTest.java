@@ -9,6 +9,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UserOnboardingTest {
 
     @Test
+    void verifiedCreationRecordsWhenVerificationWasEstablished() {
+        User verifiedUser = User.create("existing@example.com", "hash", "Existing", UserRole.REVIEWER);
+        User unverifiedUser = User.createUnverified("new@example.com", "hash", "New learner");
+
+        assertThat(verifiedUser.isEmailVerified()).isTrue();
+        assertThat(verifiedUser.getEmailVerifiedAt()).isNotNull();
+        assertThat(unverifiedUser.isEmailVerified()).isFalse();
+        assertThat(unverifiedUser.getEmailVerifiedAt()).isNull();
+    }
+
+    @Test
     void only_newly_registered_users_require_onboarding() {
         User existingUser = User.create("existing@example.com", "hash", "Existing", UserRole.LEARNER);
         User newUser = User.createUnverified("new@example.com", "hash", "New learner");
