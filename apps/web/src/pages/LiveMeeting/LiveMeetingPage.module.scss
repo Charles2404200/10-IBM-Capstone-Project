@@ -246,7 +246,7 @@
     display: -webkit-box;
     overflow: hidden;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
   }
 
   .debriefTips {
@@ -254,7 +254,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: $spacing-02 $spacing-05;
     margin: $spacing-03 0 0;
-    padding-left: $spacing-04;
+    padding-left: 0;
   }
 
   .debriefTips li {
