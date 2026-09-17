@@ -7,6 +7,7 @@ import com.ibm.consulting.sim.identity.application.LoginAttemptStore;
 import com.ibm.consulting.sim.shared.infrastructure.cache.UpstashRestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -42,6 +43,7 @@ public class RedisLoginAttemptStore implements LoginAttemptStore {
     private final LoginAttemptProperties properties;
     private final CaffeineLoginAttemptStore fallback;
 
+    @Autowired
     public RedisLoginAttemptStore(UpstashRestClient client, LoginAttemptProperties properties) {
         this(client, properties, new CaffeineLoginAttemptStore(properties));
     }
