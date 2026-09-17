@@ -47,6 +47,12 @@ const CLIENT_INTELLIGENCE_OBJECTIVES = [
     targets: ['.objective-evidence', '.objective-evidence-board'],
   },
   {
+    id: 'source',
+    objective: 'Research the client',
+    description: 'Open the scenario source deck and review controlled research material before adding evidence to your board.',
+    targets: ['.objective-source'],
+  },
+  {
     id: 'stakeholder',
     objective: 'Identify your stakeholder',
     description: 'Research and identify a relevant stakeholder. Both the requirement and stakeholder research area are highlighted together.',
@@ -284,7 +290,7 @@ function SourceDeck({
   }
 
   return (
-      <section className={styles.sourceDeck} aria-label="Scenario research source deck">
+      <section className={`${styles.sourceDeck} objective-source`} aria-label="Scenario research source deck">
         <header className={styles.sourceDeckHeader}>
           <div className={styles.sourceDeckTitle}><Document size={24} /><div><h2>Source Deck</h2><p>Read the source, highlight a signal, then explain why it matters.</p></div></div>
           <span className={styles.sourceDeckCount}>{sources.length} sources</span>
