@@ -17,4 +17,8 @@ public record OutboxCompletionProperties(
         @DefaultValue("500") @Positive int queueCapacity,
         @DefaultValue("15s") @NotNull @DurationMin(seconds = 1) Duration shutdownTimeout
 ) {
+    /** Defaults used when constructing the configuration outside Spring, such as focused tests. */
+    public static OutboxCompletionProperties defaults() {
+        return new OutboxCompletionProperties(8, 500, Duration.ofSeconds(15));
+    }
 }

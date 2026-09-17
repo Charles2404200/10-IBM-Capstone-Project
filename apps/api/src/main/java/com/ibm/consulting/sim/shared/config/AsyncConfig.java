@@ -1,5 +1,6 @@
 package com.ibm.consulting.sim.shared.config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ public class AsyncConfig implements AsyncConfigurer {
     private final int queueCapacity;
     private final OutboxCompletionProperties outboxCompletionProperties;
 
+    @Autowired
     public AsyncConfig(@Value("${app.async.core-pool-size:8}") int corePoolSize,
                         @Value("${app.async.max-pool-size:32}") int maxPoolSize,
                         @Value("${app.async.queue-capacity:200}") int queueCapacity,
@@ -38,6 +40,15 @@ public class AsyncConfig implements AsyncConfigurer {
         this.maxPoolSize = maxPoolSize;
         this.queueCapacity = queueCapacity;
         this.outboxCompletionProperties = outboxCompletionProperties;
+    }
+
+    /**
+     * Backward-compatible constructor for callers that only need the pre-existing executors.
+     * Spring uses the explicitly autowired constructor above so deployed values still come from
+     * {@code app.async.outbox-completion} configuration.
+     */
+    public AsyncConfig(int corePoolSize, int maxPoolSize, int queueCapacity) {
+        this(corePoolSize, maxPoolSize, queueCapacity, OutboxCompletionProperties.defaults());
     }
 
     /** Bounded pool dedicated to outbound AI gateway calls (watsonx.ai). */
