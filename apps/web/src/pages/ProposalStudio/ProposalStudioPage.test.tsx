@@ -91,34 +91,38 @@ function renderPage() {
 describe('ProposalStudioPage evidence library pagination', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('shows 2 sources per page and reports correct range for an odd total', () => {
+  it('shows 4 sources per page and reports correct range for an odd total', () => {
     const sources = [
       makeSource('a'),
       makeSource('b'),
       makeSource('c'),
+      makeSource('d'),
+      makeSource('e'),
     ]
     setup(sources)
     renderPage()
 
-    expect(screen.getByText(/Showing 1-2 of 3/)).toBeInTheDocument()
+    expect(screen.getByText(/Showing 1-4 of 5/)).toBeInTheDocument()
     expect(screen.getByText('Source a')).toBeInTheDocument()
-    expect(screen.getByText('Source b')).toBeInTheDocument()
-    expect(screen.queryByText('Source c')).not.toBeInTheDocument()
+    expect(screen.getByText('Source d')).toBeInTheDocument()
+    expect(screen.queryByText('Source e')).not.toBeInTheDocument()
   })
 
-  it('moves to next page of 2 and shows the remaining source', async () => {
+  it('moves to next page of 4 and shows the remaining source', async () => {
     const user = userEvent.setup()
     const sources = [
       makeSource('a'),
       makeSource('b'),
       makeSource('c'),
+      makeSource('d'),
+      makeSource('e'),
     ]
     setup(sources)
     renderPage()
 
     await user.click(screen.getByRole('button', { name: 'Next sources' }),)
-    expect(screen.getByText(/Showing 3-3 of 3/)).toBeInTheDocument()
-    expect(screen.getByText('Source c')).toBeInTheDocument()
+    expect(screen.getByText(/Showing 5-5 of 5/)).toBeInTheDocument()
+    expect(screen.getByText('Source e')).toBeInTheDocument()
     expect(screen.queryByText('Source a')).not.toBeInTheDocument()
   })
 
