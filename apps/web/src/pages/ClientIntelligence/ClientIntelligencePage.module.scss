@@ -107,8 +107,11 @@ $accent-blue-dark: #0043ce;
 }
 
 .decisionRail {
-  position: static;
-  max-height: none;
+  width: 100%;
+  max-width: 20rem;
+  min-width: 0;
+  margin-left: auto;
+  overflow-x: hidden;
   overflow-y: auto;
   padding-right: $spacing-02;
 }
@@ -1316,7 +1319,7 @@ $accent-blue-dark: #0043ce;
 .decisionRail {
   display: grid;
   gap: $spacing-04;
-  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-rows: minmax(0, 0.4fr) minmax(0, 0.6fr);
   overflow: hidden;
   padding: 0;
 }
@@ -1326,6 +1329,11 @@ $accent-blue-dark: #0043ce;
   min-height: 0;
   overflow: hidden;
   padding: $spacing-04;
+}
+
+.researchGate {
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .hypothesisWorkspaceHeader {
@@ -1403,6 +1411,7 @@ $accent-blue-dark: #0043ce;
   .workspace, .researchActions, .decisionRail { height: auto; overflow: visible; }
   .workspace { grid-template-rows: auto auto; }
   .researchWorkspace, .evidenceBoard, .hypothesisWorkspace, .researchGate { overflow: visible; }
+  .researchGate { overflow-y: auto; overflow-x: hidden; }
 }
 
 @media (max-width: 1055px) {
