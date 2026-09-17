@@ -590,7 +590,7 @@ export default function CommandCentrePage() {
   if (engError || scenarioError) return <ErrorState />
 
   return (
-    <ObjectiveTourProvider tourId="command-centre" objectives={COMMAND_CENTRE_OBJECTIVES}>
+    <ObjectiveTourProvider tours={[{ tourId: 'command-centre', objectives: COMMAND_CENTRE_OBJECTIVES }]}>
       <main className={styles.page}>
         {deniedReason && (
         <InlineNotification kind="warning" title="Access restricted" subtitle={deniedReason} onCloseButtonClick={() => setDeniedReason(undefined)} />

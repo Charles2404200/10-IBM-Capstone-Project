@@ -64,7 +64,7 @@ export default function ProposalStudioPage() {
   if (studio.submitted && studio.proposal) return <ProposalOutcomeView proposal={studio.proposal} engagementId={engagementId} />
 
   return (
-    <ObjectiveTourProvider tourId="proposal-studio" objectives={PROPOSAL_OBJECTIVES}>
+    <ObjectiveTourProvider tours={[{ tourId: 'proposal-studio', objectives: PROPOSAL_OBJECTIVES }]}>
     <main className={styles.page}>
       <div className={styles.canvas}>
       <header className={styles.header}>

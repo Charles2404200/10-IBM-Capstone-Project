@@ -4,6 +4,7 @@ import type { StepType } from '@reactour/tour'
 import ObjectiveTourProvider from './ObjectiveTourProvider'
 
 const capturedSteps: StepType[][] = []
+const capturedStepsByTour: Record<string, StepType[]> = {}
 
 vi.mock('@reactour/tour', () => ({
   TourProvider: ({ children, steps }: { children: React.ReactNode; steps: StepType[] }) => {
@@ -16,7 +17,10 @@ vi.mock('@reactour/tour', () => ({
 }))
 
 vi.mock('./ObjectiveGuide', () => ({
-  default: () => null,
+  default: ({ stepsByTour }: { stepsByTour: Record<string, StepType[]> }) => {
+    Object.assign(capturedStepsByTour, stepsByTour)
+    return null
+  },
 }))
 
 const OBJECTIVES = [
@@ -29,13 +33,17 @@ describe('ObjectiveTourProvider', () => {
     expect(() => {
       render(
         <ObjectiveTourProvider
-          tourId="live-meeting"
-          objectives={[
+          tours={[
             {
-              id: 'conditional',
-              objective: 'Conditional target',
-              description: 'May not exist.',
-              targets: ['.conditional-target'],
+              tourId: 'live-meeting',
+              objectives: [
+                {
+                  id: 'conditional',
+                  objective: 'Conditional target',
+                  description: 'May not exist.',
+                  targets: ['.conditional-target'],
+                },
+              ],
             },
           ]}
         >
@@ -48,13 +56,17 @@ describe('ObjectiveTourProvider', () => {
   it('renders the tour content normally when objective targets exist', () => {
     const { getByText } = render(
       <ObjectiveTourProvider
-        tourId="live-meeting"
-        objectives={[
+        tours={[
           {
-            id: 'meeting',
-            objective: 'Meeting objective',
-            description: 'Understand the meeting area.',
-            targets: ['.meeting-target'],
+            tourId: 'live-meeting',
+            objectives: [
+              {
+                id: 'meeting',
+                objective: 'Meeting objective',
+                description: 'Understand the meeting area.',
+                targets: ['.meeting-target'],
+              },
+            ],
           },
         ]}
       >
@@ -74,12 +86,14 @@ describe('ObjectiveTourProvider', () => {
     capturedSteps.length = 0
 
     render(
-      <ObjectiveTourProvider tourId="client-intelligence" objectives={OBJECTIVES}>
+      <ObjectiveTourProvider
+        tours={[{ tourId: 'client-intelligence', objectives: OBJECTIVES }]}
+      >
         <div />
       </ObjectiveTourProvider>,
     )
 
-    const steps = capturedSteps.at(-1)!
+    const steps = capturedStepsByTour['client-intelligence']
     expect(steps).toHaveLength(2)
     expect(steps.map((step) => step.selector)).toEqual(['.first-target', '.second-target'])
     expect(steps[1].highlightedSelectors).toEqual(['.second-target', '.also-second'])
@@ -87,7 +101,9 @@ describe('ObjectiveTourProvider', () => {
 
   it('keeps the workspace usable behind the tour', () => {
     const { getByText, getByTestId } = render(
-      <ObjectiveTourProvider tourId="outreach-workspace" objectives={OBJECTIVES}>
+      <ObjectiveTourProvider
+        tours={[{ tourId: 'outreach-workspace', objectives: OBJECTIVES }]}
+      >
         <button type="button">Send outreach</button>
       </ObjectiveTourProvider>,
     )

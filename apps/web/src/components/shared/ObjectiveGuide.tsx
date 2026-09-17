@@ -1,27 +1,40 @@
 import { useEffect, useRef } from 'react'
-import { useTour } from '@reactour/tour'
+import { useTour, type StepType } from '@reactour/tour'
 import { useCompleteOnboarding } from '@/api/hooks/useAuth'
 import { useAuthStore } from '@/store/authStore'
 import { useTourProgressStore } from '@/store/tourProgressStore'
 import { hasCompletedAllTours } from '@/lifecycle/tours'
 
+interface ObjectiveTour {
+  tourId: string
+  objectives: {
+    id: string
+    objective: string
+    description: string
+    targets: string[]
+  }[]
+}
+
+interface Props {
+  tours: ObjectiveTour[]
+  stepsByTour: Record<string, StepType[]>
+}
+
 /**
- * Runs a workspace walkthrough once per learner.
+ * Runs a workspace walkthrough once per learner, across as many sequential
+ * tours as this page defines.
  *
- * Two things decide whether it opens. The account level flag says whether this
- * learner is being onboarded at all, so an account that predates onboarding
- * never sees a walkthrough. Per tour progress then says which of the
- * walkthroughs this particular learner has already been through, so arriving
- * at a workspace for the first time still explains it even after the earlier
- * ones are done.
- *
- * Completion is recorded when the tour closes rather than when it opens. A
- * learner who is interrupted half way through has not been onboarded, and
- * marking them as such on open is the difference between missing it once and
- * losing it permanently.
+ * The watcher (timeout + MutationObserver) is installed exactly once per
+ * onboarding session and left running for the component's lifetime. It used
+ * to be torn down and reinstalled every time `isOpen` changed, which meant it
+ * silently died the moment the first tour opened and never came back — so a
+ * second tour, whose target elements only appear after several user clicks,
+ * was never discovered. Reading `isOpen`/`tours`/`stepsByTour` from refs lets
+ * the same long-lived watcher always see current state without needing to be
+ * recreated.
  */
-export default function ObjectiveGuide({ tourId }: { tourId: string }) {
-  const { isOpen, setIsOpen, steps, setSteps } = useTour()
+export default function ObjectiveGuide({ tours, stepsByTour }: Props) {
+  const { isOpen, setIsOpen, setSteps } = useTour()
   const userId = useAuthStore((state) => state.userId)
   const onboardingRequired = useAuthStore((state) => state.onboardingRequired)
   const isComplete = useTourProgressStore((state) => state.isComplete)
@@ -29,43 +42,88 @@ export default function ObjectiveGuide({ tourId }: { tourId: string }) {
   const markComplete = useTourProgressStore((state) => state.markComplete)
   const completeOnboarding = useCompleteOnboarding()
 
-  const openedForCurrentVisit = useRef(false)
+  const activeTourId = useRef<string | null>(null)
   const openedAtLeastOnce = useRef(false)
+  const isOpenRef = useRef(isOpen)
+
+  const toursRef = useRef(tours)
+  const stepsByTourRef = useRef(stepsByTour)
+  toursRef.current = tours
+  stepsByTourRef.current = stepsByTour
 
   useEffect(() => {
-    if (!onboardingRequired || openedForCurrentVisit.current) {
-      return
-    }
-    if (isComplete(userId, tourId)) {
+    isOpenRef.current = isOpen
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!onboardingRequired) {
       return
     }
 
-    const timeout = setTimeout(() => {
-      if (openedForCurrentVisit.current) {
+    const openAvailableTour = () => {
+      if (isOpenRef.current || activeTourId.current) {
         return
       }
+
+      const availableTour = toursRef.current.find((tour) => {
+        if (isComplete(userId, tour.tourId)) {
+          return false
+        }
+
+        const steps = stepsByTourRef.current[tour.tourId] ?? []
+
+        return steps.some((step) =>
+          typeof step.selector === 'string' ? Boolean(document.querySelector(step.selector)) : true,
+        )
+      })
+
+      if (!availableTour) {
+        return
+      }
+
+      const steps = stepsByTourRef.current[availableTour.tourId] ?? []
 
       // Workspaces render different sections at different stages, so a step can
       // point at something that is not on the page this time. Dropping those
       // steps is better than opening on an anchor that does not exist; if every
-      // step is missing there is nothing to explain, and the walkthrough stays
-      // available for a visit where the page has more on it.
+      // step is missing there is nothing to explain.
       const present = steps.filter((step) =>
         typeof step.selector === 'string' ? Boolean(document.querySelector(step.selector)) : true,
       )
+
       if (present.length === 0) {
         return
       }
 
-      openedForCurrentVisit.current = true
-      if (present.length !== steps.length) {
-        setSteps?.(present)
-      }
-      setIsOpen(true)
-    }, 1000)
+      activeTourId.current = availableTour.tourId
 
-    return () => clearTimeout(timeout)
-  }, [isComplete, onboardingRequired, setIsOpen, setSteps, steps, tourId, userId])
+      console.log('Opening tour:', availableTour.tourId)
+      console.log('Steps:', present)
+
+      setSteps?.(present)
+
+      setTimeout(() => {
+        console.log('Attempting to reopen tour:', availableTour.tourId)
+        setIsOpen(true)
+      }, 100)
+    }
+
+    const timeout = setTimeout(openAvailableTour, 1000)
+
+    const observer = new MutationObserver(() => {
+      openAvailableTour()
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      clearTimeout(timeout)
+      observer.disconnect()
+    }
+  }, [isComplete, onboardingRequired, setIsOpen, setSteps, userId])
 
   // Finished, skipped and closed all arrive here as the same transition, and
   // all three mean the learner is done with this walkthrough.
@@ -75,17 +133,22 @@ export default function ObjectiveGuide({ tourId }: { tourId: string }) {
       openedAtLeastOnce.current = true
       return
     }
-    if (!openedAtLeastOnce.current) {
+
+    if (!openedAtLeastOnce.current || !activeTourId.current) {
       return
     }
 
     openedAtLeastOnce.current = false
-    markComplete(userId, tourId)
+
+    const completedTourId = activeTourId.current
+    activeTourId.current = null
+
+    markComplete(userId, completedTourId)
 
     if (hasCompletedAllTours(completedFor(userId))) {
-      completeMutation()
+      completeMutation?.()
     }
-  }, [completeMutation, completedFor, isOpen, markComplete, tourId, userId])
+  }, [completeMutation, completedFor, isOpen, markComplete, userId])
 
   return null
 }

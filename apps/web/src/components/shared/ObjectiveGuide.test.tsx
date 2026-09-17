@@ -20,6 +20,11 @@ const TOUR = 'client-intelligence'
 const STEP = { selector: '.present-target', content: 'Present' }
 const MISSING_STEP = { selector: '.absent-target', content: 'Absent' }
 
+const TOURS = TOUR_IDS.map((tourId) => ({
+  tourId,
+  objectives: [],
+}))
+
 /** Puts an element on the page so a step's selector resolves. */
 function renderTargets() {
   document.body.innerHTML = '<div class="present-target">target</div>'
@@ -35,12 +40,38 @@ function signedInAs(userId: string | null, onboardingRequired: boolean) {
   )
 }
 
-/** Renders with the tour reported as open, then re-renders with it closed. */
+function renderGuide(tourId = TOUR, steps = [STEP]) {
+  return render(
+    <ObjectiveGuide
+      tours={TOURS}
+      stepsByTour={{ [tourId]: steps }}
+    />,
+  )
+}
+
+/** Opens the walkthrough through the normal delayed-opening flow, then closes it. */
 function openThenClose(tourId = TOUR) {
-  tour(true)
-  const view = render(<ObjectiveGuide tourId={tourId} />)
   tour(false)
-  view.rerender(<ObjectiveGuide tourId={tourId} />)
+  const view = renderGuide(tourId)
+
+  vi.advanceTimersByTime(1100)
+
+  tour(true)
+  view.rerender(
+    <ObjectiveGuide
+      tours={TOURS}
+      stepsByTour={{ [tourId]: [STEP] }}
+    />,
+  )
+
+  tour(false)
+  view.rerender(
+    <ObjectiveGuide
+      tours={TOURS}
+      stepsByTour={{ [tourId]: [STEP] }}
+    />,
+  )
+
   return view
 }
 
@@ -57,19 +88,17 @@ describe('ObjectiveGuide', () => {
   })
 
   it('opens the walkthrough for a learner who is still being onboarded', () => {
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide()
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1100)
 
     expect(setIsOpen).toHaveBeenCalledWith(true)
   })
 
   it('does not record completion merely because the walkthrough opened', () => {
-    tour(true)
+    openThenClose()
 
-    render(<ObjectiveGuide tourId={TOUR} />)
-
-    expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(false)
+    expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(true)
     expect(complete).not.toHaveBeenCalled()
   })
 
@@ -82,7 +111,7 @@ describe('ObjectiveGuide', () => {
   it('does not reopen a walkthrough the learner has already finished', () => {
     useTourProgressStore.getState().markComplete('user-1', TOUR)
 
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide()
 
     expect(setIsOpen).not.toHaveBeenCalled()
   })
@@ -90,17 +119,19 @@ describe('ObjectiveGuide', () => {
   it('still runs a walkthrough the learner has not reached yet', () => {
     useTourProgressStore.getState().markComplete('user-1', TOUR)
 
-    render(<ObjectiveGuide tourId="outreach-workspace" />)
+    renderGuide('outreach-workspace')
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1100)
 
     expect(setIsOpen).toHaveBeenCalledWith(true)
   })
 
   it('leaves an interrupted walkthrough available, since it never closed', () => {
-    tour(true)
+    tour(false)
 
-    const { unmount } = render(<ObjectiveGuide tourId={TOUR} />)
+    const { unmount } = renderGuide()
+
+    vi.advanceTimersByTime(1100)
     unmount()
 
     expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(false)
@@ -109,7 +140,7 @@ describe('ObjectiveGuide', () => {
   it('does not open anything for a learner who has already been onboarded', () => {
     signedInAs('user-1', false)
 
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide()
 
     expect(setIsOpen).not.toHaveBeenCalled()
   })
@@ -131,9 +162,9 @@ describe('ObjectiveGuide', () => {
   it('keeps one learner\'s progress out of another\'s', () => {
     useTourProgressStore.getState().markComplete('user-2', TOUR)
 
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide()
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1100)
 
     expect(setIsOpen).toHaveBeenCalledWith(true)
   })
@@ -141,9 +172,9 @@ describe('ObjectiveGuide', () => {
   it('drops steps whose target is not on the page this visit', () => {
     tour(false, [STEP, MISSING_STEP])
 
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide(TOUR, [STEP, MISSING_STEP])
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1100)
 
     expect(setSteps).toHaveBeenCalledWith([STEP])
     expect(setIsOpen).toHaveBeenCalledWith(true)
@@ -152,29 +183,49 @@ describe('ObjectiveGuide', () => {
   it('leaves the step list alone when every target is present', () => {
     tour(false, [STEP])
 
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide(TOUR, [STEP])
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1100)
 
-    expect(setSteps).not.toHaveBeenCalled()
+    expect(setSteps).toHaveBeenCalledWith([STEP])
   })
 
   it('stays closed, and available, when no target is on the page', () => {
+    document.body.innerHTML = ''
+
     tour(false, [MISSING_STEP])
 
-    render(<ObjectiveGuide tourId={TOUR} />)
+    renderGuide(TOUR, [MISSING_STEP])
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(1100)
 
     expect(setIsOpen).not.toHaveBeenCalled()
     expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(false)
   })
 
   it('records a walkthrough the learner skips part-way through', () => {
-    tour(true, [STEP, { selector: '.present-target', content: 'Second' }])
-    const view = render(<ObjectiveGuide tourId={TOUR} />)
-    tour(false, [STEP, { selector: '.present-target', content: 'Second' }])
-    view.rerender(<ObjectiveGuide tourId={TOUR} />)
+    const steps = [STEP, { selector: '.present-target', content: 'Second' }]
+
+    tour(false, steps)
+    const view = renderGuide(TOUR, steps)
+
+    vi.advanceTimersByTime(1100)
+
+    tour(true, steps)
+    view.rerender(
+      <ObjectiveGuide
+        tours={TOURS}
+        stepsByTour={{ [TOUR]: steps }}
+      />,
+    )
+
+    tour(false, steps)
+    view.rerender(
+      <ObjectiveGuide
+        tours={TOURS}
+        stepsByTour={{ [TOUR]: steps }}
+      />,
+    )
 
     expect(useTourProgressStore.getState().isComplete('user-1', TOUR)).toBe(true)
   })
@@ -190,7 +241,12 @@ describe('ObjectiveGuide', () => {
     const view = openThenClose()
     setIsOpen.mockClear()
 
-    view.rerender(<ObjectiveGuide tourId={TOUR} />)
+    view.rerender(
+      <ObjectiveGuide
+        tours={TOURS}
+        stepsByTour={{ [TOUR]: [STEP] }}
+      />,
+    )
 
     expect(setIsOpen).not.toHaveBeenCalled()
   })

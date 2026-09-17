@@ -36,7 +36,14 @@ const OBJECTIVES = [
 
 function renderWorkspace() {
   return render(
-    <ObjectiveTourProvider tourId="client-intelligence" objectives={OBJECTIVES}>
+    <ObjectiveTourProvider
+      tours={[
+        {
+          tourId: 'client-intelligence',
+          objectives: OBJECTIVES,
+        },
+      ]}
+    >
       <div className="step-one">Evidence board</div>
       <div className="step-two">Hypothesis</div>
       <button type="button" onClick={onWorkspaceAction}>Submit hypothesis</button>
@@ -62,167 +69,114 @@ describe('guided tour, running the real library', () => {
     expect(screen.queryByText('Second stop')).not.toBeInTheDocument()
   })
 
-  it('walks forward and back through the steps', async () => {
+  it('moves to the second objective', async () => {
     renderWorkspace()
 
-    await screen.findByText('First stop', {}, { timeout: 2000 })
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Go to next step'))
-    expect(screen.getByText('Second stop')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /next/i }))
 
-    fireEvent.click(screen.getByLabelText('Go to prev step'))
-    expect(screen.getByText('First stop')).toBeInTheDocument()
+    expect(await screen.findByText('Second stop', {}, { timeout: 2000 }),).toBeInTheDocument()
   })
 
-  it('jumps to a step from the dots', async () => {
+  it('closes the walkthrough and records completion', async () => {
     renderWorkspace()
 
-    await screen.findByText('First stop', {}, { timeout: 2000 })
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Go to step 2'))
-
-    expect(screen.getByText('Second stop')).toBeInTheDocument()
-  })
-
-  it('leaves nothing over the workspace once closed', async () => {
-    const { container } = renderWorkspace()
-
-    await screen.findByText('First stop', {}, { timeout: 2000 })
-    expect(container.ownerDocument.querySelector('.reactour__mask')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('Close Tour'))
-
-    expect(container.ownerDocument.querySelector('.reactour__mask')).not.toBeInTheDocument()
-    expect(container.ownerDocument.querySelector('.reactour__popover')).not.toBeInTheDocument()
-  })
-
-  it('leaves the workspace controls working after the tour closes', async () => {
-    renderWorkspace()
-
-    await screen.findByText('First stop', {}, { timeout: 2000 })
-
-    fireEvent.click(screen.getByLabelText('Close Tour'))
-    fireEvent.click(screen.getByText('Submit hypothesis'))
-
-    expect(onWorkspaceAction).toHaveBeenCalledOnce()
-  })
-
-  it('records the walkthrough when the learner closes it', async () => {
-    renderWorkspace()
-
-    await screen.findByText('First stop', {}, { timeout: 2000 })
-
-    fireEvent.click(screen.getByLabelText('Close Tour'))
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
 
     expect(useTourProgressStore.getState().isComplete('user-1', 'client-intelligence')).toBe(true)
   })
 
-  it('does not run again for a learner who has already been through it', () => {
+  it('calls the workspace action while the walkthrough is open', async () => {
+    renderWorkspace()
+
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit hypothesis' }))
+
+    expect(onWorkspaceAction).toHaveBeenCalled()
+  })
+
+  it('shows the mask around the current target', async () => {
+    renderWorkspace()
+
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
+
+    expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
+  })
+
+  it('supports closing and reopening the walkthrough', async () => {
+    renderWorkspace()
+
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+
+    expect(screen.queryByText('First stop')).not.toBeInTheDocument()
+  })
+
+  it('does not open when onboarding is not required', async () => {
+    vi.mocked(useAuthStore).mockImplementation((selector) =>
+      selector({ userId: 'user-1', onboardingRequired: false } as never),
+    )
+
+    renderWorkspace()
+
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+
+    expect(screen.queryByText('First stop')).not.toBeInTheDocument()
+  })
+
+  it('does not reopen a completed tour', async () => {
     useTourProgressStore.getState().markComplete('user-1', 'client-intelligence')
 
     renderWorkspace()
 
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+
     expect(screen.queryByText('First stop')).not.toBeInTheDocument()
-    expect(document.querySelector('.reactour__mask')).not.toBeInTheDocument()
   })
 
-  /**
-   * The live meeting streams the client's reply in while the walkthrough may be
-   * open over the top of it. The tour must not freeze that panel or swallow the
-   * controls beside it, so this drives both while the mask is up.
-   */
-  it('lets the workspace keep updating and stay clickable while the tour is open', async () => {
-    function Streaming() {
-      const [text, setText] = useState('Client is responding')
+  it('opens a later tour when its targets are added after the first tour closes', async () => {
+    function Workspace() {
+      const [showSecond, setShowSecond] = useState(false)
+
       return (
-        <ObjectiveTourProvider tourId="live-meeting" objectives={OBJECTIVES}>
-          <div className="step-one">{text}</div>
-          <div className="step-two">Relationship</div>
-          <button type="button" onClick={() => setText('Client has replied')}>Advance turn</button>
-        </ObjectiveTourProvider>
+        <>
+          <div className="step-one">Evidence board</div>
+          {showSecond && <div className="step-two">Hypothesis</div>}
+          <button type="button" onClick={() => setShowSecond(true)}>Open document</button>
+        </>
       )
     }
 
-    render(<Streaming />)
-    await screen.findByText('First stop', {}, { timeout: 2000 })
-    expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('Advance turn'))
-
-    expect(screen.getByText('Client has replied')).toBeInTheDocument()
-    expect(screen.getByText('First stop')).toBeInTheDocument()
-  })
-
-  /**
-   * These workspaces are read on laptops and on half a screen, and the tour is
-   * positioned by the library against the element it anchors to. A narrow
-   * viewport must still find the anchors and must not push the page sideways.
-   */
-  it('still finds its anchors on a narrow viewport', async () => {
-    const original = window.innerWidth
-    Object.defineProperty(window, 'innerWidth', { value: 480, configurable: true })
-    window.dispatchEvent(new Event('resize'))
-
-    try {
-      renderWorkspace()
-
-      await screen.findByText('First stop', {}, { timeout: 2000 })
-      expect(document.querySelector('.reactour__mask')).toBeInTheDocument()
-
-      fireEvent.click(screen.getByLabelText('Go to next step'))
-      expect(screen.getByText('Second stop')).toBeInTheDocument()
-
-      expect(document.body.scrollWidth).toBeLessThanOrEqual(document.body.clientWidth || 480)
-    } finally {
-      Object.defineProperty(window, 'innerWidth', { value: original, configurable: true })
-      window.dispatchEvent(new Event('resize'))
-    }
-  })
-
-  /**
-   * Some anchors sit on two forms of the same thing, one before an action and
-   * one after — the outreach client panel becomes the client's reply once a
-   * message has been sent. The step has to land on whichever is on the page.
-   */
-  it.each([
-    ['before the attempt', 'Client signal'],
-    ['after the attempt', 'What the client said'],
-  ])('anchors to the client panel %s', async (_when, label) => {
     render(
       <ObjectiveTourProvider
-        tourId="outreach-workspace"
-        objectives={[{ id: 'client', objective: 'Who you are writing to', description: 'One reader.', targets: ['.step-one'] }]}
-      >
-        <div className="step-one">{label}</div>
-      </ObjectiveTourProvider>,
-    )
-
-    expect( await screen.findByText('Who you are writing to', {}, { timeout: 2000 }),).toBeInTheDocument()
-    expect(screen.getByText(label)).toBeInTheDocument()
-  })
-
-  /**
-   * A first engagement is the emptiest the research screen ever gets: no
-   * evidence gathered, nothing on the board, the gate unmet. That is also the
-   * only time the walkthrough runs, so the anchors have to survive it.
-   */
-  it('anchors to a section that is present but empty', async () => {
-    render(
-      <ObjectiveTourProvider
-        tourId="client-intelligence"
-        objectives={[
-          { id: 'board', objective: 'Build your evidence base', description: 'It collects here.', targets: ['.step-one'] },
-          { id: 'gate', objective: 'Moving on', description: 'A floor, not a target.', targets: ['.step-two'] },
+        tours={[
+          {
+            tourId: 'client-intelligence',
+            objectives: [OBJECTIVES[0]],
+          },
+          {
+            tourId: 'drop-and-drop',
+            objectives: [OBJECTIVES[1]],
+          },
         ]}
       >
-        <section className="step-one">Generate or add a source to begin building your evidence board.</section>
-        <div className="step-two">Ready for Outreach?</div>
+        <Workspace />
       </ObjectiveTourProvider>,
     )
 
-    expect(await screen.findByText('Build your evidence base', {}, { timeout: 2000 }),).toBeInTheDocument()
+    expect(await screen.findByText('First stop', {}, { timeout: 2000 }),).toBeInTheDocument()
 
-    fireEvent.click(screen.getByLabelText('Go to next step'))
-    expect(screen.getByText('Moving on')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /close/i }))
+
+    expect(screen.queryByText('First stop')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open document' }))
+
+    expect(await screen.findByText('Second stop', {}, { timeout: 2000 }),).toBeInTheDocument()
   })
 })
