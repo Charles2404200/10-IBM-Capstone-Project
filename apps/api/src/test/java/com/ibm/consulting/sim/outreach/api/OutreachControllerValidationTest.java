@@ -14,6 +14,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
@@ -24,6 +25,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @WebMvcTest(OutreachController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -68,6 +71,78 @@ class OutreachControllerValidationTest {
         verifyNoInteractions(outreachService);
     }
 
+    @Test
+    void invalidOutreachFieldsAreRejectedBeforeApplicationLogic() throws Exception {
+        sendJson("{}").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.subject").exists())
+                .andExpect(jsonPath("$.violations.body").exists());
+        sendJson("{\"subject\":null,\"body\":null}").andExpect(status().isBadRequest());
+        sendJson("{\"subject\":\"   \",\"body\":\"   \"}").andExpect(status().isBadRequest());
+        sendJson("{\"subject\":\"%s\",\"body\":\"valid\"}".formatted("s".repeat(201)))
+                .andExpect(status().isBadRequest());
+        sendJson("{\"subject\":\"valid\",\"body\":\"%s\"}".formatted("b".repeat(5001)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(outreachService);
+    }
+
+    @Test
+    void maximumOutreachFieldsRemainAccepted() throws Exception {
+        String subject = "s".repeat(200);
+        String body = "b".repeat(5000);
+
+        sendJson("{\"subject\":\"%s\",\"body\":\"%s\"}".formatted(subject, body))
+                .andExpect(status().isCreated());
+
+        verify(outreachService).send(engagementId, learner.getId(), subject, body, null);
+    }
+
+    @Test
+    void invalidCapabilityBriefFieldsAreRejectedBeforeApplicationLogic() throws Exception {
+        String endpoint = "/api/v1/engagements/{id}/outreach/capability-brief";
+        mockMvc.perform(post(endpoint, engagementId).with(learnerAuthentication())
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.violations.relevantExperience").exists())
+                .andExpect(jsonPath("$.violations.approach").exists())
+                .andExpect(jsonPath("$.violations.caseExample").exists())
+                .andExpect(jsonPath("$.violations.clientFit").exists());
+        mockMvc.perform(post(endpoint, engagementId).with(learnerAuthentication())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"relevantExperience":"valid","approach":"   ",
+                                 "caseExample":"valid","clientFit":"valid"}
+                                """))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post(endpoint, engagementId).with(learnerAuthentication())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"relevantExperience":"%s","approach":"valid",
+                                 "caseExample":"valid","clientFit":"valid"}
+                                """.formatted("x".repeat(3001))))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(capabilityBriefService);
+    }
+
+    @Test
+    void malformedBodyWrongScalarAndInvalidPathReturnSafeBadRequests() throws Exception {
+        sendJson("{\"subject\":\"valid\",\"body\":")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.type")
+                        .value("https://consulting-sim.ibm.com/problems/malformed-request"));
+        sendJson("{\"subject\":[\"wrong\"],\"body\":\"valid\"}")
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/v1/engagements/not-a-uuid/outreach")
+                        .with(learnerAuthentication()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"subject\":\"valid\",\"body\":\"valid\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail")
+                        .value("A request parameter or path value has an invalid format."));
+
+        verifyNoInteractions(outreachService);
+    }
+
     private org.springframework.test.web.servlet.ResultActions send(String requestId) throws Exception {
         return mockMvc.perform(post("/api/v1/engagements/{id}/outreach", engagementId)
                 .with(learnerAuthentication())
@@ -75,6 +150,13 @@ class OutreachControllerValidationTest {
                 .content("""
                         {"subject":"Valid subject","body":"Valid outreach body","requestId":"%s"}
                         """.formatted(requestId)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions sendJson(String json) throws Exception {
+        return mockMvc.perform(post("/api/v1/engagements/{id}/outreach", engagementId)
+                .with(learnerAuthentication())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
     }
 
     private RequestPostProcessor learnerAuthentication() {

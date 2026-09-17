@@ -83,6 +83,19 @@ class ProposalControllerValidationContractTest {
         assertThat(captor.getValue().timelineWeeks()).isEqualTo(1);
     }
 
+    @Test
+    void submissionRequiresItsEstablishedMandatoryFieldsBeforeServiceInvocation() throws Exception {
+        mockMvc.perform(post("/api/v1/engagements/{id}/proposal", engagementId)
+                        .with(authentication()).contentType("application/json").content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.problemStatement").exists())
+                .andExpect(jsonPath("$.violations.components").exists())
+                .andExpect(jsonPath("$.violations.budget").exists())
+                .andExpect(jsonPath("$.violations.timelineWeeks").exists());
+
+        verifyNoInteractions(proposalService);
+    }
+
     private String path(String action) {
         return "/api/v1/engagements/" + engagementId + "/proposal/" + action;
     }

@@ -5,12 +5,16 @@ import com.ibm.consulting.sim.scenario.application.ScenarioCatalogResponse;
 import com.ibm.consulting.sim.scenario.application.ScenarioSummary;
 import com.ibm.consulting.sim.scenario.domain.ScenarioCatalogQuery;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/scenarios")
+@Validated
 public class ScenarioController {
 
     private final ScenarioService scenarioService;
@@ -29,9 +33,9 @@ public class ScenarioController {
     ScenarioCatalogResponse listCatalog(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String industry,
-            @RequestParam(required = false) Integer difficulty,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "9") int size) {
+            @RequestParam(required = false) @Min(1) @Max(5) Integer difficulty,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "9") @Min(1) @Max(24) int size) {
         return scenarioService.listCatalog(new ScenarioCatalogQuery(search, industry, difficulty, page, size));
     }
 

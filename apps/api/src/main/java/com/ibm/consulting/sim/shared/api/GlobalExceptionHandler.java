@@ -6,6 +6,7 @@ import com.ibm.consulting.sim.identity.domain.EmailVerificationRequiredException
 import com.ibm.consulting.sim.identity.application.LoginRateLimitExceededException;
 import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -13,12 +14,21 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -55,10 +65,58 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> violations = ex.getConstraintViolations().stream()
+                .collect(Collectors.toMap(
+                        violation -> requestField(violation.getPropertyPath()),
+                        violation -> violation.getMessage() != null ? violation.getMessage() : "invalid",
+                        (first, second) -> first.compareTo(second) <= 0 ? first : second,
+                        LinkedHashMap::new));
+        ProblemDetail detail = problem(HttpStatus.BAD_REQUEST, "validation-error", "Request validation failed");
+        detail.setProperty("violations", violations);
+        return detail;
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    ProblemDetail handleMethodValidation(HandlerMethodValidationException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "validation-error", "Request validation failed");
+    }
+
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    ProblemDetail handleInvalidRequestParameter(Exception ex) {
+        return problem(HttpStatus.BAD_REQUEST, "malformed-request",
+                "A request parameter or path value has an invalid format.");
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail handleUnreadableRequest(HttpMessageNotReadableException ex) {
         return problem(HttpStatus.BAD_REQUEST, "malformed-request",
                 "Request body must be valid JSON matching the expected format.");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ProblemDetail> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        ProblemDetail detail = problem(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed",
+                "The requested HTTP method is not supported for this endpoint.");
+        HttpMethod[] supportedMethods = ex.getSupportedHttpMethods() == null
+                ? new HttpMethod[0]
+                : ex.getSupportedHttpMethods().toArray(HttpMethod[]::new);
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .allow(supportedMethods)
+                .body(detail);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported-media-type",
+                "The request content type is not supported for this endpoint.");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    ProblemDetail handleMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return problem(HttpStatus.NOT_ACCEPTABLE, "not-acceptable",
+                "The requested response content type is not available.");
     }
 
     @ExceptionHandler(EmailVerificationRequiredException.class)
@@ -127,5 +185,15 @@ public class GlobalExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(status, detail);
         pd.setType(URI.create(PROBLEM_TYPE_BASE + type));
         return pd;
+    }
+
+    private String requestField(Path path) {
+        String field = null;
+        for (Path.Node node : path) {
+            if (node.getName() != null) {
+                field = node.getName();
+            }
+        }
+        return field != null ? field : path.toString();
     }
 }

@@ -1,9 +1,10 @@
 package com.ibm.consulting.sim.identity.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.shared.config.CorsProperties;
+import com.ibm.consulting.sim.shared.api.ApiAuthenticationEntryPoint;
 import com.ibm.consulting.sim.shared.infrastructure.observability.ObservabilityAuthenticationFilter;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,13 +43,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, ApiAuthenticationEntryPoint authenticationEntryPoint)
+            throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .exceptionHandling(exceptions -> exceptions
-                .authenticationEntryPoint((request, response, exception) ->
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
+                .authenticationEntryPoint(authenticationEntryPoint))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
@@ -65,6 +66,11 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                     .addFilterBefore(observabilityFilter, JwtAuthenticationFilter.class)
                 .build();
+    }
+
+    @Bean
+    ApiAuthenticationEntryPoint apiAuthenticationEntryPoint(ObjectMapper objectMapper) {
+        return new ApiAuthenticationEntryPoint(objectMapper);
     }
 
     @Bean

@@ -9,6 +9,8 @@ import com.ibm.consulting.sim.identity.application.LoginAttemptLimiter;
 import com.ibm.consulting.sim.identity.application.TokenResponse;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.infrastructure.JwtTokenProvider;
+import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
+import org.springframework.http.MediaType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -19,9 +21,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -157,6 +163,40 @@ class AuthControllerValidationTest {
                 .andExpect(jsonPath("$.violations.token").exists());
         verify(emailVerificationService).verify(maximumToken);
         verify(passwordResetService).reset(maximumToken, "StrongPass123!");
+    }
+
+    @Test
+    void passwordResetRequestKeepsItsAcceptedSuccessContract() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password-reset/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"learner@example.com\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(content().string(""));
+
+        verify(passwordResetService).request("learner@example.com");
+    }
+
+    @Test
+    void emailDeliveryFailureReturnsSafeRetriableServiceUnavailableProblem() throws Exception {
+        doThrow(new EmailDeliveryUnavailableException(
+                "SMTP smtp.internal:587 user=mailer recipients=learner@example.com secret=top-secret"))
+                .when(passwordResetService).request("learner@example.com");
+
+        mockMvc.perform(post("/api/v1/auth/password-reset/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"learner@example.com\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.title").value("Service Unavailable"))
+                .andExpect(jsonPath("$.type")
+                        .value("https://consulting-sim.ibm.com/problems/email-delivery-unavailable"))
+                .andExpect(jsonPath("$.detail")
+                        .value("We could not send email right now. Please try again shortly."))
+                .andExpect(content().string(not(containsString("smtp.internal"))))
+                .andExpect(content().string(not(containsString("mailer"))))
+                .andExpect(content().string(not(containsString("learner@example.com"))))
+                .andExpect(content().string(not(containsString("top-secret"))));
     }
 
     private String registrationJson(String password, String displayName) {
