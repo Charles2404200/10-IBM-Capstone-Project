@@ -1,5 +1,12 @@
 package com.ibm.consulting.sim.shared.domain;
 
+import com.ibm.consulting.sim.engagement.domain.Engagement;
+import com.ibm.consulting.sim.engagement.domain.EngagementState;
+import com.ibm.consulting.sim.identity.domain.User;
+import com.ibm.consulting.sim.identity.domain.UserRole;
+import com.ibm.consulting.sim.lead.domain.Lead;
+import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
+import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -90,6 +97,65 @@ class OptimisticLockingIntegrationTest {
         }
     }
 
+    @Test
+    void staleEngagementUpdateCannotOverwriteLifecycleOrCreateAnEvent() {
+        EngagementData data = new TransactionTemplate(transactionManager).execute(status -> {
+            User user = User.create(UUID.randomUUID() + "@example.com", "hash", "Learner", UserRole.LEARNER);
+            Scenario scenario = Scenario.create("Concurrency", "Technology", "Scenario", 3);
+            Persona persona = Persona.create(scenario, "Client", "CIO", "Example Co", "Direct",
+                    "Risk", "Budget", "Delivery");
+            Lead lead = Lead.create(scenario.getId(), "Example Co", "Technology",
+                    "Opportunity", LeadDifficulty.MEDIUM);
+            entityManager.persist(user);
+            entityManager.persist(scenario);
+            entityManager.persist(persona);
+            entityManager.persist(lead);
+            Engagement engagement = Engagement.start(user.getId(), scenario.getId(), persona.getId());
+            entityManager.persist(engagement);
+            entityManager.flush();
+            return new EngagementData(engagement.getId(), lead.getId());
+        });
+
+        EntityManager winnerContext = entityManagerFactory.createEntityManager();
+        EntityManager staleContext = entityManagerFactory.createEntityManager();
+        try {
+            winnerContext.getTransaction().begin();
+            staleContext.getTransaction().begin();
+            Engagement winner = winnerContext.find(Engagement.class, data.engagementId());
+            Engagement stale = staleContext.find(Engagement.class, data.engagementId());
+            assertThat(winner.getVersion()).isEqualTo(stale.getVersion());
+
+            winner.selectLead(data.leadId());
+            winnerContext.getTransaction().commit();
+
+            stale.selectLead(data.leadId());
+            assertThatThrownBy(() -> staleContext.getTransaction().commit())
+                    .isInstanceOfAny(OptimisticLockException.class, RollbackException.class)
+                    .satisfies(throwable -> assertThat(hasOptimisticCause(throwable)).isTrue());
+        } finally {
+            if (winnerContext.getTransaction().isActive()) winnerContext.getTransaction().rollback();
+            if (staleContext.getTransaction().isActive()) staleContext.getTransaction().rollback();
+            winnerContext.close();
+            staleContext.close();
+        }
+
+        EntityManager verificationContext = entityManagerFactory.createEntityManager();
+        try {
+            Engagement committed = verificationContext.find(Engagement.class, data.engagementId());
+            assertThat(committed.getState()).isEqualTo(EngagementState.CLIENT_INTELLIGENCE);
+            assertThat(committed.getSelectedLeadId()).isEqualTo(data.leadId());
+            assertThat(verificationContext.createQuery("""
+                            select count(event) from EngagementEvent event
+                            where event.engagement.id = :id and event.state = :state
+                            """, Long.class)
+                    .setParameter("id", data.engagementId())
+                    .setParameter("state", EngagementState.CLIENT_INTELLIGENCE)
+                    .getSingleResult()).isEqualTo(1L);
+        } finally {
+            verificationContext.close();
+        }
+    }
+
     private boolean hasOptimisticCause(Throwable failure) {
         Throwable current = failure;
         while (current != null) {
@@ -100,4 +166,6 @@ class OptimisticLockingIntegrationTest {
         }
         return false;
     }
+
+    private record EngagementData(UUID engagementId, UUID leadId) {}
 }

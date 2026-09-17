@@ -1,5 +1,8 @@
 package com.ibm.consulting.sim.meeting.infrastructure;
 
+import com.ibm.consulting.sim.assessment.domain.AssessmentRepository;
+import com.ibm.consulting.sim.engagement.application.EngagementQueryService;
+import com.ibm.consulting.sim.engagement.application.EngagementResponse;
 import com.ibm.consulting.sim.engagement.domain.Engagement;
 import com.ibm.consulting.sim.engagement.domain.EngagementRepository;
 import com.ibm.consulting.sim.engagement.domain.EngagementState;
@@ -7,12 +10,16 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.lead.domain.Lead;
 import com.ibm.consulting.sim.lead.domain.LeadDifficulty;
+import com.ibm.consulting.sim.lead.domain.LeadRepository;
+import com.ibm.consulting.sim.lead.domain.ResearchEvidenceRepository;
 import com.ibm.consulting.sim.meeting.application.MeetingPreparationResponse;
 import com.ibm.consulting.sim.meeting.application.MeetingPreparationService;
 import com.ibm.consulting.sim.meeting.domain.MeetingPreparation;
 import com.ibm.consulting.sim.meeting.domain.MeetingPreparationRepository;
+import com.ibm.consulting.sim.meeting.domain.MeetingRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import org.junit.jupiter.api.Test;
@@ -41,6 +48,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @DataJpaTest
 @Import(JpaMeetingPreparationRepository.class)
@@ -108,6 +119,102 @@ class MeetingPreparationConcurrencyIntegrationTest {
         assertThat(outcomes).allMatch(Outcome::succeeded);
         assertThat(countPreparations(first.engagementId())).isEqualTo(1L);
         assertThat(countPreparations(second.engagementId())).isEqualTo(1L);
+    }
+
+    @Test
+    void engagementSaveFailureRollsBackPreparationAndLifecycleTransition() {
+        TestData data = inTransaction(this::persistMeetingSecuredEngagement);
+        var updatedAtBefore = inTransaction(() ->
+                entityManager.find(Engagement.class, data.engagementId()).getUpdatedAt());
+        MeetingPreparationService service = new MeetingPreparationService(
+                preparations, engagementRepositoryFailingOnSave());
+
+        assertThatThrownBy(() -> inTransaction(() -> service.update(
+                data.engagementId(), data.userId(), "Validate the opportunity",
+                List.of("Set context", "Explore impact", "Confirm next step"),
+                List.of("What changed?", "Who is affected?", "How is success measured?"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("simulated engagement persistence failure");
+
+        assertThat(countPreparations(data.engagementId())).isZero();
+        inTransaction(() -> {
+            Engagement persisted = entityManager.find(Engagement.class, data.engagementId());
+            assertThat(persisted.getState()).isEqualTo(EngagementState.MEETING_SECURED);
+            assertThat(persisted.getUpdatedAt()).isEqualTo(updatedAtBefore);
+        });
+        assertThat(countPreparingTransitions(data.engagementId())).isZero();
+
+        MeetingPreparationService retryService = new MeetingPreparationService(
+                preparations, new EntityManagerEngagementRepository());
+        MeetingPreparationResponse retry = inTransaction(() -> retryService.update(
+                data.engagementId(), data.userId(), "Validate the opportunity",
+                List.of("Set context", "Explore impact", "Confirm next step"),
+                List.of("What changed?", "Who is affected?", "How is success measured?")));
+
+        assertThat(retry.ready()).isTrue();
+        assertThat(countPreparations(data.engagementId())).isEqualTo(1L);
+        assertThat(inTransaction(() -> entityManager.find(Engagement.class, data.engagementId()).getState()))
+                .isEqualTo(EngagementState.PREPARING);
+        assertThat(countPreparingTransitions(data.engagementId())).isEqualTo(1L);
+
+        EngagementQueryService queries = queryService();
+        EngagementResponse detail = inTransaction(() ->
+                queries.getWorkspace(data.engagementId(), data.userId()));
+        List<EngagementResponse> dashboard = inTransaction(() -> queries.listForUser(data.userId()));
+        assertThat(detail.state()).isEqualTo(EngagementState.PREPARING.name());
+        assertThat(dashboard).extracting(EngagementResponse::state)
+                .containsExactly(EngagementState.PREPARING.name());
+    }
+
+    private EngagementQueryService queryService() {
+        ScenarioRepository scenarios = mock(ScenarioRepository.class);
+        when(scenarios.findById(any())).thenAnswer(invocation -> Optional.ofNullable(
+                entityManager.find(Scenario.class, invocation.getArgument(0))));
+        when(scenarios.findByIdIn(any())).thenAnswer(invocation ->
+                invocation.<List<UUID>>getArgument(0).stream()
+                        .map(id -> entityManager.find(Scenario.class, id))
+                        .filter(java.util.Objects::nonNull)
+                        .toList());
+
+        LeadRepository leads = mock(LeadRepository.class);
+        when(leads.findById(any())).thenAnswer(invocation -> Optional.ofNullable(
+                entityManager.find(Lead.class, invocation.getArgument(0))));
+        when(leads.findByIdIn(any())).thenAnswer(invocation ->
+                invocation.<List<UUID>>getArgument(0).stream()
+                        .map(id -> entityManager.find(Lead.class, id))
+                        .filter(java.util.Objects::nonNull)
+                        .toList());
+
+        ResearchEvidenceRepository evidence = mock(ResearchEvidenceRepository.class);
+        when(evidence.countByEngagementId(any())).thenReturn(0L);
+        when(evidence.countByEngagementIds(any())).thenReturn(java.util.Map.of());
+        MeetingRepository meetings = mock(MeetingRepository.class);
+        when(meetings.findByEngagementId(any())).thenReturn(Optional.empty());
+        when(meetings.findAllByEngagementIdIn(any())).thenReturn(List.of());
+
+        return new EngagementQueryService(new EntityManagerEngagementRepository(),
+                mock(AssessmentRepository.class), scenarios, leads, evidence, meetings);
+    }
+
+    private EngagementRepository engagementRepositoryFailingOnSave() {
+        EngagementRepository delegate = new EntityManagerEngagementRepository();
+        return new EngagementRepository() {
+            @Override public Engagement save(Engagement engagement) {
+                throw new IllegalStateException("simulated engagement persistence failure");
+            }
+            @Override public List<Engagement> findAll() { return delegate.findAll(); }
+            @Override public Optional<Engagement> findById(UUID id) { return delegate.findById(id); }
+            @Override public List<Engagement> findByUserId(UUID userId) { return delegate.findByUserId(userId); }
+            @Override public List<Engagement> findDashboardByUserId(UUID userId) {
+                return delegate.findDashboardByUserId(userId);
+            }
+            @Override public Optional<Engagement> findByIdAndUserId(UUID id, UUID userId) {
+                return delegate.findByIdAndUserId(id, userId);
+            }
+            @Override public Optional<Engagement> findByIdAndUserIdForUpdate(UUID id, UUID userId) {
+                return delegate.findByIdAndUserIdForUpdate(id, userId);
+            }
+        };
     }
 
     private MeetingPreparationRepository gateSaves(CountDownLatch savesReached) {
@@ -198,12 +305,22 @@ class MeetingPreparationConcurrencyIntegrationTest {
 
     private final class EntityManagerEngagementRepository implements EngagementRepository {
         @Override public Engagement save(Engagement engagement) { return engagement; }
-        @Override public List<Engagement> findAll() { return List.of(); }
+        @Override public List<Engagement> findAll() {
+            return entityManager.createQuery("select engagement from Engagement engagement", Engagement.class)
+                    .getResultList();
+        }
         @Override public Optional<Engagement> findById(UUID id) {
             return Optional.ofNullable(entityManager.find(Engagement.class, id));
         }
-        @Override public List<Engagement> findByUserId(UUID userId) { return List.of(); }
-        @Override public List<Engagement> findDashboardByUserId(UUID userId) { return List.of(); }
+        @Override public List<Engagement> findByUserId(UUID userId) {
+            return entityManager.createQuery("""
+                            select engagement from Engagement engagement
+                            where engagement.userId = :userId order by engagement.createdAt desc
+                            """, Engagement.class)
+                    .setParameter("userId", userId)
+                    .getResultList();
+        }
+        @Override public List<Engagement> findDashboardByUserId(UUID userId) { return findByUserId(userId); }
         @Override public Optional<Engagement> findByIdAndUserId(UUID id, UUID userId) {
             return findById(id).filter(engagement -> engagement.getUserId().equals(userId));
         }

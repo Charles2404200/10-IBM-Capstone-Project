@@ -82,6 +82,23 @@ class EngagementControllerStartTest {
                         """.formatted(leadId)), scenarioId);
     }
 
+    @Test
+    void retryFromAnInvalidLifecycleStateReturnsTheEstablishedDomainProblem() throws Exception {
+        UUID engagementId = UUID.randomUUID();
+        when(retryUseCase.execute(engagementId, learner.getId()))
+                .thenThrow(new RetryEngagementUseCase.RetryNotAvailableException(
+                        "Only an engagement that failed its meeting can be restarted."));
+
+        mockMvc.perform(post("/api/v1/engagements/{id}/retry", engagementId)
+                        .with(learnerAuthentication()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type")
+                        .value("https://consulting-sim.ibm.com/problems/domain-error"))
+                .andExpect(jsonPath("$.detail").value(
+                        "Only an engagement that failed its meeting can be restarted."));
+    }
+
     private void assertDomainFailure(
             org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request,
             UUID scenarioId) throws Exception {

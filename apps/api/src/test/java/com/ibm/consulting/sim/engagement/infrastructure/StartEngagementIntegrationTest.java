@@ -94,6 +94,23 @@ class StartEngagementIntegrationTest {
     }
 
     @Test
+    void leadFirstStartRejectsAPersonaFromAnotherScenarioWithoutSaving() {
+        Scenario leadScenario = activeScenario("Lead scenario");
+        Scenario otherScenario = activeScenario("Other scenario");
+        Lead lead = Lead.create(leadScenario.getId(), "Example Co", "Technology",
+                "Modernisation opportunity", LeadDifficulty.MEDIUM);
+        Persona unrelatedPersona = otherScenario.getPersonas().getFirst();
+        when(leads.findById(lead.getId())).thenReturn(Optional.of(lead));
+        when(scenarios.findById(leadScenario.getId())).thenReturn(Optional.of(leadScenario));
+
+        assertThatThrownBy(() -> useCase.executeForLead(
+                UUID.randomUUID(), lead.getId(), unrelatedPersona.getId()))
+                .isInstanceOf(StartEngagementUseCase.PersonaNotInScenarioException.class);
+
+        assertThat(engagements.created()).isEmpty();
+    }
+
+    @Test
     void scenarioFirstStartRejectsAnArchivedScenarioWithoutSaving() {
         Scenario scenario = activeScenario("Archived scenario");
         scenario.archive();
