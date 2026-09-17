@@ -13,8 +13,8 @@ import { getApiProblem } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
-const SOURCES_PER_PAGE = 2
-const EDITOR_ITEMS_PER_PAGE = 4
+const SOURCES_PER_PAGE = 4
+const EDITOR_ITEMS_PER_PAGE = 3
 const PROPOSAL_OBJECTIVES = [
   {
     id: 'completion-steps',
@@ -69,9 +69,9 @@ export default function ProposalStudioPage() {
       <div className={styles.canvas}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Evidence-grounded proposal</p>
           <Heading>{PHASE_LABEL.PROPOSAL}</Heading>
-          <p className={styles.subtitle}>Build a concise recommendation from client evidence. The coach reviews your reasoning; it never writes the proposal for you.</p>
+          <p className={styles.subtitle}>Build a concise recommendation from client evidence.</p>
+          <p className={styles.subtitle}>The coach reviews your reasoning; it never writes the proposal for you.</p>
         </div>
         <div className={styles.headerActions}>
           {isReviewing ? <InlineLoading description="Reviewing proposal" /> : isSubmitting ? <InlineLoading description="Submitting to client" /> : <SaveStatus state={studio.saveState} />}

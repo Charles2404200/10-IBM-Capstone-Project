@@ -42,8 +42,7 @@ export function ProposalOutcomeView({ proposal, engagementId }: { proposal: Prop
     <main className={styles.outcomePage}>
       <header className={styles.outcomeHeader}>
         <div>
-          <p className={styles.eyebrow}>Client decision</p>
-          <Heading>Proposal outcome</Heading>
+          <Heading>Proposal Outcome</Heading>
           <p className={styles.subtitle}>A clear view of the client decision, its conditions and your learning result.</p>
         </div>
         <div className={styles.outcomeHeaderStats}>
