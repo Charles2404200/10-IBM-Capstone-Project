@@ -20,6 +20,18 @@
   color: #525252;
 }
 
+.evaluations {
+  margin-top: -1rem;
+}
+
+.evaluationColumn {
+  display: flex;
+}
+
+.evaluationColumn > * {
+  width: 100%;
+}
+
 .evidenceNote {
   color: #525252;
   font-size: 0.75rem;

@@ -171,8 +171,8 @@ export default function AssessmentReviewPage() {
             ))}
           </Grid>
 
-          <Grid narrow>
-            <Column lg={8} md={4} sm={4}>
+          <Grid narrow className={styles.evaluations}>
+            <Column lg={8} md={4} sm={4} className={styles.evaluationColumn}>
               <Tile>
                 <Stack gap={2}>
                   <h5 className={styles.sectionTitle}>Strengths</h5>
@@ -198,7 +198,7 @@ export default function AssessmentReviewPage() {
                 </Stack>
               </Tile>
             </Column>
-            <Column lg={8} md={4} sm={4}>
+            <Column lg={8} md={4} sm={4} className={styles.evaluationColumn}>
               <Tile>
                 <Stack gap={2}>
                   <h5 className={styles.sectionTitle}>Areas for Improvement</h5>
