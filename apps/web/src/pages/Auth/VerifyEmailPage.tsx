@@ -24,7 +24,6 @@ export default function VerifyEmailPage() {
     mutate: confirmVerification,
     isError: confirmationFailed,
     isPending: confirmationPending,
-    isSuccess: confirmationSucceeded,
   } = useConfirmVerification()
   const resend = useResendVerification()
   const startedToken = useRef<string | null>(null)
@@ -34,20 +33,34 @@ export default function VerifyEmailPage() {
     defaultValues: { email: emailFromRegistration },
   })
 
+  // useEffect(() => {
+  //   if (!token || startedToken.current === token) return
+  //   startedToken.current = token
+  //   confirmVerification(token, {
+  //     onSuccess: () => {
+  //       setConfirmed(true)
+  //       sessionStorage.removeItem('pendingVerificationEmail')
+  //       window.history.replaceState(null, document.title, '/verify-email?confirmed=1')
+  //     },
+  //   })
+  // }, [token, confirmVerification])
+
   useEffect(() => {
     if (!token || startedToken.current === token) return
     startedToken.current = token
-    confirmVerification(token, {
-      onSuccess: () => {
+    const confirmEmail = async () => {
+      try {
+        await confirmVerification(token)
         setConfirmed(true)
         sessionStorage.removeItem('pendingVerificationEmail')
         window.history.replaceState(null, document.title, '/verify-email?confirmed=1')
-      },
-    })
+      } catch {}
+    }
+    void confirmEmail()
   }, [token, confirmVerification])
 
   const requestAnother = (values: EmailForm) => resend.mutate(values.email)
-  const verificationSucceeded = alreadyConfirmed || confirmed || confirmationSucceeded
+  const verificationSucceeded = alreadyConfirmed || confirmed
   const confirmationProblem = Boolean(token && !verificationSucceeded && confirmationFailed)
 
   return (
@@ -66,7 +79,7 @@ export default function VerifyEmailPage() {
         )}
         {!token && !verificationSucceeded && <p style={{ margin: 0, color: '#525252' }}>Check your inbox for the confirmation link. You must confirm before signing in.</p>}
         {verificationSucceeded && <Button as={Link} to="/login">Continue to sign in</Button>}
-        {(!token || confirmationProblem) && (
+        {(!token || confirmationProblem) && (!verificationSucceeded) && (
           <Form onSubmit={form.handleSubmit(requestAnother)}>
             <Stack gap={5}>
               <TextInput id="resend-email" type="email" labelText="Email address" invalid={Boolean(form.formState.errors.email)} invalidText={form.formState.errors.email?.message} {...form.register('email')} />
