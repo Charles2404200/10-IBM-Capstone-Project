@@ -100,7 +100,7 @@ export default function ObjectiveGuide({ tours, stepsByTour }: Props) {
       console.log('Opening tour:', availableTour.tourId)
       console.log('Steps:', present)
 
-      setSteps(present)
+      setSteps?.(present)
 
       setTimeout(() => {
         console.log('Attempting to reopen tour:', availableTour.tourId)
@@ -146,7 +146,7 @@ export default function ObjectiveGuide({ tours, stepsByTour }: Props) {
     markComplete(userId, completedTourId)
 
     if (hasCompletedAllTours(completedFor(userId))) {
-      completeMutation()
+      completeMutation?.()
     }
   }, [completeMutation, completedFor, isOpen, markComplete, userId])
 
