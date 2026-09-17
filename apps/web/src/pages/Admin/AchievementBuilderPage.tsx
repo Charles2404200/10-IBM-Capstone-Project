@@ -22,6 +22,7 @@ import AchievementRuleBuilder from '@/components/admin/AchievementRuleBuilder'
 import LoadingState from '@/components/shared/LoadingState'
 import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementAdminView, ConditionNode, UpsertAchievementRequest } from '@/api/types'
+import { achievementDescription } from '@/features/achievement/achievementPresentation'
 
 const DEFAULT_RULE: ConditionNode = {
   kind: 'GROUP',
@@ -62,8 +63,8 @@ function AchievementForm({
         />
         <TextArea
           id="achievement-description"
-          labelText="Description"
-          value={form.description}
+          labelText="Description (optional)"
+          value={form.description ?? ''}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
         <TextInput
@@ -82,7 +83,7 @@ function AchievementForm({
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <Button
             onClick={() => onSubmit(form)}
-            disabled={!form.name.trim() || !form.description.trim() || submitting}
+            disabled={!form.name.trim() || submitting}
           >
             Save achievement
           </Button>
@@ -122,7 +123,9 @@ function AchievementRow({ achievement }: { achievement: AchievementAdminView }) 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h5>{achievement.name}</h5>
-            <p style={{ color: '#525252', fontSize: '0.875rem' }}>{achievement.description}</p>
+            <p style={{ color: '#525252', fontSize: '0.875rem' }}>
+              {achievementDescription(achievement.description)}
+            </p>
           </div>
           <Tag type={achievement.active ? 'green' : 'gray'}>{achievement.active ? 'Active' : 'Inactive'}</Tag>
         </div>

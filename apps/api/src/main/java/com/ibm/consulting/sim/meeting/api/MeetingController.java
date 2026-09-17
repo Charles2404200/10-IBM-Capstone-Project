@@ -4,8 +4,10 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.meeting.application.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,7 +18,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -28,17 +32,26 @@ public class MeetingController {
     private final MeetingPreparationService preparationService;
     private final MeetingService meetingService;
     private final GuidedMeetingResponseService guidedResponseService;
-    private final ExecutorService sseExecutor = Executors.newCachedThreadPool();
+    private final ExecutorService sseExecutor;
 
     public MeetingController(MeetingPreparationService preparationService, MeetingService meetingService,
-                             GuidedMeetingResponseService guidedResponseService) {
+                             GuidedMeetingResponseService guidedResponseService,
+                             @Qualifier("aiGatewayExecutor") ExecutorService sseExecutor) {
         this.preparationService = preparationService;
         this.meetingService = meetingService;
         this.guidedResponseService = guidedResponseService;
+        this.sseExecutor = sseExecutor;
     }
 
-    record PreparationRequest(String objective, List<String> agenda, List<String> discoveryQuestions) {}
-    record MessageRequest(@NotBlank String message, String messageId) {}
+    record PreparationRequest(
+            @Size(max = MeetingRequestLimits.OBJECTIVE_MAX_LENGTH) String objective,
+            @Size(max = MeetingRequestLimits.PLAN_MAX_ITEMS)
+            List<@NotBlank @Size(max = MeetingRequestLimits.PLAN_ITEM_MAX_LENGTH) String> agenda,
+            @Size(max = MeetingRequestLimits.PLAN_MAX_ITEMS)
+            List<@NotBlank @Size(max = MeetingRequestLimits.PLAN_ITEM_MAX_LENGTH) String> discoveryQuestions) {}
+    record MessageRequest(
+            @NotBlank @Size(max = MeetingRequestLimits.MESSAGE_MAX_LENGTH) String message,
+            @Size(max = MeetingRequestLimits.MESSAGE_ID_MAX_LENGTH) String messageId) {}
 
     @PutMapping("/engagements/{engagementId}/preparation")
     MeetingPreparationResponse updatePreparation(@PathVariable UUID engagementId,
@@ -92,12 +105,26 @@ public class MeetingController {
                            @AuthenticationPrincipal User user) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         UUID userId = user.getId();
+        AtomicBoolean cancellationRequested = new AtomicBoolean();
+        AtomicReference<Future<?>> taskReference = new AtomicReference<>();
+        Runnable cancelTask = () -> {
+            cancellationRequested.set(true);
+            Future<?> task = taskReference.get();
+            if (task != null) {
+                task.cancel(true);
+            }
+        };
+        emitter.onTimeout(cancelTask);
+        emitter.onCompletion(cancelTask);
+        emitter.onError(ignored -> cancelTask.run());
 
-        sseExecutor.execute(() -> {
+        Future<?> task = sseExecutor.submit(() -> {
             try {
+                ensureNotInterrupted();
                 emitter.send(SseEmitter.event().name("turn.thinking").data(Map.of("status", "processing")));
 
                 MeetingTurnResult result = meetingService.sendMessage(meetingId, userId, req.message(), req.messageId());
+                ensureNotInterrupted();
 
                 // Chunk multiple words per SSE frame (instead of one word at a time) so the
                 // simulated "typing" effect adds only a small, bounded amount of latency
@@ -107,6 +134,7 @@ public class MeetingController {
                 StringBuilder accumulated = new StringBuilder();
                 int chunkSize = 3;
                 for (int i = 0; i < words.length; i++) {
+                    ensureNotInterrupted();
                     accumulated.append(words[i]).append(' ');
                     boolean lastWord = i == words.length - 1;
                     if (lastWord || (i + 1) % chunkSize == 0) {
@@ -120,13 +148,26 @@ public class MeetingController {
 
                 emitter.send(SseEmitter.event().name("turn.complete").data(result));
                 emitter.complete();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                log.debug("SSE meeting turn cancelled for meeting {}", meetingId);
             } catch (Exception e) {
                 log.error("SSE meeting turn failed for meeting {}", meetingId, e);
                 emitter.completeWithError(e);
             }
         });
+        taskReference.set(task);
+        if (cancellationRequested.get()) {
+            task.cancel(true);
+        }
 
         return emitter;
+    }
+
+    private void ensureNotInterrupted() throws InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException("SSE meeting task was cancelled");
+        }
     }
 
     @PostMapping("/meetings/{meetingId}/complete")

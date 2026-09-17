@@ -5,13 +5,13 @@ import com.ibm.consulting.sim.achievement.domain.AchievementCondition;
 import com.ibm.consulting.sim.achievement.domain.AchievementFactSheet;
 import com.ibm.consulting.sim.achievement.domain.AchievementRepository;
 import com.ibm.consulting.sim.achievement.domain.AchievementRuleEvaluator;
-import com.ibm.consulting.sim.achievement.domain.UserAchievement;
 import com.ibm.consulting.sim.achievement.domain.UserAchievementRepository;
 import com.ibm.consulting.sim.achievement.infrastructure.AchievementRuleCodec;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -57,8 +57,9 @@ public class AchievementEvaluationService {
             }
             AchievementCondition rule = ruleMapper.toDomain(ruleCodec.decode(achievement.getRuleJson()));
             if (AchievementRuleEvaluator.isSatisfied(rule, facts)) {
-                userAchievementRepository.save(UserAchievement.unlock(userId, achievement.getId()));
-                newlyUnlocked.add(achievement);
+                if (userAchievementRepository.insertIfAbsent(userId, achievement.getId(), Instant.now())) {
+                    newlyUnlocked.add(achievement);
+                }
             }
         }
         return newlyUnlocked;

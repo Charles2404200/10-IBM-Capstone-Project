@@ -39,9 +39,22 @@ public class OutreachAttempt extends BaseEntity {
 
     protected OutreachAttempt() {}
 
+    private OutreachAttempt(UUID id) {
+        super(id);
+    }
+
     public static OutreachAttempt create(UUID engagementId, int attemptNumber,
                                          String subject, String body) {
-        OutreachAttempt a = new OutreachAttempt();
+        return initialise(new OutreachAttempt(), engagementId, attemptNumber, subject, body);
+    }
+
+    public static OutreachAttempt createIdempotent(UUID attemptId, UUID engagementId, int attemptNumber,
+                                                   String subject, String body) {
+        return initialise(new OutreachAttempt(attemptId), engagementId, attemptNumber, subject, body);
+    }
+
+    private static OutreachAttempt initialise(OutreachAttempt a, UUID engagementId, int attemptNumber,
+                                               String subject, String body) {
         a.engagementId = engagementId;
         a.attemptNumber = attemptNumber;
         a.subject = subject;

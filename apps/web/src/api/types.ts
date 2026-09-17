@@ -82,11 +82,11 @@ export interface PlatformOverview {
   totalEngagements: number
   activeEngagements: number
   completedEngagements: number
-    completionRatePercent: number
-    averageAssessmentScore: number | null
-    engagementsByState: Record<string, number>
-    scenariosByStatus: Record<string, number>
-    scenarios: ScenarioActivity[]
+  completionRatePercent: number
+  averageAssessmentScore: number | null
+  engagementsByState: Record<string, number>
+  scenariosByStatus: Record<string, number>
+  scenarios: ScenarioActivity[]
 }
 
 export interface AdminNotificationResponse {
@@ -244,13 +244,13 @@ export interface LeadIntelligence {
 // ─── Research Evidence ────────────────────────────────────────────────────────
 
 export type EvidenceType =
-  | 'COMPANY_NEWS'
-  | 'FINANCIAL_SIGNAL'
-  | 'TECHNOLOGY_INDICATOR'
-  | 'STAKEHOLDER_PROFILE'
-  | 'MARKET_TREND'
-  | 'HYPOTHESIS'
-  | 'OTHER'
+    | 'COMPANY_NEWS'
+    | 'FINANCIAL_SIGNAL'
+    | 'TECHNOLOGY_INDICATOR'
+    | 'STAKEHOLDER_PROFILE'
+    | 'MARKET_TREND'
+    | 'HYPOTHESIS'
+    | 'OTHER'
 
 export type ConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
@@ -359,20 +359,20 @@ export interface ResearchGateStatus {
 // ─── Engagement ───────────────────────────────────────────────────────────────
 
 export type EngagementState =
-  | 'QUALIFYING'
-  | 'CLIENT_INTELLIGENCE'
-  | 'HYPOTHESIS_READY'
-  | 'OUTREACHING'
-  | 'MEETING_SECURED'
-  | 'PREPARING'
-  | 'IN_MEETING'
-  | 'MEETING_FAILED'
-  | 'DISCOVERY_COMPLETE'
-  | 'PROPOSAL_DRAFT'
-  | 'PROPOSAL_SUBMITTED'
-  | 'CLIENT_DECISION'
-  | 'REVIEW'
-  | 'COMPLETED'
+    | 'QUALIFYING'
+    | 'CLIENT_INTELLIGENCE'
+    | 'HYPOTHESIS_READY'
+    | 'OUTREACHING'
+    | 'MEETING_SECURED'
+    | 'PREPARING'
+    | 'IN_MEETING'
+    | 'MEETING_FAILED'
+    | 'DISCOVERY_COMPLETE'
+    | 'PROPOSAL_DRAFT'
+    | 'PROPOSAL_SUBMITTED'
+    | 'CLIENT_DECISION'
+    | 'REVIEW'
+    | 'COMPLETED'
 
 export interface EngagementEvent {
   id: string
@@ -382,16 +382,16 @@ export interface EngagementEvent {
 }
 
 export type EngagementPhase =
-  | 'LEAD'
-  | 'CLIENT_INTELLIGENCE'
-  | 'OUTREACH'
-  | 'MEETING_PREPARATION'
-  | 'LIVE_MEETING'
-  | 'MEETING_REVIEW'
-  | 'PROPOSAL'
-  | 'OUTCOME'
-  | 'REVIEW'
-  | 'COMPLETED'
+    | 'LEAD'
+    | 'CLIENT_INTELLIGENCE'
+    | 'OUTREACH'
+    | 'MEETING_PREPARATION'
+    | 'LIVE_MEETING'
+    | 'MEETING_REVIEW'
+    | 'PROPOSAL'
+    | 'OUTCOME'
+    | 'REVIEW'
+    | 'COMPLETED'
 
 export interface Engagement {
   id: string
@@ -564,13 +564,13 @@ export interface MeetingResponseOptions {
 export type ProposalDecision = 'PENDING' | 'WON' | 'LOST'
 export type ProposalStatus = 'DRAFT' | 'SUBMITTED'
 export type ClientDecisionOutcome =
-  | 'PILOT_APPROVED'
-  | 'PROPOSAL_ACCEPTED'
-  | 'REVISION_REQUESTED'
-  | 'FURTHER_DISCOVERY_REQUIRED'
-  | 'DEFERRED'
-  | 'REJECTED'
-  | 'STRATEGIC_PARTNERSHIP'
+    | 'PILOT_APPROVED'
+    | 'PROPOSAL_ACCEPTED'
+    | 'REVISION_REQUESTED'
+    | 'FURTHER_DISCOVERY_REQUIRED'
+    | 'DEFERRED'
+    | 'REJECTED'
+    | 'STRATEGIC_PARTNERSHIP'
 
 export interface ProposalBusinessOutcome {
   outcome: string
@@ -766,13 +766,13 @@ export interface ReplayComparison {
 // ─── Achievements ─────────────────────────────────────────────────────────────
 
 export type ConditionType =
-  | 'MIN_ENGAGEMENTS_COMPLETED'
-  | 'MIN_ENGAGEMENTS_WON'
-  | 'MIN_BEST_OVERALL_SCORE'
-  | 'MIN_AVERAGE_OVERALL_SCORE'
-  | 'MIN_COMPETENCY_SCORE'
-  | 'MIN_DISTINCT_SCENARIOS_COMPLETED'
-  | 'MIN_WIN_RATE_PERCENT'
+    | 'MIN_ENGAGEMENTS_COMPLETED'
+    | 'MIN_ENGAGEMENTS_WON'
+    | 'MIN_BEST_OVERALL_SCORE'
+    | 'MIN_AVERAGE_OVERALL_SCORE'
+    | 'MIN_COMPETENCY_SCORE'
+    | 'MIN_DISTINCT_SCENARIOS_COMPLETED'
+    | 'MIN_WIN_RATE_PERCENT'
 
 export type LogicalOperator = 'AND' | 'OR'
 

@@ -11,6 +11,11 @@ public record AchievementAdminView(
         boolean active,
         ConditionNode rule) {
 
+    public AchievementAdminView {
+        description = java.util.Objects.requireNonNullElse(description, "");
+        iconKey = java.util.Objects.requireNonNullElse(iconKey, "");
+    }
+
     public static AchievementAdminView from(Achievement achievement, ConditionNode rule) {
         return new AchievementAdminView(achievement.getId(), achievement.getName(), achievement.getDescription(),
                 achievement.getIconKey(), achievement.isActive(), rule);

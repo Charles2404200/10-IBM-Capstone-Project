@@ -11,6 +11,7 @@ import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -24,11 +25,24 @@ import java.util.UUID;
 @Repository
 interface SpringDataScenarioRepository extends JpaRepository<Scenario, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Scenario> {
     List<Scenario> findByStatus(ScenarioStatus status);
-    Optional<Scenario> findByIdAndStatus(
-            UUID id,
-            ScenarioStatus status
-    );
+
     List<Scenario> findByScenarioLineageIdAndStatus(UUID scenarioLineageId, ScenarioStatus status);
+    Optional<Scenario> findByIdAndStatus(UUID id, ScenarioStatus status);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select scenario from Scenario scenario where scenario.id = :id")
+    Optional<Scenario> findByIdForUpdate(@Param("id") UUID id);
+
+    @Query("select scenario.scenarioLineageId from Scenario scenario where scenario.id = :id")
+    Optional<UUID> findLineageIdById(@Param("id") UUID id);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select scenario from Scenario scenario
+            where scenario.scenarioLineageId = :lineageId
+            order by scenario.contentVersion asc, scenario.id asc
+            """)
+    List<Scenario> findLineageForUpdate(@Param("lineageId") UUID lineageId);
 
     @Query("""
             select distinct scenario.industry from Scenario scenario
@@ -64,19 +78,15 @@ class JpaScenarioRepository implements ScenarioRepository {
         return repo.findByScenarioLineageIdAndStatus(lineageId, status);
     }
     @Override public Optional<Scenario> findById(UUID id) { return repo.findById(id); }
-
-    /**
-     * @param id
-     * @param status
-     * @return
-     */
-    @Override
-    public Optional<Scenario> findByIdAndStatus(UUID id, ScenarioStatus status) {
-        return repo.findByIdAndStatus(id,status);
+    @Override public Optional<Scenario> findByIdAndStatus(UUID id, ScenarioStatus status) {
+        return repo.findByIdAndStatus(id, status);
     }
-
+    @Override public Optional<Scenario> findByIdForUpdate(UUID id) { return repo.findByIdForUpdate(id); }
+    @Override public Optional<UUID> findLineageIdById(UUID id) { return repo.findLineageIdById(id); }
+    @Override public List<Scenario> findLineageForUpdate(UUID lineageId) { return repo.findLineageForUpdate(lineageId); }
     @Override public List<Scenario> findByIdIn(List<UUID> ids) { return ids.isEmpty() ? List.of() : repo.findAllById(ids); }
     @Override public Scenario save(Scenario scenario) { return repo.save(scenario); }
+    @Override public void flush() { repo.flush(); }
 
     private Specification<Scenario> catalogueSpecification(ScenarioCatalogQuery query) {
         return (root, criteriaQuery, builder) -> {

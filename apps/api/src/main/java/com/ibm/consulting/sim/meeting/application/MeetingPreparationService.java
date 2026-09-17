@@ -32,7 +32,7 @@ public class MeetingPreparationService {
     @Transactional
     public MeetingPreparationResponse update(UUID engagementId, UUID userId, String objective,
                                               List<String> agenda, List<String> discoveryQuestions) {
-        Engagement engagement = engagementRepository.findByIdAndUserId(engagementId, userId)
+        Engagement engagement = engagementRepository.findByIdAndUserIdForUpdate(engagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", engagementId));
 
         if (engagement.getState() != EngagementState.MEETING_SECURED

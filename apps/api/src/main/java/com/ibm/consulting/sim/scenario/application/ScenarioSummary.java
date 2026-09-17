@@ -1,10 +1,12 @@
 package com.ibm.consulting.sim.scenario.application;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.Scenario;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public record ScenarioSummary(
@@ -13,13 +15,18 @@ public record ScenarioSummary(
         String industry,
         String description,
         int difficulty,
-        int contentVersion,
+        @JsonProperty("version") int contentVersion,
         String status,
         List<PersonaSummary> personas,
         Map<String, Integer> rubricWeights,
         DifficultyProfile difficultyProfile,
         GameplayDifficultyProfile gameplayDifficulty,
         Briefing briefing) {
+
+    public ScenarioSummary {
+        gameplayDifficulty = java.util.Objects.requireNonNull(
+                gameplayDifficulty, "gameplayDifficulty is required for every scenario response");
+    }
 
     /** Named difficulty dimensions — explains *why* a scenario is hard, not just a single 1–5 number. */
     public record DifficultyProfile(int informationAmbiguity, int stakeholderComplexity, int commercialPressure) {}
@@ -45,17 +52,19 @@ public record ScenarioSummary(
     public record Briefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays,
                            String businessSituation, String observableSymptom, String consultingMandate,
                            List<String> unknownsToValidate) {
+        public Briefing {
+            consultantRole = Objects.requireNonNullElse(consultantRole, "");
+            objective = Objects.requireNonNullElse(objective, "");
+            successCriteria = successCriteria == null ? List.of() : List.copyOf(successCriteria);
+            businessSituation = Objects.requireNonNullElse(businessSituation, "");
+            observableSymptom = Objects.requireNonNullElse(observableSymptom, "");
+            consultingMandate = Objects.requireNonNullElse(consultingMandate, "");
+            unknownsToValidate = unknownsToValidate == null ? List.of() : List.copyOf(unknownsToValidate);
+        }
+
         public Briefing(String consultantRole, String objective, List<String> successCriteria, int simulatedDays) {
             this(consultantRole, objective, successCriteria, simulatedDays, "", "", "", List.of());
         }
-    }
-
-    /** Source-compatible constructor retained for internal clients compiled against the prior response shape. */
-    public ScenarioSummary(UUID id, String title, String industry, String description, int difficulty, int contentVersion,
-                           String status, List<PersonaSummary> personas, Map<String, Integer> rubricWeights,
-                           DifficultyProfile difficultyProfile, Briefing briefing) {
-        this(id, title, industry, description, difficulty, contentVersion, status, personas, rubricWeights,
-                difficultyProfile, null, briefing);
     }
 
     /**
@@ -69,6 +78,11 @@ public record ScenarioSummary(
             String organisation,
             String communicationStyle,
             String visibleConcerns) {
+
+        public PersonaSummary {
+            communicationStyle = Objects.requireNonNullElse(communicationStyle, "");
+            visibleConcerns = Objects.requireNonNullElse(visibleConcerns, "");
+        }
 
         static PersonaSummary from(Persona p) {
             return new PersonaSummary(p.getId(), p.getName(), p.getJobTitle(), p.getOrganisation(),

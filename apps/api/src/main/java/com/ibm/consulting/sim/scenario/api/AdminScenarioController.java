@@ -96,7 +96,7 @@ public class AdminScenarioController {
     @PutMapping("/{scenarioId}/authoring-config")
     ScenarioAuthoringView updateAuthoringConfig(@PathVariable UUID scenarioId,
                                                 @Valid @RequestBody UpdateScenarioAuthoringConfigRequest request) {
-        return scenarioService.updateAuthoringConfig(scenarioId, request.config());
+        return scenarioService.updateAuthoringConfig(scenarioId, request.toDomain());
     }
 
     @PostMapping("/{scenarioId}/revisions")

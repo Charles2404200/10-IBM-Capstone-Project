@@ -40,23 +40,31 @@ export default function ObjectiveGuide({ tourId }: { tourId: string }) {
       return
     }
 
-    // Workspaces render different sections at different stages, so a step can
-    // point at something that is not on the page this time. Dropping those
-    // steps is better than opening on an anchor that does not exist; if every
-    // step is missing there is nothing to explain, and the walkthrough stays
-    // available for a visit where the page has more on it.
-    const present = steps.filter((step) =>
-      typeof step.selector === 'string' ? Boolean(document.querySelector(step.selector)) : true,
-    )
-    if (present.length === 0) {
-      return
-    }
+    const timeout = setTimeout(() => {
+      if (openedForCurrentVisit.current) {
+        return
+      }
 
-    openedForCurrentVisit.current = true
-    if (present.length !== steps.length) {
-      setSteps?.(present)
-    }
-    setIsOpen(true)
+      // Workspaces render different sections at different stages, so a step can
+      // point at something that is not on the page this time. Dropping those
+      // steps is better than opening on an anchor that does not exist; if every
+      // step is missing there is nothing to explain, and the walkthrough stays
+      // available for a visit where the page has more on it.
+      const present = steps.filter((step) =>
+        typeof step.selector === 'string' ? Boolean(document.querySelector(step.selector)) : true,
+      )
+      if (present.length === 0) {
+        return
+      }
+
+      openedForCurrentVisit.current = true
+      if (present.length !== steps.length) {
+        setSteps?.(present)
+      }
+      setIsOpen(true)
+    }, 1000)
+
+    return () => clearTimeout(timeout)
   }, [isComplete, onboardingRequired, setIsOpen, setSteps, steps, tourId, userId])
 
   // Finished, skipped and closed all arrive here as the same transition, and

@@ -138,27 +138,6 @@ describe('OutreachWorkspacePage evidence assistant', () => {
     setup([makeEvidence(1)])
     renderPage()
 
-    expect(screen.getByText('Grounded context')).toBeInTheDocument()
-  })
-})
-
-describe('OutreachWorkspacePage outreach checklist', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    sendMutate.mockClear()
-  })
-
-  it('keeps the checklist rail visible while composing', async () => {
-    const user = userEvent.setup()
-    setup([])
-    renderPage()
-
-    expect(screen.getByText('Outreach checklist')).toBeInTheDocument()
-    expect(screen.getByText('0/4')).toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('Message'), 'This is a test email.',)
-
-    // the checklist should remain visible while the message is being composed
-    expect(screen.getByText('Outreach checklist').closest('div'),).toBeTruthy()
+    expect(screen.getByText('Topics you can reference')).toBeInTheDocument()
   })
 })

@@ -5,11 +5,15 @@ import com.ibm.consulting.sim.identity.domain.UserDirectoryPage;
 import com.ibm.consulting.sim.identity.domain.UserDirectoryQuery;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
@@ -23,6 +27,12 @@ import java.util.UUID;
 @Repository
 interface SpringDataUserRepository extends JpaRepository<User, UUID>, JpaSpecificationExecutor<User> {
     Optional<User> findByEmail(String email);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select user from User user where user.email = :email")
+    Optional<User> findByEmailForUpdate(@Param("email") String email);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select user from User user where user.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") UUID id);
     boolean existsByEmail(String email);
     List<User> findByActiveTrueAndRole(UserRole role);
     long countByRoleAndActive(UserRole role, boolean active);
@@ -38,8 +48,11 @@ class JpaUserRepository implements UserRepository {
     }
 
     @Override public User save(User user) { return repo.save(user); }
+    @Override public User saveAndFlush(User user) { return repo.saveAndFlush(user); }
     @Override public Optional<User> findById(UUID id) { return repo.findById(id); }
+    @Override public Optional<User> findByIdForUpdate(UUID id) { return repo.findByIdForUpdate(id); }
     @Override public Optional<User> findByEmail(String email) { return repo.findByEmail(email); }
+    @Override public Optional<User> findByEmailForUpdate(String email) { return repo.findByEmailForUpdate(email); }
     @Override public boolean existsByEmail(String email) { return repo.existsByEmail(email); }
     @Override public long countByRoleAndActive(UserRole role, boolean active) { return repo.countByRoleAndActive(role, active); }
     @Override public List<User> findAll() { return repo.findAll(); }

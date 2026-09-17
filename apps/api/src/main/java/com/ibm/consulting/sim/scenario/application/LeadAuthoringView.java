@@ -3,6 +3,7 @@ package com.ibm.consulting.sim.scenario.application;
 import com.ibm.consulting.sim.lead.domain.Lead;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Author-only lead representation. It intentionally includes canonical fields omitted from learner APIs. */
@@ -18,6 +19,16 @@ public record LeadAuthoringView(
         String budgetSignal,
         String painSeverity,
         List<LeadAuthoringRequest.Signal> signals) {
+
+    public LeadAuthoringView {
+        publicDescription = Objects.requireNonNullElse(publicDescription, "");
+        potentialValueRange = Objects.requireNonNullElse(potentialValueRange, "");
+        decisionMaker = Objects.requireNonNullElse(decisionMaker, "");
+        technologyStack = Objects.requireNonNullElse(technologyStack, "");
+        budgetSignal = Objects.requireNonNullElse(budgetSignal, "");
+        painSeverity = Objects.requireNonNullElse(painSeverity, "");
+        signals = signals == null ? List.of() : List.copyOf(signals);
+    }
 
     public static LeadAuthoringView from(Lead lead) {
         return new LeadAuthoringView(

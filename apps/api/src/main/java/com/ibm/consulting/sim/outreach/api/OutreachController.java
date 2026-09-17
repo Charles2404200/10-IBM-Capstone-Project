@@ -29,7 +29,8 @@ public class OutreachController {
 
     record OutreachRequest(
             @NotBlank @Size(max = 200) String subject,
-            @NotBlank @Size(max = 5000) String body) {}
+            @NotBlank @Size(max = 5000) String body,
+            @Size(max = 100) String requestId) {}
 
     record CapabilityBriefRequest(
             @NotBlank @Size(max = 3000) String relevantExperience,
@@ -42,7 +43,7 @@ public class OutreachController {
     OutreachResponse send(@PathVariable UUID engagementId,
                           @Valid @RequestBody OutreachRequest req,
                           @AuthenticationPrincipal User user) {
-        return outreachService.send(engagementId, user.getId(), req.subject(), req.body());
+        return outreachService.send(engagementId, user.getId(), req.subject(), req.body(), req.requestId());
     }
 
     @GetMapping

@@ -15,5 +15,13 @@ public enum ConditionType {
     /** Number of distinct scenarios the learner has completed at least once. */
     MIN_DISTINCT_SCENARIOS_COMPLETED,
     /** Win rate across completed engagements, expressed as a whole percentage (0-100). */
-    MIN_WIN_RATE_PERCENT
+    MIN_WIN_RATE_PERCENT;
+
+    public boolean hasPercentageThreshold() {
+        return switch (this) {
+            case MIN_BEST_OVERALL_SCORE, MIN_AVERAGE_OVERALL_SCORE, MIN_COMPETENCY_SCORE,
+                    MIN_WIN_RATE_PERCENT -> true;
+            default -> false;
+        };
+    }
 }

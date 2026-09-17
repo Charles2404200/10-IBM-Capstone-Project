@@ -9,6 +9,7 @@ import ErrorState from '@/components/shared/ErrorState'
 import type { AchievementSummary, CompetencyTrend, CompletedEngagementView } from '@/api/types'
 import PageHeader from '@/lifecycle/components/PageHeader'
 import styles from './PortfolioPage.module.scss'
+import { achievementDescription } from '@/features/achievement/achievementPresentation'
 import { useAuthStore } from '@/store/authStore'
 
 function StatTile({
@@ -321,7 +322,7 @@ function AchievementBadge({ achievement }: { achievement: AchievementSummary }) 
           )}
           <h5 className={styles.achievementName}>{achievement.name}</h5>
         </div>
-        <p className={styles.achievementDescription}>{achievement.description}</p>
+        <p className={styles.achievementDescription}>{achievementDescription(achievement.description)}</p>
         {achievement.unlocked ? (
           <Tag type="green" size="sm">
             Unlocked{' '}

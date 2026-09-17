@@ -7,6 +7,8 @@ import java.util.UUID;
 public interface EmailVerificationTokenRepository {
     EmailVerificationToken save(EmailVerificationToken token);
     Optional<EmailVerificationToken> findBySelector(String selector);
+    Optional<UUID> findUserIdBySelector(String selector);
+    Optional<EmailVerificationToken> findBySelectorForUpdate(String selector);
     Optional<EmailVerificationToken> findLatestByUserId(UUID userId);
     void revokeActiveForUser(UUID userId, Instant now);
 }

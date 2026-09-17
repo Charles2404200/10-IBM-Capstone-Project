@@ -5,6 +5,11 @@ import com.ibm.consulting.sim.meeting.application.MeetingService;
 import com.ibm.consulting.sim.meeting.application.MeetingTurnResult;
 import com.ibm.consulting.sim.meeting.application.GuidedMeetingResponseService;
 import com.ibm.consulting.sim.meeting.application.MeetingResponseOptionsResponse;
+import com.ibm.consulting.sim.meeting.application.MeetingRequestLimits;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -53,11 +58,14 @@ public class MeetingSocketController {
         this.executor = executor;
     }
 
-    record MeetingMessage(String message, String messageId) {}
+    record MeetingMessage(
+            @NotBlank @Size(max = MeetingRequestLimits.MESSAGE_MAX_LENGTH) String message,
+            @Size(max = MeetingRequestLimits.MESSAGE_ID_MAX_LENGTH) String messageId) {}
     record SocketEvent(String type, Object payload) {}
 
     @MessageMapping("/meetings/{meetingId}/send")
-    public void sendMessage(@DestinationVariable UUID meetingId, MeetingMessage payload, Principal principal) {
+    public void sendMessage(@DestinationVariable UUID meetingId, @Valid @NotNull MeetingMessage payload,
+                            Principal principal) {
         UUID userId = resolveUserId(principal);
         String topic = "/topic/meetings/" + meetingId;
 

@@ -171,34 +171,56 @@ export default function AssessmentReviewPage() {
             ))}
           </Grid>
 
-          <Grid narrow>
-            <Column lg={8} md={4} sm={4}>
+          <Grid narrow className={styles.evaluations}>
+            <Column lg={8} md={4} sm={4} className={styles.evaluationColumn}>
               <Tile>
                 <Stack gap={2}>
                   <h5 className={styles.sectionTitle}>Strengths</h5>
-                  <ol className={styles.orderedList}>
-                    {result.strengths.map((s, i) => (
-                      <li key={i} className={styles.listItem}>
-                        {s}
-                      </li>
-                    ))}
-                  </ol>
-                  {result.strengths.length === 0 && <p className={styles.emptyText}>None recorded.</p>}
+                  {result.coachingPending ? (
+                    <InlineLoading
+                      description="Preparing strengths..."
+                      status="active"
+                    />
+                  ) : (
+                    <>
+                      <ol className={styles.orderedList}>
+                        {result.strengths.map((s, i) => (
+                          <li key={i} className={styles.listItem}>
+                            {s}
+                          </li>
+                        ))}
+                      </ol>
+                      {result.strengths.length === 0 && (
+                        <p className={styles.emptyText}>None recorded.</p>
+                      )}
+                    </>
+                  )}
                 </Stack>
               </Tile>
             </Column>
-            <Column lg={8} md={4} sm={4}>
+            <Column lg={8} md={4} sm={4} className={styles.evaluationColumn}>
               <Tile>
                 <Stack gap={2}>
                   <h5 className={styles.sectionTitle}>Areas for Improvement</h5>
-                  <ol className={styles.orderedList}>
-                    {result.improvementAreas.map((s, i) => (
-                      <li key={i} className={styles.listItem}>
-                        {s}
-                      </li>
-                    ))}
-                  </ol>
-                  {result.improvementAreas.length === 0 && <p className={styles.emptyText}>None recorded.</p>}
+                  {result.coachingPending ? (
+                    <InlineLoading
+                      description="Preparing areas for improvement..."
+                      status="active"
+                    />
+                  ) : (
+                    <>
+                      <ol className={styles.orderedList}>
+                        {result.improvementAreas.map((s, i) => (
+                          <li key={i} className={styles.listItem}>
+                            {s}
+                          </li>
+                        ))}
+                      </ol>
+                      {result.improvementAreas.length === 0 && (
+                        <p className={styles.emptyText}>None recorded.</p>
+                      )}
+                    </>
+                  )}
                 </Stack>
               </Tile>
             </Column>

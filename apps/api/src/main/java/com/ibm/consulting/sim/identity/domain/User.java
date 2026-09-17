@@ -38,11 +38,14 @@ public class User extends BaseEntity {
 
     public static User create(String email, String passwordHash, String displayName, UserRole role) {
         User user = new User();
+        Instant now = Instant.now();
         user.email = email;
         user.passwordHash = passwordHash;
         user.displayName = displayName;
         user.role = role;
-        user.onboardingCompletedAt = Instant.now();
+        user.emailVerified = true;
+        user.emailVerifiedAt = now;
+        user.onboardingCompletedAt = now;
         return user;
     }
 

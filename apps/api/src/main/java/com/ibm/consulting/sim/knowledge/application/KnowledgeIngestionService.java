@@ -8,6 +8,9 @@ import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocument;
 import com.ibm.consulting.sim.knowledge.domain.KnowledgeDocumentRepository;
 import com.ibm.consulting.sim.scenario.domain.Persona;
 import com.ibm.consulting.sim.scenario.domain.PersonaRepository;
+import com.ibm.consulting.sim.scenario.domain.Scenario;
+import com.ibm.consulting.sim.scenario.domain.ScenarioRepository;
+import com.ibm.consulting.sim.scenario.domain.ScenarioStatus;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
 import com.ibm.consulting.sim.shared.infrastructure.observability.AuditAction;
 import com.ibm.consulting.sim.shared.infrastructure.observability.AuditLogger;
@@ -35,23 +38,27 @@ public class KnowledgeIngestionService {
     private final DocumentChunkRepository chunkRepository;
     private final EmbeddingGateway embeddingGateway;
     private final PersonaRepository personaRepository;
+    private final ScenarioRepository scenarioRepository;
     private final AuditLogger auditLogger;
 
     public KnowledgeIngestionService(KnowledgeDocumentRepository documentRepository,
                                       DocumentChunkRepository chunkRepository,
                                       EmbeddingGateway embeddingGateway,
-                                    PersonaRepository personaRepository, 
-                                    AuditLogger auditLogger) {
+                                      PersonaRepository personaRepository,
+                                      ScenarioRepository scenarioRepository,
+                                      AuditLogger auditLogger) {
         this.documentRepository = documentRepository;
         this.chunkRepository = chunkRepository;
         this.embeddingGateway = embeddingGateway;
         this.personaRepository = personaRepository;
+        this.scenarioRepository = scenarioRepository;
         this.auditLogger = auditLogger;
     }
 
     @Transactional
     public UUID ingest(UUID scenarioId, UUID personaId, KnowledgeCollection collection,
                         String title, String sourceText) {
+        requireDraftScenarioForUpdate(scenarioId);
         // calls to create document
         UUID documentId = ingestDocument(scenarioId, personaId, collection, title, sourceText);
         auditLogger.recordAdmin(AuditAction.ADMIN_SCENARIO_DOCUMENT_ADDED, "KNOWLEDGE_DOCUMENT", documentId.toString(), "scenario " + scenarioId + ", title: " + title);
@@ -114,6 +121,7 @@ public class KnowledgeIngestionService {
     /** Removes a knowledge document and all chunks derived from it. */
     @Transactional
     public void delete(UUID scenarioId, UUID documentId) {
+        requireDraftScenarioForUpdate(scenarioId);
         KnowledgeDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new NotFoundException("KnowledgeDocument", documentId));
 
@@ -128,6 +136,7 @@ public class KnowledgeIngestionService {
     @Transactional
     public void update(UUID scenarioId, UUID documentId, UUID newPersonaId, KnowledgeCollection newCollection,
                         String newTitle, String newSourceText) {
+        requireDraftScenarioForUpdate(scenarioId);
         KnowledgeDocument document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new com.ibm.consulting.sim.shared.domain.NotFoundException("KnowledgeDocument", documentId));
 
@@ -165,6 +174,21 @@ public class KnowledgeIngestionService {
         if (!persona.getScenario().getId().equals(scenarioId)) {
             throw new IllegalArgumentException(
                     "Persona " + personaId + " does not belong to scenario " + scenarioId);
+        }
+    }
+
+    private Scenario requireDraftScenarioForUpdate(UUID scenarioId) {
+        Scenario scenario = scenarioRepository.findByIdForUpdate(scenarioId)
+                .orElseThrow(() -> new NotFoundException("Scenario", scenarioId));
+        if (scenario.getStatus() != ScenarioStatus.DRAFT) {
+            throw new ScenarioContentLockedException(scenarioId);
+        }
+        return scenario;
+    }
+
+    public static class ScenarioContentLockedException extends com.ibm.consulting.sim.shared.domain.DomainException {
+        public ScenarioContentLockedException(UUID scenarioId) {
+            super("Scenario " + scenarioId + " is published. Create a draft revision before changing knowledge.");
         }
     }
 }

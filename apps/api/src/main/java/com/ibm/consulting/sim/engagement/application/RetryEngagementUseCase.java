@@ -23,7 +23,7 @@ public class RetryEngagementUseCase {
 
     @Transactional
     public EngagementResponse execute(UUID failedEngagementId, UUID userId) {
-        Engagement failed = engagementRepository.findByIdAndUserId(failedEngagementId, userId)
+        Engagement failed = engagementRepository.findByIdAndUserIdForUpdate(failedEngagementId, userId)
                 .orElseThrow(() -> new NotFoundException("Engagement", failedEngagementId));
         if (failed.getState() != EngagementState.MEETING_FAILED) {
             throw new RetryNotAvailableException("Only an engagement that failed its meeting can be restarted.");

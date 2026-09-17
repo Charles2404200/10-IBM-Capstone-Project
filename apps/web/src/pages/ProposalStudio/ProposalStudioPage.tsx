@@ -9,12 +9,12 @@ import { ProposalOutcomeView } from '@/features/proposal/components/ProposalOutc
 import { useProposalStudio } from '@/features/proposal/hooks/useProposalStudio'
 import { proposalSections } from '@/features/proposal/services/proposalDraftService'
 import { PHASE_LABEL } from '@/lifecycle/phases'
-import { getProblemDetail } from '@/api/problemDetails'
+import { getApiProblem } from '@/api/problemDetails'
 import styles from './ProposalStudioPage.module.scss'
 import ObjectiveTourProvider from '@/components/shared/ObjectiveTourProvider'
 
-const SOURCES_PER_PAGE = 2
-const EDITOR_ITEMS_PER_PAGE = 4
+const SOURCES_PER_PAGE = 4
+const EDITOR_ITEMS_PER_PAGE = 3
 const PROPOSAL_OBJECTIVES = [
   {
     id: 'completion-steps',
@@ -47,6 +47,11 @@ export default function ProposalStudioPage() {
   const sourceEnd = Math.min(sources.length, (sourcePage + 1) * SOURCES_PER_PAGE)
   const isReviewing = studio.reviewProposal.isPending
   const isSubmitting = studio.submitProposal.isPending
+  const hasProposalFailure = studio.submitProposal.isError || studio.saveState === 'error'
+  const proposalFailure = studio.submitProposal.error ?? studio.saveDraft.error
+  const proposalProblem = hasProposalFailure
+    ? getApiProblem(proposalFailure, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')
+    : null
 
   useEffect(() => {
     setSourcePage((current) => Math.min(current, sourcePageCount - 1))
@@ -64,9 +69,9 @@ export default function ProposalStudioPage() {
       <div className={styles.canvas}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Evidence-grounded proposal</p>
           <Heading>{PHASE_LABEL.PROPOSAL}</Heading>
-          <p className={styles.subtitle}>Build a concise recommendation from client evidence. The coach reviews your reasoning; it never writes the proposal for you.</p>
+          <p className={styles.subtitle}>Build a concise recommendation from client evidence.</p>
+          <p className={styles.subtitle}>The coach reviews your reasoning; it never writes the proposal for you.</p>
         </div>
         <div className={styles.headerActions}>
           {isReviewing ? <InlineLoading description="Reviewing proposal" /> : isSubmitting ? <InlineLoading description="Submitting to client" /> : <SaveStatus state={studio.saveState} />}
@@ -76,7 +81,16 @@ export default function ProposalStudioPage() {
         </div>
       </header>
 
-      {(studio.submitProposal.isError || studio.saveState === 'error') && <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={getProblemDetail(studio.submitProposal.error ?? studio.saveDraft.error, 'Your draft remains in this workspace. Resolve the highlighted findings and try again.')} hideCloseButton />}
+      {proposalProblem && <>
+        <InlineNotification kind="error" title="Proposal could not be saved or submitted" subtitle={proposalProblem.detail} hideCloseButton />
+        {proposalProblem.violations && (
+          <ul aria-label="Proposal validation errors">
+            {Object.entries(proposalProblem.violations).map(([field, message]) => (
+              <li key={field}><strong>{field}</strong>: {message}</li>
+            ))}
+          </ul>
+        )}
+      </>}
 
       <section className={`${styles.progressStrip} objective-steps`} aria-label="Proposal progress">
         {proposalSections.map((section, index) => {
@@ -178,7 +192,7 @@ function FoundationNarrativeEditor({ draft, update }: { draft: ProposalDraftRequ
 }
 
 function Commercial({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {
-  return <Stack gap={5}><EditorIntroduction title="Value and commercial logic" description="Make the outcome measurable and distinguish consultant estimates from confirmed client facts." /><StructuredEditor label="Expected business outcomes and KPIs" addLabel="Add outcome" rows={draft.businessOutcomes} empty={{ outcome: '', metric: '', target: '' }} fields={[['outcome', 'Business outcome'], ['metric', 'Metric'], ['target', 'Target']]} onChange={(businessOutcomes) => update((current) => ({ ...current, businessOutcomes }))} /><div className={styles.commercialGrid}><NumberInput id="proposal-budget" label="Estimated budget (USD)" min={0} value={draft.budget} onChange={(_, data) => update((current) => ({ ...current, budget: String(data.value) }))} /><Select id="budget-confidence" labelText="Confidence" value={draft.budgetConfidence} onChange={(event) => update((current) => ({ ...current, budgetConfidence: event.target.value }))}><SelectItem value="UNCONFIRMED" text="Unconfirmed" /><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select><TextInput id="budget-source" labelText="Source / basis" value={draft.budgetSource} onChange={(event) => update((current) => ({ ...current, budgetSource: event.target.value }))} /></div></Stack>
+  return <Stack gap={5}><EditorIntroduction title="Value and commercial logic" description="Make the outcome measurable and distinguish consultant estimates from confirmed client facts." /><StructuredEditor label="Expected business outcomes and KPIs" addLabel="Add outcome" rows={draft.businessOutcomes} empty={{ outcome: '', metric: '', target: '' }} fields={[['outcome', 'Business outcome'], ['metric', 'Metric'], ['target', 'Target']]} onChange={(businessOutcomes) => update((current) => ({ ...current, businessOutcomes }))} /><div className={styles.commercialGrid}><NumberInput id="proposal-budget" label="Estimated budget (USD)" min={0} value={draft.budget} onChange={(_, data) => update((current) => ({ ...current, budget: Number(data.value) || 0 }))} /><Select id="budget-confidence" labelText="Confidence" value={draft.budgetConfidence} onChange={(event) => update((current) => ({ ...current, budgetConfidence: event.target.value }))}><SelectItem value="UNCONFIRMED" text="Unconfirmed" /><SelectItem value="LOW" text="Low" /><SelectItem value="MEDIUM" text="Medium" /><SelectItem value="HIGH" text="High" /></Select><TextInput id="budget-source" labelText="Source / basis" value={draft.budgetSource} onChange={(event) => update((current) => ({ ...current, budgetSource: event.target.value }))} /></div></Stack>
 }
 
 function Delivery({ draft, update }: { draft: ProposalDraftRequest; update: DraftUpdate }) {

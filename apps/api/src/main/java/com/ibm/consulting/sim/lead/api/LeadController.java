@@ -54,12 +54,21 @@ public class LeadController {
             @Size(max = 500) String sourceUrl,
             @Size(max = 300) String sourceTitle,
             EvidenceOrigin origin,
-            EvidenceVerificationStatus verificationStatus,
             LocalDate occurredOn,
             ConfidenceLevel confidence,
             @Min(0) @Max(100) Integer relevanceScore,
             ReasoningLane reasoningLane,
-            Set<UUID> supportingEvidenceIds) {}
+            Set<UUID> supportingEvidenceIds) {
+
+        /** Compatibility constructor for internal callers that create manual evidence. */
+        SaveResearchRequest(String note, String hypothesis, EvidenceType evidenceType,
+                            String sourceUrl, String sourceTitle, LocalDate occurredOn,
+                            ConfidenceLevel confidence, Integer relevanceScore,
+                            ReasoningLane reasoningLane, Set<UUID> supportingEvidenceIds) {
+            this(note, hypothesis, evidenceType, sourceUrl, sourceTitle, null, occurredOn,
+                    confidence, relevanceScore, reasoningLane, supportingEvidenceIds);
+        }
+    }
 
     record GenerateResearchRequest(@NotNull EvidenceType evidenceType) {}
 
@@ -99,12 +108,12 @@ public class LeadController {
     ResearchEvidenceSummary saveResearch(@PathVariable UUID engagementId,
                                          @Valid @RequestBody SaveResearchRequest req,
                                          @AuthenticationPrincipal User user) {
+        EvidenceOrigin origin = normalizeLearnerEvidenceOrigin(req.origin());
         return leadService.saveEvidence(engagementId, user.getId(),
                 req.note(), req.hypothesis(), req.evidenceType(),
                 req.sourceUrl(), req.sourceTitle(),
-                req.origin() != null ? req.origin() : EvidenceOrigin.USER_SUPPLIED,
-                req.verificationStatus() != null ? req.verificationStatus()
-                        : defaultVerification(req.origin()),
+                origin,
+                verificationFor(origin),
                 req.occurredOn(),
                 req.confidence() != null ? req.confidence() : ConfidenceLevel.MEDIUM,
                 req.relevanceScore(),
@@ -112,10 +121,16 @@ public class LeadController {
                 req.supportingEvidenceIds());
     }
 
-    private EvidenceVerificationStatus defaultVerification(EvidenceOrigin origin) {
-        return origin == null || origin == EvidenceOrigin.USER_SUPPLIED
-                ? EvidenceVerificationStatus.UNVERIFIED
-                : EvidenceVerificationStatus.CORROBORATED;
+    private EvidenceOrigin normalizeLearnerEvidenceOrigin(EvidenceOrigin requestedOrigin) {
+        return requestedOrigin == EvidenceOrigin.SCENARIO_CURATED
+                ? EvidenceOrigin.SCENARIO_CURATED
+                : EvidenceOrigin.USER_SUPPLIED;
+    }
+
+    private EvidenceVerificationStatus verificationFor(EvidenceOrigin origin) {
+        return origin == EvidenceOrigin.SCENARIO_CURATED
+                ? EvidenceVerificationStatus.CORROBORATED
+                : EvidenceVerificationStatus.UNVERIFIED;
     }
 
     @GetMapping("/engagements/{engagementId}/research")
