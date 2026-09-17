@@ -22,8 +22,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: $spacing-06;
-
-  h1 { margin: $spacing-02 0 0; }
+  margin-top: 1rem;
 }
 
 .eyebrow {
@@ -192,7 +191,7 @@
   span { @include type-style('label-01'); color: $text-secondary; }
 }
 
-.coachingRail { display: grid; align-content: start; gap: $spacing-04; }
+.coachingRail { display: grid; align-content: start; gap: $spacing-04; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
 
 .coachingPanel, .scoreGuide { padding: $spacing-05; }
 

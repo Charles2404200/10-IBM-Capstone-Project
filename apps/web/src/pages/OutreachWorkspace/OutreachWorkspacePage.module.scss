@@ -41,7 +41,7 @@
 
 .composeWorkspace { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 17rem; overflow: hidden; border: 1px solid $border-subtle; border-radius: 10px; background: $layer-01; box-shadow: 0 1px 3px rgb(15 38 71 / 8%); }
 .emailComposer, .assistPanel { border: 0; background: transparent; }
-.emailComposer { min-height: 0; padding: $spacing-05 $spacing-06; }
+.emailComposer { min-height: 0; padding: $spacing-05 $spacing-06; overflow-y: scroll; }
 .emailComposer form { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .composerHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; padding-bottom: $spacing-05; }
 .composerHeader h2, .replyHeading h2, .stripHeading h2 { margin: 0; @include type-style('heading-compact-02'); }
@@ -178,7 +178,7 @@
 .responseClientIdentity span { display: flex; align-items: center; flex-wrap: wrap; gap: $spacing-02; margin-top: 2px; color: $text-secondary; @include type-style('label-01'); }
 .clientResponseHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-04; }
 .clientResponseHeading h2 { margin: 0; @include type-style('heading-compact-02'); }
-.responseActions { display: flex; align-items: center; gap: $spacing-02; flex: 0 0 auto; }
+.responseActions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
 .clientResponse blockquote { margin: $spacing-03 0 0; padding: 0 0 0 $spacing-03; border-left: 2px solid #a6c8ff; color: $text-primary; line-height: 1.38; white-space: pre-wrap; @include type-style('body-compact-01'); }
 .clientResponseExpanded blockquote { min-height: 0; overflow-y: auto; padding-right: $spacing-03; }
 .responseGuidance { display: grid; gap: $spacing-02; margin-top: $spacing-03; padding: $spacing-03 $spacing-04; border-radius: 5px; background: $layer-01; color: $text-secondary; @include type-style('label-01'); }
@@ -369,6 +369,14 @@
     grid-template-columns: minmax(0, 1fr) 15rem;
   }
 
+  .emailComposer :global(.cds--form-item) {
+    flex: 0 0 auto;
+    min-height: 5vh;
+  }
+
+  .emailComposer :global(.cds--text-area__wrapper) {
+    flex: 0 0 auto;
+  }
   .emailComposer { padding: $spacing-04; }
   .composerHeader { padding-bottom: $spacing-03; }
   .mailMeta { min-height: 2rem; }
@@ -446,13 +454,13 @@
   .clientDetails { margin-top: $spacing-03; gap: 2px; }
   .clientDetails div { grid-template-columns: 5.5rem minmax(0, 1fr); }
   .clientResponse { padding: $spacing-03 $spacing-04; }
-  .clientResponse blockquote { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 5; }
+  .clientResponse blockquote { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; overflow-y: scroll; }
   .clientResponse.clientResponseExpanded blockquote {
     display: block !important;
     height: 100%;
     margin-bottom: 0;
     overflow-wrap: anywhere;
-    overflow-y: auto !important;
+    overflow-y: scroll !important;
     -webkit-box-orient: initial !important;
     -webkit-line-clamp: unset !important;
   }

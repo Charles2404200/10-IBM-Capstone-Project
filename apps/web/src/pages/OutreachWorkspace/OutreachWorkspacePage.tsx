@@ -14,10 +14,11 @@ import {
 import { ArrowRight, CheckmarkFilled, Document, Send, Email, Light, Link as LinkIcon } from '@carbon/icons-react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
+import axios from 'axios'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCapabilityBrief, useOutreach, useSendOutreach, useSubmitCapabilityBrief } from '@/api/hooks/useOutreach'
 import { useLeadIntelligence, useResearch } from '@/api/hooks/useLeads'
-import { assessDraftSafety, evaluateOutreach, keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
+import { assessDraftSafety, keywordsFrom, stakeholderNameFrom } from '@/lifecycle/coaching/outreachRubric'
 import { rankOutreachEvidence } from '@/lifecycle/coaching/outreachEvidence'
 import LoadingState from '@/components/shared/LoadingState'
 import type { CapabilityBrief, OutreachAttempt, ResearchEvidence } from '@/api/types'
@@ -181,10 +182,9 @@ function ClientResponseCard({
       <div className={styles.clientResponseHeading}>
         <div>
           <p className={styles.eyebrow}>Latest client response</p>
-          <h2>What the client said</h2>
+          <Tag type={OUTCOME_TAG[attempt.outcome]} size="sm">{attempt.outcome.replace(/_/g, ' ')}</Tag>
         </div>
         <div className={styles.responseActions}>
-          <Tag type={OUTCOME_TAG[attempt.outcome]} size="sm">{attempt.outcome.replace(/_/g, ' ')}</Tag>
           <Button kind="ghost" size="sm" onClick={onOpenHistory}>{expanded ? 'Conversation history' : 'Read full response'}</Button>
         </div>
       </div>
@@ -353,12 +353,18 @@ function CapabilityBriefEditor({
 export default function OutreachWorkspacePage() {
   const { engagementId } = useParams<{ engagementId: string }>()
   const navigate = useNavigate()
-  const { data: attempts, isLoading } = useOutreach(engagementId!)
+  const { data: attempts, isLoading, refetch: refetchOutreach } = useOutreach(engagementId!)
   const { data: brief } = useCapabilityBrief(engagementId!)
   const sendOutreach = useSendOutreach(engagementId!)
   const { data: intelligence } = useLeadIntelligence(engagementId!)
   const { data: evidence } = useResearch(engagementId!)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [sendTimedOut, setSendTimedOut] = useState(false)
+    useEffect(() => {
+    if (sendTimedOut && attempts?.length) {
+      setSendTimedOut(false)
+    }
+  }, [attempts, sendTimedOut])
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
   })
@@ -382,7 +388,6 @@ export default function OutreachWorkspacePage() {
     }),
     [evidence, intelligence]
   )
-  const draftReview = evaluateOutreach(draftBody, rubricContext)
 
   if (isLoading) return <LoadingState />
 
@@ -390,7 +395,22 @@ export default function OutreachWorkspacePage() {
   const latestAttempt = thread.at(-1)
   const documentRequired = latestAttempt?.nextAction === 'SUBMIT_CAPABILITY_BRIEF' && brief?.outcome !== 'ACCEPTED'
   const meetingSecured = latestAttempt?.outcome === 'ACCEPTED' || brief?.outcome === 'ACCEPTED'
-  const sendEmail = (data: EmailFormValues) => sendOutreach.mutate(data, { onSuccess: () => reset() })
+  const sendEmail = (data: EmailFormValues) => {
+    setSendTimedOut(false)
+
+    sendOutreach.mutate(data, {
+      onSuccess: () => {
+        setSendTimedOut(false)
+        reset()
+      },
+      onError: (error) => {
+        if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+          setSendTimedOut(true)
+          void refetchOutreach()
+        }
+      },
+    })
+  }
   const evidenceForReference = rankOutreachEvidence(evidence ?? [])
   const leadSignal = evidenceForReference[0] as ResearchEvidence | undefined
   const appendEvidenceReference = (source?: ResearchEvidence) => {
@@ -486,7 +506,7 @@ export default function OutreachWorkspacePage() {
                       {...register('body')}
                     />
                     {draftSafety.message && <p className={styles.draftNotice} data-risk={draftSafety.risk}>{draftSafety.message}</p>}
-                    {sendOutreach.isError && (
+                    {sendOutreach.isError && !sendTimedOut && (
                       <InlineNotification kind="error" lowContrast title="Message could not be sent" subtitle={getProblemDetail(sendOutreach.error, 'Please retry after checking the latest client request.')} hideCloseButton />
                     )}
                     <div className={`${styles.composerFooter} objective-send`}>
@@ -496,10 +516,46 @@ export default function OutreachWorkspacePage() {
                   </form>
                 </Tile>
 
-                <Tile className={`${styles.assistPanel} objective-evidence`}>
+                <Tile className={`${styles.assistPanel} objective-evidence objective-checklist`}>
                   <p className={styles.eyebrow}>Evidence assistant</p>
                   <h3>Build your message with evidence</h3>
                   <p>Use verified client signals to make your outreach specific and relevant.</p>
+
+                  <div className={styles.assistActions}>
+                    <p className={styles.eyebrow}>Topics you can reference</p>
+                    <button
+                      type="button"
+                      onClick={() => setValue(
+                        'subject',
+                        `Idea for ${rubricContext.companyName ?? 'your team'}`,
+                        { shouldDirty: true, shouldValidate: true }
+                      )}
+                    >
+                      Start a clear subject line
+                      <ArrowRight size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => appendEvidenceReference(leadSignal)}
+                      disabled={!leadSignal}
+                    >
+                      Reference the latest client signal
+                      <ArrowRight size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setValue(
+                        'body',
+                        `${draftBody.trim()}${draftBody.trim() ? '\n\n' : ''}Would a 20-minute conversation next week be useful?`,
+                        { shouldDirty: true, shouldValidate: true }
+                      )}
+                    >
+                      Invite a short conversation
+                      <ArrowRight size={16} />
+                    </button>
+                  </div>
 
                   {evidenceForReference.length > 0 && (
                     <section className={styles.assistantEvidence} aria-label="Evidence you can reference">
@@ -522,41 +578,6 @@ export default function OutreachWorkspacePage() {
                     </section>
                   )}
 
-                  <div className={styles.assistActions}>
-                    <button
-                      type="button"
-                      onClick={() => appendEvidenceReference(leadSignal)}
-                      disabled={!leadSignal}
-                    >
-                      Reference the latest client signal
-                      <ArrowRight size={16} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setValue(
-                        'body',
-                        `${draftBody.trim()}${draftBody.trim() ? '\n\n' : ''}Would a 20-minute conversation next week be useful?`,
-                        { shouldDirty: true, shouldValidate: true }
-                      )}
-                    >
-                      Invite a short conversation
-                      <ArrowRight size={16} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setValue(
-                        'subject',
-                        `Idea for ${rubricContext.companyName ?? 'your team'}`,
-                        { shouldDirty: true, shouldValidate: true }
-                      )}
-                    >
-                      Start a clear subject line
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
-
                   {latestAttempt?.coachingHint && (
                     <div className={styles.coachingCallout}>
                       <strong>Latest coaching</strong>
@@ -568,20 +589,6 @@ export default function OutreachWorkspacePage() {
             )}
 
             {brief && brief.outcome !== 'FOLLOW_UP_REQUIRED' && !documentRequired && !meetingSecured && <BriefReview brief={brief} />}
-            {!meetingSecured && (
-              <section className={styles.evidenceStrip} aria-label="Available evidence">
-                <div className={styles.stripHeading}><div><p className={styles.eyebrow}>Grounded context</p><h2>Evidence you can reference</h2></div><span>{evidenceForReference.length} available</span></div>
-                {evidenceForReference.length > 0 ? (
-                  <div className={styles.evidenceCards}>
-                    {evidenceForReference.slice(0, 4).map((item) => (
-                      <button type="button" key={item.id} onClick={() => appendEvidenceReference(item)}>
-                        <LinkIcon size={18} /><strong>{item.sourceTitle || item.evidenceType.replace(/_/g, ' ')}</strong><p>{item.note}</p><small>Add to email <ArrowRight size={14} /></small>
-                      </button>
-                    ))}
-                  </div>
-                ) : <p className={styles.emptyReply}>Return to Research the client to gather evidence you can reference here.</p>}
-              </section>
-            )}
           </section>
 
           <aside className={styles.decisionRail}>
@@ -606,13 +613,6 @@ export default function OutreachWorkspacePage() {
                   <div><p className={styles.eyebrow}>Client signal</p><h2>What to use</h2></div>
                 </div>
                 {leadSignal ? <p className={styles.clientReply}>{leadSignal.note}</p> : <p className={styles.emptyReply}>Research a client signal before making contact.</p>}
-              </Tile>
-            )}
-
-            {!meetingSecured && (
-              <Tile className={`${styles.checklistPanel} objective-checklist`}>
-                <div className={styles.overviewHeading}><h3>Outreach checklist</h3><strong>{draftReview.metCount}/4</strong></div>
-                {draftReview.checks.map((check) => <div key={check.dimension} className={styles.checklistRow}>{check.met ? <CheckmarkFilled size={16} /> : <Light size={16} />}<span>{check.label}</span></div>)}
               </Tile>
             )}
 

@@ -295,14 +295,13 @@ function SourceDeck({
                 <button key={source.id} type="button" className={styles.sourceDeckCard} onClick={() => onOpenSource(source)}>
                   <span className={`${styles.sourceDeckVisual} ${styles[`sourceDeckVisual${source.evidenceType}`] ?? ''}`} aria-hidden="true"><Document size={22} /><b>{index + 1}</b></span>
                   <span className={styles.sourceDeckCardCopy}>
-                <span className={styles.sourceDeckCardMeta}><Tag type={source.relevanceScore >= 70 ? 'green' : 'warm-gray'} size="sm">{source.confidence.toLowerCase()} trust</Tag><small>{source.publishedOn}</small></span>
+                <span className={styles.sourceDeckCardMeta}><Tag type={source.relevanceScore >= 70 ? 'green' : 'warm-gray'} size="sm">{`${source.confidence} trust`.toLowerCase().replace(/\b\w/g, char => char.toUpperCase())}</Tag><small>{source.publishedOn}</small></span>
                 <strong>{source.title}</strong><small>{source.sourceType}</small><span className={styles.openSourceLabel}>Open document <ArrowRight size={16} /></span>
               </span>
                 </button>
             ))}
           </div>
         </div>
-        <footer className={styles.sourceDeckFooter}><span><b>1</b> Browse sources</span><span><b>2</b> Highlight evidence</span><span><b>3</b> Add to your board</span></footer>
       </section>
   )
 }
@@ -663,13 +662,8 @@ export default function ClientIntelligencePage() {
 
   return (
       <ObjectiveTourProvider tourId="client-intelligence" objectives={CLIENT_INTELLIGENCE_OBJECTIVES}>
-        <Grid fullWidth className={styles.page}>
+        <Grid fullWidth narrow className={styles.page}>
           <Column lg={16} md={8} sm={4} className={styles.headerColumn}>
-            <nav className={styles.breadcrumbs} aria-label="Workflow path">
-              <span>Research workflow</span><ChevronRight size={16} />
-              <span>Build evidence and test a hypothesis</span><ChevronRight size={16} />
-              <strong>Research the client</strong>
-            </nav>
             <header className={styles.pageHeader}>
               <div className={styles.titleBlock}>
                 <div className={styles.titleIcon}><Search size={26} /></div>
@@ -702,7 +696,7 @@ export default function ClientIntelligencePage() {
                 const findingCount = nonHypothesisEvidence.filter((e) => e.evidenceType === type).length
                 return (
                     <button key={type} type="button" className={`${styles.actionButton} ${type === 'STAKEHOLDER_PROFILE' ? 'objective-stakeholder-research' : ''} ${activeAction === type ? styles.actionButtonActive : ''}`} disabled={sourceDeck.isFetching} onClick={() => selectResearchAction(type)}>
-                      <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '')}</small></span>
+                      <Icon size={22} /><span className={styles.actionButtonLabel}><strong>{label}</strong><small>{prompt.replace('Research this area to ', '').replace(/^./, char => char.toUpperCase())}</small></span>
                       {findingCount > 0 && <span className={styles.actionButtonCount}>{findingCount}</span>}
                     </button>
                 )
@@ -713,7 +707,7 @@ export default function ClientIntelligencePage() {
           <Column lg={9} md={5} sm={4} className={styles.workColumn}>
             <main className={styles.workspace}>
               <section className={styles.researchWorkspace}>
-                <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p><h2>{activeResearchAction?.label ?? 'Choose a research area'}</h2></div>{activeAction && <Tag type="blue" size="sm">{activeAction.replace(/_/g, ' ')}</Tag>}</div>
+                <div className={styles.workspaceHeading}><div><p className={styles.sectionEyebrow}>Research workspace</p></div></div>
                 {activeResearchAction ? <SourceDeck sources={activeSources} onOpenSource={openSourceReader} isLoading={sourceDeck.isFetching} /> : <div className={styles.workspaceEmpty}><Search size={24} /><span>Select a research area to begin a controlled investigation.</span></div>}
                 {sourceDeck.isError && <InlineNotification kind="error" lowContrast title="Sources could not be opened" subtitle="Check your connection, then retry. Your existing evidence is unchanged." hideCloseButton className={styles.researchError} />}
               </section>
@@ -740,15 +734,31 @@ export default function ClientIntelligencePage() {
               <TextInput id="sourceUrl" labelText="Source URL (optional)" placeholder="https://" {...register('sourceUrl')} />
             </form>
           </Modal>
-          <Modal className={styles.readerModal} open={Boolean(readerArtifact)} modalHeading="Source reader" primaryButtonText="Close source" onRequestClose={() => setReaderArtifact(null)} onRequestSubmit={() => setReaderArtifact(null)} size="lg" isFullWidth>
+          <Modal className={styles.readerModal} open={Boolean(readerArtifact)} modalHeading="Source reader" onRequestClose={() => setReaderArtifact(null)} size="lg" isFullWidth>
             {readerArtifact && <div className={styles.readerModalBody}>
               <div className={styles.readerNavigator}>
                 <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronLeft} iconDescription="Previous source" disabled={activeSources.length < 2} onClick={() => moveReader(-1)} />
                 <span>Source {readerIndex + 1} of {activeSources.length}</span>
                 <Button hasIconOnly kind="ghost" size="sm" renderIcon={ChevronRight} iconDescription="Next source" disabled={activeSources.length < 2} onClick={() => moveReader(1)} />
               </div>
+
               <SourceDocument artifact={readerArtifact} onSelectionChange={setSelectedSnippet} />
-              {selectedSnippet && <div className={styles.readerSelectionToolbar}><div><Tag type="purple">Evidence selected</Tag><span>{selectedSnippet.length > 170 ? `${selectedSnippet.slice(0, 170)}...` : selectedSnippet}</span></div><Button size="sm" renderIcon={Add} onClick={() => { beginEvidenceAssessment(readerArtifact); setReaderArtifact(null) }}>Assess evidence</Button></div>}
+
+              {selectedSnippet && <div className={styles.readerSelectionToolbar}>
+                <div>
+                  <Tag type="purple">Evidence selected</Tag>
+                  <span>{selectedSnippet.length > 170 ? `${selectedSnippet.slice(0, 170)}...` : selectedSnippet}</span>
+                </div>
+                <Button size="sm" renderIcon={Add} onClick={() => { beginEvidenceAssessment(readerArtifact); setReaderArtifact(null) }}>
+                  Assess evidence
+                </Button>
+              </div>}
+
+              <footer className={styles.sourceDeckFooter}>
+                <span><b>1</b> Highlight evidence</span>
+                <span><b>2</b> Assess evidence</span>
+                <span><b>3</b> Add evidence to board</span>
+              </footer>
             </div>}
           </Modal>
           <Modal open={Boolean(reviewingArtifact)} modalHeading="Assess selected evidence" primaryButtonText={saveResearch.isPending ? 'Saving...' : 'Add evidence'} secondaryButtonText="Cancel" primaryButtonDisabled={saveResearch.isPending || !selectedSnippet || !reviewTakeaway.trim()} onRequestClose={closeSourceReview} onSecondarySubmit={closeSourceReview} onRequestSubmit={saveReviewedArtifact} size="lg">

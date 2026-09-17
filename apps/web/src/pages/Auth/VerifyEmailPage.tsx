@@ -33,18 +33,6 @@ export default function VerifyEmailPage() {
     defaultValues: { email: emailFromRegistration },
   })
 
-  // useEffect(() => {
-  //   if (!token || startedToken.current === token) return
-  //   startedToken.current = token
-  //   confirmVerification(token, {
-  //     onSuccess: () => {
-  //       setConfirmed(true)
-  //       sessionStorage.removeItem('pendingVerificationEmail')
-  //       window.history.replaceState(null, document.title, '/verify-email?confirmed=1')
-  //     },
-  //   })
-  // }, [token, confirmVerification])
-
   useEffect(() => {
     if (!token || startedToken.current === token) return
     startedToken.current = token

@@ -70,6 +70,7 @@ $accent-blue-dark: #0043ce;
   align-items: flex-start;
   gap: $spacing-05;
   margin-bottom: $spacing-04;
+  margin-top: $spacing-04;
 }
 
 .nextActionPanel {
@@ -108,12 +109,11 @@ $accent-blue-dark: #0043ce;
 
 .decisionRail {
   width: 100%;
-  max-width: 20rem;
+  max-width: clamp(20rem, 25vw, 24rem);
   min-width: 0;
   margin-left: auto;
   overflow-x: hidden;
   overflow-y: auto;
-  padding-right: $spacing-02;
 }
 
 .mainWorkspace {
@@ -274,6 +274,7 @@ $accent-blue-dark: #0043ce;
   border: 1px solid $border-subtle;
   border-radius: 6px;
   padding: $spacing-05;
+  max-height: 67vh;
 }
 
 .researchActionsTitle {
@@ -445,7 +446,8 @@ $accent-blue-dark: #0043ce;
   flex: 1 1 0;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+  max-height: 24.4vh;
+  overflow: scroll;
   padding: $spacing-05;
 }
 
@@ -632,13 +634,6 @@ $accent-blue-dark: #0043ce;
   }
 }
 
-.hypothesisStatement {
-  color: $text-primary;
-  font-style: italic;
-  line-height: 1.5;
-  margin: 0 0 $spacing-04;
-}
-
 .hypothesisMetaRow {
   display: flex;
   justify-content: space-between;
@@ -784,8 +779,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .decisionRail {
-    max-height: none;
-    overflow: visible;
+    overflow: scroll;
     margin-top: $spacing-05;
   }
 
@@ -965,7 +959,8 @@ $accent-blue-dark: #0043ce;
 .decisionRail {
   height: 100%;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .researchActions {
@@ -1010,9 +1005,9 @@ $accent-blue-dark: #0043ce;
     display: -webkit-box;
     font-size: 0.6875rem;
     line-height: 1.25;
-    overflow: hidden;
+    overflow-y: auto;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 4;
   }
 }
 
@@ -1028,7 +1023,7 @@ $accent-blue-dark: #0043ce;
 .workspace {
   display: grid;
   gap: $spacing-04;
-  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  grid-template-rows: 41vh auto;
 }
 
 .researchWorkspace,
@@ -1037,12 +1032,13 @@ $accent-blue-dark: #0043ce;
   border: 1px solid $border-subtle;
   border-radius: 6px;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: $spacing-04;
 }
 
 .researchWorkspace {
   display: flex;
+  max-height: 41vh;
   flex-direction: column;
   overflow-y: auto;
 
@@ -1203,7 +1199,7 @@ $accent-blue-dark: #0043ce;
   gap: $spacing-03;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: $spacing-03;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .evidenceBoard {
@@ -1318,9 +1314,12 @@ $accent-blue-dark: #0043ce;
 
 .decisionRail {
   display: grid;
+  max-height: 67vh;
+  min-width: 0;
   gap: $spacing-04;
-  grid-template-rows: minmax(0, 0.4fr) minmax(0, 0.6fr);
-  overflow: hidden;
+  grid-template-rows: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0;
 }
 
@@ -1329,11 +1328,6 @@ $accent-blue-dark: #0043ce;
   min-height: 0;
   overflow: hidden;
   padding: $spacing-04;
-}
-
-.researchGate {
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 .hypothesisWorkspaceHeader {
@@ -1351,16 +1345,21 @@ $accent-blue-dark: #0043ce;
 .hypothesisCard {
   margin-bottom: 0;
   padding: $spacing-03;
+  max-width: 100%;
+  min-height: 8rem;
+  max-height: calc(100% - 3.5rem);
 }
 
 .hypothesisStatement {
-  display: -webkit-box;
+  color: $text-primary;
+  font-style: italic;
   font-size: 0.75rem;
   line-height: 1.35;
-  margin-bottom: $spacing-03;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  margin: 0 0 $spacing-03;
+  max-height: 15vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overflow-wrap: break-word;
 }
 
 .hypothesisMetaRow { font-size: 0.6875rem; }
@@ -1408,10 +1407,9 @@ $accent-blue-dark: #0043ce;
 @media (max-width: 1200px), (max-height: 840px) {
   .page { height: auto; min-height: calc(100vh - 3rem); overflow: visible; }
   .workColumn { height: auto; }
-  .workspace, .researchActions, .decisionRail { height: auto; overflow: visible; }
+  .workspace, .researchActions, .decisionRail { height: auto; overflow-x: hidden; overflow-y: auto; }
   .workspace { grid-template-rows: auto auto; }
   .researchWorkspace, .evidenceBoard, .hypothesisWorkspace, .researchGate { overflow: visible; }
-  .researchGate { overflow-y: auto; overflow-x: hidden; }
 }
 
 @media (max-width: 1055px) {
@@ -1790,7 +1788,7 @@ $accent-blue-dark: #0043ce;
   }
 
   .workspace {
-    grid-template-rows: minmax(0, 1.12fr) minmax(0, 0.88fr);
+    grid-template-rows: 41vh auto;
   }
 
   .researchWorkspace,
@@ -1870,6 +1868,7 @@ $accent-blue-dark: #0043ce;
   .hypothesisWorkspace,
   .researchGate {
     padding: $spacing-03;
+    min-width: 0;
   }
 
   .hypothesisEmpty {
@@ -1898,7 +1897,7 @@ $accent-blue-dark: #0043ce;
   border: 1px solid #c6d7f5;
   border-radius: 8px;
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 35vh;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
@@ -1934,7 +1933,7 @@ $accent-blue-dark: #0043ce;
 }
 
 .sourceDeckContent {
-  flex: 1 1 auto;
+  flex: 0 0 20rem;
   min-height: 0;
   overflow-y: auto;
   padding: $spacing-04;
@@ -2101,17 +2100,36 @@ $accent-blue-dark: #0043ce;
 
 .sourceDeckFooter {
   align-items: center;
-  background: #edf5ff;
-  border-top: 1px solid #c6d7f5;
-  color: $accent-blue-dark;
-  display: grid;
-  font-size: 0.75rem;
-  gap: $spacing-04;
-  grid-template-columns: repeat(3, 1fr);
-  padding: $spacing-03 $spacing-05;
+  background: $layer-white;
+  display: flex;
+  flex-shrink: 0;
+  gap: $spacing-06;
+  justify-content: center;
+  margin-top: $spacing-03;
+  min-height: 3rem;
+  position: relative;
+  z-index: 2;
 
-  span { align-items: center; display: flex; gap: $spacing-02; }
-  b { align-items: center; background: $accent-blue; border-radius: 50%; color: #fff; display: inline-flex; font-size: 0.6875rem; height: 1.25rem; justify-content: center; width: 1.25rem; }
+  span {
+    align-items: center;
+    color: $text-secondary;
+    display: flex;
+    font-size: 0.75rem;
+    gap: $spacing-02;
+  }
+
+  b {
+    align-items: center;
+    background: $layer-white;
+    border: 1px solid $border-subtle;
+    border-radius: 50%;
+    color: $text-primary;
+    display: inline-flex;
+    font-size: 0.6875rem;
+    height: 1.5rem;
+    justify-content: center;
+    width: 1.5rem;
+  }
 }
 
 .newspaperTemplate { border-top-color: #393939; }
@@ -2276,14 +2294,25 @@ $accent-blue-dark: #0043ce;
   max-inline-size: min(92vw, 84rem) !important;
 }
 
+.readerModal :global(.cds--modal-footer) {
+  display: none;
+}
+
 .readerModalBody {
   background: #f4f4f4;
   display: flex;
   flex-direction: column;
   height: min(70vh, 48rem);
   min-height: 32rem;
+  overflow: hidden;
   padding: $spacing-05;
   position: relative;
+}
+
+.readerModal {
+  :global(.cds--modal-scroll-content) {
+    background-image: none !important;
+  }
 }
 
 .readerNavigator {
@@ -2305,7 +2334,6 @@ $accent-blue-dark: #0043ce;
   min-height: 0;
   overflow-y: auto;
   padding: clamp(1.5rem, 3vw, 3rem);
-  padding-bottom: 6rem;
 }
 
 .readerModalBody .newspaperTemplate {
@@ -2385,24 +2413,26 @@ $accent-blue-dark: #0043ce;
   align-items: center;
   background: #f6f2ff;
   border: 1px solid #a56eff;
-  bottom: $spacing-06;
   box-shadow: 0 4px 14px rgba(22, 22, 22, 0.16);
   display: flex;
+  flex-shrink: 0;
   gap: $spacing-03;
   justify-content: space-between;
-  left: $spacing-06;
+  margin-top: $spacing-03;
   padding: $spacing-03 $spacing-04;
-  position: absolute;
-  right: $spacing-06;
 
   > div { align-items: center; display: flex; gap: $spacing-03; min-width: 0; }
   span { color: $text-secondary; display: block; font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   :global(.cds--btn) { flex-shrink: 0; min-height: 2.25rem; }
 }
 
+.readerModal :global(.cds--modal-footer) {
+  min-height: 3.5rem;
+}
+
 @media (min-width: 1056px) {
-  .researchWorkspace { overflow: hidden; }
-  .workspace { grid-template-rows: minmax(0, 1.38fr) minmax(0, 0.62fr); }
+  .researchWorkspace { overflow: visible; }
+  .workspace { grid-template-rows: 41vh auto; }
   .sourceDocument { padding: $spacing-05; }
   .sourceDocumentHeader { margin-bottom: $spacing-04; padding-bottom: $spacing-03; }
   .sourceDocumentHeader h3 { font-size: 1.3rem; }
@@ -2435,4 +2465,3 @@ $accent-blue-dark: #0043ce;
   .readerSelectionToolbar { bottom: $spacing-04; left: $spacing-04; right: $spacing-04; }
   .readerSelectionToolbar span { max-width: 9rem; }
 }
-

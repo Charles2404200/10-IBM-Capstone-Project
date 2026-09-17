@@ -78,11 +78,12 @@ function BehaviourFeedback({ feedback }: { feedback: MeetingBehaviourFeedback })
         </div>
       </div>
       <p>{feedback.explanation}</p>
-      {feedback.verifiedBehaviours.length > 0 && (
-        <div className={styles.behaviourTags}>
-          {feedback.verifiedBehaviours.map((behaviour) => <Tag key={behaviour} type="blue">{behaviour.replaceAll('_', ' ')}</Tag>)}
-        </div>
-      )}
+      <div className={styles.behaviourTags}>
+        {feedback.verifiedBehaviours.map((behaviour) => {
+          const label = behaviour.replaceAll('_', ' '); 
+          return <Tag key={behaviour} type="blue">{label.charAt(0).toUpperCase() + label.slice(1)}</Tag>;
+        })}
+      </div>
       <div className={styles.behaviourNextAction}>
         <strong>Next best action</strong>
         <span>{feedback.nextBestAction}</span>
@@ -102,18 +103,18 @@ function MeetingIntelligence({
 }) {
   return (
     <Tile className={styles.liveIntelligencePanel}>
-      {disclosedFacts.length > 0 && (
-        <section className={styles.validatedFacts}>
-          <p className={styles.eyebrow}>Validated during meeting</p>
-          <h3>Facts disclosed</h3>
-          <ul>{disclosedFacts.map((fact) => <li key={fact}>{fact.replace(/_/g, ' ')}</li>)}</ul>
-        </section>
-      )}
       {readyToClose && (
         <section className={styles.readyToClosePanel}>
           <p className={styles.eyebrow}>Client readiness</p>
           <h3>Ready to conclude</h3>
           <p>The client has enough confidence to move forward. Confirm the agreed next step; the next client response will close the meeting automatically.</p>
+        </section>
+      )}
+      {disclosedFacts.length > 0 && (
+        <section className={styles.validatedFacts}>
+          <p className={styles.eyebrow}>Validated during meeting</p>
+          <h3>Facts disclosed</h3>
+          <ul>{disclosedFacts.map((fact) => <li key={fact}>{fact.replace(/_/g, ' ')}</li>)}</ul>
         </section>
       )}
       {feedback && <BehaviourFeedback feedback={feedback} />}
@@ -253,20 +254,12 @@ export default function LiveMeetingPage() {
   return (
     <ObjectiveTourProvider tourId="live-meeting" objectives={LIVE_MEETING_OBJECTIVES}>
     <div className={`${styles.page} ${isCompleted ? styles.completedPage : ''}`}>
-      <Grid fullWidth className={styles.headerGrid}>
-        <Column lg={16} md={8} sm={4}>
+      <Grid fullWidth narrow className={styles.headerGrid}>
+        <Column lg={11} md={8} sm={4}>
           <div className={styles.pageHeader}>
             <div>
-              <p className={styles.eyebrow}>Live discovery</p>
               <Heading>Live Client Meeting</Heading>
             </div>
-          </div>
-        </Column>
-      </Grid>
-
-      <Grid fullWidth className={styles.workspaceGrid}>
-        <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
-          <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
             {!isCompleted && hint.length > 0 && (
               <div className={styles.meetingHint}>
                 <Button
@@ -289,8 +282,15 @@ export default function LiveMeetingPage() {
                 )}
               </div>
             )}
-            <div className={styles.transcriptViewport} ref={transcriptRef}>
-              {turns.length === 0 && <p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>}
+          </div>
+        </Column>
+      </Grid>
+
+      <Grid fullWidth narrow className={styles.workspaceGrid}>
+        <Column lg={11} md={8} sm={4} className={styles.conversationColumn}>
+          <section className={`${styles.conversationPanel} objective-meeting-view`} aria-label="Live client conversation">
+            <div className={`${styles.transcriptViewport} ${turns.length === 0 && !pendingMessage && !streamingText ? styles.emptyTranscriptViewport : ''}`} ref={transcriptRef} >
+              {turns.length === 0 && !pendingMessage && (<p className={styles.emptyTranscript}>Begin with a focused discovery question.</p>)}
               {turns.map((turn) => <TurnBubble key={turn.id} turn={turn} />)}
               {pendingMessage && !pendingIsPersisted && (
                 <TurnBubble turn={{ id: 'pending-learner', meetingId: meetingId!, actor: 'LEARNER', content: pendingMessage, sequence: -1, signals: null, createdAt: new Date().toISOString() }} />

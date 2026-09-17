@@ -4,8 +4,10 @@
 
 .page { min-height: 100%; padding: 0 0 $spacing-07; background: $background; }
 .headerGrid, .workspaceGrid { max-width: 96rem; margin: 0 auto; }
+.headerGrid { position: relative; z-index: 10; }
 .workspaceGrid { margin-top: $spacing-06; }
-.pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: flex-start; gap: $spacing-05; }
+.pageHeader, .railHeading, .debriefHeading { display: flex; justify-content: space-between; align-items: center; gap: $spacing-05; }
+.pageHeader { position: relative; }
 .eyebrow { @include type-style('label-01'); color: $text-secondary; text-transform: uppercase; margin: 0 0 $spacing-02; }
 
 .conversationPanel { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(42rem, calc(100vh - 14rem)); min-height: 0; overflow: hidden; border: 1px solid $border-subtle; background: $layer-01; }
@@ -20,7 +22,8 @@
   &::-webkit-scrollbar-thumb { background: #a8a8a8; border-radius: 999px; }
   &::-webkit-scrollbar-track { background: transparent; }
 }
-.emptyTranscript { color: $text-secondary; text-align: center; margin: $spacing-10 0; }
+.emptyTranscriptViewport { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.emptyTranscript { color: $text-secondary; text-align: center; margin: 0; }
 .learnerTurn, .personaTurn { display: flex; margin-bottom: $spacing-04; }
 .learnerTurn { justify-content: flex-end; }
 .personaTurn { justify-content: flex-start; }
@@ -29,7 +32,7 @@
 .learnerBubble { background: $interactive; color: $text-on-color; }
 .personaBubble { background: $layer-accent-01; color: $text-primary; border-left: 3px solid $border-strong-01; }
 .streamingBubble { border-left-color: $interactive; }
-.meetingHint { position: absolute; top: $spacing-03; right: $spacing-03; z-index: 3; animation: hint-nudge 2.8s ease-in-out infinite; }
+.meetingHint { position: relative; margin-top: $spacing-05; animation: hint-nudge 2.8s ease-in-out infinite; }
 .hintTrigger {
   min-height: 2.5rem !important;
   padding-inline: $spacing-04 !important;
@@ -42,7 +45,7 @@
   &:hover, &:focus-visible { background: #ffe69a !important; border-color: #b28600 !important; color: #4d3500 !important; }
   :global(svg) { color: #8a6100; }
 }
-.hintPopover { position: absolute; top: calc(100% + $spacing-02); right: 0; width: min(19rem, calc(100vw - 3rem)); padding: $spacing-04; border: 1px solid #f1c21b; border-top: 4px solid #f1c21b; background: #fffaf0; box-shadow: 0 6px 16px rgb(141 98 0 / 22%); }
+.hintPopover { position: absolute; top: calc(100% + $spacing-02); right: 0; z-index: 1000; width: min(19rem, calc(100vw - 3rem)); padding: $spacing-04; border: 1px solid #f1c21b; border-top: 4px solid #f1c21b; background: #fffaf0; box-shadow: 0 6px 16px rgb(141 98 0 / 22%); }
 .hintPopover > p:last-child { margin: 0; color: $text-primary; line-height: 1.4; @include type-style('body-compact-01'); }
 @keyframes hint-nudge { 0%, 76%, 100% { transform: translateY(0); } 84% { transform: translateY(-3px); } 92% { transform: translateY(0); } }
 .composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: $spacing-03; padding: $spacing-04; border-top: 1px solid $border-subtle; }
@@ -81,21 +84,21 @@
 
 .liveIntelligencePanel { min-height: 0; padding: $spacing-05; border: 1px solid $border-subtle; background: $layer-01; }
 .validatedFacts h3, .readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0; }
-.validatedFacts ul { display: grid; gap: $spacing-02; margin: $spacing-03 0 0; padding-left: $spacing-05; }
-.validatedFacts li { color: $text-primary; text-transform: capitalize; @include type-style('body-compact-01'); }
-.readyToClosePanel { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 3px solid $support-success; }
-.readyToClosePanel h3 { margin-bottom: $spacing-03; }
-.readyToClosePanel p:last-child { margin: 0; color: $text-secondary; }
+.validatedFacts { border-left: 3px solid $support-success; padding-left: $spacing-03; }
+.validatedFacts ul { display: grid; gap: $spacing-02; margin: $spacing-03 0 0; padding-left: 0; }
+.validatedFacts li { color: $text-primary; @include type-style('body-compact-01'); }
+.readyToClosePanel { margin-top: $spacing-04; padding-right: $spacing-03; border-left: 3px solid $support-success; padding-left: $spacing-03; }
+.readyToClosePanel h3 { @include type-style('heading-compact-02'); margin: 0; }
+.readyToClosePanel p:last-child { margin: $spacing-03 0 0; color: $text-secondary; @include type-style('body-compact-01'); line-height: 1.45; }
 
-.behaviourPanel { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 1px solid $border-subtle; }
+.behaviourPanel, .validatedFacts { margin-top: $spacing-04; padding-top: $spacing-04; border-top: 1px solid $border-subtle; }
 .behaviourPositive { border-left: 3px solid $support-success; padding-left: $spacing-03; }
 .behaviourRecovery { border-left: 3px solid $support-warning; padding-left: $spacing-03; }
 .behaviourHeading { display: flex; justify-content: space-between; gap: $spacing-03; align-items: flex-start; }
-.behaviourHeading h3 { @include type-style('heading-compact-02'); margin: 0; text-transform: capitalize; }
+.behaviourHeading h3 { @include type-style('heading-compact-02'); margin: 0; text-transform: capitalize; white-space: nowrap; flex-shrink: 0; }
 .behaviourDeltas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: $spacing-02; }
 .behaviourDeltas span { @include type-style('label-01'); color: $text-secondary; white-space: nowrap; }
-.behaviourPanel > p:not(.eyebrow) { margin: $spacing-03 0; color: $text-secondary; @include type-style('body-compact-01'); line-height: 1.45; }
-.behaviourTags { display: flex; flex-wrap: wrap; gap: $spacing-02; margin: $spacing-03 0; }
+.behaviourPanel > p:not(.eyebrow) { margin: $spacing-03 0; color: $text-secondary; @include type-style('body-compact-01'); line-height: 1.45; }.behaviourTags { display: flex; flex-wrap: wrap; gap: $spacing-02; margin: $spacing-03 0; }
 .behaviourNextAction { display: grid; gap: $spacing-02; padding-top: $spacing-03; border-top: 1px solid $border-subtle; @include type-style('body-compact-01'); }
 .behaviourNextAction strong { @include type-style('label-01'); color: $text-primary; }
 .behaviourNextAction span { color: $text-secondary; }
@@ -103,8 +106,8 @@
 .passedDebrief, .failedDebrief { margin-top: $spacing-05; padding: $spacing-06; border: 1px solid $border-subtle; }
 .passedDebrief { border-left: 4px solid $support-success; }.failedDebrief { border-left: 4px solid $support-error; }
 .debriefFeedback { color: $text-primary; line-height: 1.5; margin: 0; }
-.terminationGuidance { margin: 0; padding-left: $spacing-05; }
-.terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; }
+.terminationGuidance { margin: $spacing-03 0 0; padding-left: $spacing-05; }
+.terminationGuidance li { margin-bottom: $spacing-03; color: $text-primary; @include type-style('body-compact-01'); line-height: 1.45; }
 
 /* On a desktop engagement workspace the browser must not become a second
    conversation viewport. The transcript is the only unbounded content, so it
@@ -144,6 +147,7 @@
 
   .pageHeader h1 {
     @include type-style('heading-04');
+    margin-top: 1.5rem; 
   }
 
   .conversationColumn {
@@ -244,9 +248,9 @@
 
   .debriefFeedback {
     display: -webkit-box;
-    overflow: hidden;
+    overflow: scroll;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
   }
 
   .debriefTips {
@@ -254,7 +258,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: $spacing-02 $spacing-05;
     margin: $spacing-03 0 0;
-    padding-left: 0;
+    padding-left: $spacing-04;
   }
 
   .debriefTips li {
@@ -303,10 +307,10 @@
 
   .behaviourPanel > p:not(.eyebrow) {
     display: -webkit-box;
-    overflow: hidden;
+    overflow: auto;
     margin: $spacing-02 0;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 4;
   }
 
   .behaviourTags {
