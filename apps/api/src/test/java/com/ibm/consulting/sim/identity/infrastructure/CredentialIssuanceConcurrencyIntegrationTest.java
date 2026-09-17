@@ -8,6 +8,7 @@ import com.ibm.consulting.sim.identity.domain.User;
 import com.ibm.consulting.sim.identity.domain.UserRepository;
 import com.ibm.consulting.sim.identity.domain.UserRole;
 import com.ibm.consulting.sim.shared.email.application.TransactionalEmailPublisher;
+import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
 import com.ibm.consulting.sim.shared.email.template.TransactionalEmailTemplates;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -93,6 +97,34 @@ class CredentialIssuanceConcurrencyIntegrationTest {
 
         assertThat(countRows("EmailVerificationToken", user.getId())).isEqualTo(1);
         verify(publisher, times(1)).publish(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void emailPublicationFailureRollsBackPasswordResetCredentialIssuance() {
+        User user = inTransaction(() -> persistUser(true));
+        long tokenCountBeforeRequest = countRows("PasswordResetToken", user.getId());
+        TransactionalEmailPublisher publisher = mock(TransactionalEmailPublisher.class);
+        doThrow(new EmailDeliveryUnavailableException("Transactional email is unavailable"))
+                .when(publisher).publish(any());
+        PasswordResetService service = new PasswordResetService(
+                userRepository, passwordResetTokens, new CredentialTokenService(),
+                mock(PasswordEncoder.class), publisher, new TransactionalEmailTemplates(), properties());
+
+        assertThatThrownBy(() -> inTransaction(() -> {
+            service.request(user.getEmail());
+            return null;
+        })).isInstanceOf(EmailDeliveryUnavailableException.class);
+
+        long tokenCountAfterFailure = inTransaction(() -> {
+            entityManager.clear();
+            return entityManager.createQuery("""
+                            select count(token) from PasswordResetToken token
+                            where token.userId = :userId
+                            """, Long.class)
+                    .setParameter("userId", user.getId())
+                    .getSingleResult();
+        });
+        assertThat(tokenCountAfterFailure).isEqualTo(tokenCountBeforeRequest);
     }
 
     private UserRepository gateEmailReads(UserRepository delegate, CountDownLatch readsReached) {
