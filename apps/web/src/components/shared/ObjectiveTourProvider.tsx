@@ -9,36 +9,43 @@ interface Objective {
   targets: string[]
 }
 
-interface Props {
-  /** Identifies this walkthrough in a learner's saved progress. */
+interface ObjectiveTour {
   tourId: string
   objectives: Objective[]
+}
+
+interface Props {
+  tours: ObjectiveTour[]
   children: ReactNode
 }
 
-export default function ObjectiveTourProvider({ tourId, objectives, children }: Props) {
+export default function ObjectiveTourProvider({ tours, children }: Props) {
   // Converts each objective into a Reactour step
-  const steps: StepType[] = objectives.map((objective) => ({
-    selector: objective.targets[0],
-    highlightedSelectors: objective.targets,
-    content: (
-      <div>
-        <strong>{objective.objective}</strong>
-        <p style={{ marginTop: '0.75rem' }}>
-          {objective.description}
-        </p>
-      </div>
-    ),
-  }))
+  const stepsByTour = tours.reduce<Record<string, StepType[]>>((acc, tour) => {
+    acc[tour.tourId] = tour.objectives.map((objective) => ({
+      selector: objective.targets[0],
+      highlightedSelectors: objective.targets,
+      content: (
+        <div>
+          <strong>{objective.objective}</strong>
+          <p style={{ marginTop: '0.75rem' }}>
+            {objective.description}
+          </p>
+        </div>
+      ),
+    }))
+
+    return acc
+  }, {})
 
   return (
-    <TourProvider steps={steps} showNavigation showPrevNextButtons showDots showCloseButton scrollSmooth
+    <TourProvider steps={[]} showNavigation showPrevNextButtons showDots showCloseButton scrollSmooth
       styles={{
         popover: (base) => ({ ...base, borderRadius: 0, maxWidth: 360 }),
         maskArea: (base) => ({ ...base, rx: 4 }),
       }}
     >
-      <ObjectiveGuide tourId={tourId} />
+      <ObjectiveGuide tours={tours} stepsByTour={stepsByTour} />
       {children}
     </TourProvider>
   )
