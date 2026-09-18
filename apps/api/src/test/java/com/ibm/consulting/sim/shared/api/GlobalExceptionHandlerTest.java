@@ -64,7 +64,9 @@ class GlobalExceptionHandlerTest {
         assertEquals(
                 "https://consulting-sim.ibm.com/problems/malformed-request",
                 problem.getType().toString());
-        assertEquals("Request value 'eventId' is invalid.", problem.getDetail());
+        assertEquals(
+                "A request parameter or path value has an invalid format.",
+                problem.getDetail());
     }
 
     @Test
@@ -74,7 +76,9 @@ class GlobalExceptionHandlerTest {
         var problem = handler.handleMissingRequestParameter(exception);
 
         assertEquals(HttpStatus.BAD_REQUEST.value(), problem.getStatus());
-        assertEquals("Required request parameter 'engagementIdA' is missing.", problem.getDetail());
+        assertEquals(
+                "A request parameter or path value has an invalid format.",
+                problem.getDetail());
     }
 
     @Test

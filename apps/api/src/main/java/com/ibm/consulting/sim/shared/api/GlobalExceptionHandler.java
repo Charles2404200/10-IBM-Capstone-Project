@@ -194,13 +194,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         return problem(HttpStatus.BAD_REQUEST, "malformed-request",
-                "Request value '" + ex.getName() + "' is invalid.");
+                "A request parameter or path value has an invalid format.");
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
     ProblemDetail handleMissingRequestParameter(MissingServletRequestParameterException ex) {
         return problem(HttpStatus.BAD_REQUEST, "malformed-request",
-                "Required request parameter '" + ex.getParameterName() + "' is missing.");
+                "A request parameter or path value has an invalid format.");
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
