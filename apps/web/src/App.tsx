@@ -3,7 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import AppShell from '@/components/layout/AppShell'
 import LoadingState from '@/components/shared/LoadingState'
+import { NotificationRealtimeProvider } from '@/api/hooks/useNotification'
 
+const NotifyUsersPage = lazy(() => import('@/pages/Admin/NotifyUsersPage'))
 const LandingPage = lazy(() => import('@/pages/Landing/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/Auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/Auth/RegisterPage'))
@@ -24,6 +26,7 @@ const AchievementBuilderPage = lazy(() => import('@/pages/Admin/AchievementBuild
 const AdminConsolePage = lazy(() => import('@/pages/Admin/AdminConsolePage'))
 const UserManagementPage = lazy(() => import('@/pages/Admin/UserManagementPage'))
 const AiOperationsPage = lazy(() => import('@/pages/Admin/AiOperationsPage'))
+const NotificationCentrePage = lazy(() => import('@/pages/Notifications/NotificationCentrePage'))
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated())
@@ -89,7 +92,9 @@ export default function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <AppShell />
+              <NotificationRealtimeProvider>
+                <AppShell />
+              </NotificationRealtimeProvider>
             </ProtectedRoute>
           }
         >
@@ -102,9 +107,18 @@ export default function App() {
           <Route path="engagements/:engagementId/proposal" element={<ProposalStudioPage />} />
           <Route path="engagements/:engagementId/assessment" element={<AssessmentReviewPage />} />
           <Route path="portfolio" element={<PortfolioPage />} />
+          <Route path="notifications" element={<NotificationCentrePage />} />
           <Route
             path="admin"
             element={<RequireRole roles={['SCENARIO_AUTHOR', 'REVIEWER', 'ADMINISTRATOR']}><AdminConsolePage /></RequireRole>}
+          />
+          <Route
+          path="admin/notify"
+          element={
+            <RequireRole roles={['ADMINISTRATOR']}>
+              <NotifyUsersPage/>
+            </RequireRole>
+          }
           />
           <Route
             path="admin/scenarios"

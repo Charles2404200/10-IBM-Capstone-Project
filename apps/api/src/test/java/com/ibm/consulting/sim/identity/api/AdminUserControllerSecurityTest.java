@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -160,6 +161,26 @@ class AdminUserControllerSecurityTest {
 
         verifyNoInteractions(adminUserService);
     }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRATOR")
+    void administratorCannotCreateUserWithBlankAccountFields() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/users")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "email": " ",
+                                  "displayName": " ",
+                                  "role": "LEARNER"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.violations.email").exists())
+                .andExpect(jsonPath("$.violations.displayName").exists());
+
+        verifyNoInteractions(adminUserService);
+    }
+
 
     private record RoleBody(UserRole role) {}
     private record CreateUserBody(

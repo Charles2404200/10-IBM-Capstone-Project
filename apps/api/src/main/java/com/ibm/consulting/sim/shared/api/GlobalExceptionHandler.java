@@ -2,14 +2,15 @@ package com.ibm.consulting.sim.shared.api;
 
 import com.ibm.consulting.sim.shared.domain.DomainException;
 import com.ibm.consulting.sim.shared.domain.NotFoundException;
+import com.ibm.consulting.sim.admin.application.InvalidNotificationQueryException;
 import com.ibm.consulting.sim.identity.domain.EmailVerificationRequiredException;
 import com.ibm.consulting.sim.identity.application.LoginRateLimitExceededException;
 import com.ibm.consulting.sim.shared.email.application.EmailDeliveryUnavailableException;
-import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,28 +85,15 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "validation-error", "Request validation failed");
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
-    ProblemDetail handleInvalidRequestParameter(Exception ex) {
-        return problem(HttpStatus.BAD_REQUEST, "malformed-request",
-                "A request parameter or path value has an invalid format.");
-    }
-
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail handleUnreadableRequest(HttpMessageNotReadableException ex) {
         return problem(HttpStatus.BAD_REQUEST, "malformed-request",
                 "Request body must be valid JSON matching the expected format.");
     }
 
-    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    ResponseEntity<ProblemDetail> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
-        ProblemDetail detail = problem(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed",
-                "The requested HTTP method is not supported for this endpoint.");
-        HttpMethod[] supportedMethods = ex.getSupportedHttpMethods() == null
-                ? new HttpMethod[0]
-                : ex.getSupportedHttpMethods().toArray(HttpMethod[]::new);
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                .allow(supportedMethods)
-                .body(detail);
+    @ExceptionHandler(InvalidNotificationQueryException.class)
+    ProblemDetail handleInvalidNotificationQuery(InvalidNotificationQueryException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "invalid-notification-query", ex.getMessage());
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
@@ -173,6 +162,11 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.FORBIDDEN, "forbidden", "Access denied");
     }
 
+    @ExceptionHandler(NoResourceFoundException.class)
+    ProblemDetail handleNoResourceFound(NoResourceFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "not-found", "The requested endpoint does not exist");
+    }
+
     @ExceptionHandler(Exception.class)
     ProblemDetail handleGeneric(Exception ex) {
         // Unexpected server-side failures must never be swallowed silently —
@@ -196,4 +190,28 @@ public class GlobalExceptionHandler {
         }
         return field != null ? field : path.toString();
     }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "malformed-request",
+                "A request parameter or path value has an invalid format.");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ProblemDetail handleMissingRequestParameter(MissingServletRequestParameterException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "malformed-request",
+                "A request parameter or path value has an invalid format.");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ProblemDetail> handleUnsupportedMethod(HttpRequestMethodNotSupportedException ex) {
+        ProblemDetail body = problem(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed",
+                "The requested HTTP method is not supported for this endpoint.");
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED);
+        if (ex.getSupportedHttpMethods() != null) {
+            response.allow(ex.getSupportedHttpMethods().toArray(HttpMethod[]::new));
+        }
+        return response.body(body);
+    }
+
 }

@@ -33,6 +33,7 @@ interface SpringDataUserRepository extends JpaRepository<User, UUID>, JpaSpecifi
     @Query("select user from User user where user.id = :id")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
     boolean existsByEmail(String email);
+    List<User> findByActiveTrueAndRole(UserRole role);
     long countByRoleAndActive(UserRole role, boolean active);
 }
 
@@ -83,5 +84,8 @@ class JpaUserRepository implements UserRepository {
                     ? criteriaBuilder.conjunction()
                     : criteriaBuilder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+    @Override public List<User> findAllActiveByRole(UserRole role) {
+        return repo.findByActiveTrueAndRole(role);
     }
 }

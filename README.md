@@ -43,6 +43,15 @@ Supabase Postgres, so no local Postgres container is started.
 `redis` / `kafka` are scaffolded for future phases and are **not** started
 by default; run `docker compose --profile extended up -d` if you need them.
 
+The current Kafka/notification implementation, APIs, data contracts, environment
+variables, role WebSockets, outbox status, terminal tests, and known blockers are
+documented for maintainers and AI handoff in
+[`docs/architecture/NOTIFICATION_PIPELINE.md`](docs/architecture/NOTIFICATION_PIPELINE.md).
+
+The AI package, provider routing, validation/repair flow, quotas, circuit breakers,
+configuration, and extension steps are documented in
+[`docs/ai/README.md`](docs/ai/README.md).
+
 ### Observability
 
 The API emits structured JSON logs to stdout and Prometheus metrics from a

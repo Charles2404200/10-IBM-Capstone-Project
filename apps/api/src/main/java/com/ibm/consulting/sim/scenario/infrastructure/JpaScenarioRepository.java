@@ -25,6 +25,7 @@ import java.util.UUID;
 @Repository
 interface SpringDataScenarioRepository extends JpaRepository<Scenario, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Scenario> {
     List<Scenario> findByStatus(ScenarioStatus status);
+
     List<Scenario> findByScenarioLineageIdAndStatus(UUID scenarioLineageId, ScenarioStatus status);
     Optional<Scenario> findByIdAndStatus(UUID id, ScenarioStatus status);
 

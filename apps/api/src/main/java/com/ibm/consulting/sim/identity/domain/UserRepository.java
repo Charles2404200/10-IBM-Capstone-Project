@@ -17,4 +17,17 @@ public interface UserRepository {
     List<User> findAll();
     UserDirectoryPage findDirectory(UserDirectoryQuery query);
     void delete(User user);
+    /**
+     * Returns active users for the requested role.
+     *
+     * <p>The default keeps existing repository adapters source-compatible. Database-backed
+     * adapters should override this method with a filtered query so production reads remain
+     * bounded to the matching users.
+     */
+    default List<User> findAllActiveByRole(UserRole role) {
+        return findAll().stream()
+                .filter(User::isActive)
+                .filter(user -> user.getRole() == role)
+                .toList();
+    }
 }
